@@ -265,26 +265,33 @@ namespace Ogre
 					node->line = token->line;
 					node->type = CNT_COLON;
 
-					// The next token is the parent object
-					++i;
-					if(i == end || ((*i)->type != TID_WORD && (*i)->type != TID_QUOTE))
+					// The following token are the parent objects (base classes).
+                    // Require at least one of them.
+
+					ScriptTokenList::iterator j = i + 1;
+					j = skipNewlines(j, end);
+					if(j == end || ((*j)->type != TID_WORD && (*j)->type != TID_QUOTE)) {
 						OGRE_EXCEPT(Exception::ERR_INVALID_STATE, 
 							Ogre::String("expected object identifier at line ") + 
-								Ogre::StringConverter::toString(node->line),
+                                    Ogre::StringConverter::toString(node->line),
 							"ScriptParser::parse");
-					ConcreteNodePtr temp = ConcreteNodePtr(OGRE_NEW ConcreteNode());
-					temp->parent = node.get();
-					temp->file = (*i)->file;
-					temp->line = (*i)->line;
-					temp->type = (*i)->type == TID_WORD ? CNT_WORD : CNT_QUOTE;
-					if(temp->type == CNT_QUOTE)
-						temp->token = (*i)->lexeme.substr(1, (*i)->lexeme.size() - 2);
-					else
-						temp->token = (*i)->lexeme;
-					node->children.push_back(temp);
+                    }
 
-					// Consume all the newlines
-					i = skipNewlines(i, end);
+					while(j != end && ((*j)->type == TID_WORD || (*j)->type == TID_QUOTE))
+					{
+						ConcreteNodePtr tempNode = ConcreteNodePtr(OGRE_NEW ConcreteNode());
+						tempNode->token = (*j)->lexeme;
+						tempNode->file = (*j)->file;
+						tempNode->line = (*j)->line;
+						tempNode->type = (*j)->type == TID_WORD ? CNT_WORD : CNT_QUOTE;
+						tempNode->parent = node.get();
+						node->children.push_back(tempNode);
+						++j;
+					}
+
+					// Move it backwards once, since the end of the loop moves it forwards again anyway
+					j--;
+					i = j;
 
 					// Insert the node
 					if(parent)

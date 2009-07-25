@@ -56,7 +56,7 @@ namespace Ogre {
 
 	FreeImageCodec::RegisteredCodecList FreeImageCodec::msCodecList;
 	//---------------------------------------------------------------------
-	void FreeImageErrorHandler(FREE_IMAGE_FORMAT fif, const char *message) 
+	void FreeImageLoadErrorHandler(FREE_IMAGE_FORMAT fif, const char *message) 
 	{
 		// Callback method as required by FreeImage to report problems
 		const char* typeName = FreeImage_GetFormatFromFIF(fif);
@@ -72,6 +72,13 @@ namespace Ogre {
 				<< "FreeImage error: '" << message << "'";
 		}
 
+	}
+	//---------------------------------------------------------------------
+	void FreeImageSaveErrorHandler(FREE_IMAGE_FORMAT fif, const char *message) 
+	{
+		// Callback method as required by FreeImage to report problems
+		OGRE_EXCEPT(Exception::ERR_CANNOT_WRITE_TO_FILE, 
+					message, "FreeImageCodec::save")
 	}
 	//---------------------------------------------------------------------
 	void FreeImageCodec::startup(void)
@@ -119,7 +126,7 @@ namespace Ogre {
 			strExt.str());
 
 		// Set error handler
-		FreeImage_SetOutputMessage(FreeImageErrorHandler);
+		FreeImage_SetOutputMessage(FreeImageLoadErrorHandler);
 
 
 
@@ -148,6 +155,9 @@ namespace Ogre {
 	//---------------------------------------------------------------------
 	FIBITMAP* FreeImageCodec::encode(MemoryDataStreamPtr& input, CodecDataPtr& pData) const
 	{
+		// Set error handler
+		FreeImage_SetOutputMessage(FreeImageSaveErrorHandler);
+
 		FIBITMAP* ret = 0;
 
 		ImageData* pImgData = static_cast< ImageData * >( pData.getPointer() );
@@ -261,6 +271,44 @@ namespace Ogre {
 			case PF_BYTE_BGRA:
 				requiredFormat = PF_BYTE_BGR;
 				break;
+            case PF_L8:
+            case PF_L16:
+            case PF_UNKNOWN:
+            case PF_BYTE_A:
+            case PF_A4L4:
+            case PF_BYTE_LA:
+            case PF_R5G6B5:
+            case PF_B5G6R5:
+            case PF_R3G3B2:
+            case PF_A4R4G4B4:
+            case PF_A1R5G5B5:
+            case PF_B8G8R8A8:
+            case PF_R8G8B8A8:
+            case PF_X8B8G8R8:
+            case PF_X8R8G8B8:
+            case PF_BYTE_BGR:
+            case PF_BYTE_RGB:
+            case PF_A2B10G10R10:
+            case PF_A2R10G10B10:
+            case PF_DXT1:
+            case PF_DXT2:
+            case PF_DXT3:
+            case PF_DXT4:
+            case PF_DXT5:
+            case PF_FLOAT16_R:
+            case PF_FLOAT16_RGB:
+            case PF_FLOAT16_RGBA:
+            case PF_FLOAT32_R:
+            case PF_FLOAT32_RGB:
+            case PF_FLOAT32_RGBA:
+            case PF_FLOAT16_GR:
+            case PF_FLOAT32_GR:
+            case PF_DEPTH:
+            case PF_SHORT_RGBA:
+            case PF_SHORT_GR:
+            case PF_SHORT_RGB:
+            case PF_COUNT:
+                break;
 			};
 
 		}
@@ -345,6 +393,9 @@ namespace Ogre {
     //---------------------------------------------------------------------
     DataStreamPtr FreeImageCodec::code(MemoryDataStreamPtr& input, Codec::CodecDataPtr& pData) const
     {        
+		// Set error handler
+		FreeImage_SetOutputMessage(FreeImageSaveErrorHandler);
+
 		FIBITMAP* fiBitmap = encode(input, pData);
 
 		// open memory chunk allocated by FreeImage
@@ -374,6 +425,9 @@ namespace Ogre {
     void FreeImageCodec::codeToFile(MemoryDataStreamPtr& input, 
         const String& outFileName, Codec::CodecDataPtr& pData) const
     {
+		// Set error handler
+		FreeImage_SetOutputMessage(FreeImageSaveErrorHandler);
+
 		FIBITMAP* fiBitmap = encode(input, pData);
 
 		FreeImage_Save((FREE_IMAGE_FORMAT)mFreeImageType, fiBitmap, outFileName.c_str());
@@ -384,6 +438,9 @@ namespace Ogre {
     //---------------------------------------------------------------------
     Codec::DecodeResult FreeImageCodec::decode(DataStreamPtr& input) const
     {
+		// Set error handler
+		FreeImage_SetOutputMessage(FreeImageLoadErrorHandler);
+
 		// Buffer stream into memory (TODO: override IO functions instead?)
 		MemoryDataStream memStream(input, true);
 
@@ -555,6 +612,9 @@ namespace Ogre {
 	//---------------------------------------------------------------------
 	String FreeImageCodec::magicNumberToFileExt(const char *magicNumberPtr, size_t maxbytes) const
 	{
+		// Set error handler
+		FreeImage_SetOutputMessage(FreeImageLoadErrorHandler);
+
 		FIMEMORY* fiMem = 
 			FreeImage_OpenMemory((BYTE*)magicNumberPtr, static_cast<DWORD>(maxbytes));
 

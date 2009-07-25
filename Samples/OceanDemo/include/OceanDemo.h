@@ -23,6 +23,30 @@ LGPL like the rest of the engine.
 #include "OgreException.h"
 #include "OgreFrameListener.h"
 
+// Static plugins declaration section
+// Note that every entry in here adds an extra header / library dependency
+#ifdef OGRE_STATIC_LIB
+#  define OGRE_STATIC_GL
+#  if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#    define OGRE_STATIC_Direct3D9
+// dx10 will only work on vista, so be careful about statically linking
+#    if OGRE_USE_D3D10
+#      define OGRE_STATIC_Direct3D10
+#    endif
+#  endif
+#  define OGRE_STATIC_BSPSceneManager
+#  define OGRE_STATIC_ParticleFX
+#  define OGRE_STATIC_CgProgramManager
+#  ifdef OGRE_USE_PCZ
+#    define OGRE_STATIC_PCZSceneManager
+#    define OGRE_STATIC_OctreeZone
+#  else
+#    define OGRE_STATIC_OctreeSceneManager
+#  endif
+
+#  include "OgreStaticPluginLoader.h"
+#endif
+
 #include "MaterialControls.h"
 #include <OIS/OIS.h>
 
@@ -91,7 +115,7 @@ protected:
 	CEGUI::Window* mGuiDbg;
 	CEGUI::Window* mRoot;
 
-	std::string mDebugText;
+	Ogre::String mDebugText;
 
 	CEGUI::MouseButton convertOISButtonToCegui(int ois_button_id);
 	void CheckMovementKeys( CEGUI::Key::Scan keycode, bool state );
@@ -129,6 +153,9 @@ class OceanDemo
 {
 protected:
     Ogre::Root*			  mRoot;
+#ifdef OGRE_STATIC_LIB
+	Ogre::StaticPluginLoader	  mStaticPluginLoader;
+#endif
     Ogre::Camera*		  mCamera;
     Ogre::SceneManager*	  mSceneMgr;
 	// the scene node of the entity
@@ -149,7 +176,7 @@ protected:
 	Ogre::GpuProgramParametersSharedPtr mActiveFragmentParameters;
 	Ogre::GpuProgramParametersSharedPtr mActiveVertexParameters;
 
-	typedef std::vector< ShaderControlGUIWidget > ShaderControlContainer;
+	typedef Ogre::vector< ShaderControlGUIWidget >::type ShaderControlContainer;
 	typedef ShaderControlContainer::iterator ShaderControlIterator;
 
 	ShaderControlContainer    mShaderControlContainer;

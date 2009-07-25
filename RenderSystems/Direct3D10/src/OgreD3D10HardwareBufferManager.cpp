@@ -30,31 +30,32 @@ Torus Knot Software Ltd.
 #include "OgreD3D10HardwareVertexBuffer.h"
 #include "OgreD3D10HardwareIndexBuffer.h"
 #include "OgreD3D10VertexDeclaration.h"
+#include "OgreD3D10RenderToVertexBuffer.h"
 #include "OgreLogManager.h"
 #include "OgreStringConverter.h"
 #include "OgreD3D10Device.h"
 
 namespace Ogre {
 	//-----------------------------------------------------------------------
-	D3D10HardwareBufferManager::D3D10HardwareBufferManager(D3D10Device & device)
+	D3D10HardwareBufferManagerBase::D3D10HardwareBufferManagerBase(D3D10Device & device)
 		: mlpD3DDevice(device)
 	{
 	}
 	//-----------------------------------------------------------------------
-	D3D10HardwareBufferManager::~D3D10HardwareBufferManager()
+	D3D10HardwareBufferManagerBase::~D3D10HardwareBufferManagerBase()
 	{
 		destroyAllDeclarations();
 		destroyAllBindings();
 	}
 	//-----------------------------------------------------------------------
 	HardwareVertexBufferSharedPtr 
-		D3D10HardwareBufferManager::
+		D3D10HardwareBufferManagerBase::
 		createVertexBuffer(size_t vertexSize, size_t numVerts, HardwareBuffer::Usage usage,
 		bool useShadowBuffer)
 	{
 		assert (numVerts > 0);
 		D3D10HardwareVertexBuffer* vbuf = new D3D10HardwareVertexBuffer(
-			vertexSize, numVerts, usage, mlpD3DDevice, false, useShadowBuffer);
+			this, vertexSize, numVerts, usage, mlpD3DDevice, false, useShadowBuffer);
 		{
 			OGRE_LOCK_MUTEX(mVertexBuffersMutex)
 				mVertexBuffers.insert(vbuf);
@@ -63,7 +64,7 @@ namespace Ogre {
 	}
 	//-----------------------------------------------------------------------
 	HardwareIndexBufferSharedPtr 
-		D3D10HardwareBufferManager::
+		D3D10HardwareBufferManagerBase::
 		createIndexBuffer(HardwareIndexBuffer::IndexType itype, size_t numIndexes, 
 		HardwareBuffer::Usage usage, bool useShadowBuffer)
 	{
@@ -86,7 +87,7 @@ namespace Ogre {
 		}
 #endif
 		D3D10HardwareIndexBuffer* idx = new D3D10HardwareIndexBuffer(
-			itype, numIndexes, usage, mlpD3DDevice, false, useShadowBuffer);
+			this, itype, numIndexes, usage, mlpD3DDevice, false, useShadowBuffer);
 		{
 			OGRE_LOCK_MUTEX(mIndexBuffersMutex)
 				mIndexBuffers.insert(idx);
@@ -95,17 +96,23 @@ namespace Ogre {
 
 	}
 	//-----------------------------------------------------------------------
-	VertexDeclaration* D3D10HardwareBufferManager::createVertexDeclarationImpl(void)
+	RenderToVertexBufferSharedPtr 
+		D3D10HardwareBufferManagerBase::createRenderToVertexBuffer()
+	{
+		return RenderToVertexBufferSharedPtr(new D3D10RenderToVertexBuffer());
+	}
+	//-----------------------------------------------------------------------
+	VertexDeclaration* D3D10HardwareBufferManagerBase::createVertexDeclarationImpl(void)
 	{
 		return new D3D10VertexDeclaration(mlpD3DDevice);
 	}
 	//-----------------------------------------------------------------------
-	void D3D10HardwareBufferManager::destroyVertexDeclarationImpl(VertexDeclaration* decl)
+	void D3D10HardwareBufferManagerBase::destroyVertexDeclarationImpl(VertexDeclaration* decl)
 	{
 		delete decl;
 	}
 	//-----------------------------------------------------------------------
-	void D3D10HardwareBufferManager::releaseDefaultPoolResources(void)
+	void D3D10HardwareBufferManagerBase::releaseDefaultPoolResources(void)
 	{
 		size_t iCount = 0;
 		size_t vCount = 0;
@@ -138,14 +145,14 @@ namespace Ogre {
 			}
 		}
 
-		LogManager::getSingleton().logMessage("D3D10HardwareBufferManager released:");
+		LogManager::getSingleton().logMessage("D3D10HardwareBufferManagerBase released:");
 		LogManager::getSingleton().logMessage(
 			StringConverter::toString(vCount) + " unmanaged vertex buffers");
 		LogManager::getSingleton().logMessage(
 			StringConverter::toString(iCount) + " unmanaged index buffers");
 	}
 	//-----------------------------------------------------------------------
-	void D3D10HardwareBufferManager::recreateDefaultPoolResources(void)
+	void D3D10HardwareBufferManagerBase::recreateDefaultPoolResources(void)
 	{
 		size_t iCount = 0;
 		size_t vCount = 0;
@@ -177,17 +184,11 @@ namespace Ogre {
 			}
 		}
 
-		LogManager::getSingleton().logMessage("D3D10HardwareBufferManager recreated:");
+		LogManager::getSingleton().logMessage("D3D10HardwareBufferManagerBase recreated:");
 		LogManager::getSingleton().logMessage(
 			StringConverter::toString(vCount) + " unmanaged vertex buffers");
 		LogManager::getSingleton().logMessage(
 			StringConverter::toString(iCount) + " unmanaged index buffers");
-	}
-	//-----------------------------------------------------------------------
-	RenderToVertexBufferSharedPtr D3D10HardwareBufferManager::createRenderToVertexBuffer()
-	{
-		return RenderToVertexBufferSharedPtr();
-		// todo
 	}
 	//-----------------------------------------------------------------------
 

@@ -39,8 +39,9 @@ Torus Knot Software Ltd.
 #  include <windows.h>
 #endif
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-#   include "macPlugins.h"
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#   include "macUtils.h"
+#   include <dlfcn.h>
 #endif
 
 
@@ -69,8 +70,16 @@ namespace Ogre {
         // dlopen() does not add .so to the filename, like windows does for .dll
         if (name.substr(name.length() - 3, 3) != ".so")
            name += ".so";
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+        // dlopen() does not add .dylib to the filename, like windows does for .dll
+        if (name.substr(name.length() - 6, 6) != ".dylib")
+			name += ".dylib";
+#elif OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+		// Although LoadLibraryEx will add .dll itself when you only specify the library name,
+		// if you include a relative path then it does not. So, add it to be sure.
+		if (name.substr(name.length() - 4, 4) != ".dll")
+			name += ".dll";
 #endif
-
         m_hInst = (DYNLIB_HANDLE)DYNLIB_LOAD( name.c_str() );
 
         if( !m_hInst )
@@ -123,10 +132,8 @@ namespace Ogre {
         // Free the buffer.
         LocalFree( lpMsgBuf );
         return ret;
-#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX
+#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_APPLE
         return String(dlerror());
-#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-        return String(mac_errorBundle());
 #else
         return String("");
 #endif

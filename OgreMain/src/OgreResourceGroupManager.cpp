@@ -57,7 +57,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
     ResourceGroupManager::ResourceGroupManager()
-        : mCurrentGroup(0), mLoadingListener(0)
+        : mLoadingListener(0), mCurrentGroup(0)
     {
         // Create the 'General' group
         createResourceGroup(DEFAULT_RESOURCE_GROUP_NAME);
@@ -81,7 +81,7 @@ namespace Ogre {
         mResourceGroupMap.clear();
     }
     //-----------------------------------------------------------------------
-    void ResourceGroupManager::createResourceGroup(const String& name)
+    void ResourceGroupManager::createResourceGroup(const String& name, const bool inGlobalPool /* = true */)
     {
 		OGRE_LOCK_AUTO_MUTEX
 
@@ -95,6 +95,7 @@ namespace Ogre {
         ResourceGroup* grp = OGRE_NEW_T(ResourceGroup, MEMCATEGORY_RESOURCE)();
 		grp->groupStatus = ResourceGroup::UNINITIALSED;
         grp->name = name;
+		grp->inGlobalPool = inGlobalPool;
         grp->worldGeometrySceneManager = 0;
         mResourceGroupMap.insert(
             ResourceGroupMap::value_type(name, grp));
@@ -502,6 +503,27 @@ namespace Ogre {
 		return (grp->groupStatus == ResourceGroup::LOADED);
     }
     //-----------------------------------------------------------------------
+    bool ResourceGroupManager::resourceLocationExists(const String& name, 
+        const String& resGroup)
+    {
+		ResourceGroup* grp = getResourceGroup(resGroup);
+		if (!grp)
+			return false;
+
+		OGRE_LOCK_MUTEX(grp->OGRE_AUTO_MUTEX_NAME) // lock group mutex
+
+		LocationList::iterator li, liend;
+		liend = grp->locationList.end();
+		for (li = grp->locationList.begin(); li != liend; ++li)
+		{
+			Archive* pArch = (*li)->archive;
+			if (pArch->getName() == name)
+				// Delete indexes
+				return true;
+		}
+		return false;
+	}
+    //-----------------------------------------------------------------------
     void ResourceGroupManager::addResourceLocation(const String& name, 
         const String& locType, const String& resGroup, bool recursive)
     {
@@ -524,17 +546,7 @@ namespace Ogre {
         // Index resources
         StringVectorPtr vec = pArch->find("*", recursive);
         for( StringVector::iterator it = vec->begin(); it != vec->end(); ++it )
-        {
-			// Index under full name, case sensitive
-            grp->resourceIndexCaseSensitive[(*it)] = pArch;
-            if (!pArch->isCaseSensitive())
-            {
-	            // Index under lower case name too for case insensitive match
-    	        String indexName = (*it);
-                StringUtil::toLowerCase(indexName);
-	            grp->resourceIndexCaseInsensitive[indexName] = pArch;
-            }
-        }
+			grp->addToIndex(*it, pArch);
 		
 		StringUtil::StrStreamType msg;
 		msg << "Added resource location '" << name << "' of type '" << locType
@@ -566,34 +578,7 @@ namespace Ogre {
 			Archive* pArch = (*li)->archive;
 			if (pArch->getName() == name)
 			{
-				// Delete indexes
-				ResourceLocationIndex::iterator rit, ritend;
-				ritend = grp->resourceIndexCaseInsensitive.end();
-				for (rit = grp->resourceIndexCaseInsensitive.begin(); rit != ritend;)
-				{
-					if (rit->second == pArch)
-					{
-						ResourceLocationIndex::iterator del = rit++;
-						grp->resourceIndexCaseInsensitive.erase(del);
-					}
-					else
-					{
-						++rit;
-					}
-				}
-                ritend = grp->resourceIndexCaseSensitive.end();
-                for (rit = grp->resourceIndexCaseSensitive.begin(); rit != ritend;)
-                {
-                    if (rit->second == pArch)
-                    {
-                        ResourceLocationIndex::iterator del = rit++;
-                        grp->resourceIndexCaseSensitive.erase(del);
-                    }
-                    else
-                    {
-                        ++rit;
-                    }
-                }
+				grp->removeFromIndex(pArch);
 				// Erase list entry
 				OGRE_DELETE_T(*li, ResourceLocation, MEMCATEGORY_RESOURCE);
 				grp->locationList.erase(li);
@@ -803,6 +788,121 @@ namespace Ogre {
 		return ret;
 		
     }
+	//---------------------------------------------------------------------
+	DataStreamPtr ResourceGroupManager::createResource(const String& filename, 
+		const String& groupName, bool overwrite, const String& locationPattern)
+	{
+		OGRE_LOCK_AUTO_MUTEX
+		ResourceGroup* grp = getResourceGroup(groupName);
+		if (!grp)
+		{
+			OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+				"Cannot locate a resource group called '" + groupName + "'", 
+				"ResourceGroupManager::createResource");
+		}
+
+		OGRE_LOCK_MUTEX(grp->OGRE_AUTO_MUTEX_NAME) // lock group mutex
+
+		
+		for (LocationList::iterator li = grp->locationList.begin(); 
+			li != grp->locationList.end(); ++li)
+		{
+			Archive* arch = (*li)->archive;
+
+			if (!arch->isReadOnly() && 
+				(locationPattern.empty() || StringUtil::match(arch->getName(), locationPattern, false)))
+			{
+				if (!overwrite && arch->exists(filename))
+					OGRE_EXCEPT(Exception::ERR_DUPLICATE_ITEM, 
+						"Cannot overwrite existing file " + filename, 
+						"ResourceGroupManager::createResource");
+				
+				// create it
+				DataStreamPtr ret = arch->create(filename);
+				grp->addToIndex(filename, arch);
+
+
+				return ret;
+			}
+		}
+
+		OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+			"Cannot find a writable location in group " + groupName, 
+			"ResourceGroupManager::createResource");
+
+	}
+	//---------------------------------------------------------------------
+	void ResourceGroupManager::deleteResource(const String& filename, const String& groupName, 
+		const String& locationPattern)
+	{
+		OGRE_LOCK_AUTO_MUTEX
+		ResourceGroup* grp = getResourceGroup(groupName);
+		if (!grp)
+		{
+			OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+				"Cannot locate a resource group called '" + groupName + "'", 
+				"ResourceGroupManager::createResource");
+		}
+
+		OGRE_LOCK_MUTEX(grp->OGRE_AUTO_MUTEX_NAME) // lock group mutex
+
+		
+		for (LocationList::iterator li = grp->locationList.begin(); 
+			li != grp->locationList.end(); ++li)
+		{
+			Archive* arch = (*li)->archive;
+
+			if (!arch->isReadOnly() && 
+				(locationPattern.empty() || StringUtil::match(arch->getName(), locationPattern, false)))
+			{
+				if (arch->exists(filename))
+				{
+					arch->remove(filename);
+					grp->removeFromIndex(filename, arch);
+
+					// only remove one file
+					break;
+				}
+			}
+		}
+
+	}
+	//---------------------------------------------------------------------
+	void ResourceGroupManager::deleteMatchingResources(const String& filePattern, 
+		const String& groupName, const String& locationPattern)
+	{
+		OGRE_LOCK_AUTO_MUTEX
+		ResourceGroup* grp = getResourceGroup(groupName);
+		if (!grp)
+		{
+			OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+				"Cannot locate a resource group called '" + groupName + "'", 
+				"ResourceGroupManager::createResource");
+		}
+
+		OGRE_LOCK_MUTEX(grp->OGRE_AUTO_MUTEX_NAME) // lock group mutex
+
+		
+		for (LocationList::iterator li = grp->locationList.begin(); 
+			li != grp->locationList.end(); ++li)
+		{
+			Archive* arch = (*li)->archive;
+
+			if (!arch->isReadOnly() && 
+				(locationPattern.empty() || StringUtil::match(arch->getName(), locationPattern, false)))
+			{
+				StringVectorPtr matchingFiles = arch->find(filePattern);
+				for (StringVector::iterator f = matchingFiles->begin(); f != matchingFiles->end(); ++f)
+				{
+					arch->remove(*f);
+					grp->removeFromIndex(*f, arch);
+
+				}
+			}
+		}
+
+
+	}
     //-----------------------------------------------------------------------
     void ResourceGroupManager::addResourceGroupListener(ResourceGroupListener* l)
     {
@@ -880,6 +980,28 @@ namespace Ogre {
 		}
 	}
 	//-----------------------------------------------------------------------
+	ScriptLoader *ResourceGroupManager::_findScriptLoader(const String &pattern)
+	{
+		OGRE_LOCK_AUTO_MUTEX;
+
+		ScriptLoaderOrderMap::iterator oi;
+		for (oi = mScriptLoaderOrderMap.begin();
+			oi != mScriptLoaderOrderMap.end(); ++oi)
+		{
+			ScriptLoader* su = oi->second;
+			const StringVector& patterns = su->getScriptPatterns();
+
+			// Search for matches in the patterns
+			for (StringVector::const_iterator p = patterns.begin(); p != patterns.end(); ++p)
+			{
+				if(*p == pattern)
+					return su;
+			}
+		}
+
+		return 0; // No loader was found
+	}
+	//-----------------------------------------------------------------------
 	void ResourceGroupManager::parseResourceGroupScripts(ResourceGroup* grp)
 	{
 
@@ -887,10 +1009,10 @@ namespace Ogre {
 			"Parsing scripts for resource group " + grp->name);
 
 		// Count up the number of scripts we have to parse
-        typedef std::list<FileInfoListPtr> FileListList;
+        typedef list<FileInfoListPtr>::type FileListList;
         typedef SharedPtr<FileListList> FileListListPtr;
         typedef std::pair<ScriptLoader*, FileListListPtr> LoaderFileListPair;
-        typedef std::list<LoaderFileListPair> ScriptLoaderFileList;
+        typedef list<LoaderFileListPair>::type ScriptLoaderFileList;
         ScriptLoaderFileList scriptLoaderFileList;
 		size_t scriptCount = 0;
 		// Iterate over script users in loading order and get streams
@@ -1635,6 +1757,65 @@ namespace Ogre {
 		return grp->name;
 	}
     //-----------------------------------------------------------------------
+    StringVectorPtr ResourceGroupManager::listResourceLocations(const String& groupName)
+    {
+        OGRE_LOCK_AUTO_MUTEX
+        StringVectorPtr vec(OGRE_NEW_T(StringVector, MEMCATEGORY_GENERAL)(), SPFM_DELETE_T);
+
+        // Try to find in resource index first
+        ResourceGroup* grp = getResourceGroup(groupName);
+        if (!grp)
+        {
+            OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+                "Cannot locate a resource group called '" + groupName + "'", 
+                "ResourceGroupManager::listResourceNames");
+        }
+
+        OGRE_LOCK_MUTEX(grp->OGRE_AUTO_MUTEX_NAME) // lock group mutex
+
+        // Iterate over the archives
+        LocationList::iterator i, iend;
+        iend = grp->locationList.end();
+        for (i = grp->locationList.begin(); i != iend; ++i)
+        {
+            vec->push_back((*i)->archive->getName());
+        }
+
+        return vec;
+    }
+    //-----------------------------------------------------------------------
+    StringVectorPtr ResourceGroupManager::findResourceLocation(const String& groupName, const String& pattern)
+    {
+        OGRE_LOCK_AUTO_MUTEX
+        StringVectorPtr vec(OGRE_NEW_T(StringVector, MEMCATEGORY_GENERAL)(), SPFM_DELETE_T);
+
+        // Try to find in resource index first
+        ResourceGroup* grp = getResourceGroup(groupName);
+        if (!grp)
+        {
+            OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+                "Cannot locate a resource group called '" + groupName + "'", 
+                "ResourceGroupManager::listResourceNames");
+        }
+
+        OGRE_LOCK_MUTEX(grp->OGRE_AUTO_MUTEX_NAME) // lock group mutex
+
+        // Iterate over the archives
+        LocationList::iterator i, iend;
+        iend = grp->locationList.end();
+        for (i = grp->locationList.begin(); i != iend; ++i)
+        {
+            String location = (*i)->archive->getName();
+            // Search for the pattern
+            if(StringUtil::match(location, pattern))
+            {
+                vec->push_back(location);
+            }
+        }
+
+        return vec;
+    }
+    //-----------------------------------------------------------------------
     void ResourceGroupManager::linkWorldGeometryToResourceGroup(const String& group, 
         const String& worldGeometry, SceneManager* sceneManager)
     {
@@ -1667,6 +1848,20 @@ namespace Ogre {
 		OGRE_LOCK_MUTEX(grp->OGRE_AUTO_MUTEX_NAME) // lock group mutex
         grp->worldGeometry = StringUtil::BLANK;
         grp->worldGeometrySceneManager = 0;
+    }
+	//-----------------------------------------------------------------------
+	bool ResourceGroupManager::isResourceGroupInGlobalPool(const String& name)
+    {
+		OGRE_LOCK_AUTO_MUTEX
+
+		ResourceGroup* grp = getResourceGroup(name);
+		if (!grp)
+		{
+			OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+				"Cannot find a group named " + name, 
+				"ResourceGroupManager::isResourceGroupInitialised");
+		}
+		return grp->inGlobalPool;
     }
     //-----------------------------------------------------------------------
 	StringVector ResourceGroupManager::getResourceGroups(void)
@@ -1706,6 +1901,71 @@ namespace Ogre {
 	{
 		return mLoadingListener;
 	}
+	//---------------------------------------------------------------------
+	//---------------------------------------------------------------------
+	void ResourceGroupManager::ResourceGroup::addToIndex(const String& filename, Archive* arch)
+	{
+		// internal, assumes mutex lock has already been obtained
+		this->resourceIndexCaseSensitive[filename] = arch;
+
+		if (!arch->isCaseSensitive())
+		{
+			String lcase = filename;
+			StringUtil::toLowerCase(lcase);
+			this->resourceIndexCaseInsensitive[lcase] = arch;
+		}
+	}
+	//---------------------------------------------------------------------
+	void ResourceGroupManager::ResourceGroup::removeFromIndex(const String& filename, Archive* arch)
+	{
+		// internal, assumes mutex lock has already been obtained
+		ResourceLocationIndex::iterator i = this->resourceIndexCaseSensitive.find(filename);
+		if (i != this->resourceIndexCaseSensitive.end() && i->second == arch)
+			this->resourceIndexCaseSensitive.erase(i);
+
+		if (!arch->isCaseSensitive())
+		{
+			String lcase = filename;
+			StringUtil::toLowerCase(lcase);
+			i = this->resourceIndexCaseInsensitive.find(filename);
+			if (i != this->resourceIndexCaseInsensitive.end() && i->second == arch)
+				this->resourceIndexCaseInsensitive.erase(i);
+		}
+	}
+	//---------------------------------------------------------------------
+	void ResourceGroupManager::ResourceGroup::removeFromIndex(Archive* arch)
+	{
+		// Delete indexes
+		ResourceLocationIndex::iterator rit, ritend;
+		ritend = this->resourceIndexCaseInsensitive.end();
+		for (rit = this->resourceIndexCaseInsensitive.begin(); rit != ritend;)
+		{
+			if (rit->second == arch)
+			{
+				ResourceLocationIndex::iterator del = rit++;
+				this->resourceIndexCaseInsensitive.erase(del);
+			}
+			else
+			{
+				++rit;
+			}
+		}
+		ritend = this->resourceIndexCaseSensitive.end();
+		for (rit = this->resourceIndexCaseSensitive.begin(); rit != ritend;)
+		{
+			if (rit->second == arch)
+			{
+				ResourceLocationIndex::iterator del = rit++;
+				this->resourceIndexCaseSensitive.erase(del);
+			}
+			else
+			{
+				++rit;
+			}
+		}
+
+	}
+	//---------------------------------------------------------------------
 	//-----------------------------------------------------------------------
 	ScriptLoader::~ScriptLoader()
 	{

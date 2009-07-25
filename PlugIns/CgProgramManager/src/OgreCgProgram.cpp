@@ -28,6 +28,7 @@ Torus Knot Software Ltd.
 */
 #include "OgreCgProgram.h"
 #include "OgreGpuProgramManager.h"
+#include "OgreHighLevelGpuProgramManager.h"
 #include "OgreStringConverter.h"
 #include "OgreLogManager.h"
 
@@ -130,7 +131,7 @@ namespace Ogre {
 		}
         buildArgs();
 		// deal with includes
-		String sourceToUse = preprocess(mSource);
+		String sourceToUse = resolveCgIncludes(mSource, this, mFilename);
         mCgProgram = cgCreateProgram(mCgContext, CG_SOURCE, sourceToUse.c_str(), 
             mSelectedCgProfile, mEntryPoint.c_str(), const_cast<const char**>(mCgArguments));
 
@@ -149,15 +150,46 @@ namespace Ogre {
 		if (mSelectedCgProfile != CG_PROFILE_UNKNOWN && !mCompileError)
 		{
 
-			// Create a low-level program, give it the same name as us
-			mAssemblerProgram = 
-				GpuProgramManager::getSingleton().createProgramFromString(
+			if ( false
+#ifdef CG_PROFILE_VS_4_0
+				|| mSelectedCgProfile == CG_PROFILE_VS_4_0
+#endif
+#ifdef CG_PROFILE_PS_4_0
+				 || mSelectedCgProfile == CG_PROFILE_PS_4_0
+#endif
+				 )
+			{
+				// Create a high-level program, give it the same name as us
+				HighLevelGpuProgramPtr vp = 
+					HighLevelGpuProgramManager::getSingleton().createProgram(
+					mName, mGroup, "hlsl", mType);
+				String hlslSourceFromCg = cgGetProgramString(mCgProgram, CG_COMPILED_PROGRAM);
+				// HACK START
+				// Assaf: This is a hack - in Cg ver 2.1 all the parameters had a strange prefix 
+				// that needed to be deleted
+				hlslSourceFromCg = StringUtil::replaceAll(hlslSourceFromCg, "_ZZ4S", ""); 
+				// HACK END
+				vp->setSource(hlslSourceFromCg);
+				vp->setParameter("target", mSelectedProfile);
+				vp->setParameter("entry_point", "main");
+
+				vp->load();
+
+				mAssemblerProgram = vp;
+			}
+			else
+			{
+
+				String shaderAssemblerCode = cgGetProgramString(mCgProgram, CG_COMPILED_PROGRAM);
+				// Create a low-level program, give it the same name as us
+				mAssemblerProgram = 
+					GpuProgramManager::getSingleton().createProgramFromString(
 					mName, 
 					mGroup,
-					cgGetProgramString(mCgProgram, CG_COMPILED_PROGRAM),
+					shaderAssemblerCode,
 					mType, 
 					mSelectedProfile);
-
+			}
 			// Shader params need to be forwarded to low level implementation
 			mAssemblerProgram->setAdjacencyInfoRequired(isAdjacencyInfoRequired());
 		}
@@ -298,7 +330,7 @@ namespace Ogre {
 						OGRE_LOCK_MUTEX(mFloatLogicalToPhysical.mutex)
 						mFloatLogicalToPhysical.map.insert(
 							GpuLogicalIndexUseMap::value_type(logicalIndex, 
-								GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize)));
+								GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));
 						mFloatLogicalToPhysical.bufferSize += def.arraySize * def.elementSize;
 						mConstantDefs.floatBufferSize = mFloatLogicalToPhysical.bufferSize;
 					}
@@ -307,7 +339,7 @@ namespace Ogre {
 						OGRE_LOCK_MUTEX(mIntLogicalToPhysical.mutex)
 						mIntLogicalToPhysical.map.insert(
 							GpuLogicalIndexUseMap::value_type(logicalIndex, 
-								GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize)));
+								GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));
 						mIntLogicalToPhysical.bufferSize += def.arraySize * def.elementSize;
 						mConstantDefs.intBufferSize = mIntLogicalToPhysical.bufferSize;
 					}
@@ -345,89 +377,74 @@ namespace Ogre {
 			case CG_HALF:
 			case CG_HALF1:
 				def.constType = GCT_FLOAT1;
-				def.elementSize = 4; // padded to 4 elements
 				break;
 			case CG_FLOAT2:
 			case CG_HALF2:
 				def.constType = GCT_FLOAT2;
-				def.elementSize = 4; // padded to 4 elements
 				break;
 			case CG_FLOAT3:
 			case CG_HALF3:
 				def.constType = GCT_FLOAT3;
-				def.elementSize = 4; // padded to 4 elements
 				break;
 			case CG_FLOAT4:
 			case CG_HALF4:
 				def.constType = GCT_FLOAT4;
-				def.elementSize = 4; 
 				break;
 			case CG_FLOAT2x2:
 			case CG_HALF2x2:
 				def.constType = GCT_MATRIX_2X2;
-				def.elementSize = 8; // Cg pads this to 2 float4s
 				break;
 			case CG_FLOAT2x3:
 			case CG_HALF2x3:
 				def.constType = GCT_MATRIX_2X3;
-				def.elementSize = 8; // Cg pads this to 2 float4s
 				break;
 			case CG_FLOAT2x4:
 			case CG_HALF2x4:
 				def.constType = GCT_MATRIX_2X4;
-				def.elementSize = 8; 
 				break;
 			case CG_FLOAT3x2:
 			case CG_HALF3x2:
-				def.constType = GCT_MATRIX_2X3;
-				def.elementSize = 12; // Cg pads this to 3 float4s
+				def.constType = GCT_MATRIX_3X2;
 				break;
 			case CG_FLOAT3x3:
 			case CG_HALF3x3:
 				def.constType = GCT_MATRIX_3X3;
-				def.elementSize = 12; // Cg pads this to 3 float4s
 				break;
 			case CG_FLOAT3x4:
 			case CG_HALF3x4:
 				def.constType = GCT_MATRIX_3X4;
-				def.elementSize = 12; 
 				break;
 			case CG_FLOAT4x2:
 			case CG_HALF4x2:
 				def.constType = GCT_MATRIX_4X2;
-				def.elementSize = 16; // Cg pads this to 4 float4s
 				break;
 			case CG_FLOAT4x3:
 			case CG_HALF4x3:
 				def.constType = GCT_MATRIX_4X3;
-				def.elementSize = 16; // Cg pads this to 4 float4s
 				break;
 			case CG_FLOAT4x4:
 			case CG_HALF4x4:
 				def.constType = GCT_MATRIX_4X4;
-				def.elementSize = 16; // Cg pads this to 4 float4s
 				break;
 			case CG_INT:
 			case CG_INT1:
 				def.constType = GCT_INT1;
-				def.elementSize = 4; // Cg pads this to int4
 				break;
 			case CG_INT2:
 				def.constType = GCT_INT2;
-				def.elementSize = 4; // Cg pads this to int4
 				break;
 			case CG_INT3:
 				def.constType = GCT_INT3;
-				def.elementSize = 4; // Cg pads this to int4
 				break;
 			case CG_INT4:
 				def.constType = GCT_INT4;
-				def.elementSize = 4; 
 				break;
 			default:
 				def.constType = GCT_UNKNOWN;
 				break;
 			}
+			// Cg pads
+			def.elementSize = GpuConstantDefinition::getElementSize(def.constType, true);
 		}
 	}
     //-----------------------------------------------------------------------
@@ -502,7 +519,7 @@ namespace Ogre {
         }
     }
 	//-----------------------------------------------------------------------
-	String CgProgram::preprocess(const String& inSource)
+	String CgProgram::resolveCgIncludes(const String& inSource, Resource* resourceBeingLoaded, const String& fileName)
 	{
 		String outSource;
 		// output will be at least this big
@@ -554,7 +571,7 @@ namespace Ogre {
 				{
 					OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
 						"Badly formed #include directive (expected \" or <) in file "
-						+ mFilename + ": " + inSource.substr(includePos, newLineAfter-includePos),
+						+ fileName + ": " + inSource.substr(includePos, newLineAfter-includePos),
 						"CgProgram::preprocessor");
 				}
 				else
@@ -567,7 +584,7 @@ namespace Ogre {
 			{
 				OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
 					"Badly formed #include directive (expected " + endDelimeter + ") in file "
-					+ mFilename + ": " + inSource.substr(includePos, newLineAfter-includePos),
+					+ fileName + ": " + inSource.substr(includePos, newLineAfter-includePos),
 					"CgProgram::preprocessor");
 			}
 
@@ -576,7 +593,7 @@ namespace Ogre {
 
 			// open included file
 			DataStreamPtr resource = ResourceGroupManager::getSingleton().
-				openResource(filename, mGroup, true, this);
+				openResource(filename, resourceBeingLoaded->getGroup(), true, resourceBeingLoaded);
 
 			// replace entire include directive line
 			// copy up to just before include
@@ -601,7 +618,7 @@ namespace Ogre {
 
 			// Add #line to the end of the included file to correct the line count
 			outSource.append("\n#line " + Ogre::StringConverter::toString(lineCount) + 
-				"\"" + this->getSourceFile() + "\"\n");
+				"\"" + fileName + "\"\n");
 
 			startMarker = newLineAfter;
 

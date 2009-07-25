@@ -38,6 +38,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
 	/** These codes represent token IDs which are numerical translations of
 		specific lexemes. Specific compilers using the lexer can register their
 		own token IDs which are given precedence over these built-in ones.
@@ -67,7 +73,7 @@ namespace Ogre {
 		uint32 line;
 	};
 	typedef SharedPtr<ScriptToken> ScriptTokenPtr;
-	typedef std::vector<ScriptTokenPtr> ScriptTokenList;
+	typedef vector<ScriptTokenPtr>::type ScriptTokenList;
 	typedef SharedPtr<ScriptTokenList> ScriptTokenListPtr;
 
 	class _OgreExport ScriptLexer : public ScriptCompilerAlloc
@@ -84,6 +90,8 @@ namespace Ogre {
 		bool isNewline(Ogre::String::value_type c) const;
 	};
 
+	/** @} */
+	/** @} */
 }
 
 #endif

@@ -31,17 +31,25 @@ Torus Knot Software Ltd.
 
 #include "OgrePrerequisites.h"
 
+#include "OgreCommon.h"
 #include "OgreMatrix3.h"
 #include "OgreMatrix4.h"
 #include "OgreQuaternion.h"
 #include "OgreString.h"
 #include "OgreRenderable.h"
 #include "OgreIteratorWrappers.h"
+#include "OgreMesh.h"
 
 namespace Ogre {
 
 
-    /** Class representing a general-purpose node an articulated scene graph.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
+	/** Class representing a general-purpose node an articulated scene graph.
         @remarks
             A node in the scene graph is a node in a structured tree. A node contains
             information about the transformation which will apply to
@@ -51,7 +59,7 @@ namespace Ogre {
             This is an abstract class - concrete classes are based on this for specific purposes,
             e.g. SceneNode, Bone
     */
-    class _OgreExport Node : public Renderable, public NodeAlloc
+    class _OgreExport Node : public NodeAlloc
     {
     public:
         /** Enumeration denoting the spaces which a transform can be relative to.
@@ -92,13 +100,33 @@ namespace Ogre {
 			virtual void nodeDetached(const Node*) {};
 		};
 
+		/** Inner class for displaying debug renderable for Node. */
+		class DebugRenderable : public Renderable, public NodeAlloc
+		{
+		protected:
+			Node* mParent;
+			MeshPtr mMeshPtr;
+			MaterialPtr mMat;
+			Real mScaling;
+		public:
+			DebugRenderable(Node* parent);
+			~DebugRenderable();
+			const MaterialPtr& getMaterial(void) const;
+			void getRenderOperation(RenderOperation& op);
+			void getWorldTransforms(Matrix4* xform) const;
+			Real getSquaredViewDepth(const Camera* cam) const;
+			const LightList& getLights(void) const;
+			void setScaling(Real s) { mScaling = s; }
+
+		};
+
     protected:
         /// Pointer to parent node
         Node* mParent;
         /// Collection of pointers to direct children; hashmap for efficiency
         ChildNodeMap mChildren;
 
-		typedef std::set<Node*> ChildUpdateSet;
+		typedef set<Node*>::type ChildUpdateSet;
         /// List of children which need updating, used if self is not out of date but children are
         mutable ChildUpdateSet mChildrenToUpdate;
         /// Flag to indicate own transform from parent is out of date
@@ -114,7 +142,7 @@ namespace Ogre {
         String mName;
 
         /// Incremented count for next name extension
-        static unsigned long msNextGeneratedNameExt;
+        static NameGenerator msNameGenerator;
 
         /// Stores the orientation of the node relative to it's parent.
         Quaternion mOrientation;
@@ -130,9 +158,6 @@ namespace Ogre {
 
         /// Stores whether this node inherits scale from it's parent
         bool mInheritScale;
-
-		/// Material pointer should this node be rendered
-		mutable MaterialPtr mpMaterial;
 
         /// Only available internally - notification of parent.
         virtual void setParent(Node* parent);
@@ -201,8 +226,10 @@ namespace Ogre {
 		/** Node listener - only one allowed (no list) for size & performance reasons. */
 		Listener* mListener;
 
-		typedef std::vector<Node*> QueuedUpdates;
+		typedef vector<Node*>::type QueuedUpdates;
 		static QueuedUpdates msQueuedUpdates;
+
+		DebugRenderable* mDebug;
 
 
     public:
@@ -621,27 +648,6 @@ namespace Ogre {
 		*/
 		virtual Listener* getListener(void) const { return mListener; }
 		
-		/** Overridden from Renderable.
-        @remarks
-            This is only used if the SceneManager chooses to render the node. This option can be set
-            for SceneNodes at SceneManager::setDisplaySceneNodes, and for entities based on skeletal 
-            models using Entity::setDisplayBones()
-        */
-        const MaterialPtr& getMaterial(void) const;
-        /** Overridden from Renderable.
-        @remarks
-            This is only used if the SceneManager chooses to render the node. This option can be set
-            for SceneNodes at SceneManager::setDisplaySceneNodes, and for entities based on skeletal 
-            models using Entity::setDisplaySkeleton()
-        */
-        void getRenderOperation(RenderOperation& op);
-        /** Overridden from Renderable.
-        @remarks
-            This is only used if the SceneManager chooses to render the node. This option can be set
-            for SceneNodes at SceneManager::setDisplaySceneNodes, and for entities based on skeletal 
-            models using Entity::setDisplaySkeleton()
-        */
-        void getWorldTransforms(Matrix4* xform) const;
 
         /** Sets the current transform of this node to be the 'initial state' ie that
             position / orientation / scale to be used as a basis for delta values used
@@ -670,7 +676,7 @@ namespace Ogre {
         /** Gets the initial position of this node, see setInitialState for more info. */
         virtual const Vector3& getInitialScale(void) const;
 
-        /** Overridden, see Renderable */
+        /** Helper function, get the squared view depth.  */
         Real getSquaredViewDepth(const Camera* cam) const;
 
         /** To be called in the event of transform changes to this node that require it's recalculation.
@@ -689,6 +695,9 @@ namespace Ogre {
         /** Called by children to notify their parent that they no longer need an update. */
         virtual void cancelUpdate(Node* child);
 
+		/** Get a debug renderable for rendering the Node.  */
+		virtual DebugRenderable* getDebugRenderable(Real scaling);
+
 		/** Queue a 'needUpdate' call to a node safely.
 		@remarks
 			You can't call needUpdate() during the scene graph update, e.g. in
@@ -700,12 +709,11 @@ namespace Ogre {
 		/** Process queued 'needUpdate' calls. */
 		static void processQueuedUpdates(void);
 
-        /** @copydoc Renderable::getLights */
-        const LightList& getLights(void) const;
-
 
 
     };
+	/** @} */
+	/** @} */
 
 } //namespace
 

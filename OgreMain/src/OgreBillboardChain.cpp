@@ -693,14 +693,14 @@ namespace Ogre {
 		return mMaterial;
 	}
 	//-----------------------------------------------------------------------
-	void BillboardChain::setMaterialName(const String& name)
+	void BillboardChain::setMaterialName( const String& name, const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
 	{
 		// early-out
 		if (name == mMaterialName)
 			return;
 		
 		mMaterialName = name;
-		mMaterial = MaterialManager::getSingleton().getByName(mMaterialName);
+		mMaterial = MaterialManager::getSingleton().getByName(mMaterialName, groupName);
 
 		if (mMaterial.isNull())
 		{
@@ -823,4 +823,5 @@ namespace Ogre {
 	}
 
 }
+
 

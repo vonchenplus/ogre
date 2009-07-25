@@ -36,6 +36,12 @@ Torus Knot Software Ltd.
 #include "OgreStringVector.h"
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
 
     /** Abstract class that defines a 'codec'.
         @remarks
@@ -49,7 +55,7 @@ namespace Ogre {
 	class _OgreExport Codec : public CodecAlloc
     {
     protected:
-        typedef std::map< String, Codec* > CodecList; 
+        typedef map< String, Codec* >::type CodecList; 
         /** A map that contains all the registered codecs.
         */
         static CodecList ms_mapCodecs;
@@ -152,6 +158,8 @@ namespace Ogre {
 		*/
 		virtual String magicNumberToFileExt(const char *magicNumberPtr, size_t maxbytes) const = 0;
     };
+	/** @} */
+	/** @} */
 
 } // namespace
 

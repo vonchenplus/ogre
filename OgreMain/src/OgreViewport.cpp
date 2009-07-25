@@ -35,6 +35,7 @@ Torus Knot Software Ltd.
 #include "OgreMath.h"
 #include "OgreRoot.h"
 #include "OgreMaterialManager.h"
+#include "OgreRenderSystem.h"
 
 
 namespace Ogre {
@@ -48,6 +49,7 @@ namespace Ogre {
         , mRelHeight(height)
         // Actual dimensions will update later
         , mZOrder(ZOrder)
+        , mOrientation(OR_PORTRAIT)
         , mBackColour(ColourValue::Black)
         , mClearEveryFrame(true)
 		, mClearBuffers(FBT_COLOUR | FBT_DEPTH)
@@ -59,13 +61,14 @@ namespace Ogre {
 		, mRQSequence(0)
 		, mMaterialSchemeName(MaterialManager::DEFAULT_SCHEME_NAME)
     {
-
+#if OGRE_COMPILER != OGRE_COMPILER_GCCE
 		LogManager::getSingleton().stream(LML_TRIVIAL)
 			<< "Creating viewport on target '" << target->getName() << "'"
 			<< ", rendering from camera '" << (cam != 0 ? cam->getName() : "NULL") << "'"
 			<< ", relative dimensions "	<< std::ios::fixed << std::setprecision(2) 
 			<< "L: " << left << " T: " << top << " W: " << width << " H: " << height
 			<< " ZOrder: " << ZOrder;
+#endif
 
         // Calculate actual dimensions
         _updateDimensions();
@@ -99,7 +102,7 @@ namespace Ogre {
         mActWidth = (int) (mRelWidth * width);
         mActHeight = (int) (mRelHeight * height);
 
-        // This will check if  the cameras getAutoAspectRation() property is set.
+        // This will check if the cameras getAutoAspectRatio() property is set.
         // If it's true its aspect ratio is fit to the current viewport
         // If it's false the camera remains unchanged.
         // This allows cameras to be used to render to many viewports,
@@ -110,11 +113,12 @@ namespace Ogre {
             mCamera->setAspectRatio((Real) mActWidth / (Real) mActHeight);
         }
 
+#if OGRE_COMPILER != OGRE_COMPILER_GCCE
 		LogManager::getSingleton().stream(LML_TRIVIAL)
 			<< "Viewport for camera '" << (mCamera != 0 ? mCamera->getName() : "NULL") << "'"
 			<< ", actual dimensions "	<< std::ios::fixed << std::setprecision(2) 
 			<< "L: " << mActLeft << " T: " << mActTop << " W: " << mActWidth << " H: " << mActHeight;
-
+#endif
 
         mUpdated = true;
     }
@@ -174,6 +178,21 @@ namespace Ogre {
         return mActHeight;
     }
     //---------------------------------------------------------------------
+    int Viewport::getOrientation(void)
+    {
+        return mOrientation;
+    }
+    //---------------------------------------------------------------------
+    void Viewport::setOrientation(Orientation orient)
+    {
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED,
+                    "Setting Viewport orientation is only supported on iPhone",
+                    __FUNCTION__);
+#endif
+        mOrientation = orient;
+    }
+    //---------------------------------------------------------------------
     void Viewport::setDimensions(Real left, Real top, Real width, Real height)
     {
         mRelLeft = left;
@@ -217,6 +236,20 @@ namespace Ogre {
     {
         return mClearBuffers;
     }
+    //---------------------------------------------------------------------
+	void Viewport::clear(unsigned int buffers, const ColourValue& col,  
+						 Real depth, unsigned short stencil)
+	{
+		RenderSystem* rs = Root::getSingleton().getRenderSystem();
+		if (rs)
+		{
+			Viewport* currentvp = rs->_getViewport();
+			rs->_setViewport(this);
+			rs->clearFrameBuffer(buffers, col, depth, stencil);
+			if (currentvp && currentvp != this)
+				rs->_setViewport(currentvp);
+		}
+	}
     //---------------------------------------------------------------------
     void Viewport::getActualDimensions(int &left, int&top, int &width, int &height) const
     {

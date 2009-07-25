@@ -741,6 +741,15 @@ namespace Ogre {
         rgba[2] = des.bmask;
         rgba[3] = des.amask;
     }
+	//---------------------------------------------------------------------
+	void PixelUtil::getBitShifts(PixelFormat format, unsigned char rgba[4])
+	{
+		const PixelFormatDescription &des = getDescriptionFor(format);
+		rgba[0] = des.rshift;
+		rgba[1] = des.gshift;
+		rgba[2] = des.bshift;
+		rgba[3] = des.ashift;
+	}
     //-----------------------------------------------------------------------
     String PixelUtil::getFormatName(PixelFormat srcformat)
     {
@@ -792,7 +801,7 @@ namespace Ogre {
     {
         // Collect format names sorted by length, it's required by BNF compiler
         // that similar tokens need longer ones comes first.
-        typedef std::multimap<String::size_type, String> FormatNameMap;
+        typedef multimap<String::size_type, String>::type FormatNameMap;
         FormatNameMap formatNames;
         for (size_t i = 0; i < PF_COUNT; ++i)
         {
@@ -1274,6 +1283,9 @@ namespace Ogre {
             + (src.left + src.top * src.rowPitch + src.front * src.slicePitch) * srcPixelSize;
         uint8 *dstptr = static_cast<uint8*>(dst.data)
             + (dst.left + dst.top * dst.rowPitch + dst.front * dst.slicePitch) * dstPixelSize;
+		
+		// Old way, not taking into account box dimensions
+		//uint8 *srcptr = static_cast<uint8*>(src.data), *dstptr = static_cast<uint8*>(dst.data);
 
         // Calculate pitches+skips in bytes
         const size_t srcRowSkipBytes = src.getRowSkip()*srcPixelSize;

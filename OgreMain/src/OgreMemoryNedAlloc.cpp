@@ -35,6 +35,8 @@ Torus Knot Software Ltd.
 #if OGRE_MEMORY_ALLOCATOR == OGRE_MEMORY_ALLOCATOR_NED
 
 // include ned implementation
+// don't abort() on asserts, behave as normal assert()
+#define ABORT_ON_ASSERT_FAILURE 0
 #include <nedmalloc.c>
 
 namespace Ogre
@@ -48,9 +50,6 @@ namespace Ogre
 	#if OGRE_MEMORY_TRACKER
 		// this alloc policy doesn't do pools (yet, ned can do it)
 		MemoryTracker::get()._recordAlloc(ptr, count, 0, file, line, func);
-	#else
-		// avoid unused params warning
-		file;line;func;
 	#endif
 		return ptr;
 	}
@@ -75,9 +74,6 @@ namespace Ogre
 #if OGRE_MEMORY_TRACKER
 		// this alloc policy doesn't do pools (yet, ned can do it)
 		MemoryTracker::get()._recordAlloc(ptr, count, 0, file, line, func);
-#else
-		// avoid unused params warning
-		file;line;func;
 #endif
 		return ptr;
 	}

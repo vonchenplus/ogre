@@ -38,7 +38,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Abstract class defining the interface required to be implemented
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	/** Abstract class defining the interface required to be implemented
         by classes which provide rendering capability to ParticleSystem instances.
     */
     class _OgreExport ParticleSystemRenderer : public StringInterface, public FXAlloc
@@ -58,7 +64,7 @@ namespace Ogre {
             instance(s) it wishes.
         */
         virtual void _updateRenderQueue(RenderQueue* queue, 
-            std::list<Particle*>& currentParticles, bool cullIndividually) = 0;
+            list<Particle*>::type& currentParticles, bool cullIndividually) = 0;
 
         /** Sets the material this renderer must use; called by ParticleSystem. */
         virtual void _setMaterial(MaterialPtr& mat) = 0;
@@ -79,9 +85,9 @@ namespace Ogre {
         /** Optional callback notified when particle expired */
         virtual void _notifyParticleExpired(Particle* particle) {}
         /** Optional callback notified when particles moved */
-        virtual void _notifyParticleMoved(std::list<Particle*>& currentParticles) {}
+        virtual void _notifyParticleMoved(list<Particle*>::type& currentParticles) {}
         /** Optional callback notified when particles cleared */
-        virtual void _notifyParticleCleared(std::list<Particle*>& currentParticles) {}
+        virtual void _notifyParticleCleared(list<Particle*>::type& currentParticles) {}
 		/** Create a new ParticleVisualData instance for attachment to a particle.
 		@remarks
 			If this renderer needs additional data in each particle, then this should
@@ -126,6 +132,8 @@ namespace Ogre {
     public:
         // No methods, must just override all methods inherited from FactoryObj
     };
+	/** @} */
+	/** @} */
 
 }
 

@@ -39,6 +39,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre
 {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
 	/** These enums hold the types of the concrete parsed nodes */
 	enum ConcreteNodeType
 	{
@@ -55,7 +61,7 @@ namespace Ogre
 	/** The ConcreteNode is the struct that holds an un-conditioned sub-tree of parsed input */
 	struct ConcreteNode;
 	typedef SharedPtr<ConcreteNode> ConcreteNodePtr;
-	typedef std::list<ConcreteNodePtr> ConcreteNodeList;
+	typedef list<ConcreteNodePtr>::type ConcreteNodeList;
 	typedef SharedPtr<ConcreteNodeList> ConcreteNodeListPtr;
 	struct ConcreteNode : public ScriptCompilerAlloc
 	{
@@ -79,7 +85,7 @@ namespace Ogre
 	};
 	class AbstractNode;
 	typedef SharedPtr<AbstractNode> AbstractNodePtr;
-	typedef std::list<AbstractNodePtr> AbstractNodeList;
+	typedef list<AbstractNodePtr>::type AbstractNodeList;
 	typedef SharedPtr<AbstractNodeList> AbstractNodeListPtr;
 
 	class _OgreExport AbstractNode : public AbstractNodeAlloc
@@ -117,9 +123,10 @@ namespace Ogre
 	class _OgreExport ObjectAbstractNode : public AbstractNode
 	{
 	private:
-		std::map<String,String> mEnv;
+		map<String,String>::type mEnv;
 	public:
-		String name, cls, base;
+		String name, cls;
+		std::vector<String> bases;
 		uint32 id;
 		bool abstract;
 		AbstractNodeList children;
@@ -133,7 +140,7 @@ namespace Ogre
 		void addVariable(const String &name);
 		void setVariable(const String &name, const String &value);
 		std::pair<bool,String> getVariable(const String &name) const;
-		const std::map<String,String> &getVariables() const;
+		const map<String,String>::type &getVariables() const;
 	};
 
 	/** This abstract node represents a script property */
@@ -180,7 +187,7 @@ namespace Ogre
 	class _OgreExport ScriptCompiler : public ScriptCompilerAlloc
 	{
 	public: // Externally accessible types
-		typedef std::map<String,uint32> IdMap;
+		typedef map<String,uint32>::type IdMap;
 
 		// The container for errors
 		struct Error : public ScriptCompilerAlloc
@@ -190,7 +197,7 @@ namespace Ogre
 			uint32 code;
 		};
 		typedef SharedPtr<Error> ErrorPtr;
-		typedef std::list<ErrorPtr> ErrorList;
+		typedef list<ErrorPtr>::type ErrorList;
 
 		// These are the built-in error codes
 		enum{
@@ -222,8 +229,10 @@ namespace Ogre
 		bool compile(const String &str, const String &source, const String &group);
 		/// Compiles resources from the given concrete node list
 		bool compile(const ConcreteNodeListPtr &nodes, const String &group);
+		/// Generates the AST from the given string script
+		AbstractNodeListPtr _generateAST(const String &str, const String &source, bool doImports = false, bool doObjects = false, bool doVariables = false);
 		/// Compiles the given abstract syntax tree
-		bool _compile(AbstractNodeListPtr nodes, const String &group);
+		bool _compile(AbstractNodeListPtr nodes, const String &group, bool doImports = true, bool doObjects = true, bool doVariables = true);
 		/// Adds the given error to the compiler's list of errors
 		void addError(uint32 code, const String &file, int line, const String &msg = "");
 		/// Sets the listener used by the compiler
@@ -242,9 +251,9 @@ namespace Ogre
 		/// Removes a name exclusion
 		void removeNameExclusion(const String &type);
 		/// Internal method for firing the handleEvent method
-		bool _fireEvent(const String &name, const std::vector<Any> &args, Any *retval);
+		bool _fireEvent(const String &name, const vector<Any>::type &args, Any *retval);
 		/// Internal method for firing the createObject event
-		Any _fireCreateObject(const String &type, const std::vector<Any> &args);
+		Any _fireCreateObject(const String &type, const vector<Any>::type &args);
 	private: // Tree processing
 		AbstractNodeListPtr convertToAST(const ConcreteNodeListPtr &nodes);
 		/// This built-in function processes import nodes
@@ -269,12 +278,12 @@ namespace Ogre
 		// The word -> id conversion table
 		IdMap mIds;
 		// This is an environment map
-		typedef std::map<String,String> Environment;
+		typedef map<String,String>::type Environment;
 		Environment mEnv;
 
-		typedef std::map<String,AbstractNodeListPtr> ImportCacheMap;
+		typedef map<String,AbstractNodeListPtr>::type ImportCacheMap;
 		ImportCacheMap mImports; // The set of imported scripts to avoid circular dependencies
-		typedef std::multimap<String,String> ImportRequestMap;
+		typedef multimap<String,String>::type ImportRequestMap;
 		ImportRequestMap mImportRequests; // This holds the target objects for each script to be imported
 
 		// This stores the imports of the scripts, so they are separated and can be treated specially
@@ -363,7 +372,7 @@ namespace Ogre
 		 @arg retval A possible return value from handlers
 		 @return True if the handler processed the event
 		*/
-		virtual bool handleEvent(ScriptCompiler *compiler, const String &name, const std::vector<Ogre::Any> &args, Ogre::Any *retval);
+		virtual bool handleEvent(ScriptCompiler *compiler, const String &name, const vector<Ogre::Any>::type &args, Ogre::Any *retval);
 		/// Called when a translator requests a concrete object to be created
 		/**
 		 @remarks	This function is called when a translator needs to create an Ogre object
@@ -406,7 +415,7 @@ namespace Ogre
 		 @arg args Creation arguments for the object
 		 @return A reference (pointer) to the created object wrapped in an Any
 	    */
-		virtual Ogre::Any createObject(ScriptCompiler *compiler, const String &type, const std::vector<Ogre::Any> &args);
+		virtual Ogre::Any createObject(ScriptCompiler *compiler, const String &type, const vector<Ogre::Any>::type &args);
 	};
 
 	class ScriptTranslator;
@@ -427,7 +436,7 @@ namespace Ogre
 		ScriptCompilerListener *mListener;
 
 		// Stores a map from object types to the translators that handle them
-		std::vector<ScriptTranslatorManager*> mManagers;
+		vector<ScriptTranslatorManager*>::type mManagers;
 
 		// A pointer to the built-in ScriptTranslatorManager
 		ScriptTranslatorManager *mBuiltinTranslatorManager;
@@ -512,6 +521,8 @@ namespace Ogre
 		ID_SHADOW_CASTER_MATERIAL,
 		ID_SHADOW_RECEIVER_MATERIAL,
 		
+        ID_LOD_VALUES,
+        ID_LOD_STRATEGY,
 		ID_LOD_DISTANCES,
 		ID_RECEIVE_SHADOWS,
 		ID_TRANSPARENCY_CASTS_SHADOWS,
@@ -550,6 +561,11 @@ namespace Ogre
 			ID_ONE_MINUS_DEST_ALPHA,
 			ID_ONE_MINUS_SRC_ALPHA,
 		ID_SEPARATE_SCENE_BLEND,
+		ID_SCENE_BLEND_OP,
+			ID_REVERSE_SUBTRACT,
+			ID_MIN,
+			ID_MAX,
+		ID_SEPARATE_SCENE_BLEND_OP,
 		ID_DEPTH_CHECK,
 		ID_DEPTH_WRITE,
 		ID_DEPTH_FUNC,
@@ -689,6 +705,9 @@ namespace Ogre
 			ID_NAMED,
 			ID_SHADOW,
 		ID_TEXTURE_SOURCE,
+		ID_SHARED_PARAMS,
+		ID_SHARED_PARAM_NAMED,
+		ID_SHARED_PARAMS_REF,
 
 		ID_PARTICLE_SYSTEM,
 		ID_EMITTER,
@@ -704,6 +723,9 @@ namespace Ogre
 				ID_TARGET_HEIGHT,
 				ID_TARGET_WIDTH_SCALED,
 				ID_TARGET_HEIGHT_SCALED,
+			ID_SHARED,
+			//ID_GAMMA, - already registered for material
+			ID_NO_FSAA,
 			ID_ONLY_INITIAL,
 			ID_VISIBILITY_MASK,
 			ID_LOD_BIAS,
@@ -717,6 +739,9 @@ namespace Ogre
 			ID_IDENTIFIER,
 			ID_FIRST_RENDER_QUEUE,
 			ID_LAST_RENDER_QUEUE,
+			ID_QUAD_NORMALS,
+				ID_CAMERA_FAR_CORNERS_VIEW_SPACE,
+				ID_CAMERA_FAR_CORNERS_WORLD_SPACE,
 
 			ID_BUFFERS,
 				ID_COLOUR,
@@ -741,6 +766,8 @@ namespace Ogre
 			ID_TWO_SIDED,
 		ID_END_BUILTIN_IDS
 	};
+	/** @} */
+	/** @} */
 }
 
 #endif

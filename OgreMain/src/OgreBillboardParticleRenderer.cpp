@@ -121,14 +121,14 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------
     void BillboardParticleRenderer::_updateRenderQueue(RenderQueue* queue, 
-        std::list<Particle*>& currentParticles, bool cullIndividually)
+        list<Particle*>::type& currentParticles, bool cullIndividually)
     {
         mBillboardSet->setCullIndividually(cullIndividually);
 
         // Update billboard set geometry
         mBillboardSet->beginBillboards(currentParticles.size());
         Billboard bb;
-        for (std::list<Particle*>::iterator i = currentParticles.begin();
+        for (list<Particle*>::type::iterator i = currentParticles.begin();
             i != currentParticles.end(); ++i)
         {
             Particle* p = *i;
@@ -166,7 +166,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void BillboardParticleRenderer::_setMaterial(MaterialPtr& mat)
     {
-        mBillboardSet->setMaterialName(mat->getName());
+        mBillboardSet->setMaterialName(mat->getName(), mat->getGroup());
     }
     //-----------------------------------------------------------------------
     void BillboardParticleRenderer::setBillboardType(BillboardType bbt)
@@ -483,4 +483,5 @@ namespace Ogre {
 	}
 
 }
+
 

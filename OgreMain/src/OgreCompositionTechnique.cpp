@@ -46,12 +46,6 @@ CompositionTechnique::CompositionTechnique(Compositor *parent):
 //-----------------------------------------------------------------------
 CompositionTechnique::~CompositionTechnique()
 {
-	/// Destroy all instances by removing them from their chain
-	/// CompositorChain::removeInstance also calls destroyInstance
-	Instances copy = mInstances;
-	for(Instances::iterator i=copy.begin(); i!=copy.end(); ++i)
-		(*i)->getChain()->_removeInstance(*i);
-
     removeAllTextureDefinitions();
     removeAllTargetPasses();
     OGRE_DELETE  mOutputTarget;
@@ -79,6 +73,20 @@ CompositionTechnique::TextureDefinition *CompositionTechnique::getTextureDefinit
 {
     assert (index < mTextureDefinitions.size() && "Index out of bounds.");
     return mTextureDefinitions[index];
+}
+//---------------------------------------------------------------------
+CompositionTechnique::TextureDefinition *CompositionTechnique::getTextureDefinition(const String& name)
+{
+	TextureDefinitions::iterator i, iend;
+	iend = mTextureDefinitions.end();
+	for (i = mTextureDefinitions.begin(); i != iend; ++i)
+	{
+		if ((*i)->name == name)
+			return *i;
+	}
+
+	return 0;
+
 }
 //-----------------------------------------------------------------------
 
@@ -223,24 +231,14 @@ bool CompositionTechnique::isSupported(bool acceptTextureDegradation)
 	return true;
 }
 //-----------------------------------------------------------------------
-CompositorInstance *CompositionTechnique::createInstance(CompositorChain *chain)
-{
-	CompositorInstance *mew = OGRE_NEW CompositorInstance(mParent, this, chain);
-	mInstances.push_back(mew);
-    return mew;
-}
-//-----------------------------------------------------------------------
-void CompositionTechnique::destroyInstance(CompositorInstance *instance)
-{
-    assert(instance->getTechnique() == this);
-	/// Erase from list of instances
-	mInstances.erase(std::find(mInstances.begin(), mInstances.end(), instance));
-    OGRE_DELETE  instance;
-}
-//-----------------------------------------------------------------------
 Compositor *CompositionTechnique::getParent()
 {
     return mParent;
+}
+//---------------------------------------------------------------------
+void CompositionTechnique::setSchemeName(const String& schemeName)
+{
+	mSchemeName = schemeName;
 }
 
 }

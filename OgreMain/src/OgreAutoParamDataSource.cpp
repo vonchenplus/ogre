@@ -65,6 +65,7 @@ namespace Ogre {
          mCurrentRenderable(0),
          mCurrentCamera(0), 
 		 mCameraRelativeRendering(false),
+		 mCurrentLightList(0),
          mCurrentRenderTarget(0),
          mCurrentViewport(0), 
 		 mCurrentSceneManager(0),
@@ -93,7 +94,7 @@ namespace Ogre {
     const Light& AutoParamDataSource::getLight(size_t index) const
     {
         // If outside light range, return a blank light to ensure zeroised for program
-		if (index < mCurrentLightList->size())
+		if (mCurrentLightList && index < mCurrentLightList->size())
 		{
 			return *((*mCurrentLightList)[index]);
 		}
@@ -1102,6 +1103,17 @@ namespace Ogre {
 	const ColourValue& AutoParamDataSource::getShadowColour() const
 	{
 		return mCurrentSceneManager->getShadowColour();
+	}
+	//-------------------------------------------------------------------------
+	void AutoParamDataSource::updateLightCustomGpuParameter(const GpuProgramParameters::AutoConstantEntry& constantEntry, GpuProgramParameters *params) const
+	{
+		uint16 lightIndex = static_cast<uint16>(constantEntry.data & 0xFFFF),
+			paramIndex = static_cast<uint16>((constantEntry.data >> 16) & 0xFFFF);
+		if(mCurrentLightList && lightIndex < mCurrentLightList->size())
+		{
+			const Light &light = getLight(lightIndex);
+			light._updateCustomGpuParameter(paramIndex, constantEntry, params);
+		}
 	}
 
 }

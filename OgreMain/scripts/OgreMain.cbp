@@ -138,6 +138,7 @@
 		<Unit filename="..\include\OgreDDSCodec.h" />
 		<Unit filename="..\include\OgreDataStream.h" />
 		<Unit filename="..\include\OgreDefaultHardwareBufferManager.h" />
+		<Unit filename="..\include\OgreDistanceLodStrategy.h" />
 		<Unit filename="..\include\OgreDynLib.h" />
 		<Unit filename="..\include\OgreDynLibManager.h" />
 		<Unit filename="..\include\OgreEdgeListBuilder.h" />
@@ -154,6 +155,7 @@
 		<Unit filename="..\include\OgreFreeImageCodec.h" />
 		<Unit filename="..\include\OgreFrustum.h" />
 		<Unit filename="..\include\OgreGpuProgram.h" />
+		<Unit filename="..\include\OgreGpuProgramParams.h" />
 		<Unit filename="..\include\OgreGpuProgramManager.h" />
 		<Unit filename="..\include\OgreGpuProgramUsage.h" />
 		<Unit filename="..\include\OgreHardwareBuffer.h" />
@@ -170,6 +172,9 @@
 		<Unit filename="..\include\OgreIteratorWrappers.h" />
 		<Unit filename="..\include\OgreKeyFrame.h" />
 		<Unit filename="..\include\OgreLight.h" />
+		<Unit filename="..\include\OgreLodListener.h" />
+		<Unit filename="..\include\OgreLodStrategy.h" />
+		<Unit filename="..\include\OgreLodStrategyManager.h" />
 		<Unit filename="..\include\OgreLog.h" />
 		<Unit filename="..\include\OgreLogManager.h" />
 		<Unit filename="..\include\OgreManualObject.h" />
@@ -215,6 +220,7 @@
 		<Unit filename="..\include\OgrePass.h" />
 		<Unit filename="..\include\OgrePatchMesh.h" />
 		<Unit filename="..\include\OgrePatchSurface.h" />
+		<Unit filename="..\include\OgrePixelCountLodStrategy.h" />
 		<Unit filename="..\include\OgrePixelFormat.h" />
 		<Unit filename="..\include\OgrePlane.h" />
 		<Unit filename="..\include\OgrePlaneBoundedVolume.h" />
@@ -359,6 +365,7 @@
 		<Unit filename="..\src\OgreDataStream.cpp" />
 		<Unit filename="..\src\OgreDefaultHardwareBufferManager.cpp" />
 		<Unit filename="..\src\OgreDefaultSceneQueries.cpp" />
+		<Unit filename="..\src\OgreDistanceLodStrategy.cpp" />
 		<Unit filename="..\src\OgreDynLib.cpp" />
 		<Unit filename="..\src\OgreDynLibManager.cpp" />
 		<Unit filename="..\src\OgreEdgeListBuilder.cpp" />
@@ -372,6 +379,7 @@
 		<Unit filename="..\src\OgreFreeImageCodec.cpp" />
 		<Unit filename="..\src\OgreFrustum.cpp" />
 		<Unit filename="..\src\OgreGpuProgram.cpp" />
+		<Unit filename="..\src\OgreGpuProgramParams.cpp" />
 		<Unit filename="..\src\OgreGpuProgramManager.cpp" />
 		<Unit filename="..\src\OgreGpuProgramUsage.cpp" />
 		<Unit filename="..\src\OgreHardwareBufferManager.cpp" />
@@ -386,6 +394,8 @@
 		<Unit filename="..\src\OgreInstancedGeometry.cpp" />
 		<Unit filename="..\src\OgreKeyFrame.cpp" />
 		<Unit filename="..\src\OgreLight.cpp" />
+		<Unit filename="..\src\OgreLodStrategy.cpp" />
+		<Unit filename="..\src\OgreLodStrategyManager.cpp" />
 		<Unit filename="..\src\OgreLog.cpp" />
 		<Unit filename="..\src\OgreLogManager.cpp" />
 		<Unit filename="..\src\OgreManualObject.cpp" />
@@ -427,6 +437,7 @@
 		<Unit filename="..\src\OgrePatchMesh.cpp" />
 		<Unit filename="..\src\OgrePatchSurface.cpp" />
 		<Unit filename="..\src\OgrePixelConversions.h" />
+		<Unit filename="..\src\OgrePixelCountLodStrategy.cpp" />
 		<Unit filename="..\src\OgrePixelFormat.cpp" />
 		<Unit filename="..\src\OgrePlane.cpp" />
 		<Unit filename="..\src\OgrePlatformInformation.cpp" />

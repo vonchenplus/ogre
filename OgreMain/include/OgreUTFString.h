@@ -63,6 +63,12 @@ namespace std
 
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Overlays
+	*  @{
+	*/
 
 	/* READ THIS NOTICE BEFORE USING IN YOUR OWN APPLICATIONS
 	=NOTICE=
@@ -104,9 +110,11 @@ namespace Ogre {
 #if defined( __WIN32__ ) || defined( _WIN32 )
 #define WCHAR_UTF16 // All currently known Windows platforms utilize UTF-16 encoding in wchar_t
 #else // #if defined( __WIN32__ ) || defined( _WIN32 )
+#if OGRE_COMPILER != OGRE_COMPILER_GCCE
 #if WCHAR_MAX <= 0xFFFF // this is a last resort fall back test; WCHAR_MAX is defined in <wchar.h>
 #define WCHAR_UTF16 // best we can tell, wchar_t is not larger than 16-bit
 #endif // #if WCHAR_MAX <= 0xFFFF
+#endif
 #endif // #if defined( __WIN32__ ) || defined( _WIN32 )
 #endif // #ifdef __STDC_ISO_10646__
 
@@ -124,7 +132,8 @@ namespace Ogre {
 # else
 #   define OGRE_IS_NATIVE_WCHAR_T      0
 # endif
-
+#elif OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+#   define OGRE_IS_NATIVE_WCHAR_T      0
 #else   // OGRE_COMPILER != OGRE_COMPILER_MSVC
 
 // Assumed wchar_t is natively for other compilers
@@ -867,6 +876,13 @@ namespace Ogre {
 			_init();
 			assign( str );
 		}
+#if OGRE_STRING_USE_CUSTOM_MEMORY_ALLOCATOR
+		UTFString( const Ogre::String& str ) {
+			_init();
+			assign( str.c_str() );
+		}
+#endif
+
 		//! destructor
 		~UTFString() {
 			_cleanBuffer();
@@ -1885,6 +1901,16 @@ namespace Ogre {
 		operator std::wstring() const {
 			return std::wstring( asWStr() );
 		}
+#if OGRE_STRING_USE_CUSTOM_MEMORY_ALLOCATOR
+		//! implicit cast to Ogre::String
+		operator Ogre::String() const {
+#if OGRE_WCHAR_T_STRINGS
+			return Ogre::String( asWStr() );
+#else
+			return Ogre::String( asUTF8().c_str() );
+#endif
+		}
+#endif
 		//@}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -2397,6 +2423,8 @@ namespace Ogre {
 		return os << s.asWStr();
 	}
 
+	/** @} */
+	/** @} */
 
 
 } // namespace Ogre{

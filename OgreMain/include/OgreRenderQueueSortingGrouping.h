@@ -39,6 +39,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup RenderSystem
+	*  @{
+	*/
 	/** Struct associating a single Pass with a single Renderable. 
 		This is used to for objects sorted by depth and thus not
 		grouped by pass.
@@ -188,10 +194,10 @@ namespace Ogre {
         /** Vector of RenderablePass objects, this is built on the assumption that
          vectors only ever increase in size, so even if we do clear() the memory stays
          allocated, ie fast */
-        typedef std::vector<RenderablePass> RenderablePassList;
-        typedef std::vector<Renderable*> RenderableList;
+        typedef vector<RenderablePass>::type RenderablePassList;
+        typedef vector<Renderable*>::type RenderableList;
         /** Map of pass to renderable lists, this is a grouping by pass. */
-        typedef std::map<Pass*, RenderableList*, PassGroupLess> PassGroupRenderableMap;
+        typedef map<Pass*, RenderableList*, PassGroupLess>::type PassGroupRenderableMap;
 
 		/// Functor for accessing sort value 1 for radix sort (Pass)
 		struct RadixSortFunctorPass
@@ -454,7 +460,7 @@ namespace Ogre {
     class _OgreExport RenderQueueGroup : public RenderQueueAlloc
     {
     public:
-        typedef std::map<ushort, RenderPriorityGroup*, std::less<ushort> > PriorityMap;
+        typedef map<ushort, RenderPriorityGroup*, std::less<ushort> >::type PriorityMap;
         typedef MapIterator<PriorityMap> PriorityMapIterator;
     protected:
         RenderQueue* mParent;
@@ -666,6 +672,8 @@ namespace Ogre {
 
     };
 
+	/** @} */
+	/** @} */
 
 
 }

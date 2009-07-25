@@ -101,10 +101,11 @@ namespace Ogre {
 		mLastVisibleFrame(0),
         mTimeController(0),
 		mEmittedEmitterPoolInitialised(false),
+		mIsEmitting(true),
         mRenderer(0),
         mCullIndividual(false),
         mPoolSize(0),
-		mEmittedEmitterPoolSize(0)
+        mEmittedEmitterPoolSize(0)
 	{
         initParameters();
 
@@ -134,10 +135,11 @@ namespace Ogre {
 		mLastVisibleFrame(Root::getSingleton().getNextFrameNumber()),
         mTimeController(0),
 		mEmittedEmitterPoolInitialised(false),
+		mIsEmitting(true),
         mRenderer(0), 
-		mCullIndividual(false),
+        mCullIndividual(false),
         mPoolSize(0),
-		mEmittedEmitterPoolSize(0)
+        mEmittedEmitterPoolSize(0)
     {
         setDefaultDimensions( 100, 100 );
         setMaterialName( "BaseWhite" );
@@ -406,8 +408,12 @@ namespace Ogre {
                 _expire(iterationInterval);
                 _triggerAffectors(iterationInterval);
                 _applyMotion(iterationInterval);
-                // Emit new particles
-                _triggerEmitters(iterationInterval);
+
+				if(mIsEmitting)
+				{
+					// Emit new particles
+					_triggerEmitters(iterationInterval);
+				}
 
                 mUpdateRemainTime -= iterationInterval;
             }
@@ -418,8 +424,12 @@ namespace Ogre {
             _expire(timeElapsed);
             _triggerAffectors(timeElapsed);
             _applyMotion(timeElapsed);
-            // Emit new particles
-            _triggerEmitters(timeElapsed);
+
+			if(mIsEmitting)
+			{
+				// Emit new particles
+				_triggerEmitters(timeElapsed);
+			}
         }
 
         if (!mBoundsAutoUpdate && mBoundsUpdateTime > 0.0f)
@@ -454,7 +464,7 @@ namespace Ogre {
 				{
 					// For now, it can only be an emitted emitter
 					pParticleEmitter = static_cast<ParticleEmitter*>(*i);
-					std::list<ParticleEmitter*>* fee = findFreeEmittedEmitter(pParticleEmitter->getName());
+					list<ParticleEmitter*>::type* fee = findFreeEmittedEmitter(pParticleEmitter->getName());
 					fee->push_back(pParticleEmitter);
 
 					// Also erase from mActiveEmittedEmitters
@@ -477,7 +487,7 @@ namespace Ogre {
     void ParticleSystem::_triggerEmitters(Real timeElapsed)
     {
         // Add up requests for emission
-        static std::vector<unsigned> requested;
+        static vector<unsigned>::type requested;
         if( requested.size() != mEmitters.size() )
             requested.resize( mEmitters.size() );
 
@@ -687,7 +697,7 @@ namespace Ogre {
     {
 		// Get the appropriate list and retrieve an emitter	
 		Particle* p = 0;
-		std::list<ParticleEmitter*>* fee = findFreeEmittedEmitter(emitterName);
+		list<ParticleEmitter*>::type* fee = findFreeEmittedEmitter(emitterName);
 		if (fee && !fee->empty())
 		{
 	        p = fee->front();
@@ -871,6 +881,16 @@ namespace Ogre {
             _update(interval);
         }
     }
+	//-----------------------------------------------------------------------
+	void ParticleSystem::setEmitting(bool v)
+	{
+		mIsEmitting = v;
+	}
+	//-----------------------------------------------------------------------
+	bool ParticleSystem::getEmitting() const
+	{
+		return mIsEmitting;
+	}
     //-----------------------------------------------------------------------
     const String& ParticleSystem::getMovableType(void) const
     {
@@ -983,7 +1003,7 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void ParticleSystem::setMaterialName(const String& name)
+    void ParticleSystem::setMaterialName( const String& name, const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
     {
 		// early-out
 		if (name == mMaterialName)
@@ -1356,7 +1376,7 @@ namespace Ogre {
 		EmittedEmitterPool::iterator emittedEmitterPoolIterator;
 		EmittedEmitterList::iterator emittedEmitterIterator;
 		EmittedEmitterList* emittedEmitters = 0;
-		std::list<ParticleEmitter*>* fee = 0;
+		list<ParticleEmitter*>::type* fee = 0;
 		String name = StringUtil::BLANK;
 
 		// Run through the emittedEmitterPool map
@@ -1366,7 +1386,7 @@ namespace Ogre {
 			emittedEmitters = &emittedEmitterPoolIterator->second;
 			fee = findFreeEmittedEmitter(name);
 
-			// If it´s not in the map, create an empty one
+			// If its not in the map, create an empty one
 			if (!fee)
 			{
 				FreeEmittedEmitterList empty;
@@ -1374,7 +1394,7 @@ namespace Ogre {
 				fee = findFreeEmittedEmitter(name);
 			}
 
-			// Check anyway if it´s ok now
+			// Check anyway if its ok now
 			if (!fee)
 				return; // forget it!
 
@@ -1401,13 +1421,13 @@ namespace Ogre {
 			e->clear();
         }
 
-		// Don´t leave any references behind
+		// Dont leave any references behind
 		mEmittedEmitterPool.clear();
 		mFreeEmittedEmitters.clear();
 		mActiveEmittedEmitters.clear();
     }
 	//-----------------------------------------------------------------------
-	std::list<ParticleEmitter*>* ParticleSystem::findFreeEmittedEmitter (const String& name)
+	list<ParticleEmitter*>::type* ParticleSystem::findFreeEmittedEmitter (const String& name)
 	{
 		FreeEmittedEmitterMap::iterator it;
 		it = mFreeEmittedEmitters.find (name);
@@ -1439,7 +1459,7 @@ namespace Ogre {
 		ActiveEmittedEmitterList::iterator itActiveEmit;
 		for (itActiveEmit = mActiveEmittedEmitters.begin(); itActiveEmit != mActiveEmittedEmitters.end(); ++itActiveEmit)
 		{
-			std::list<ParticleEmitter*>* fee = findFreeEmittedEmitter ((*itActiveEmit)->getName());
+			list<ParticleEmitter*>::type* fee = findFreeEmittedEmitter ((*itActiveEmit)->getName());
 			if (fee)
 				fee->push_back(*itActiveEmit);
 		}
@@ -1448,7 +1468,7 @@ namespace Ogre {
 	void ParticleSystem::_notifyReorganiseEmittedEmitterData (void)
 	{
 		removeAllEmittedEmitters();
-		mEmittedEmitterPoolInitialised = false; // Don´t rearrange immediately; it will be performed in the regular flow
+		mEmittedEmitterPoolInitialised = false; // Dont rearrange immediately; it will be performed in the regular flow
 	}
     //-----------------------------------------------------------------------
     String ParticleSystem::CmdCull::doGet(const void* target) const
@@ -1575,7 +1595,7 @@ namespace Ogre {
     ParticleAffectorFactory::~ParticleAffectorFactory() 
     {
         // Destroy all affectors
-        std::vector<ParticleAffector*>::iterator i;
+        vector<ParticleAffector*>::type::iterator i;
         for (i = mAffectors.begin(); i != mAffectors.end(); ++i)
         {
             OGRE_DELETE (*i);
@@ -1587,7 +1607,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleAffectorFactory::destroyAffector(ParticleAffector* e)
     {
-        std::vector<ParticleAffector*>::iterator i;
+        vector<ParticleAffector*>::type::iterator i;
         for (i = mAffectors.begin(); i != mAffectors.end(); ++i)
         {
             if ((*i) == e)

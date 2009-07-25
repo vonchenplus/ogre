@@ -38,6 +38,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre
 {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
 	/** Class providing a much simplified interface to generating manual
 	 	objects with custom geometry.
 	@remarks
@@ -145,8 +151,8 @@ namespace Ogre
 			object with.
 		@param opType The type of operation to use to render. 
 		*/
-		virtual void begin(const String& materialName, 
-			RenderOperation::OperationType opType = RenderOperation::OT_TRIANGLE_LIST);
+		virtual void begin(const String& materialName,
+			RenderOperation::OperationType opType = RenderOperation::OT_TRIANGLE_LIST, const String & groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
 		/** Use before defining geometry to indicate that you intend to update the
 			geometry regularly and want the internal structure to reflect that.
@@ -263,7 +269,7 @@ namespace Ogre
 		@param subIndex The index of the subsection to alter
 		@param name The name of the new material to use
 		*/
-		virtual void setMaterialName(size_t subindex, const String& name);
+		virtual void setMaterialName(size_t subindex, const String& name, const String & group = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
 		/** Convert this object to a Mesh. 
 		@remarks
@@ -382,6 +388,7 @@ namespace Ogre
 		protected:
 			ManualObject* mParent;
 			String mMaterialName;
+			String mGroupName;
 			mutable MaterialPtr mMaterial;
 			RenderOperation mRenderOperation;
 			bool m32BitIndices;
@@ -389,15 +396,17 @@ namespace Ogre
 			
 		public:
 			ManualObjectSection(ManualObject* parent, const String& materialName,
-				RenderOperation::OperationType opType);
+				RenderOperation::OperationType opType, const String & groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 			virtual ~ManualObjectSection();
 			
 			/// Retrieve render operation for manipulation
 			RenderOperation* getRenderOperation(void);
 			/// Retrieve the material name in use
 			const String& getMaterialName(void) const { return mMaterialName; }
+			/// Retrieve the material group in use
+			const String& getMaterialGroup(void) const { return mGroupName; }
 			/// update the material name in use
-			void setMaterialName(const String& name);
+			void setMaterialName(const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 			/// Set whether we need 32-bit indices
 			void set32BitIndices(bool n32) { m32BitIndices = n32; }
 			/// Get whether we need 32-bit indices
@@ -440,7 +449,7 @@ namespace Ogre
 
 		};
 
-		typedef std::vector<ManualObjectSection*> SectionList;
+		typedef vector<ManualObjectSection*>::type SectionList;
 
 		/// @copydoc MovableObject::visitRenderables
 		void visitRenderables(Renderable::Visitor* visitor, 
@@ -533,7 +542,10 @@ namespace Ogre
 		void destroyInstance( MovableObject* obj);  
 
 	};
+	/** @} */
+	/** @} */
 }
 
 #endif
+
 

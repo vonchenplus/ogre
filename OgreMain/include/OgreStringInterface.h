@@ -36,6 +36,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
 
     /// List of parameter types available
     enum ParameterType
@@ -66,7 +72,7 @@ namespace Ogre {
         ParameterDef(const String& newName, const String& newDescription, ParameterType newType)
             : name(newName), description(newDescription), paramType(newType) {}
     };
-    typedef std::vector<ParameterDef> ParameterList;
+    typedef vector<ParameterDef>::type ParameterList;
 
     /** Abstract class which is command object which gets/sets parameters.*/
     class _OgreExport ParamCommand
@@ -77,7 +83,7 @@ namespace Ogre {
 
         virtual ~ParamCommand() { }
     };
-    typedef std::map<String, ParamCommand* > ParamCommandMap;
+    typedef map<String, ParamCommand* >::type ParamCommandMap;
 
     /** Class to hold a dictionary of parameters for a single class. */
     class _OgreExport ParamDictionary
@@ -142,7 +148,7 @@ namespace Ogre {
 
 
     };
-    typedef std::map<String, ParamDictionary> ParamDictionaryMap;
+    typedef map<String, ParamDictionary>::type ParamDictionaryMap;
     
     /** Class defining the common interface which classes can use to 
         present a reflection-style, self-defining parameter set to callers.
@@ -324,6 +330,8 @@ namespace Ogre {
 
     };
 
+	/** @} */
+	/** @} */
 
 
 }

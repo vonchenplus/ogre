@@ -34,7 +34,13 @@ Torus Knot Software Ltd.
 #include "OgreIteratorWrappers.h"
 
 namespace Ogre {
-    /** Base composition technique, can be subclassed in plugins.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	/** Base composition technique, can be subclassed in plugins.
      */
 	class _OgreExport CompositionTechnique : public CompositorInstAlloc
     {
@@ -52,13 +58,17 @@ namespace Ogre {
 			float widthFactor;  // multiple of target width to use (if width = 0)
 			float heightFactor; // multiple of target height to use (if height = 0)
             PixelFormatList formatList; // more than one means MRT
+			bool fsaa;			// FSAA enabled; true = determine from main target (if render_scene), false = disable
+			bool hwGammaWrite;	// Do sRGB gamma correction on write (only 8-bit per channel formats) 
+			bool shared;		// whether to use shared textures for this one
 
-			TextureDefinition() :width(0), height(0), widthFactor(1.0f), heightFactor(1.0f) {}
+			TextureDefinition() :width(0), height(0), widthFactor(1.0f), heightFactor(1.0f), 
+				fsaa(true), hwGammaWrite(false), shared(false) {}
         };
         /// Typedefs for several iterators
-        typedef std::vector<CompositionTargetPass *> TargetPasses;
+        typedef vector<CompositionTargetPass *>::type TargetPasses;
         typedef VectorIterator<TargetPasses> TargetPassIterator;
-        typedef std::vector<TextureDefinition*> TextureDefinitions;
+        typedef vector<TextureDefinition*>::type TextureDefinitions;
         typedef VectorIterator<TextureDefinitions> TextureDefinitionIterator;
         
         /** Create a new local texture definition, and return a pointer to it.
@@ -74,7 +84,11 @@ namespace Ogre {
         */
         TextureDefinition *getTextureDefinition(size_t idx);
         
-        /** Get the number of local texture definitions.
+		/** Get a local texture definition with a specific name.
+		*/
+		TextureDefinition *getTextureDefinition(const String& name);
+
+		/** Get the number of local texture definitions.
         */
         size_t getNumTextureDefinitions();
         
@@ -117,13 +131,12 @@ namespace Ogre {
          */
         virtual bool isSupported(bool allowTextureDegradation);
         
-        /** Create an instance of this technique.
-         */
-        virtual CompositorInstance *createInstance(CompositorChain *chain);
-        
-        /** Destroy an instance of this technique.
-         */
-        virtual void destroyInstance(CompositorInstance *instance);
+		/** Assign a scheme name to this technique, used to switch between 
+			multiple techniques by choice rather than for hardware compatibility.
+		*/
+		virtual void setSchemeName(const String& schemeName);
+		/** Get the scheme name assigned to this technique. */
+		const String& getSchemeName() const { return mSchemeName; }
         
         /** Get parent object */
         Compositor *getParent();
@@ -136,12 +149,14 @@ namespace Ogre {
         /// Intermediate target passes
         TargetPasses mTargetPasses;
         /// Output target pass (can be only one)
-        CompositionTargetPass *mOutputTarget;    
+        CompositionTargetPass *mOutputTarget;  
 
-		/// List of instances
-		typedef std::vector<CompositorInstance *> Instances;
-		Instances mInstances;
+		/// Optional scheme name
+		String mSchemeName;
+
     };
+	/** @} */
+	/** @} */
 
 }
 

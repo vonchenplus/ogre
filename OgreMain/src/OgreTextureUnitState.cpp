@@ -1280,7 +1280,7 @@ namespace Ogre {
     void TextureUnitState::_unprepare(void)
     {
         // Unreference textures
-        std::vector<TexturePtr>::iterator ti, tiend;
+        vector<TexturePtr>::type::iterator ti, tiend;
         tiend = mFramePtrs.end();
         for (ti = mFramePtrs.begin(); ti != tiend; ++ti)
         {
@@ -1308,7 +1308,7 @@ namespace Ogre {
         }
 
         // Unreference but don't unload textures. may be used elsewhere
-        std::vector<TexturePtr>::iterator ti, tiend;
+        vector<TexturePtr>::type::iterator ti, tiend;
         tiend = mFramePtrs.end();
         for (ti = mFramePtrs.begin(); ti != tiend; ++ti)
         {

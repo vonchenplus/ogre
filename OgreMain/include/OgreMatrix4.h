@@ -38,7 +38,13 @@ Torus Knot Software Ltd.
 #include "OgrePlane.h"
 namespace Ogre
 {
-    /** Class encapsulating a standard 4x4 homogeneous matrix.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Math
+	*  @{
+	*/
+	/** Class encapsulating a standard 4x4 homogeneous matrix.
         @remarks
             OGRE uses column vectors when applying matrix multiplications,
             This means a vector is represented as a single column, 4-row
@@ -46,11 +52,11 @@ namespace Ogre
             by the matrices happens right-to-left e.g. if vector V is to be
             transformed by M1 then M2 then M3, the calculation would be
             M3 * M2 * M1 * V. The order that matrices are concatenated is
-            vital since matrix multiplication is not cummatative, i.e. you
+            vital since matrix multiplication is not commutative, i.e. you
             can get a different result if you concatenate in the wrong order.
         @par
             The use of column vectors and right-to-left ordering is the
-            standard in most mathematical texts, and id the same as used in
+            standard in most mathematical texts, and is the same as used in
             OpenGL. It is, however, the opposite of Direct3D, which has
             inexplicably chosen to differ from the accepted standard and uses
             row vectors and left-to-right matrix multiplication.
@@ -132,7 +138,29 @@ namespace Ogre
         }
         
 
-        inline Real* operator [] ( size_t iRow )
+		/** Exchange the contents of this matrix with another. 
+		*/
+		inline void swap(Matrix4& other)
+		{
+			std::swap(m[0][0], other.m[0][0]);
+			std::swap(m[0][1], other.m[0][1]);
+			std::swap(m[0][2], other.m[0][2]);
+			std::swap(m[0][3], other.m[0][3]);
+			std::swap(m[1][0], other.m[1][0]);
+			std::swap(m[1][1], other.m[1][1]);
+			std::swap(m[1][2], other.m[1][2]);
+			std::swap(m[1][3], other.m[1][3]);
+			std::swap(m[2][0], other.m[2][0]);
+			std::swap(m[2][1], other.m[2][1]);
+			std::swap(m[2][2], other.m[2][2]);
+			std::swap(m[2][3], other.m[2][3]);
+			std::swap(m[3][0], other.m[3][0]);
+			std::swap(m[3][1], other.m[3][1]);
+			std::swap(m[3][2], other.m[3][2]);
+			std::swap(m[3][3], other.m[3][3]);
+		}
+
+		inline Real* operator [] ( size_t iRow )
         {
             assert( iRow < 4 );
             return m[iRow];
@@ -548,7 +576,7 @@ namespace Ogre
         */
         Matrix4 inverseAffine(void) const;
 
-        /** Concatenate two affine matrix.
+        /** Concatenate two affine matrices.
             @note
                 The matrices must be affine matrix. @see Matrix4::isAffine.
         */
@@ -575,7 +603,7 @@ namespace Ogre
                 0, 0, 0, 1);
         }
 
-        /** 3-D Vector transformation specially for affine matrix.
+        /** 3-D Vector transformation specially for an affine matrix.
             @remarks
                 Transforms the given 3-D vector by the matrix, projecting the 
                 result back into <i>w</i> = 1.
@@ -592,7 +620,7 @@ namespace Ogre
                     m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z + m[2][3]);
         }
 
-        /** 4-D Vector transformation specially for affine matrix.
+        /** 4-D Vector transformation specially for an affine matrix.
             @note
                 The matrix must be an affine matrix. @see Matrix4::isAffine.
         */
@@ -621,6 +649,8 @@ namespace Ogre
             v.x*mat[0][3] + v.y*mat[1][3] + v.z*mat[2][3] + v.w*mat[3][3]
             );
     }
+	/** @} */
+	/** @} */
 
 }
 #endif

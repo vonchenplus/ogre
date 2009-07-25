@@ -31,7 +31,7 @@ Torus Knot Software Ltd.
 #include "OgreException.h"
 
 // Regsiter the suite
-CPPUNIT_TEST_SUITE_REGISTRATION( FileSystemArchiveTests );
+//CPPUNIT_TEST_SUITE_REGISTRATION( FileSystemArchiveTests );
 
 void FileSystemArchiveTests::setUp()
 {
@@ -275,5 +275,27 @@ void FileSystemArchiveTests::testReadInterleave()
     CPPUNIT_ASSERT_EQUAL(String("this is line 6 in file 2"), stream2->getLine());
     CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, stream2->getLine()); // blank at end of file
     CPPUNIT_ASSERT(stream2->eof());
+
+}
+
+void FileSystemArchiveTests::testCreateAndRemoveFile()
+{
+	FileSystemArchive arch("./", "FileSystem");
+	arch.load();
+
+	CPPUNIT_ASSERT(!arch.isReadOnly());
+
+	String fileName = "a_test_file.txt";
+	DataStreamPtr stream = arch.create(fileName);
+
+	String testString = "Some text here";
+	size_t written = stream->write((void*)testString.c_str(), testString.size());
+	CPPUNIT_ASSERT_EQUAL(testString.size(), written);
+
+	stream->close();
+
+	arch.remove(fileName);
+
+	CPPUNIT_ASSERT(!arch.exists(fileName));
 
 }

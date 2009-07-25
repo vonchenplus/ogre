@@ -38,7 +38,13 @@ Torus Knot Software Ltd.
 #include "OgreRenderSystemCapabilities.h"
 
 namespace Ogre {
-    /** Class representing an approach to rendering this particular Material. 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Materials
+	*  @{
+	*/
+	/** Class representing an approach to rendering this particular Material. 
     @remarks
         Ogre will attempt to use the best technique supported by the active hardware, 
         unless you specifically request a lower detail technique (say for distant
@@ -55,7 +61,7 @@ namespace Ogre {
             IPS_COMPILED = 1
         };
 
-        typedef std::vector<Pass*> Passes;
+        typedef vector<Pass*>::type Passes;
         /// List of primary passes
         Passes mPasses;
         /// List of derived passes, categorised into IlluminationStage (ordered)
@@ -130,8 +136,8 @@ namespace Ogre {
 			GPUDeviceNameRule(const String& pattern, IncludeOrExclude ie, bool caseSen)
 				: devicePattern(pattern), includeOrExclude(ie), caseSensitive(caseSen) {}
 		};
-		typedef std::vector<GPUVendorRule> GPUVendorRuleList;
-		typedef std::vector<GPUDeviceNameRule> GPUDeviceNameRuleList;
+		typedef vector<GPUVendorRule>::type GPUVendorRuleList;
+		typedef vector<GPUDeviceNameRule>::type GPUDeviceNameRuleList;
 	protected:
 		GPUVendorRuleList mGPUVendorRules;
 		GPUDeviceNameRuleList mGPUDeviceNameRules;
@@ -217,6 +223,13 @@ namespace Ogre {
 			has transparent sorting enabled or not
 		*/
 		bool isTransparentSortingEnabled(void) const;
+
+		/** Returns true if this Technique has transparent sorting forced. 
+		@remarks
+			This basically boils down to whether the first pass
+			has transparent sorting forced or not
+		*/
+		bool isTransparentSortingForced(void) const;
 
         /** Internal prepare method, derived from call to Material::prepare. */
         void _prepare(void);
@@ -679,6 +692,8 @@ namespace Ogre {
 
     };
 
+	/** @} */
+	/** @} */
 
 }
 #endif

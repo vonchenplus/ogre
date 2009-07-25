@@ -43,7 +43,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Abstract class defining the interface all renderable objects must implement.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
+	/** Abstract class defining the interface all renderable objects must implement.
         @remarks
             This interface abstracts renderable discrete objects which will be queued in the render pipeline,
             grouped by material. Classes implementing this interface must be based on a single material, a single
@@ -368,7 +374,7 @@ namespace Ogre {
 
 
     protected:
-        typedef std::map<size_t, Vector4> CustomParameterMap;
+        typedef map<size_t, Vector4>::type CustomParameterMap;
         CustomParameterMap mCustomParameters;
 		bool mPolygonModeOverrideable;
         bool mUseIdentityProjection;
@@ -377,6 +383,8 @@ namespace Ogre {
 		mutable RenderSystemData * mRenderSystemData;// this should be used only by a render system for internal use
 	};
 
+	/** @} */
+	/** @} */
 
 
 }
