@@ -37,6 +37,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
     
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
 	/// Factory for default scene manager
 	class _OgreExport DefaultSceneManagerFactory : public SceneManagerFactory
 	{
@@ -83,12 +89,12 @@ namespace Ogre {
     {
 	public:
 		/// Scene manager instances, indexed by instance name
-		typedef std::map<String, SceneManager*> Instances;
+		typedef map<String, SceneManager*>::type Instances;
 		/// List of available scene manager types as meta data
-		typedef std::vector<const SceneManagerMetaData*> MetaDataList;
+		typedef vector<const SceneManagerMetaData*>::type MetaDataList;
     private:
 		/// Scene manager factories
-		typedef std::list<SceneManagerFactory*> Factories;
+		typedef list<SceneManagerFactory*>::type Factories;
 		Factories mFactories;
 		Instances mInstances;
 		/// Stored separately to allow iteration
@@ -215,6 +221,8 @@ namespace Ogre {
 
     };
 
+	/** @} */
+	/** @} */
 
 }
 

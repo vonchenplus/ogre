@@ -35,7 +35,7 @@ Torus Knot Software Ltd.
 namespace Ogre {
 
 	/** Implementation of HardwareBufferManager for D3D10. */
-	class D3D10HardwareBufferManager : public HardwareBufferManager
+	class D3D10HardwareBufferManagerBase : public HardwareBufferManagerBase
 	{
 	protected:
 		D3D10Device & mlpD3DDevice;
@@ -46,14 +46,16 @@ namespace Ogre {
 		void destroyVertexDeclarationImpl(VertexDeclaration* decl);
 
 	public:
-		D3D10HardwareBufferManager(D3D10Device & device);
-		~D3D10HardwareBufferManager();
+		D3D10HardwareBufferManagerBase(D3D10Device & device);
+		~D3D10HardwareBufferManagerBase();
 		/// Creates a vertex buffer
 		HardwareVertexBufferSharedPtr 
 			createVertexBuffer(size_t vertexSize, size_t numVerts, HardwareBuffer::Usage usage, bool useShadowBuffer = false);
 		/// Create a hardware vertex buffer
 		HardwareIndexBufferSharedPtr 
 			createIndexBuffer(HardwareIndexBuffer::IndexType itype, size_t numIndexes, HardwareBuffer::Usage usage, bool useShadowBuffer = false);
+		/// @copydoc HardwareBufferManager::createRenderToVertexBuffer
+		RenderToVertexBufferSharedPtr createRenderToVertexBuffer();
 
 		/** Release all buffers in the default memory pool. 
 		@remarks
@@ -66,12 +68,23 @@ namespace Ogre {
 		*/
 		void recreateDefaultPoolResources(void);
 
-		/// @copydoc HardwareBufferManager::createRenderToVertexBuffer
-		RenderToVertexBufferSharedPtr createRenderToVertexBuffer();
-
-
-
 	};
+
+	/// D3D10HardwareBufferManagerBase as a Singleton
+	class D3D10HardwareBufferManager : public HardwareBufferManager
+	{
+	public:
+		D3D10HardwareBufferManager(D3D10Device & device)
+			: HardwareBufferManager(OGRE_NEW D3D10HardwareBufferManagerBase(device)) 
+		{
+
+		}
+		~D3D10HardwareBufferManager()
+		{
+			OGRE_DELETE mImpl;
+		}
+	};
+
 
 }
 

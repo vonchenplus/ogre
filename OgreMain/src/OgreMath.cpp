@@ -49,6 +49,7 @@ namespace Ogre
     const Real Math::HALF_PI = Real( 0.5 * PI );
 	const Real Math::fDeg2Rad = PI / Real(180.0);
 	const Real Math::fRad2Deg = Real(180.0) / PI;
+	const Real Math::LOG2 = log(Real(2.0));
 
     int Math::mTrigTableSize;
    Math::AngleUnit Math::msAngleUnit;
@@ -356,10 +357,10 @@ namespace Ogre
     }
     //-----------------------------------------------------------------------
     std::pair<bool, Real> Math::intersects(const Ray& ray, 
-        const std::vector<Plane>& planes, bool normalIsOutside)
+        const vector<Plane>::type& planes, bool normalIsOutside)
     {
-		std::list<Plane> planesList;
-		for (std::vector<Plane>::const_iterator i = planes.begin(); i != planes.end(); ++i)
+		list<Plane>::type planesList;
+		for (vector<Plane>::type::const_iterator i = planes.begin(); i != planes.end(); ++i)
 		{
 			planesList.push_back(*i);
 		}
@@ -367,9 +368,9 @@ namespace Ogre
     }
     //-----------------------------------------------------------------------
     std::pair<bool, Real> Math::intersects(const Ray& ray, 
-        const std::list<Plane>& planes, bool normalIsOutside)
+        const list<Plane>::type& planes, bool normalIsOutside)
     {
-		std::list<Plane>::const_iterator planeit, planeitend;
+		list<Plane>::type::const_iterator planeit, planeitend;
 		planeitend = planes.end();
 		bool allInside = true;
 		std::pair<bool, Real> ret;

@@ -35,8 +35,15 @@ Torus Knot Software Ltd.
 #include "OgreSharedPtr.h"
 
 namespace Ogre {
+	class HardwareBufferManagerBase;
 
-    /** Specialisation of HardwareBuffer for vertex index buffers, still abstract. */
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup RenderSystem
+	*  @{
+	*/
+	/** Specialisation of HardwareBuffer for vertex index buffers, still abstract. */
     class _OgreExport HardwareIndexBuffer : public HardwareBuffer
     {
 	    public:
@@ -46,15 +53,18 @@ namespace Ogre {
 		    };
 
 	    protected:
+			HardwareBufferManagerBase* mMgr;
 		    IndexType mIndexType;
 		    size_t mNumIndexes;
             size_t mIndexSize;
 
 	    public:
 		    /// Should be called by HardwareBufferManager
-		    HardwareIndexBuffer(IndexType idxType, size_t numIndexes, HardwareBuffer::Usage usage,
+		    HardwareIndexBuffer(HardwareBufferManagerBase* mgr, IndexType idxType, size_t numIndexes, HardwareBuffer::Usage usage,
                 bool useSystemMemory, bool useShadowBuffer);
             ~HardwareIndexBuffer();
+			/// Return the manager of this buffer, if any
+			HardwareBufferManagerBase* getManager() const { return mMgr; }
     		/// Get the type of indexes used in this buffer
             IndexType getType(void) const { return mIndexType; }
             /// Get the number of indexes in this buffer
@@ -73,6 +83,8 @@ namespace Ogre {
         HardwareIndexBufferSharedPtr() : SharedPtr<HardwareIndexBuffer>() {}
         explicit HardwareIndexBufferSharedPtr(HardwareIndexBuffer* buf);
     };
+	/** @} */
+	/** @} */
 }
 #endif
 

@@ -33,7 +33,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre
 {
-    /** Wrapper class which indicates a given angle value is in Radians.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Math
+	*  @{
+	*/
+	/** Wrapper class which indicates a given angle value is in Radians.
     @remarks
         Radian values are interchangeable with Degree values, and conversions
         will be done automatically between them.
@@ -266,6 +272,13 @@ namespace Ogre
 		static inline Real Floor (Real fValue) { return Real(floor(fValue)); }
 
 		static inline Real Log (Real fValue) { return Real(log(fValue)); }
+
+		/// Stored value of log(2) for frequent use
+		static const Real LOG2;
+
+		static inline Real Log2 (Real fValue) { return Real(log(fValue)/LOG2); }
+
+		static inline Real LogN (Real base, Real fValue) { return Real(log(fValue)/log(base)); }
 
 		static inline Real Pow (Real fBase, Real fExponent) { return Real(pow(fBase,fExponent)); }
 
@@ -511,7 +524,7 @@ namespace Ogre
         @param normalIsOutside Does the normal point outside the volume
         */
         static std::pair<bool, Real> intersects(
-            const Ray& ray, const std::vector<Plane>& planeList, 
+            const Ray& ray, const vector<Plane>::type& planeList, 
             bool normalIsOutside);
         /** Ray / convex plane list intersection test. 
         @param ray The ray to test with
@@ -519,7 +532,7 @@ namespace Ogre
         @param normalIsOutside Does the normal point outside the volume
         */
         static std::pair<bool, Real> intersects(
-            const Ray& ray, const std::list<Plane>& planeList, 
+            const Ray& ray, const list<Plane>::type& planeList, 
             bool normalIsOutside);
 
         /** Sphere / plane intersection test. 
@@ -631,6 +644,8 @@ namespace Ogre
 	{
 		return Degree ( a / b.valueDegrees() );
 	}
+	/** @} */
+	/** @} */
 
 }
 #endif

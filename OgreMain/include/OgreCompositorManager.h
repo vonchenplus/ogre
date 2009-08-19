@@ -37,7 +37,13 @@ Torus Knot Software Ltd.
 #include "OgreRenderSystem.h"
 
 namespace Ogre {
-    /** Class for managing Compositor settings for Ogre. Compositors provide the means
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	/** Class for managing Compositor settings for Ogre. Compositors provide the means
         to flexibly "composite" the final rendering result from multiple scene renders
         and intermediate operations like rendering fullscreen quads. This makes
         it possible to apply postfilter effects, HDRI postprocessing, and shadow
@@ -114,6 +120,26 @@ namespace Ogre {
 		/** Internal method for forcing all active compositors to recreate their resources. */
 		void _reconstructAllCompositorResources();
 
+		typedef set<Texture*>::type UniqueTextureSet;
+
+		/** Utility function to get an existing shared texture matching a given
+			definition, or creating one if one doesn't exist. It also takes into
+			account whether a shared texture has already been supplied to this
+			same requester already, in which case it won't give the same texture
+			twice (this is important for example if you request 2 ping-pong textures, 
+			you don't want to get the same texture for both requests!
+		*/
+		TexturePtr getSharedTexture(const String& name, const String& localName, 
+			size_t w, size_t h, 
+			PixelFormat f, uint aa, const String& aaHint, bool srgb, UniqueTextureSet& texturesAlreadyAssigned, 
+			CompositorInstance* inst);
+
+		/** Free shared textures from the shared pool (compositor instances still 
+			using them will keep them in memory though). 
+		*/
+		void freeSharedTextures(bool onlyIfUnreferenced = true);
+
+
 		/** Override standard Singleton retrieval.
 		@remarks
 		Why do we do this? Well, it's because the Singleton
@@ -149,7 +175,7 @@ namespace Ogre {
 
 	
 	private:
-        typedef std::map<Viewport*, CompositorChain*> Chains;
+        typedef map<Viewport*, CompositorChain*>::type Chains;
         Chains mChains;
 
 		/// Serializer - Hold instance per thread if necessary
@@ -160,7 +186,77 @@ namespace Ogre {
         void freeChains();
 
 		Rectangle2D *mRectangle;
+
+		/// List of instances
+		typedef vector<CompositorInstance *>::type Instances;
+		Instances mInstances;
+
+		typedef vector<TexturePtr>::type TextureList;
+		typedef VectorIterator<TextureList> TextureIterator;
+
+		struct TextureDef
+		{
+			size_t width, height;
+			PixelFormat format;
+			uint fsaa;
+			String fsaaHint;
+			bool sRGBwrite;
+
+			TextureDef(size_t w, size_t h, PixelFormat f, uint aa, const String& aaHint, bool srgb)
+				: width(w), height(h), format(f), fsaa(aa), fsaaHint(aaHint), sRGBwrite(srgb)
+			{
+
+			}
+		};
+		struct TextureDefLess
+		{
+			bool _OgreExport operator()(const TextureDef& x, const TextureDef& y) const
+			{
+				if (x.format < y.format)
+					return true;
+				else if (x.format == y.format)
+				{
+					if (x.width < y.width)
+						return true;
+					else if (x.width == y.width)
+					{
+						if (x.height < y.height)
+							return true;
+						else if (x.height == y.height)
+						{
+							if (x.fsaa < y.fsaa)
+								return true;
+							else if (x.fsaa == y.fsaa)
+							{
+								if (x.fsaaHint < y.fsaaHint)
+									return true;
+								else if (x.fsaaHint == y.fsaaHint)
+								{
+									if (!x.sRGBwrite && y.sRGBwrite)
+										return true;
+								}
+
+							}
+						}
+					}
+				}
+				return false;
+			}
+			virtual ~TextureDefLess() {}
+		};
+		typedef map<TextureDef, TextureList*, TextureDefLess>::type TexturesByDef;
+		TexturesByDef mTexturesByDef;
+
+
+		bool isInputPreviousTarget(CompositorInstance* inst, const Ogre::String& localName);
+		bool isInputPreviousTarget(CompositorInstance* inst, TexturePtr tex);
+		bool isInputToOutputTarget(CompositorInstance* inst, const Ogre::String& localName);
+		bool isInputToOutputTarget(CompositorInstance* inst, TexturePtr tex);
+
     };
+	/** @} */
+	/** @} */
+
 }
 
 #endif

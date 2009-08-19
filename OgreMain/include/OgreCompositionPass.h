@@ -35,6 +35,12 @@ Torus Knot Software Ltd.
 #include "OgreRenderQueue.h"
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
 	/** Object representing one pass or operation in a composition sequence. This provides a 
 		method to conveniently interleave RenderSystem commands between Render Queues.
 	 */
@@ -255,6 +261,20 @@ namespace Ogre {
          */
         bool getQuadCorners(Real & left,Real & top,Real & right,Real & bottom) const;
             
+		/** Sets the use of camera frustum far corners provided in the quad's normals
+			@note applies when PassType is RENDERQUAD 
+		*/
+		void setQuadFarCorners(bool farCorners, bool farCornersViewSpace);
+
+		/** Returns true if camera frustum far corners are provided in the quad.
+			@note applies when PassType is RENDERQUAD 
+		*/
+		bool getQuadFarCorners() const;
+
+		/** Returns true if the far corners provided in the quad are in view space
+			@note applies when PassType is RENDERQUAD 
+		*/
+		bool getQuadFarCornersViewSpace() const;
     private:
         /// Parent technique
         CompositionTargetPass *mParent;
@@ -295,7 +315,11 @@ namespace Ogre {
         Real mQuadTop;
         Real mQuadRight;
         Real mQuadBottom;
+
+		bool mQuadFarCorners, mQuadFarCornersViewSpace;
     };
+	/** @} */
+	/** @} */
 
 }
 

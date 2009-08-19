@@ -99,10 +99,10 @@ http://www.gnu.org/copyleft/lesser.txt
 namespace Ogre {
     // Define ogre version
     #define OGRE_VERSION_MAJOR 1
-    #define OGRE_VERSION_MINOR 6
-    #define OGRE_VERSION_PATCH 3
-	#define OGRE_VERSION_SUFFIX ""
-    #define OGRE_VERSION_NAME "Shoggoth"
+    #define OGRE_VERSION_MINOR 7
+    #define OGRE_VERSION_PATCH 0
+	#define OGRE_VERSION_SUFFIX "dev-unstable"
+    #define OGRE_VERSION_NAME "Cthugha"
 
     #define OGRE_VERSION    ((OGRE_VERSION_MAJOR << 16) | (OGRE_VERSION_MINOR << 8) | OGRE_VERSION_PATCH)
 
@@ -153,13 +153,6 @@ namespace Ogre {
     typedef unsigned int uint;
 	typedef unsigned long ulong;
 
-	#if OGRE_WCHAR_T_STRINGS
-		typedef std::wstring _StringBase;
-	#else
-		typedef std::string _StringBase;
-	#endif
-
-	typedef _StringBase String;
 
 	// Useful threading defines
 	#define OGRE_AUTO_MUTEX_NAME mutex
@@ -188,6 +181,8 @@ namespace Ogre {
 		#define OGRE_THREAD_POINTER_SET(var, expr) var.reset(expr)
 		#define OGRE_THREAD_POINTER_DELETE(var) var.reset(0)
 		#define OGRE_THREAD_POINTER_GET(var) var.get()
+		// Utility
+		#define OGRE_THREAD_SLEEP(ms) boost::this_thread::sleep(boost::posix_time::millisec(ms));
 	#else
 		#define OGRE_AUTO_MUTEX
 		#define OGRE_LOCK_AUTO_MUTEX
@@ -211,6 +206,7 @@ namespace Ogre {
 		#define OGRE_THREAD_POINTER_SET(var, expr) var = expr
 		#define OGRE_THREAD_POINTER_DELETE(var) OGRE_DELETE var; var = 0
 		#define OGRE_THREAD_POINTER_GET(var) var
+		#define OGRE_THREAD_SLEEP(ms)
 	#endif
 
 
@@ -371,6 +367,7 @@ namespace Ogre {
     class Sphere;
     class SphereSceneQuery;
 	class StaticGeometry;
+	class StreamSerialiser;
     class StringConverter;
     class StringInterface;
     class SubEntity;
@@ -411,6 +408,210 @@ settings have been made.
 #include "OgreStdHeaders.h"
 #include "OgreMemoryAllocatorConfig.h"
 
+
+namespace Ogre
+{
+#if OGRE_STRING_USE_CUSTOM_MEMORY_ALLOCATOR
+	#if OGRE_WCHAR_T_STRINGS
+		typedef std::basic_string<wchar_t, std::char_traits<wchar_t>, STLAllocator<wchar_t,GeneralAllocPolicy > >	_StringBase;
+	#else
+		typedef std::basic_string<char, std::char_traits<char>, STLAllocator<char,GeneralAllocPolicy > >	_StringBase;
+	#endif
+
+	#if OGRE_WCHAR_T_STRINGS
+		typedef std::basic_stringstream<wchar_t,std::char_traits<wchar_t>,STLAllocator<wchar_t,GeneralAllocPolicy >> _StringStreamBase;
+	#else
+		typedef std::basic_stringstream<char,std::char_traits<char>,STLAllocator<char,GeneralAllocPolicy > > _StringStreamBase;
+	#endif
+
+	#define StdStringT(T) std::basic_string<T, std::char_traits<T>, std::allocator<T> >	
+	#define CustomMemoryStringT(T) std::basic_string<T, std::char_traits<T>, STLAllocator<T,GeneralAllocPolicy> >	
+
+	template<typename T>
+	bool operator <(const CustomMemoryStringT(T)& l,const StdStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())<0;
+	}
+	template<typename T>
+	bool operator <(const StdStringT(T)& l,const CustomMemoryStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())<0;
+	}
+	template<typename T>
+	bool operator <=(const CustomMemoryStringT(T)& l,const StdStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())<=0;
+	}
+	template<typename T>
+	bool operator <=(const StdStringT(T)& l,const CustomMemoryStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())<=0;
+	}
+	template<typename T>
+	bool operator >(const CustomMemoryStringT(T)& l,const StdStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())>0;
+	}
+	template<typename T>
+	bool operator >(const StdStringT(T)& l,const CustomMemoryStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())>0;
+	}
+	template<typename T>
+	bool operator >=(const CustomMemoryStringT(T)& l,const StdStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())>=0;
+	}
+	template<typename T>
+	bool operator >=(const StdStringT(T)& l,const CustomMemoryStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())>=0;
+	}
+
+	template<typename T>
+	bool operator ==(const CustomMemoryStringT(T)& l,const StdStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())==0;
+	}
+	template<typename T>
+	bool operator ==(const StdStringT(T)& l,const CustomMemoryStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())==0;
+	}
+
+	template<typename T>
+	bool operator !=(const CustomMemoryStringT(T)& l,const StdStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())!=0;
+	}
+	template<typename T>
+	bool operator !=(const StdStringT(T)& l,const CustomMemoryStringT(T)& o)
+	{
+		return l.compare(0,l.length(),o.c_str(),o.length())!=0;
+	}
+
+	template<typename T>
+	CustomMemoryStringT(T) operator +=(const CustomMemoryStringT(T)& l,const StdStringT(T)& o)
+	{
+		return CustomMemoryStringT(T)(l)+=o.c_str();
+	}
+	template<typename T>
+	CustomMemoryStringT(T) operator +=(const StdStringT(T)& l,const CustomMemoryStringT(T)& o)
+	{
+		return CustomMemoryStringT(T)(l.c_str())+=o.c_str();
+	}
+
+	template<typename T>
+	CustomMemoryStringT(T) operator +(const CustomMemoryStringT(T)& l,const StdStringT(T)& o)
+	{
+		return CustomMemoryStringT(T)(l)+=o.c_str();
+	}
+
+	template<typename T>
+	CustomMemoryStringT(T) operator +(const StdStringT(T)& l,const CustomMemoryStringT(T)& o)
+	{
+		return CustomMemoryStringT(T)(l.c_str())+=o.c_str();
+	}
+
+	template<typename T>
+	CustomMemoryStringT(T) operator +(const T* l,const CustomMemoryStringT(T)& o)
+	{
+		return CustomMemoryStringT(T)(l)+=o;
+	}
+
+	#undef StdStringT
+	#undef CustomMemoryStringT
+
+#else
+	#if OGRE_WCHAR_T_STRINGS
+		typedef std::wstring _StringBase;
+	#else
+		typedef std::string _StringBase;
+	#endif
+
+	#if OGRE_WCHAR_T_STRINGS
+		typedef std::basic_stringstream<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > _StringStreamBase;
+	#else
+		typedef std::basic_stringstream<char,std::char_traits<char>,std::allocator<char> > _StringStreamBase;
+	#endif
+
+#endif
+
+	typedef _StringBase String;
+	typedef _StringStreamBase StringStream;
+	typedef StringStream stringstream;
+
+#if OGRE_WCHAR_T_STRINGS
+#define		_Char L
+#else
+#define		_Char 
+#endif
+}
+
+//for stl containter
+namespace Ogre
+{ 
+	template <typename T, typename A = STLAllocator<T, GeneralAllocPolicy> > 
+	struct deque 
+	{ 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+	   typedef typename std::deque<T, A> type;    
+#else
+		typedef typename std::deque<T> type;    
+#endif
+	}; 
+
+	template <typename T, typename A = STLAllocator<T, GeneralAllocPolicy> > 
+	struct vector 
+	{ 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+		typedef typename std::vector<T, A> type;    
+#else
+		typedef typename std::vector<T> type;    
+#endif
+	}; 
+
+	template <typename T, typename A = STLAllocator<T, GeneralAllocPolicy> > 
+	struct list 
+	{ 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+	   typedef typename std::list<T, A> type;    
+#else
+		typedef typename std::list<T> type;    
+#endif
+	}; 
+
+	template <typename T, typename P = std::less<T>, typename A = STLAllocator<T, GeneralAllocPolicy> > 
+	struct set 
+	{ 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+	   typedef typename std::set<T, P, A> type;    
+#else
+		typedef typename std::set<T, P> type;    
+#endif
+	}; 
+
+	template <typename K, typename V, typename P = std::less<K>, typename A = STLAllocator<std::pair<const K, V>, GeneralAllocPolicy> > 
+	struct map 
+	{ 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+	   typedef typename std::map<K, V, P, A> type; 
+#else
+		typedef typename std::map<K, V, P> type; 
+#endif
+	}; 
+
+	template <typename K, typename V, typename P = std::less<K>, typename A = STLAllocator<std::pair<const K, V>, GeneralAllocPolicy> > 
+	struct multimap 
+	{ 
+#if OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+		typedef typename std::multimap<K, V, P, A> type; 
+#else
+		typedef typename std::multimap<K, V, P> type; 
+#endif
+	}; 
+
+} // Ogre
 
 #endif // __OgrePrerequisites_H__
 

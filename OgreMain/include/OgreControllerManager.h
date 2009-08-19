@@ -39,6 +39,12 @@ Torus Knot Software Ltd.
 #include "OgreSharedPtr.h"
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
 
     typedef SharedPtr< ControllerValue<Real> > ControllerValueRealPtr;
     typedef SharedPtr< ControllerFunction<Real> > ControllerFunctionRealPtr;
@@ -52,7 +58,7 @@ namespace Ogre {
     class _OgreExport ControllerManager : public Singleton<ControllerManager>, public ControllerAlloc
     {
     protected:
-        typedef std::set<Controller<Real>*> ControllerList;
+        typedef set<Controller<Real>*>::type ControllerList;
         ControllerList mControllers;
 
         /// Global predefined controller
@@ -191,7 +197,7 @@ namespace Ogre {
             retrieve the index beforehand using GpuProgramParameters::getParamIndex
         @param factor The factor by which to adjust the time elapsed by before passing it to the program
         */
-        Controller<Real>* createGpuProgramTimerParam(GpuProgramParameters* params, size_t paramIndex,
+        Controller<Real>* createGpuProgramTimerParam(GpuProgramParametersSharedPtr params, size_t paramIndex,
             Real timeFactor = 1.0f);
 
         /** Removes & destroys the controller passed in as a pointer.
@@ -282,6 +288,8 @@ namespace Ogre {
         static ControllerManager* getSingletonPtr(void);
     };
 
+	/** @} */
+	/** @} */
 
 }
 #endif

@@ -34,7 +34,13 @@ Torus Knot Software Ltd.
 #include "OgreColourValue.h"
 
 namespace Ogre {
-    /** An abstraction of a viewport, i.e. a rendering region on a render
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup RenderSystem
+	*  @{
+	*/
+	/** An abstraction of a viewport, i.e. a rendering region on a render
         target.
         @remarks
             A viewport is the meeting of a camera and a rendering surface -
@@ -50,6 +56,12 @@ namespace Ogre {
 	class _OgreExport Viewport : public ViewportAlloc
     {
     public:
+        enum Orientation {
+            OR_LANDSCAPELEFT = 0,
+            OR_LANDSCAPERIGHT = 1,
+            OR_PORTRAIT = 2
+        };
+        
         /** The usual constructor.
             @param
                 cam Pointer to a camera to be the source for the image.
@@ -95,6 +107,22 @@ namespace Ogre {
         /** Instructs the viewport to updates its contents.
         */
         void update(void);
+		
+		/** Instructs the viewport to clear itself, without performing an update.
+		 @remarks
+			You would not normally call this method when updating the viewport, 
+			since the viewport usually clears itself when updating anyway (@see 
+		    Viewport::setClearEveryFrame). However, if you wish you have the
+			option of manually clearing the frame buffer (or elements of it)
+		    using this method.
+		 @param buffers Bitmask identifying which buffer elements to clear
+		 @param colour The colour value to clear to, if FBT_COLOUR is included
+		 @param depth The depth value to clear to, if FBT_DEPTH is included
+		 @param stencil The stencil value to clear to, if FBT_STENCIL is included
+		*/
+		void clear(unsigned int buffers = FBT_COLOUR | FBT_DEPTH,
+				   const ColourValue& colour = ColourValue::Black, 
+				   Real depth = 1.0f, unsigned short stencil = 0);
 
         /** Retrieves a pointer to the render target for this viewport.
         */
@@ -148,6 +176,19 @@ namespace Ogre {
         */
 
         int getActualHeight(void) const;
+        
+        /** Gets the current orientation of the viewport
+         */
+        int getOrientation(void);
+        
+        /** Sets the orientation of the viewport
+             @remarks
+                Setting the orientation of a viewport is only supported on
+                iPhone at this time.  An exeption is thrown on other platforms.
+             @param
+                orient
+         */
+        void setOrientation(Orientation orient);
 
         /** Sets the dimensions (after creation).
             @param
@@ -310,6 +351,8 @@ namespace Ogre {
         int mActLeft, mActTop, mActWidth, mActHeight;
         /// ZOrder
         int mZOrder;
+        /// Viewport orientation
+        int mOrientation;
         /// Background options
         ColourValue mBackColour;
         bool mClearEveryFrame;
@@ -325,6 +368,8 @@ namespace Ogre {
 		/// Material scheme
 		String mMaterialSchemeName;
     };
+	/** @} */
+	/** @} */
 
 }
 

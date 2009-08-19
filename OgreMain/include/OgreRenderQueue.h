@@ -34,7 +34,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Enumeration of queue groups, by which the application may group queued renderables
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup RenderSystem
+	*  @{
+	*/
+	/** Enumeration of queue groups, by which the application may group queued renderables
         so that they are rendered together with events in between
 	@remarks
 		When passed into methods these are actually passed as a uint8 to allow you
@@ -82,9 +88,10 @@ namespace Ogre {
     class _OgreExport RenderQueue : public RenderQueueAlloc
     {
     public:
-        typedef std::map< uint8, RenderQueueGroup* > RenderQueueGroupMap;
+        typedef map< uint8, RenderQueueGroup* >::type RenderQueueGroupMap;
         /// Iterator over queue groups
         typedef MapIterator<RenderQueueGroupMap> QueueGroupIterator;
+        typedef ConstMapIterator<RenderQueueGroupMap> ConstQueueGroupIterator;
 		/** Class to listen in on items being added to the render queue. 
 		@remarks
 			Use RenderQueue::setRenderableListener to get callbacks when an item
@@ -227,19 +234,39 @@ namespace Ogre {
         
         /** Internal method, returns an iterator for the queue groups. */
         QueueGroupIterator _getQueueGroupIterator(void);
+        ConstQueueGroupIterator _getQueueGroupIterator(void) const;
+
         /** Sets whether or not the queue will split passes by their lighting type,
             ie ambient, per-light and decal. 
         */
         void setSplitPassesByLightingType(bool split);
+
+        /** Gets whether or not the queue will split passes by their lighting type,
+            ie ambient, per-light and decal. 
+        */
+        bool getSplitPassesByLightingType(void) const;
+
         /** Sets whether or not the queue will split passes which have shadow receive
         turned off (in their parent material), which is needed when certain shadow
         techniques are used.
         */
         void setSplitNoShadowPasses(bool split);
+
+        /** Gets whether or not the queue will split passes which have shadow receive
+        turned off (in their parent material), which is needed when certain shadow
+        techniques are used.
+        */
+        bool getSplitNoShadowPasses(void) const;
+
 		/** Sets whether or not objects which cast shadows should be treated as
 		never receiving shadows. 
 		*/
 		void setShadowCastersCannotBeReceivers(bool ind);
+
+		/** Gets whether or not objects which cast shadows should be treated as
+		never receiving shadows. 
+		*/
+		bool getShadowCastersCannotBeReceivers(void) const;
 
 		/** Set a renderable listener on the queue.
 		@remarks
@@ -252,8 +279,13 @@ namespace Ogre {
 		RenderableListener* getRenderableListener(void) const
 		{ return mRenderableListener; }
 
+		/** Merge render queue.
+		*/
+		void merge( const RenderQueue* rhs );
     };
 
+	/** @} */
+	/** @} */
 
 }
 

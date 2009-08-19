@@ -35,7 +35,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** A SkeletonInstance is a single instance of a Skeleton used by a world object.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
+	/** A SkeletonInstance is a single instance of a Skeleton used by a world object.
     @remarks
         The difference between a Skeleton and a SkeletonInstance is that the
         Skeleton is the 'master' version much like Mesh is a 'master' version of
@@ -115,7 +121,7 @@ namespace Ogre {
         /// Pointer back to master Skeleton
         SkeletonPtr mSkeleton;
 
-        typedef std::list<TagPoint*> TagPointList;
+        typedef list<TagPoint*>::type TagPointList;
 
         /** Active tag point list.
         @remarks
@@ -148,6 +154,8 @@ namespace Ogre {
         void unloadImpl(void);
 
     };
+	/** @} */
+	/** @} */
 
 }
 

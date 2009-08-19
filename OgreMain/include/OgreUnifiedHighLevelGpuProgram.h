@@ -35,6 +35,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Resources
+	*  @{
+	*/
 	/** Specialisation of HighLevelGpuProgram which just delegates its implementation
 		to one other high level program, allowing a single program definition
 		to represent one supported program from a number of options
@@ -128,6 +134,8 @@ namespace Ogre {
 		GpuProgramParametersSharedPtr getDefaultParameters(void);
 		bool hasDefaultParameters(void) const;
 		bool getPassSurfaceAndLightStates(void) const;
+		bool getPassFogStates(void) const;
+		bool getPassTransformStates(void) const;
 		bool hasCompileError(void) const;
 		void resetCompileError(void);
 
@@ -163,6 +171,8 @@ namespace Ogre {
 
 	};
 
+	/** @} */
+	/** @} */
 
 }
 #endif

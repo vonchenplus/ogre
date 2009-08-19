@@ -33,6 +33,12 @@ Torus Knot Software Ltd.
 #include "OgreIteratorWrappers.h"
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
 	/** Object representing one render to a RenderTarget or Viewport in the Ogre Composition
 		framework.
 	 */
@@ -49,7 +55,7 @@ namespace Ogre {
             IM_NONE,        // No input
             IM_PREVIOUS     // Output of previous Composition in chain
         };
-        typedef std::vector<CompositionPass *> Passes;
+        typedef vector<CompositionPass *>::type Passes;
         typedef VectorIterator<Passes> PassIterator;
         
         /** Set input mode of this TargetPass
@@ -162,6 +168,8 @@ namespace Ogre {
 		bool mShadowsEnabled;
     };
 
+	/** @} */
+	/** @} */
 }
 
 #endif

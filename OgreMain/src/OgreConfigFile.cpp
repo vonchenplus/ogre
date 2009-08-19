@@ -85,6 +85,13 @@ namespace Ogre {
 
 		// Wrap as a stream
 		DataStreamPtr stream(OGRE_NEW FileStreamDataStream(filename, &fp, false));
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+		// seems readLine doesn't work correctly in SYMBIAN with files
+		DataStreamPtr memoryStream(OGRE_NEW MemoryDataStream(stream));
+		stream = memoryStream;
+#endif
+
 		load(stream, separators, trimWhitespace);
 
 	}
@@ -134,21 +141,21 @@ namespace Ogre {
                 else
                 {
                     /* Find the first seperator character and split the string there */
-                    std::string::size_type separator_pos = line.find_first_of(separators, 0);
-                    if (separator_pos != std::string::npos)
+					Ogre::String::size_type separator_pos = line.find_first_of(separators, 0);
+                    if (separator_pos != Ogre::String::npos)
                     {
                         optName = line.substr(0, separator_pos);
                         /* Find the first non-seperator character following the name */
-                        std::string::size_type nonseparator_pos = line.find_first_not_of(separators, separator_pos);
+                        Ogre::String::size_type nonseparator_pos = line.find_first_not_of(separators, separator_pos);
                         /* ... and extract the value */
                         /* Make sure we don't crash on an empty setting (it might be a valid value) */
-                        optVal = (nonseparator_pos == std::string::npos) ? "" : line.substr(nonseparator_pos);
+                        optVal = (nonseparator_pos == Ogre::String::npos) ? "" : line.substr(nonseparator_pos);
                         if (trimWhitespace)
                         {
                             StringUtil::trim(optVal);
                             StringUtil::trim(optName);
                         }
-                        currentSettings->insert(std::multimap<String, String>::value_type(optName, optVal));
+                        currentSettings->insert(SettingsMultiMap::value_type(optName, optVal));
                     }
                 }
             }

@@ -46,7 +46,7 @@ namespace Ogre {
         : Renderable(), mParentEntity(parent), mMaterialName("BaseWhite"),
 		mSubMesh(subMeshBasis), mCachedCamera(0)
     {
-        mpMaterial = MaterialManager::getSingleton().getByName(mMaterialName);
+        mpMaterial = MaterialManager::getSingleton().getByName(mMaterialName, subMeshBasis->parent->getGroup());
         mMaterialLodIndex = 0;
         mVisible = true;
         mSkelAnimVertexData = 0;
@@ -78,13 +78,13 @@ namespace Ogre {
         return mMaterialName;
     }
     //-----------------------------------------------------------------------
-    void SubEntity::setMaterialName( const String& name)
+    void SubEntity::setMaterialName( const String& name, const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
     {
 		// early-out
 		if (name == mMaterialName)
 			return;
-		
-		MaterialPtr material = MaterialManager::getSingleton().getByName(name);
+
+		MaterialPtr material = MaterialManager::getSingleton().getByName(name, groupName);
 
 		if( material.isNull() )
 		{
@@ -111,31 +111,31 @@ namespace Ogre {
 	{
 		mpMaterial = material;
 		
-		if (mpMaterial.isNull())
-		{
+        if (mpMaterial.isNull())
+        {
 			LogManager::getSingleton().logMessage("Can't assign material "  
-				" to SubEntity of " + mParentEntity->getName() + " because this "
-				"Material does not exist. Have you forgotten to define it in a "
-				".material script?");
+                " to SubEntity of " + mParentEntity->getName() + " because this "
+                "Material does not exist. Have you forgotten to define it in a "
+                ".material script?");
 			
-			mpMaterial = MaterialManager::getSingleton().getByName("BaseWhite");
+            mpMaterial = MaterialManager::getSingleton().getByName("BaseWhite");
 			
-			if (mpMaterial.isNull())
-			{
-				OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
-					"to SubEntity of " + mParentEntity->getName() + ". Did "
-					"you forget to call MaterialManager::initialise()?",
-					"SubEntity.setMaterialName");
-			}
-		}
+            if (mpMaterial.isNull())
+            {
+                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
+                    "to SubEntity of " + mParentEntity->getName() + ". Did "
+                    "you forget to call MaterialManager::initialise()?",
+                    "SubEntity.setMaterialName");
+            }
+        }
 		
 		mMaterialName = mpMaterial->getName();
 
-		// Ensure new material loaded (will not load again if already loaded)
-		mpMaterial->load();
+        // Ensure new material loaded (will not load again if already loaded)
+        mpMaterial->load();
 
-		// tell parent to reconsider material vertex processing options
-		mParentEntity->reevaluateVertexProcessing();
+        // tell parent to reconsider material vertex processing options
+        mParentEntity->reevaluateVertexProcessing();
 
 	}
 
@@ -257,7 +257,7 @@ namespace Ogre {
             const Vector3 &cp = cam->getDerivedPosition();
             const Matrix4 &l2w = mParentEntity->_getParentNodeFullTransform();
 			dist = std::numeric_limits<Real>::infinity();
-            for (std::vector<Vector3>::const_iterator i = mSubMesh->extremityPoints.begin();
+            for (vector<Vector3>::type::const_iterator i = mSubMesh->extremityPoints.begin();
                  i != mSubMesh->extremityPoints.end (); ++i)
             {
                 Vector3 v = l2w * (*i);

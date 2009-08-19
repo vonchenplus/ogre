@@ -51,8 +51,15 @@ Torus Knot Software Ltd.
 #include "OgreShadowTextureManager.h"
 #include "OgreCamera.h"
 #include "OgreInstancedGeometry.h"
+#include "OgreLodListener.h"
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
 
     /** Structure for holding a position & orientation pair. */
     struct ViewPoint
@@ -233,7 +240,7 @@ namespace Ogre {
 			@param v The viewport being updated. You can get the camera from here.
 			*/
 			virtual void preFindVisibleObjects(SceneManager* source, 
-				IlluminationRenderStage irs, Viewport* v) = 0;
+				IlluminationRenderStage irs, Viewport* v) {}
 			/** Called after searching for visible objects in this SceneManager.
 			@remarks
 				Note that the render queue at this stage will be full of the current
@@ -245,7 +252,7 @@ namespace Ogre {
 			@param v The viewport being updated. You can get the camera from here.
 			*/
 			virtual void postFindVisibleObjects(SceneManager* source, 
-				IlluminationRenderStage irs, Viewport* v) = 0;
+				IlluminationRenderStage irs, Viewport* v) {}
 
 			/** Event raised after all shadow textures have been rendered into for 
 				all queues / targets but before any other geometry has been rendered
@@ -261,7 +268,7 @@ namespace Ogre {
 				This event will only be fired when texture shadows are in use.
 			@param numberOfShadowTextures The number of shadow textures in use
 			*/
-			virtual void shadowTexturesUpdated(size_t numberOfShadowTextures) = 0;
+			virtual void shadowTexturesUpdated(size_t numberOfShadowTextures) {}
 
 			/** This event occurs just before the view & projection matrices are
 		 		set for rendering into a shadow texture.
@@ -277,7 +284,7 @@ namespace Ogre {
 			@param iteration For lights that use multiple shadow textures, the iteration number
 			*/
 			virtual void shadowTextureCasterPreViewProj(Light* light, 
-				Camera* camera, size_t iteration) = 0;
+				Camera* camera, size_t iteration) {}
 			/** This event occurs just before the view & projection matrices are
 		 		set for re-rendering a shadow receiver.
 			@remarks
@@ -292,7 +299,7 @@ namespace Ogre {
 				the shadow texture
 			*/
 			virtual void shadowTextureReceiverPreViewProj(Light* light, 
-				Frustum* frustum) = 0;
+				Frustum* frustum) {}
 
 			/** Hook to allow the listener to override the ordering of lights for
 				the entire frustum.
@@ -317,6 +324,9 @@ namespace Ogre {
 			@returns true if you sorted the list, false otherwise.
 			*/
 			virtual bool sortLightsAffectingFrustum(LightList& lightList) { return false; }
+
+			/** Event notifying the listener of the SceneManager's destruction. */
+			virtual void sceneManagerDestroyed(SceneManager* source) {}
 
 
 
@@ -373,18 +383,18 @@ namespace Ogre {
         /// The rendering system to send the scene to
         RenderSystem *mDestRenderSystem;
 
-        typedef std::map<String, Camera* > CameraList;
+        typedef map<String, Camera* >::type CameraList;
 
         /** Central list of cameras - for easy memory management and lookup.
         */
         CameraList mCameras;
 
-		typedef std::map<String, StaticGeometry* > StaticGeometryList;
+		typedef map<String, StaticGeometry* >::type StaticGeometryList;
 		StaticGeometryList mStaticGeometryList;
-		typedef std::map<String, InstancedGeometry* > InstancedGeometryList;
+		typedef map<String, InstancedGeometry* >::type InstancedGeometryList;
 		InstancedGeometryList mInstancedGeometryList;
 
-        typedef std::map<String, SceneNode*> SceneNodeList;
+        typedef map<String, SceneNode*>::type SceneNodeList;
 
         /** Central list of SceneNodes - for easy memory management.
             @note
@@ -403,7 +413,7 @@ namespace Ogre {
         SceneNode* mSceneRoot;
 
         /// Autotracking scene nodes
-        typedef std::set<SceneNode*> AutoTrackingSceneNodes;
+        typedef set<SceneNode*>::type AutoTrackingSceneNodes;
         AutoTrackingSceneNodes mAutoTrackingSceneNodes;
 
         // Sky params
@@ -439,7 +449,7 @@ namespace Ogre {
         Real mFogEnd;
         Real mFogDensity;
 
-		typedef std::set<uint8> SpecialCaseRenderQueueList;
+		typedef set<uint8>::type SpecialCaseRenderQueueList;
 		SpecialCaseRenderQueueList mSpecialCaseQueueList;
 		SpecialCaseRenderQueueMode mSpecialCaseQueueMode;
 		uint8 mWorldGeometryRenderQueue;
@@ -462,18 +472,18 @@ namespace Ogre {
 				have a focus step to limit the shadow sample distribution to only valid visible
 				scene elements.
 		*/
-		typedef std::map< const Camera*, VisibleObjectsBoundsInfo> CamVisibleObjectsMap;
+		typedef map< const Camera*, VisibleObjectsBoundsInfo>::type CamVisibleObjectsMap;
 		CamVisibleObjectsMap mCamVisibleObjectsMap; 
 
 		/** ShadowCamera to light mapping */
-		typedef std::map< const Camera*, const Light* > ShadowCamLightMapping;
+		typedef map< const Camera*, const Light* >::type ShadowCamLightMapping;
 		ShadowCamLightMapping mShadowCamLightMapping;
 
 		/// Array defining shadow count per light type.
 		size_t mShadowTextureCountPerType[3];
 
 		/// Array defining shadow texture index in light list.
-		std::vector<size_t> mShadowTextureIndexLightList;
+		vector<size_t>::type mShadowTextureIndexLightList;
 
         /// Cached light information, used to tracking light's changes
         struct _OgreExport LightInfo
@@ -482,11 +492,12 @@ namespace Ogre {
             int type;           // Use int instead of Light::LightTypes to avoid header file dependence
             Real range;         // Sets to zero if directional light
             Vector3 position;   // Sets to zero if directional light
+			uint32 lightMask;   // Light mask
 
             bool operator== (const LightInfo& rhs) const
             {
                 return light == rhs.light && type == rhs.type &&
-                    range == rhs.range && position == rhs.position;
+                    range == rhs.range && position == rhs.position && lightMask == rhs.lightMask;
             }
 
             bool operator!= (const LightInfo& rhs) const
@@ -495,22 +506,24 @@ namespace Ogre {
             }
         };
 
-        typedef std::vector<LightInfo> LightInfoList;
+        typedef vector<LightInfo>::type LightInfoList;
 
         LightList mLightsAffectingFrustum;
         LightInfoList mCachedLightInfos;
 		LightInfoList mTestLightInfos; // potentially new list
         ulong mLightsDirtyCounter;
+		LightList mShadowTextureCurrentCasterLightList;
 
-		typedef std::map<String, MovableObject*> MovableObjectMap;
+		typedef map<String, MovableObject*>::type MovableObjectMap;
 		/// Simple structure to hold MovableObject map and a mutex to go with it.
 		struct MovableObjectCollection
 		{
 			MovableObjectMap map;
 			OGRE_MUTEX(mutex)
 		};
-		typedef std::map<String, MovableObjectCollection*> MovableObjectCollectionMap;
+		typedef map<String, MovableObjectCollection*>::type MovableObjectCollectionMap;
 		MovableObjectCollectionMap mMovableObjectCollectionMap;
+		NameGenerator mMovableNameGenerator;
 		/** Gets the movable object collection for the given type name.
 		@remarks
 			This method create new collection if the collection does not exist.
@@ -600,7 +613,7 @@ namespace Ogre {
         bool mDisplayNodes;
 
         /// Storage of animations, lookup by name
-        typedef std::map<String, Animation*> AnimationList;
+        typedef map<String, Animation*>::type AnimationList;
         AnimationList mAnimationsList;
 		OGRE_MUTEX(mAnimationsListMutex)
         AnimationStateSet mAnimationStates;
@@ -608,17 +621,21 @@ namespace Ogre {
 
         /** Internal method used by _renderSingleObject to deal with renderables
             which override the camera's own view / projection materices. */
-        virtual void useRenderableViewProjMode(const Renderable* pRend);
+        virtual void useRenderableViewProjMode(const Renderable* pRend, bool fixedFunction);
         
         /** Internal method used by _renderSingleObject to deal with renderables
             which override the camera's own view / projection matrices. */
-        virtual void resetViewProjMode(void);
+        virtual void resetViewProjMode(bool fixedFunction);
 
-        typedef std::vector<RenderQueueListener*> RenderQueueListenerList;
+        typedef vector<RenderQueueListener*>::type RenderQueueListenerList;
         RenderQueueListenerList mRenderQueueListeners;
 
-        typedef std::vector<Listener*> ListenerList;
+        typedef vector<Listener*>::type ListenerList;
         ListenerList mListeners;
+		/// Internal method for firing the queue start event
+		virtual void firePreRenderQueues();
+		/// Internal method for firing the queue end event
+		virtual void firePostRenderQueues();
         /// Internal method for firing the queue start event, returns true if queue is to be skipped
         virtual bool fireRenderQueueStarted(uint8 id, const String& invocation);
         /// Internal method for firing the queue end event, returns true if queue is to be repeated
@@ -634,6 +651,8 @@ namespace Ogre {
 		virtual void firePreFindVisibleObjects(Viewport* v);
 		/// Internal method for firing find visible objects event
 		virtual void firePostFindVisibleObjects(Viewport* v);
+		/// Internal method for firing destruction event
+		virtual void fireSceneManagerDestroyed();
         /** Internal method for setting the destination viewport for the next render. */
         virtual void setViewport(Viewport *vp);
 
@@ -691,7 +710,7 @@ namespace Ogre {
 		bool mShadowTextureConfigDirty;
         ShadowTextureList mShadowTextures;
 		TexturePtr mNullShadowTexture;
-		typedef std::vector<Camera*> ShadowTextureCameraList;
+		typedef vector<Camera*>::type ShadowTextureCameraList;
 		ShadowTextureCameraList mShadowTextureCameras;
         Texture* mCurrentShadowTexture;
 		bool mShadowUseInfiniteFarPlane;
@@ -707,7 +726,7 @@ namespace Ogre {
 			LightClippingInfo() : scissorValid(false), clipPlanesValid(false) {}
 
 		};
-		typedef std::map<Light*, LightClippingInfo> LightClippingInfoMap;
+		typedef map<Light*, LightClippingInfo>::type LightClippingInfoMap;
 		LightClippingInfoMap mLightClippingInfoMap;
 		unsigned long mLightClippingInfoMapFrameNumber;
 
@@ -763,7 +782,7 @@ namespace Ogre {
         void renderShadowVolumeObjects(ShadowCaster::ShadowRenderableListIterator iShadowRenderables,
             Pass* pass, const LightList *manualLightList, unsigned long flags,
             bool secondpass, bool zfail, bool twosided);
-        typedef std::vector<ShadowCaster*> ShadowCasterList;
+        typedef vector<ShadowCaster*>::type ShadowCasterList;
         ShadowCasterList mShadowCasterList;
         SphereSceneQuery* mShadowCasterSphereQuery;
         AxisAlignedBoxSceneQuery* mShadowCasterAABBQuery;
@@ -901,6 +920,42 @@ namespace Ogre {
 		Matrix4 mCachedViewMatrix;
 		Vector3 mCameraRelativePosition;
 
+		/// Last light sets
+		uint32 mLastLightHash;
+		unsigned short mLastLightLimit;
+		uint32 mLastLightHashGpuProgram;
+		/// Gpu params that need rebinding (mask of GpuParamVariability)
+		uint16 mGpuParamsDirty;
+
+		virtual void useLights(const LightList& lights, unsigned short limit);
+		virtual void setViewMatrix(const Matrix4& m);
+		virtual void useLightsGpuProgram(const Pass* pass, const LightList* lights);
+		virtual void bindGpuProgram(GpuProgram* prog);
+		virtual void updateGpuProgramParameters(const Pass* p);
+
+
+
+
+
+
+
+
+        /// Set of registered lod listeners
+        typedef set<LodListener*>::type LodListenerSet;
+        LodListenerSet mLodListeners;
+
+        /// List of movable object lod changed events
+		typedef vector<MovableObjectLodChangedEvent>::type MovableObjectLodChangedEventList;
+        MovableObjectLodChangedEventList mMovableObjectLodChangedEvents;
+
+        /// List of entity mesh lod changed events
+        typedef vector<EntityMeshLodChangedEvent>::type EntityMeshLodChangedEventList;
+        EntityMeshLodChangedEventList mEntityMeshLodChangedEvents;
+
+        /// List of entity material lod changed events
+        typedef vector<EntityMaterialLodChangedEvent>::type EntityMaterialLodChangedEventList;
+        EntityMaterialLodChangedEventList mEntityMaterialLodChangedEvents;
+
     public:
         /** Constructor.
         */
@@ -1006,6 +1061,9 @@ namespace Ogre {
         */
         virtual Light* createLight(const String& name);
 
+		/** Creates a light with a generated name. */
+		virtual Light* createLight();
+
         /** Returns a pointer to the named Light which has previously been added to the scene.
 		@note Throws an exception if the named instance does not exist
         */
@@ -1092,9 +1150,39 @@ namespace Ogre {
         @param radius The bounding radius to test
         @param destList List to be populated with ordered set of lights; will be cleared by 
             this method before population.
+		@param lightMask The mask with which to include / exclude lights
         */
-        virtual void _populateLightList(const Vector3& position, Real radius, LightList& destList);
+        virtual void _populateLightList(const Vector3& position, Real radius, LightList& destList, uint32 lightMask = 0xFFFFFFFF);
 
+		/** Populates a light list with an ordered set of the lights which are closest
+        to the position of the SceneNode given.
+        @remarks
+            Note that since directional lights have no position, they are always considered
+            closer than any point lights and as such will always take precedence. 
+			This overloaded version will take the SceneNode's position and use the second method
+			to populate the list.
+        @par
+            Subclasses of the default SceneManager may wish to take into account other issues
+            such as possible visibility of the light if that information is included in their
+            data structures. This basic scenemanager simply orders by distance, eliminating 
+            those lights which are out of range or could not be affecting the frustum (i.e.
+            only the lights returned by SceneManager::_getLightsAffectingFrustum are take into
+            account). 
+		@par   
+			Also note that subclasses of the SceneNode might be used here to provide cached
+			scene related data, accelerating the list population (for example light lists for
+			SceneNodes could be cached inside subclassed SceneNode objects).
+        @par
+            The number of items in the list may exceed the maximum number of lights supported
+            by the renderer, but the extraneous ones will never be used. In fact the limit will
+            be imposed by Pass::getMaxSimultaneousLights.
+        @param sn The SceneNode for which to evaluate the list of lights
+        @param radius The bounding radius to test
+        @param destList List to be populated with ordered set of lights; will be cleared by 
+            this method before population.
+		@param lightMask The mask with which to include / exclude lights
+        */
+        virtual void _populateLightList(const SceneNode* sn, Real radius, LightList& destList, uint32 lightMask = 0xFFFFFFFF);
 
         /** Creates an instance of a SceneNode.
             @remarks
@@ -1183,8 +1271,14 @@ namespace Ogre {
                 meshName The name of the Mesh it is to be based on (e.g. 'knot.oof'). The
                 mesh will be loaded if it is not already.
         */
-        virtual Entity* createEntity(const String& entityName, const String& meshName);
+        virtual Entity* createEntity(const String& entityName, const String& meshName, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 
+        /** Create an Entity (instance of a discrete mesh) with an autogenerated name.
+            @param
+                meshName The name of the Mesh it is to be based on (e.g. 'knot.oof'). The
+                mesh will be loaded if it is not already.
+        */
+        virtual Entity* createEntity(const String& meshName);
         /** Prefab shapes available without loading a model.
             @note
                 Minimal implementation at present.
@@ -1204,6 +1298,11 @@ namespace Ogre {
                 ptype The prefab type.
         */
         virtual Entity* createEntity(const String& entityName, PrefabType ptype);
+
+        /** Create an Entity (instance of a discrete mesh) from a range of prefab shapes, generating the name.
+            @param ptype The prefab type.
+        */
+        virtual Entity* createEntity(PrefabType ptype);
         /** Retrieves a pointer to the named Entity. 
 		@note Throws an exception if the named instance does not exist
 		*/
@@ -1249,6 +1348,10 @@ namespace Ogre {
             name The name to be given to the object (must be unique).
         */
         virtual ManualObject* createManualObject(const String& name);
+		/** Create a ManualObject, an object which you populate with geometry
+		manually through a GL immediate-mode style interface, generating the name.
+		*/
+		virtual ManualObject* createManualObject();
         /** Retrieves a pointer to the named ManualObject. 
 		@note Throws an exception if the named instance does not exist
 		*/
@@ -1272,6 +1375,10 @@ namespace Ogre {
             name The name to be given to the object (must be unique).
         */
         virtual BillboardChain* createBillboardChain(const String& name);
+		/** Create a BillboardChain, an object which you can use to render
+		a linked chain of billboards, with a generated name.
+		*/
+		virtual BillboardChain* createBillboardChain();
         /** Retrieves a pointer to the named BillboardChain. 
 		@note Throws an exception if the named instance does not exist
 		*/
@@ -1295,6 +1402,10 @@ namespace Ogre {
             name The name to be given to the object (must be unique).
         */
         virtual RibbonTrail* createRibbonTrail(const String& name);
+		/** Create a RibbonTrail, an object which you can use to render
+		a linked chain of billboards which follows one or more nodes, generating the name.
+		*/
+		virtual RibbonTrail* createRibbonTrail();
         /** Retrieves a pointer to the named RibbonTrail. 
 		@note Throws an exception if the named instance does not exist
 		*/
@@ -1357,6 +1468,26 @@ namespace Ogre {
         virtual ParticleSystem* createParticleSystem(const String& name,
 			size_t quota = 500, 
             const String& resourceGroup = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+
+        /** Create a blank particle system with a generated name.
+        @remarks
+            This method creates a new, blank ParticleSystem instance and returns a pointer to it.
+            The caller should not delete this object, it will be freed at system shutdown, or can
+            be released earlier using the destroyParticleSystem method.
+        @par
+            The instance returned from this method won't actually do anything because on creation a
+            particle system has no emitters. The caller should manipulate the instance through it's 
+            ParticleSystem methods to actually create a real particle effect. 
+        @par
+            Creating a particle system does not make it a part of the scene. As with other MovableObject
+            subclasses, a ParticleSystem is not rendered until it is attached to a SceneNode. 
+        @param 
+            quota The maximum number of particles to allow in this system. 
+        @param
+            resourceGroup The resource group which will be used to load dependent resources
+        */
+		virtual ParticleSystem* createParticleSystem(size_t quota = 500, 
+			const String& resourceGroup = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
         /** Retrieves a pointer to the named ParticleSystem. 
 		@note Throws an exception if the named instance does not exist
 		*/
@@ -2044,6 +2175,13 @@ namespace Ogre {
         */
         virtual BillboardSet* createBillboardSet(const String& name, unsigned int poolSize = 20);
 
+        /** Creates a new BillboardSet for use with this scene manager, with a generated name.
+            @param
+                poolSize The initial size of the pool of billboards (see BillboardSet for more information)
+            @see
+                BillboardSet
+        */
+        virtual BillboardSet* createBillboardSet(unsigned int poolSize = 20);
         /** Retrieves a pointer to the named BillboardSet.
 		@note Throws an exception if the named instance does not exist
         */
@@ -2861,6 +2999,16 @@ namespace Ogre {
 		*/
 		virtual MovableObject* createMovableObject(const String& name, 
 			const String& typeName, const NameValuePairList* params = 0);
+		/** Create a movable object of the type specified without a name.
+		@remarks
+		This is the generalised form of MovableObject creation where you can
+		create a MovableObject of any specialised type generically, including
+		any new types registered using plugins. The name is generated automatically.
+		@param typeName The type of object to create
+		@param params Optional name/value pair list to give extra parameters to
+		the created object.
+		*/
+		virtual MovableObject* createMovableObject(const String& typeName, const NameValuePairList* params = 0);
 		/** Destroys a MovableObject with the name specified, of the type specified.
 		@remarks
 			The MovableObject will automatically detach itself from any nodes
@@ -3113,6 +3261,29 @@ namespace Ogre {
 			to always place the camera at the origin and move the world around it.
 		*/
 		virtual bool getCameraRelativeRendering() const { return mCameraRelativeRendering; }
+
+
+        /** Add a level of detail listener. */
+        void addLodListener(LodListener *listener);
+
+        /**
+        Remove a level of detail listener.
+        @remarks
+            Do not call from inside an LodListener callback method.
+        */
+        void removeLodListener(LodListener *listener);
+
+        /** Notify that a movable object lod change event has occurred. */
+        void _notifyMovableObjectLodChanged(MovableObjectLodChangedEvent& evt);
+
+        /** Notify that an entity mesh lod change event has occurred. */
+        void _notifyEntityMeshLodChanged(EntityMeshLodChangedEvent& evt);
+
+        /** Notify that an entity material lod change event has occurred. */
+        void _notifyEntityMaterialLodChanged(EntityMaterialLodChangedEvent& evt);
+
+        /** Handle lod events. */
+        void _handleLodEvents();
     };
 
     /** Default implementation of IntersectionSceneQuery. */
@@ -3230,6 +3401,8 @@ namespace Ogre {
 
 	};
 
+	/** @} */
+	/** @} */
 
 
 } // Namespace

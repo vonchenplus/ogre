@@ -38,7 +38,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Enum to identify material sections. */
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Materials
+	*  @{
+	*/
+	/** Enum to identify material sections. */
     enum MaterialScriptSection
     {
         MSS_NONE,
@@ -63,7 +69,7 @@ namespace Ogre {
 		bool supportsMorphAnimation;
 		ushort supportsPoseAnimation; // number of simultaneous poses supported
 		bool usesVertexTextureFetch;
-		std::vector<std::pair<String, String> > customParameters;
+		vector<std::pair<String, String> >::type customParameters;
 	};
     /** Struct for holding the script context while parsing. */
     struct MaterialScriptContext 
@@ -100,7 +106,7 @@ namespace Ogre {
     {
     protected:
         /// Keyword-mapped attribute parsers.
-        typedef std::map<String, ATTRIBUTE_PARSER> AttribParserList;
+        typedef map<String, ATTRIBUTE_PARSER>::type AttribParserList;
 
         MaterialScriptContext mScriptContext;
 
@@ -164,7 +170,7 @@ namespace Ogre {
 		void writeLayerBlendOperationEx(const LayerBlendOperationEx op);
 		void writeLayerBlendSource(const LayerBlendSource lbs);
 		
-		typedef std::multimap<TextureUnitState::TextureEffectType, TextureUnitState::TextureEffect> EffectMap;
+		typedef multimap<TextureUnitState::TextureEffectType, TextureUnitState::TextureEffect>::type EffectMap;
 
 		void writeRotationEffect(const TextureUnitState::TextureEffect& effect, const TextureUnitState *pTex);
 		void writeTransformEffect(const TextureUnitState::TextureEffect& effect, const TextureUnitState *pTex);
@@ -221,7 +227,7 @@ namespace Ogre {
 	private:
 		String mBuffer;
         String mGpuProgramBuffer;
-        typedef std::set<String> GpuProgramDefinitionContainer;
+        typedef set<String>::type GpuProgramDefinitionContainer;
         typedef GpuProgramDefinitionContainer::iterator GpuProgramDefIterator;
         GpuProgramDefinitionContainer mGpuProgramDefinitionContainer;
 		bool mDefaults;
@@ -276,5 +282,7 @@ namespace Ogre {
 		}
 
     };
+	/** @} */
+	/** @} */
 }
 #endif

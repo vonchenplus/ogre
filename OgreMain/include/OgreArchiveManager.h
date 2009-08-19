@@ -36,16 +36,22 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Resources
+	*  @{
+	*/
     /** This class manages the available ArchiveFactory plugins. 
     */
     class _OgreExport ArchiveManager : public Singleton<ArchiveManager>, public ArchiveAlloc
     {
     protected:
-        typedef std::map<String, ArchiveFactory*> ArchiveFactoryMap;
+        typedef map<String, ArchiveFactory*>::type ArchiveFactoryMap;
         /// Factories available to create archives, indexed by archive type (String identifier e.g. 'Zip')
         ArchiveFactoryMap mArchFactories;
         /// Currently loaded archives
-        typedef std::map<String, Archive*> ArchiveMap;
+        typedef map<String, Archive*>::type ArchiveMap;
         ArchiveMap mArchives;
 
     public:
@@ -126,6 +132,8 @@ namespace Ogre {
         */
         static ArchiveManager* getSingletonPtr(void);
     };
+	/** @} */
+	/** @} */
 
 }
 

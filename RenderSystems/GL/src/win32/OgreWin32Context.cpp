@@ -85,4 +85,35 @@ namespace Ogre {
 
 		return new Win32Context(mHDC, newCtx);
 	}
+
+	void Win32Context::releaseContext()
+	{
+		if (mGlrc != NULL)
+		{
+			wglDeleteContext(mGlrc);
+			mGlrc = NULL;
+			mHDC  = NULL;
+		}		
+	}
 }
+
+#if OGRE_THREAD_SUPPORT == 1
+
+// declared in OgreGLPrerequisites.h 
+WGLEWContext * wglewGetContext()
+{
+	static boost::thread_specific_ptr<WGLEWContext> WGLEWContextsPtr;
+
+	WGLEWContext * currentWGLEWContextsPtr = WGLEWContextsPtr.get();
+	if (currentWGLEWContextsPtr == NULL)
+	{
+		currentWGLEWContextsPtr = new WGLEWContext();
+		WGLEWContextsPtr.reset(currentWGLEWContextsPtr);
+		ZeroMemory(currentWGLEWContextsPtr, sizeof(WGLEWContext));
+		wglewInit();
+
+	}
+	return currentWGLEWContextsPtr;
+}
+
+#endif

@@ -46,7 +46,13 @@ namespace Ogre {
 	// Forward declaration
 	class MovableObjectFactory;
 
-    /** Abstract class defining a movable object in a scene.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
+	/** Abstract class defining a movable object in a scene.
         @remarks
             Instances of this class are discrete, relatively small, movable objects
             which are attached to SceneNode objects to define their position.
@@ -147,6 +153,9 @@ namespace Ogre {
         /// The last frame that this light list was updated in
         mutable ulong mLightListUpdated;
 
+		/// the light mask defined for this movable. This will be taken into consideration when deciding which light should affect this movable
+		uint32 mLightMask;
+
 		// Static members
 		/// Default query flags
 		static uint32 msDefaultQueryFlags;
@@ -197,6 +206,9 @@ namespace Ogre {
         */
         virtual SceneNode* getParentSceneNode(void) const;
 
+		/// Gets whether the parent node is a TagPoint (or a SceneNode)
+		virtual bool isParentTagPoint() const { return mParentIsTagPoint; }
+
         /** Internal method called to notify the object that it has been attached to a node.
         */
         virtual void _notifyAttached(Node* parent, bool isTagPoint = false);
@@ -205,7 +217,7 @@ namespace Ogre {
         virtual bool isAttached(void) const;
 
 		/** Detaches an object from a parent SceneNode or TagPoint, if attached. */
-		virtual void detatchFromParent(void);
+		virtual void detachFromParent(void);
 
         /** Returns true if this object is attached to a SceneNode or TagPoint, 
 			and this SceneNode / TagPoint is currently in an active part of the
@@ -419,6 +431,19 @@ namespace Ogre {
         */
         virtual const LightList& queryLights(void) const;
 
+		/** Get a bitwise mask which will filter the lights affecting this object
+		@remarks
+		By default, this mask is fully set meaning all lights will affect this object
+		*/
+		virtual uint32 getLightMask()const { return mLightMask; }
+		/** Set a bitwise mask which will filter the lights affecting this object
+		@remarks
+		This mask will be compared against the mask held against Light to determine
+		if a light should affect a given object. 
+		By default, this mask is fully set meaning all lights will affect this object
+		*/
+		virtual void setLightMask(uint32 lightMask);
+
 		/** Returns a pointer to the current list of lights for this object.
 		@remarks
 			You should not modify this list outside of MovableObject::Listener::objectQueryLights
@@ -567,6 +592,8 @@ namespace Ogre {
 		unsigned long getTypeFlags(void) const { return mTypeFlag; }
 
 	};
+	/** @} */
+	/** @} */
 
 }
 #endif

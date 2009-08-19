@@ -39,6 +39,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Materials
+	*  @{
+	*/
 	/// Categorisation of passes for the purpose of additive lighting
 	enum IlluminationStage
 	{
@@ -115,6 +121,15 @@ namespace Ogre {
 
 		// Used to determine if separate alpha blending should be used for color and alpha channels
 		bool mSeparateBlend;
+
+		//-------------------------------------------------------------------------
+		// Blending operations
+		SceneBlendOperation mBlendOperation;
+		SceneBlendOperation mAlphaBlendOperation;
+
+		// Determines if we should use separate blending operations for color and alpha channels
+		bool mSeparateBlendOperation;
+
         //-------------------------------------------------------------------------
 
         //-------------------------------------------------------------------------
@@ -136,6 +151,8 @@ namespace Ogre {
 
 		// Transparent depth sorting
 		bool mTransparentSorting;
+		// Transparent depth sorting forced
+		bool mTransparentSortingForced;
         //-------------------------------------------------------------------------
 
         //-------------------------------------------------------------------------
@@ -176,7 +193,7 @@ namespace Ogre {
         //-------------------------------------------------------------------------
 
         /// Storage of texture unit states
-        typedef std::vector<TextureUnitState*> TextureUnitStates;
+        typedef vector<TextureUnitState*>::type TextureUnitStates;
         TextureUnitStates mTextureUnitStates;
 
 		// Vertex program details
@@ -204,7 +221,7 @@ namespace Ogre {
 		// constant, linear, quadratic coeffs
 		Real mPointAttenuationCoeffs[3];
 		// TU Content type lookups
-		typedef std::vector<unsigned short> ContentTypeLookup;
+		typedef vector<unsigned short>::type ContentTypeLookup;
 		mutable ContentTypeLookup mShadowContentTypeLookup;
 		mutable bool mContentTypeLookupBuilt;
 		/// Scissoring for the light?
@@ -218,7 +235,7 @@ namespace Ogre {
 		void _getBlendFlags(SceneBlendType type, SceneBlendFactor& source, SceneBlendFactor& dest);
 
 	public:
-		typedef std::set<Pass*> PassSet;
+		typedef set<Pass*>::type PassSet;
     protected:
 		/// List of Passes whose hashes need recalculating
 		static PassSet msDirtyHashList;
@@ -659,6 +676,42 @@ namespace Ogre {
         */
 		SceneBlendFactor getDestBlendFactorAlpha() const;
 
+		/** Sets the specific operation used to blend source and destination pixels together.
+			@remarks 
+			By default this operation is +, which creates this equation
+			<span align="center">
+			final = (texture * sourceFactor) + (pixel * destFactor)
+			</span>
+			By setting this to something other than SBO_ADD you can change the operation to achieve
+			a different effect.
+			@param op The blending operation mode to use for this pass
+		*/
+		void setSceneBlendingOperation(SceneBlendOperation op);
+
+		/** Sets the specific operation used to blend source and destination pixels together.
+			@remarks 
+			By default this operation is +, which creates this equation
+			<span align="center">
+			final = (texture * sourceFactor) + (pixel * destFactor)
+			</span>
+			By setting this to something other than SBO_ADD you can change the operation to achieve
+			a different effect.
+			This function allows more control over blending since it allows you to select different blending
+			modes for the color and alpha channels
+			@param op The blending operation mode to use for color channels in this pass
+			@param op The blending operation mode to use for alpha channels in this pass
+		*/
+		void setSeparateSceneBlendingOperation(SceneBlendOperation op, SceneBlendOperation alphaOp);
+
+		/** Returns true if this pass uses separate scene blending operations. */
+		bool hasSeparateSceneBlendingOperations() const;
+
+		/** Returns the current blending operation */
+		SceneBlendOperation getSceneBlendingOperation() const;
+
+		/** Returns the current alpha blending operation */
+		SceneBlendOperation getSceneBlendingOperationAlpha() const;
+
 		/** Returns true if this pass has some element of transparency. */
 		bool isTransparent(void) const;
 
@@ -1006,6 +1059,21 @@ namespace Ogre {
         */
 		bool getTransparentSortingEnabled(void) const;
 
+        /** Sets whether or not transparent sorting is forced.
+        @param enabled
+			If true depth sorting of this material will be depend only on the value of
+            getTransparentSortingEnabled().
+        @remarks
+			By default even if transparent sorting is enabled, depth sorting will only be
+            performed when the material is transparent and depth write/check are disabled.
+            This function disables these extra conditions.
+        */
+        void setTransparentSortingForced(bool enabled);
+
+        /** Returns whether or not transparent sorting is forced.
+        */
+		bool getTransparentSortingForced(void) const;
+
 		/** Sets whether or not this pass should iterate per light or number of
 			lights which can affect the object being rendered.
 		@remarks
@@ -1340,10 +1408,11 @@ namespace Ogre {
         /** Tells the pass that it needs recompilation. */
         void _notifyNeedsRecompile(void);
 
-        /** Update any automatic parameters (except lights) on this pass */
-        void _updateAutoParamsNoLights(const AutoParamDataSource* source) const;
-        /** Update any automatic light parameters on this pass */
-        void _updateAutoParamsLightsOnly(const AutoParamDataSource* source) const;
+		/** Update automatic parameters.
+		@param source The source of the parameters
+		@param variabilityMask A mask of GpuParamVariability which identifies which autos will need updating
+		*/
+		void _updateAutoParams(const AutoParamDataSource* source, uint16 variabilityMask) const;
 
 		/** Gets the 'nth' texture which references the given content type.
 		@remarks
@@ -1570,7 +1639,11 @@ namespace Ogre {
 		/** Get the hash function used for all passes.
 		*/
 		static HashFunc* getHashFunction(void) { return msHashFunc; }
-        
+
+		/** Get the builtin hash function.
+		*/
+		static HashFunc* getBuiltinHashFunction(BuiltinHashFunction builtin);
+
     };
 
     /** Struct recording a pass which can be used for a specific illumination stage.
@@ -1595,8 +1668,10 @@ namespace Ogre {
 		IlluminationPass() {}
     };
 
-    typedef std::vector<IlluminationPass*> IlluminationPassList;
+    typedef vector<IlluminationPass*>::type IlluminationPassList;
 
+	/** @} */
+	/** @} */
 
 }
 

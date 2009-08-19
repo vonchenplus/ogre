@@ -35,7 +35,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre
 {    
-    /** This class represents a RenderTarget that renders to a Texture. There is no 1 on 1
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup RenderSystem
+	*  @{
+	*/
+	/** This class represents a RenderTarget that renders to a Texture. There is no 1 on 1
         relation between Textures and RenderTextures, as there can be multiple 
         RenderTargets rendering to different mipmaps, faces (for cubemaps) or slices (for 3D textures)
         of the same Texture.
@@ -106,7 +112,7 @@ namespace Ogre
 		/// Irrelevant implementation since cannot copy
 		PixelFormat suggestPixelFormat() const { return PF_UNKNOWN; }
 
-		typedef std::vector<RenderTexture*> BoundSufaceList;
+		typedef vector<RenderTexture*>::type BoundSufaceList;
 		/// Get a list of the surfaces which have been bound
 		const BoundSufaceList& getBoundSurfaceList() const { return mBoundSurfaces; }
 
@@ -128,6 +134,8 @@ namespace Ogre
 
 
 	};
+	/** @} */
+	/** @} */
 }
 
 #endif
