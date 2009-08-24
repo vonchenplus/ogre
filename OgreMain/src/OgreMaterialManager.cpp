@@ -42,6 +42,9 @@ Torus Knot Software Ltd.
 #if OGRE_USE_NEW_COMPILERS == 1
 #  include "OgreScriptCompiler.h"
 #endif
+#include "OgreLodStrategyManager.h"
+#include "OgreLodStrategyManager.h"
+
 
 namespace Ogre {
 
@@ -57,7 +60,7 @@ namespace Ogre {
     }
 	String MaterialManager::DEFAULT_SCHEME_NAME = "Default";
     //-----------------------------------------------------------------------
-    MaterialManager::MaterialManager()
+    MaterialManager::MaterialManager() : OGRE_THREAD_POINTER_INIT(mSerializer)
     {
 	    mDefaultMinFilter = FO_LINEAR;
 	    mDefaultMagFilter = FO_LINEAR;
@@ -99,9 +102,8 @@ namespace Ogre {
 		ResourceGroupManager::getSingleton()._unregisterScriptLoader(this);
 
 		// delete primary thread instances directly, other threads will delete
-		// theirs automatically when the threads end (part of boost::thread_specific_ptr)
+		// theirs automatically when the threads end.
 		OGRE_THREAD_POINTER_DELETE(mSerializer);
-
     }
 	//-----------------------------------------------------------------------
 	Resource* MaterialManager::createImpl(const String& name, ResourceHandle handle,
@@ -117,6 +119,9 @@ namespace Ogre {
 		mDefaultSettings = create("DefaultSettings", ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
         // Add a single technique and pass, non-programmable
         mDefaultSettings->createTechnique()->createPass();
+
+        // Set the default lod strategy
+        mDefaultSettings->setLodStrategy(LodStrategyManager::getSingleton().getDefaultStrategy());
 
 	    // Set up a lit base white material
 	    create("BaseWhite", ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
@@ -135,14 +140,14 @@ namespace Ogre {
 #  if OGRE_THREAD_SUPPORT
 		// Delegate to serializer
 		// check we have an instance for this thread (should always have one for main thread)
-		if (!mSerializer.get())
+		if (!OGRE_THREAD_POINTER_GET(mSerializer))
 		{
 			// create a new instance for this thread - will get deleted when
 			// the thread dies
-			mSerializer.reset(OGRE_NEW MaterialSerializer());
+			OGRE_THREAD_POINTER_SET(OGRE_NEW MaterialSerializer());
 		}
 #  endif
-        mSerializer->parseScript(stream, groupName);
+        OGRE_THREAD_POINTER_GET(mSerializer)->parseScript(stream, groupName);
 #endif // OGRE_USE_NEW_COMPILERS
 
     }

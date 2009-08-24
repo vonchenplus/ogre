@@ -35,7 +35,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    // LogMessageLevel + LoggingLevel > OGRE_LOG_THRESHOLD = message logged
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
+	// LogMessageLevel + LoggingLevel > OGRE_LOG_THRESHOLD = message logged
     #define OGRE_LOG_THRESHOLD 4
 
     /** The level of detail to which the log will go into.
@@ -91,9 +97,10 @@ namespace Ogre {
         LoggingLevel	mLogLevel;
         bool			mDebugOut;
         bool			mSuppressFile;
+        bool			mTimeStamp;
         String			mLogName;
 
-        typedef std::vector<LogListener*> mtLogListener;
+        typedef vector<LogListener*>::type mtLogListener;
         mtLogListener mListeners;
 
     public:
@@ -119,6 +126,8 @@ namespace Ogre {
 		bool isDebugOutputEnabled() const { return mDebugOut; }
 		/// Get whether file output is suppressed for this log
 		bool isFileOutputSuppressed() const { return mSuppressFile; }
+ 		/// Get whether time stamps are printed for this log
+		bool isTimeStampEnabled() const { return mTimeStamp; }
 
         /** Log a message to the debugger and to log file (the default is
             "<code>OGRE.log</code>"),
@@ -138,6 +147,11 @@ namespace Ogre {
             Sets the level of the log detail.
         */
         void setLogDetail(LoggingLevel ll);
+        /**
+        @remarks
+            Enable or disable time stamps.
+        */
+        void setTimeStampEnabled(bool timeStamp);
 		/** Gets the level of the log detail.
 		*/
 		LoggingLevel getLogDetail() const { return mLogLevel; }
@@ -228,6 +242,8 @@ namespace Ogre {
 		};
 
     };
+	/** @} */
+	/** @} */
 }
 
 #endif

@@ -45,7 +45,7 @@ namespace Ogre {
 		const GpuConstantDefinition* mConstantDef;
 	};
 
-	typedef std::vector<GLUniformReference> GLUniformReferenceList;
+	typedef vector<GLUniformReference>::type GLUniformReferenceList;
 	typedef GLUniformReferenceList::iterator GLUniformReferenceIterator;
 
 	/** C++ encapsulation of GLSL Program Object
@@ -79,7 +79,7 @@ namespace Ogre {
 		/// extract attributes
 		void extractAttributes(void);
 
-		typedef std::set<GLuint> AttributeSet;
+		typedef set<GLuint>::type AttributeSet;
 		// Custom attribute bindings
 		AttributeSet mValidAttributes;
 
@@ -109,7 +109,7 @@ namespace Ogre {
 		/** updates program object uniforms using data from GpuProgramParamters.
 		normally called by GLSLGpuProgram::bindParameters() just before rendering occurs.
 		*/
-		void updateUniforms(GpuProgramParametersSharedPtr params, GpuProgramType fromProgType);
+		void updateUniforms(GpuProgramParametersSharedPtr params, uint16 mask, GpuProgramType fromProgType);
 		/** updates program object uniforms using data from pass iteration GpuProgramParamters.
 		normally called by GLSLGpuProgram::bindMultiPassParameters() just before multi pass rendering occurs.
 		*/

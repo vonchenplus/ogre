@@ -36,6 +36,7 @@ Torus Knot Software Ltd.
 #include "OgreRoot.h"
 #include "OgreSceneManager.h"
 #include "OgreCamera.h"
+#include "OgreLodListener.h"
 
 namespace Ogre {
 	//-----------------------------------------------------------------------
@@ -61,6 +62,7 @@ namespace Ogre {
         , mRenderingDisabled(false)
         , mListener(0)
         , mLightListUpdated(0)
+		, mLightMask(0xFFFFFFFF)
     {
     }
     //-----------------------------------------------------------------------
@@ -83,6 +85,7 @@ namespace Ogre {
         , mRenderingDisabled(false)
         , mListener(0)
         , mLightListUpdated(0)
+		, mLightMask(0xFFFFFFFF)
     {
     }
     //-----------------------------------------------------------------------
@@ -159,7 +162,7 @@ namespace Ogre {
 
     }
 	//---------------------------------------------------------------------
-	void MovableObject::detatchFromParent(void)
+	void MovableObject::detachFromParent(void)
 	{
 		if (isAttached())
 		{
@@ -255,6 +258,15 @@ namespace Ogre {
 			{
 				mBeyondFarDistance = false;
 			}
+
+            // Construct event object
+            MovableObjectLodChangedEvent evt;
+            evt.movableObject = this;
+            evt.camera = cam;
+
+            // Notify lod event listeners
+            cam->getSceneManager()->_notifyMovableObjectLodChanged(evt);
+
 		}
 
         mRenderingDisabled = mListener && !mListener->objectRendering(this, cam);
@@ -336,7 +348,7 @@ namespace Ogre {
             {
                 mLightListUpdated = frame;
 
-                sn->findLights(mLightList, this->getBoundingRadius());
+                sn->findLights(mLightList, this->getBoundingRadius(), this->getLightMask());
             }
         }
         else
@@ -395,6 +407,14 @@ namespace Ogre {
 			return 0xFFFFFFFF;
 		}
 	}
+	//---------------------------------------------------------------------
+	void MovableObject::setLightMask(uint32 lightMask)
+	{
+		this->mLightMask = lightMask;
+		//make sure to request a new light list from the scene manager if mask changed
+		mLightListUpdated = 0;
+	}
+	//---------------------------------------------------------------------
 	class MORecvShadVisitor : public Renderable::Visitor
 	{
 	public:

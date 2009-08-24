@@ -62,7 +62,8 @@ namespace Ogre {
 		mOrigin(Vector3(0,0,0)),
 		mVisible(true),
         mRenderQueueID(RENDER_QUEUE_MAIN),
-        mRenderQueueIDSet(false)
+        mRenderQueueIDSet(false),
+		mVisibilityFlags(Ogre::MovableObject::getDefaultVisibilityFlags())
 	{
 	}
 	//--------------------------------------------------------------------------
@@ -87,7 +88,7 @@ namespace Ogre {
 		getRegionIndexes(min, minx, miny, minz);
 		getRegionIndexes(max, maxx, maxy, maxz);
 		Real maxVolume = 0.0f;
-		ushort finalx, finaly, finalz;
+		ushort finalx = 0, finaly = 0, finalz = 0;
 		for (ushort x = minx; x <= maxx; ++x)
 		{
 			for (ushort y = miny; y <= maxy; ++y)
@@ -250,7 +251,7 @@ namespace Ogre {
 				vbuf->lock(HardwareBuffer::HBL_READ_ONLY));
 		float* pFloat;
 
-		Vector3 min, max;
+		Vector3 min = Vector3::ZERO, max = Vector3::UNIT_SCALE;
 		bool first = true;
 
 		for(size_t j = 0; j < vertexData->vertexCount; ++j, vertex += vbuf->getVertexSize())
@@ -569,6 +570,9 @@ namespace Ogre {
 			ri != mRegionMap.end(); ++ri)
 		{
 			ri->second->build(stencilShadows);
+			
+			// Set the visibility flags on these regions
+			ri->second->setVisibilityFlags(mVisibilityFlags);
 		}
 
 	}
@@ -652,6 +656,25 @@ namespace Ogre {
 		return mRenderQueueID;
 	}
 	//--------------------------------------------------------------------------
+	void StaticGeometry::setVisibilityFlags(uint32 flags)
+	{
+		mVisibilityFlags = flags;
+		for (RegionMap::const_iterator ri = mRegionMap.begin();
+			ri != mRegionMap.end(); ++ri)
+		{
+			ri->second->setVisibilityFlags(flags);
+		}
+	}
+	//--------------------------------------------------------------------------
+	uint32 StaticGeometry::getVisibilityFlags() const
+	{
+		if(mRegionMap.empty())
+			return MovableObject::getDefaultVisibilityFlags();
+
+		RegionMap::const_iterator ri = mRegionMap.begin();
+		return ri->second->getVisibilityFlags();
+	}
+	//--------------------------------------------------------------------------
 	void StaticGeometry::dump(const String& filename) const
 	{
 		std::ofstream of(filename.c_str());
@@ -693,10 +716,8 @@ namespace Ogre {
 		SceneManager* mgr, uint32 regionID, const Vector3& centre)
 		: MovableObject(name), mParent(parent), mSceneMgr(mgr), mNode(0),
 		mRegionID(regionID), mCentre(centre), mBoundingRadius(0.0f),
-		mCurrentLod(0)
+		mCurrentLod(0), mLodStrategy(0)
 	{
-		// First LOD mandatory, and always from 0
-		mLodSquaredDistances.push_back(0.0f);
 	}
 	//--------------------------------------------------------------------------
 	StaticGeometry::Region::~Region()
@@ -727,21 +748,38 @@ namespace Ogre {
 	void StaticGeometry::Region::assign(QueuedSubMesh* qmesh)
 	{
 		mQueuedSubMeshes.push_back(qmesh);
-		// update lod distances
+
+        // Set/check lod strategy
+        const LodStrategy *lodStrategy = qmesh->submesh->parent->getLodStrategy();
+        if (mLodStrategy == 0)
+        {
+            mLodStrategy = lodStrategy;
+
+            // First LOD mandatory, and always from base lod value
+            mLodValues.push_back(mLodStrategy->getBaseValue());
+        }
+        else
+        {
+            if (mLodStrategy != lodStrategy)
+                OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Lod strategies do not match",
+                    "StaticGeometry::Region::assign");
+        }
+
+		// update lod values
 		ushort lodLevels = qmesh->submesh->parent->getNumLodLevels();
 		assert(qmesh->geometryLodList->size() == lodLevels);
 
-		while(mLodSquaredDistances.size() < lodLevels)
+		while(mLodValues.size() < lodLevels)
 		{
-			mLodSquaredDistances.push_back(0.0f);
+			mLodValues.push_back(0.0f);
 		}
 		// Make sure LOD levels are max of all at the requested level
 		for (ushort lod = 1; lod < lodLevels; ++lod)
 		{
 			const MeshLodUsage& meshLod =
 				qmesh->submesh->parent->getLodLevel(lod);
-			mLodSquaredDistances[lod] = std::max(mLodSquaredDistances[lod],
-				meshLod.fromDepthSquared);
+			mLodValues[lod] = std::max(mLodValues[lod],
+				meshLod.value);
 		}
 
 		// update bounds
@@ -762,10 +800,10 @@ namespace Ogre {
 		mNode->attachObject(this);
 		// We need to create enough LOD buckets to deal with the highest LOD
 		// we encountered in all the meshes queued
-		for (ushort lod = 0; lod < mLodSquaredDistances.size(); ++lod)
+		for (ushort lod = 0; lod < mLodValues.size(); ++lod)
 		{
 			LODBucket* lodBucket =
-				OGRE_NEW LODBucket(this, lod, mLodSquaredDistances[lod]);
+				OGRE_NEW LODBucket(this, lod, mLodValues[lod]);
 			mLodBucketList.push_back(lodBucket);
 			// Now iterate over the meshes and assign to LODs
 			// LOD bucket will pick the right LOD to use
@@ -781,7 +819,7 @@ namespace Ogre {
 
 
 
-	}
+					}
 	//--------------------------------------------------------------------------
 	const String& StaticGeometry::Region::getMovableType(void) const
 	{
@@ -791,41 +829,27 @@ namespace Ogre {
 	//--------------------------------------------------------------------------
 	void StaticGeometry::Region::_notifyCurrentCamera(Camera* cam)
 	{
-		// Calculate squared view depth
-		Vector3 diff = cam->getLodCamera()->getDerivedPosition() - mCentre;
-		Real squaredDepth = diff.squaredLength();
+        // Set camera
+        mCamera = cam;
 
-		// Determine whether to still render
-		Real renderingDist = mParent->getRenderingDistance();
-		if (renderingDist > 0)
-		{
-			// Max distance to still render
-			Real maxDist = renderingDist + mBoundingRadius;
-			if (squaredDepth > Math::Sqr(maxDist))
-			{
-				mBeyondFarDistance = true;
-				return;
-			}
-		}
+        // Cache squared view depth for use by GeometryBucket
+        mSquaredViewDepth = mParentNode->getSquaredViewDepth(cam->getLodCamera());
 
-		mBeyondFarDistance = false;
+        // No lod strategy set yet, skip (this indicates that there are no submeshes)
+        if (mLodStrategy == 0)
+            return;
 
-		// Distance from the edge of the bounding sphere
-		mCamDistanceSquared = squaredDepth - mBoundingRadius * mBoundingRadius;
-		// Clamp to 0
-		mCamDistanceSquared = std::max(static_cast<Real>(0.0), mCamDistanceSquared);
+        // Sanity check
+        assert(!mLodValues.empty());
 
-		// Determine active lod
-		mCurrentLod = static_cast<ushort>(mLodSquaredDistances.size() - 1);
-		for (ushort i = 0; i < mLodSquaredDistances.size(); ++i)
-		{
-			if (mLodSquaredDistances[i] > mCamDistanceSquared)
-			{
-				mCurrentLod = i - 1;
-				break;
-			}
-		}
+        // Calculate lod value
+        Real lodValue = mLodStrategy->getValue(this, cam);
 
+        // Store lod value for this strategy
+        mLodValue = lodValue;
+
+        // Get lod index
+        mCurrentLod = mLodStrategy->getIndex(lodValue, mLodValues);
 	}
 	//--------------------------------------------------------------------------
 	const AxisAlignedBox& StaticGeometry::Region::getBoundingBox(void) const
@@ -841,7 +865,7 @@ namespace Ogre {
 	void StaticGeometry::Region::_updateRenderQueue(RenderQueue* queue)
 	{
 		mLodBucketList[mCurrentLod]->addRenderables(queue, mRenderQueueID,
-			mCamDistanceSquared);
+			mLodValue);
 	}
 	//---------------------------------------------------------------------
 	void StaticGeometry::Region::visitRenderables(Renderable::Visitor* visitor, 
@@ -856,7 +880,14 @@ namespace Ogre {
 	//--------------------------------------------------------------------------
 	bool StaticGeometry::Region::isVisible(void) const
 	{
-		return mVisible && !mBeyondFarDistance;
+		if(!mVisible || mBeyondFarDistance)
+			return false;
+
+		SceneManager* sm = Root::getSingleton()._getCurrentSceneManager();
+        if (sm && !(mVisibilityFlags & sm->_getCombinedVisibilityMask()))
+            return false;
+
+        return true;
 	}
 	//--------------------------------------------------------------------------
 	StaticGeometry::Region::LODIterator
@@ -988,8 +1019,8 @@ namespace Ogre {
 	//--------------------------------------------------------------------------
 	//--------------------------------------------------------------------------
 	StaticGeometry::LODBucket::LODBucket(Region* parent, unsigned short lod,
-		Real lodDist)
-		: mParent(parent), mLod(lod), mSquaredDistance(lodDist), mEdgeList(0)
+		Real lodValue)
+		: mParent(parent), mLod(lod), mLodValue(lodValue), mEdgeList(0)
 		, mVertexProgramInUse(false)
 	{
 	}
@@ -1082,8 +1113,8 @@ namespace Ogre {
 						if (p->hasVertexProgram())
 						{
 							mVertexProgramInUse = true;
-						}
-					}
+		}
+	}
 				}
 
 				while (geomIt.hasMoreElements())
@@ -1111,14 +1142,14 @@ namespace Ogre {
 	}
 	//--------------------------------------------------------------------------
 	void StaticGeometry::LODBucket::addRenderables(RenderQueue* queue,
-		uint8 group, Real camDistanceSquared)
+		uint8 group, Real lodValue)
 	{
 		// Just pass this on to child buckets
 		MaterialBucketMap::iterator i, iend;
 		iend =  mMaterialBucketMap.end();
 		for (i = mMaterialBucketMap.begin(); i != iend; ++i)
 		{
-			i->second->addRenderables(queue, group, camDistanceSquared);
+			i->second->addRenderables(queue, group, lodValue);
 		}
 	}
 	//--------------------------------------------------------------------------
@@ -1133,7 +1164,7 @@ namespace Ogre {
 	{
 		of << "LOD Bucket " << mLod << std::endl;
 		of << "------------------" << std::endl;
-		of << "Distance: " << Math::Sqrt(mSquaredDistance) << std::endl;
+		of << "Lod Value: " << mLodValue << std::endl;
 		of << "Number of Materials: " << mMaterialBucketMap.size() << std::endl;
 		for (MaterialBucketMap::const_iterator i = mMaterialBucketMap.begin();
 			i != mMaterialBucketMap.end(); ++i)
@@ -1283,12 +1314,21 @@ namespace Ogre {
 	}
 	//--------------------------------------------------------------------------
 	void StaticGeometry::MaterialBucket::addRenderables(RenderQueue* queue,
-		uint8 group, Real camDistanceSquared)
+		uint8 group, Real lodValue)
 	{
+        // Get region
+        Region *region = mParent->getParent();
+
+        // Get material lod strategy
+        const LodStrategy *materialLodStrategy = mMaterial->getLodStrategy();
+
+        // If material strategy doesn't match, recompute lod value with correct strategy
+        if (materialLodStrategy != region->mLodStrategy)
+            lodValue = materialLodStrategy->getValue(region, region->mCamera);
+
 		// Determine the current material technique
 		mTechnique = mMaterial->getBestTechnique(
-			mMaterial->getLodIndexSquaredDepth(camDistanceSquared));
-
+			mMaterial->getLodIndex(lodValue));
 		GeometryBucketList::iterator i, iend;
 		iend =  mGeometryBucketList.end();
 		for (i = mGeometryBucketList.begin(); i != iend; ++i)
@@ -1446,7 +1486,11 @@ namespace Ogre {
 	//--------------------------------------------------------------------------
 	Real StaticGeometry::GeometryBucket::getSquaredViewDepth(const Camera* cam) const
 	{
-		return mParent->getParent()->getSquaredDistance();
+        const Region *region = mParent->getParent()->getParent();
+        if (cam == region->mCamera)
+            return region->mSquaredViewDepth;
+        else
+            return region->getParentNode()->getSquaredViewDepth(cam->getLodCamera());
 	}
 	//--------------------------------------------------------------------------
 	const LightList& StaticGeometry::GeometryBucket::getLights(void) const
@@ -1505,8 +1549,8 @@ namespace Ogre {
 		ushort b;
 		ushort posBufferIdx = dcl->findElementBySemantic(VES_POSITION)->getSource();
 
-		std::vector<uchar*> destBufferLocks;
-		std::vector<VertexDeclaration::VertexElementList> bufferElements;
+		vector<uchar*>::type destBufferLocks;
+		vector<VertexDeclaration::VertexElementList>::type bufferElements;
 		for (b = 0; b < binds->getBufferCount(); ++b)
 		{
 			size_t vertexCount = mVertexData->vertexCount;

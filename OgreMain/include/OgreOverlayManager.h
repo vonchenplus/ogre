@@ -37,7 +37,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Manages Overlay objects, parsing them from .overlay files and
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Overlays
+	*  @{
+	*/
+	/** Manages Overlay objects, parsing them from .overlay files and
         storing a lookup library of them. Alo manages the creation of 
 		OverlayContainers and OverlayElements, used for non-interactive 2D 
 		elements such as HUDs.
@@ -45,9 +51,9 @@ namespace Ogre {
     class _OgreExport OverlayManager : public Singleton<OverlayManager>, public ScriptLoader, public OverlayAlloc
     {
     public:
-        typedef std::map<String, Overlay*> OverlayMap;
-		typedef std::map<String, OverlayElement*> ElementMap;
-		typedef std::map<String, OverlayElementFactory*> FactoryMap;
+        typedef map<String, Overlay*>::type OverlayMap;
+		typedef map<String, OverlayElement*>::type ElementMap;
+		typedef map<String, OverlayElementFactory*>::type FactoryMap;
     protected:
         OverlayMap mOverlayMap;
         StringVector mScriptPatterns;
@@ -70,7 +76,7 @@ namespace Ogre {
 		ElementMap mInstances;
 		ElementMap mTemplates;
 
-		typedef std::set<String> LoadedScripts;
+		typedef set<String>::type LoadedScripts;
 		LoadedScripts mLoadedScripts;
 
 
@@ -233,6 +239,8 @@ namespace Ogre {
     };
 
 
+	/** @} */
+	/** @} */
 
 }
 

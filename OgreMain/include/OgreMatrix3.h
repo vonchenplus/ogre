@@ -53,7 +53,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre
 {
-    /** A 3x3 matrix which can represent rotations around axes.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Math
+	*  @{
+	*/
+	/** A 3x3 matrix which can represent rotations around axes.
         @note
             <b>All the code is adapted from the Wild Magic 0.2 Matrix
             library (http://www.geometrictools.com/).</b>
@@ -89,6 +95,21 @@ namespace Ogre
 			m[2][0] = fEntry20;
 			m[2][1] = fEntry21;
 			m[2][2] = fEntry22;
+		}
+
+		/** Exchange the contents of this matrix with another. 
+		*/
+		inline void swap(Matrix3& other)
+		{
+			std::swap(m[0][0], other.m[0][0]);
+			std::swap(m[0][1], other.m[0][1]);
+			std::swap(m[0][2], other.m[0][2]);
+			std::swap(m[1][0], other.m[1][0]);
+			std::swap(m[1][1], other.m[1][1]);
+			std::swap(m[1][2], other.m[1][2]);
+			std::swap(m[2][0], other.m[2][0]);
+			std::swap(m[2][1], other.m[2][1]);
+			std::swap(m[2][2], other.m[2][2]);
 		}
 
         // member access, allows use of construct mat[r][c]
@@ -210,6 +231,16 @@ namespace Ogre
 			return false;
 		}
 
+		/** Function for writing to a stream.
+		*/
+		inline _OgreExport friend std::ostream& operator <<
+			( std::ostream& o, const Matrix3& m )
+		{
+			o << "Matrix3(" << m[0][0] << ", " << m[0][1] << ", " << m[0][2] << ", " 
+				<< m[1][0] << ", " << m[1][1] << ", " << m[2][2] << ", " 
+				<< m[2][0] << ", " << m[2][1] << ", " << m[2][2] << ")";
+			return o;
+		}
 
         static const Real EPSILON;
         static const Matrix3 ZERO;
@@ -236,5 +267,7 @@ namespace Ogre
         // for faster access
         friend class Matrix4;
     };
+	/** @} */
+	/** @} */
 }
 #endif

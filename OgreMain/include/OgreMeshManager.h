@@ -42,7 +42,13 @@ namespace Ogre {
 
 	class MeshSerializerListener;
 
-    /** Handles the management of mesh resources.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Resources
+	*  @{
+	*/
+	/** Handles the management of mesh resources.
         @remarks
             This class deals with the runtime management of
             mesh data; like other resource managers it handles
@@ -465,7 +471,7 @@ namespace Ogre {
             int ySegmentsToKeep;
         };
         /** Map from resource pointer to parameter set */
-        typedef std::map<Resource*, MeshBuildParams> MeshBuildParamsMap;
+        typedef map<Resource*, MeshBuildParams>::type MeshBuildParamsMap;
         MeshBuildParamsMap mMeshBuildParams;
 
         /** Utility method for manual loading a plane */
@@ -484,6 +490,8 @@ namespace Ogre {
 		MeshSerializerListener *mListener;
     };
 
+	/** @} */
+	/** @} */
 
 } //namespace
 

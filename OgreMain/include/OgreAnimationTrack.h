@@ -39,6 +39,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre 
 {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Animation
+	*  @{
+	*/
     /** Time index object used to search keyframe at the given position.
     */
     class _OgreExport TimeIndex
@@ -219,11 +225,11 @@ namespace Ogre
 		virtual void optimise(void) {}
 
         /** Internal method to collect keyframe times, in unique, ordered format. */
-        virtual void _collectKeyFrameTimes(std::vector<Real>& keyFrameTimes);
+        virtual void _collectKeyFrameTimes(vector<Real>::type& keyFrameTimes);
 
         /** Internal method to build keyframe time index map to translate global lower
             bound index to local lower bound index. */
-        virtual void _buildKeyFrameIndexMap(const std::vector<Real>& keyFrameTimes);
+        virtual void _buildKeyFrameIndexMap(const vector<Real>::type& keyFrameTimes);
 
 		/** Set a listener for this track. */
 		virtual void setListener(Listener* l) { mListener = l; }
@@ -231,14 +237,14 @@ namespace Ogre
 		/** Returns the parent Animation object for this track. */
 		Animation *getParent() const { return mParent; }
     protected:
-        typedef std::vector<KeyFrame*> KeyFrameList;
+        typedef vector<KeyFrame*>::type KeyFrameList;
         KeyFrameList mKeyFrames;
         Animation* mParent;
 		unsigned short mHandle;
 		Listener* mListener;
 
         /// Map used to translate global keyframe time lower bound index to local lower bound index
-        typedef std::vector<ushort> KeyFrameIndexMap;
+        typedef vector<ushort>::type KeyFrameIndexMap;
         KeyFrameIndexMap mKeyFrameIndexMap;
 
 		/// Create a keyframe implementation - must be overridden
@@ -559,7 +565,8 @@ namespace Ogre
 
 
 	};
-
+	/** @} */
+	/** @} */
 }
 
 #endif

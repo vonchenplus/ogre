@@ -148,6 +148,11 @@ namespace Ogre {
         return QueueGroupIterator(mGroups.begin(), mGroups.end());
     }
     //-----------------------------------------------------------------------
+    RenderQueue::ConstQueueGroupIterator RenderQueue::_getQueueGroupIterator(void) const
+    {
+        return ConstQueueGroupIterator(mGroups.begin(), mGroups.end());
+    }
+    //-----------------------------------------------------------------------
     void RenderQueue::addRenderable(Renderable* pRend, uint8 groupID)
     {
         addRenderable(pRend, groupID, mDefaultRenderablePriority);
@@ -218,6 +223,11 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
+    bool RenderQueue::getSplitPassesByLightingType(void) const
+    {
+        return mSplitPassesByLightingType;
+    }
+    //-----------------------------------------------------------------------
     void RenderQueue::setSplitNoShadowPasses(bool split)
     {
         mSplitNoShadowPasses = split;
@@ -229,6 +239,11 @@ namespace Ogre {
         {
             i->second->setSplitNoShadowPasses(split);
         }
+    }
+    //-----------------------------------------------------------------------
+    bool RenderQueue::getSplitNoShadowPasses(void) const
+    {
+        return mSplitNoShadowPasses;
     }
 	//-----------------------------------------------------------------------
 	void RenderQueue::setShadowCastersCannotBeReceivers(bool ind)
@@ -243,6 +258,26 @@ namespace Ogre {
 			i->second->setShadowCastersCannotBeReceivers(ind);
 		}
 	}
+	//-----------------------------------------------------------------------
+	bool RenderQueue::getShadowCastersCannotBeReceivers(void) const
+	{
+		return mShadowCastersCannotBeReceivers;
+	}
+	//-----------------------------------------------------------------------
+	void RenderQueue::merge( const RenderQueue* rhs )
+	{
+		ConstQueueGroupIterator it = rhs->_getQueueGroupIterator( );
+
+		while( it.hasMoreElements() )
+		{
+			uint8 groupID = it.peekNextKey();
+			RenderQueueGroup* pSrcGroup = it.getNext();
+			RenderQueueGroup* pDstGroup = getQueueGroup( groupID );
+
+			pDstGroup->merge( pSrcGroup );
+		}
+	}
+
 	//---------------------------------------------------------------------
 	void RenderQueue::processVisibleObject(MovableObject* mo, 
 		Camera* cam, 

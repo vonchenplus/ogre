@@ -74,7 +74,7 @@ namespace Ogre {
 			checkForGLSLError( "GLSLProgram::GLSLProgram", "GL Errors before creating shader object", 0 );
 			// create shader object
 
-			GLenum shaderType;
+			GLenum shaderType = 0x0000;
 			switch (mType)
 			{
 			case GPT_VERTEX_PROGRAM:
@@ -223,7 +223,8 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
 	void GLSLProgram::populateParameterNames(GpuProgramParametersSharedPtr params)
 	{
-		params->_setNamedConstants(&getConstantDefinitions());
+		getConstantDefinitions();
+		params->_setNamedConstants(mConstantDefs);
 		// Don't set logical / physical maps here, as we can't access parameters by logical index in GLHL.
 	}
 	//-----------------------------------------------------------------------
@@ -234,10 +235,9 @@ namespace Ogre {
 
 
 		// Therefore instead, parse the source code manually and extract the uniforms
-		mConstantDefs.floatBufferSize = 0;
-		mConstantDefs.intBufferSize = 0;
+		createParameterMappingStructures(true);
 		GLSLLinkProgramManager::getSingleton().extractConstantDefs(
-			mSource, mConstantDefs, mName);
+			mSource, *mConstantDefs.get(), mName);
 
 		// Also parse any attached sources
 		for (GLSLProgramContainer::const_iterator i = mAttachedGLSLPrograms.begin();
@@ -246,7 +246,7 @@ namespace Ogre {
 			GLSLProgram* childShader = *i;
 
 			GLSLLinkProgramManager::getSingleton().extractConstantDefs(
-				childShader->getSource(), mConstantDefs, childShader->getName());
+				childShader->getSource(), *mConstantDefs.get(), childShader->getName());
 
 		}
 	}
@@ -290,13 +290,20 @@ namespace Ogre {
         }
         // Manually assign language now since we use it immediately
         mSyntaxCode = "glsl";
-
-		// want scenemanager to pass on surface and light states to the rendersystem
-		mPassSurfaceAndLightStates = true;
-
         
     }
-
+	//---------------------------------------------------------------------
+	bool GLSLProgram::getPassSurfaceAndLightStates(void) const
+	{
+		// scenemanager should pass on light & material state to the rendersystem
+		return true;
+	}
+	//---------------------------------------------------------------------
+	bool GLSLProgram::getPassTransformStates(void) const
+	{
+		// scenemanager should pass on transform state to the rendersystem
+		return true;
+	}
 	//-----------------------------------------------------------------------
     String GLSLProgram::CmdAttach::doGet(const void *target) const
     {

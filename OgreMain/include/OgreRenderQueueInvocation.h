@@ -35,6 +35,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup RenderSystem
+	*  @{
+	*/
 	/** Class representing the invocation of queue groups in a RenderQueue.
 	@remarks
 		The default behaviour for OGRE's render queue is to render each queue
@@ -152,7 +158,7 @@ namespace Ogre {
 
 
 	/// List of RenderQueueInvocations
-	typedef std::vector<RenderQueueInvocation*> RenderQueueInvocationList;
+	typedef vector<RenderQueueInvocation*>::type RenderQueueInvocationList;
 	typedef VectorIterator<RenderQueueInvocationList> RenderQueueInvocationIterator;
 
 	/** Class to hold a linear sequence of RenderQueueInvocation objects. 
@@ -211,6 +217,8 @@ namespace Ogre {
 
 
 	};
+	/** @} */
+	/** @} */
 
 }
 

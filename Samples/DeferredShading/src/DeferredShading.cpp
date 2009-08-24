@@ -57,7 +57,7 @@ using namespace Ogre;
 DeferredShadingSystem::DeferredShadingSystem(
 		Viewport *vp, SceneManager *sm,  Camera *cam
 	):
-	mSceneMgr(sm), mViewport(vp), mCamera(cam),
+	mViewport(vp), mSceneMgr(sm), mCamera(cam),
 		mLightMaterialGenerator(0)
 {
 	for(int i=0; i<DSM_COUNT; ++i)
@@ -77,7 +77,7 @@ DeferredShadingSystem::DeferredShadingSystem(
 DeferredShadingSystem::~DeferredShadingSystem()
 {
 	// Delete mini lights
-	for(std::set<MLight*>::iterator i=mLights.begin(); i!=mLights.end(); ++i)
+	for(set<MLight*>::type::iterator i=mLights.begin(); i!=mLights.end(); ++i)
 	{
 		delete (*i);
 	}

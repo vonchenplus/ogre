@@ -41,7 +41,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Defines a generic resource handler.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Resources
+	*  @{
+	*/
+	/** Defines a generic resource handler.
     @remarks
         A resource manager is responsible for managing a pool of
         resources of a particular type. It must index them, look
@@ -276,9 +282,25 @@ namespace Ogre {
         */
         virtual void removeAll(void);
 
+		/** Remove all resources which are not referenced by any other object.
+		@remarks
+			This method behaves like removeAll, except that it only removes resources
+            which are not in use, ie not referenced by other objects. This allows you
+            to free up some memory selectively whilst still keeping the group around
+            (and the resources present, just not using much memory).
+        @par
+            Some referenced resource may exists 'weak' pointer to their sub-components
+            (e.g. Entity held pointer to SubMesh), in this case, remove or reload that
+            resource will cause dangerous pointer access. Use this function instead of
+            removeAll allows you avoid fail in those situations.
+		@param reloadableOnly If true (the default), only removes resources
+			which can be subsequently automatically reloaded.
+		*/
+		virtual void removeUnreferencedResources(bool reloadableOnly = true);
+
         /** Retrieves a pointer to a resource by name, or null if the resource does not exist.
         */
-        virtual ResourcePtr getByName(const String& name);
+        virtual ResourcePtr getByName(const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
         /** Retrieves a pointer to a resource by handle, or null if the resource does not exist.
         */
         virtual ResourcePtr getByHandle(ResourceHandle handle);
@@ -392,6 +414,36 @@ namespace Ogre {
         /** Gets whether this manager and its resources habitually produce log output */
         virtual bool getVerbose(void) { return mVerbose; }
 
+		/** Definition of a pool of resources, which users can use to reuse similar
+			resources many times without destroying and recreating them.
+		@remarks
+			This is a simple utility class which allows the reuse of resources
+			between code which has a changing need for them. For example, 
+		*/
+		class _OgreExport ResourcePool : public Pool<ResourcePtr>, public ResourceAlloc
+		{
+		protected:
+			String mName;
+		public:
+			ResourcePool(const String& name);
+			~ResourcePool();
+			/// Get the name of the pool
+			const String& getName() const;
+			void clear();
+		};
+		
+		/// Create a resource pool, or reuse one that already exists
+		ResourcePool* getResourcePool(const String& name);
+		/// Destroy a resource pool
+		void destroyResourcePool(ResourcePool* pool);
+		/// Destroy a resource pool
+		void destroyResourcePool(const String& name);
+		/// destroy all pools
+		void destroyAllResourcePools();
+
+
+
+
     protected:
 
         /** Allocates the next handle. */
@@ -432,10 +484,12 @@ namespace Ogre {
 
     public:
 		typedef HashMap< String, ResourcePtr > ResourceMap;
-		typedef std::map<ResourceHandle, ResourcePtr> ResourceHandleMap;
+		typedef HashMap< String, ResourceMap > ResourceWithGroupMap;
+		typedef map<ResourceHandle, ResourcePtr>::type ResourceHandleMap;
     protected:
         ResourceHandleMap mResourcesByHandle;
         ResourceMap mResources;
+		ResourceWithGroupMap mResourcesWithGroup;
         ResourceHandle mNextHandle;
         size_t mMemoryBudget; // In bytes
         size_t mMemoryUsage; // In bytes
@@ -462,9 +516,16 @@ namespace Ogre {
             return ResourceMapIterator(mResourcesByHandle.begin(), mResourcesByHandle.end());
         }
 
+	protected:
+		typedef map<String, ResourcePool*>::type ResourcePoolMap;
+		ResourcePoolMap mResourcePoolMap;
+
+
     
 
     };
+	/** @} */
+	/** @} */
 
 }
 

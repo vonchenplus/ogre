@@ -50,7 +50,7 @@ CompositorManager& CompositorManager::getSingleton(void)
 	assert( ms_Singleton );  return ( *ms_Singleton );  
 }//-----------------------------------------------------------------------
 CompositorManager::CompositorManager():
-	mRectangle(0)
+	mRectangle(0), OGRE_THREAD_POINTER_INIT(mSerializer)
 {
 	initialise();
 
@@ -76,6 +76,7 @@ CompositorManager::CompositorManager():
 CompositorManager::~CompositorManager()
 {
     freeChains();
+	freeSharedTextures(false);
 	OGRE_DELETE mRectangle;
 
 	OGRE_THREAD_POINTER_DELETE(mSerializer);
@@ -141,15 +142,15 @@ void CompositorManager::parseScript(DataStreamPtr& stream, const String& groupNa
 	ScriptCompilerManager::getSingleton().parseScript(stream, groupName);
 #else // OGRE_USE_NEW_COMPILERS
 #  if OGRE_THREAD_SUPPORT
-	// check we have an instance for this thread 
-	if (!mSerializer.get())
+	// check we have an instance for this thread
+	if (!OGRE_THREAD_POINTER_GET(mSerializer))
 	{
 		// create a new instance for this thread - will get deleted when
 		// the thread dies
-		mSerializer.reset(OGRE_NEW CompositorSerializer());
+		OGRE_THREAD_POINTER_SET(mSerializer, OGRE_NEW CompositorSerializer());
 	}
 #  endif
-    mSerializer->parseScript(stream, groupName);
+    OGRE_THREAD_POINTER_GET(mSerializer)->parseScript(stream, groupName);
 #endif // OGRE_USE_NEW_COMPILERS
 
 }
@@ -260,6 +261,10 @@ void CompositorManager::setCompositorEnabled(Viewport *vp, const String &composi
 //---------------------------------------------------------------------
 void CompositorManager::_reconstructAllCompositorResources()
 {
+	// In order to deal with shared resources, we have to disable *all* compositors
+	// first, that way shared resources will get freed
+	typedef vector<CompositorInstance*>::type InstVec;
+	InstVec instancesToReenable;
 	for (Chains::iterator i = mChains.begin(); i != mChains.end(); ++i)
 	{
 		CompositorChain* chain = i->second;
@@ -270,10 +275,207 @@ void CompositorManager::_reconstructAllCompositorResources()
 			if (inst->getEnabled())
 			{
 				inst->setEnabled(false);
-				inst->setEnabled(true);
+				instancesToReenable.push_back(inst);
 			}
 		}
 	}
+
+	for (InstVec::iterator i = instancesToReenable.begin(); i != instancesToReenable.end(); ++i)
+	{
+		CompositorInstance* inst = *i;
+		inst->setEnabled(true);
+	}
 }
+//---------------------------------------------------------------------
+TexturePtr CompositorManager::getSharedTexture(const String& name, 
+	const String& localName,
+	size_t w, size_t h, PixelFormat f, uint aa, const String& aaHint, bool srgb, 
+	CompositorManager::UniqueTextureSet& texturesAssigned, 
+	CompositorInstance* inst)
+{
+	TextureDef def(w, h, f, aa, aaHint, srgb);
+	TexturesByDef::iterator i = mTexturesByDef.find(def);
+	if (i == mTexturesByDef.end())
+	{
+		TextureList* texList = OGRE_NEW_T(TextureList, MEMCATEGORY_GENERAL);
+		i = mTexturesByDef.insert(TexturesByDef::value_type(def, texList)).first;
+	}
+	CompositorInstance* previous = inst->getChain()->getPreviousInstance(inst);
+	CompositorInstance* next = inst->getChain()->getNextInstance(inst);
+
+	TexturePtr ret;
+	TextureList* texList = i->second;
+	// iterate over the existing textures and check if we can re-use
+	for (TextureList::iterator t = texList->begin(); t != texList->end(); ++t)
+	{
+		TexturePtr& tex = *t;
+		// check not already used
+		if (texturesAssigned.find(tex.get()) == texturesAssigned.end())
+		{
+			bool allowReuse = true;
+			// ok, we didn't use this one already
+			// however, there is an edge case where if we re-use a texture
+			// which has an 'input previous' pass, and it is chained from another
+			// compositor, we can end up trying to use the same texture for both
+			// so, never allow a texture with an input previous pass to be 
+			// shared with its immediate predecessor in the chain
+			if (isInputPreviousTarget(inst, localName))
+			{
+				// Check whether this is also an input to the output target of previous
+				// can't use CompositorInstance::mPreviousInstance, only set up
+				// during compile
+				if (previous && isInputToOutputTarget(previous, tex))
+					allowReuse = false;
+			}
+			// now check the other way around since we don't know what order they're bound in
+			if (isInputToOutputTarget(inst, localName))
+			{
+				
+				if (next && isInputPreviousTarget(next, tex))
+					allowReuse = false;
+			}
+			
+			if (allowReuse)
+			{
+				ret = tex;
+				break;
+			}
+
+		}
+	}
+
+	if (ret.isNull())
+	{
+		// ok, we need to create a new one
+		ret = TextureManager::getSingleton().createManual(
+			name, 
+			ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME, TEX_TYPE_2D, 
+			(uint)w, (uint)h, 0, f, TU_RENDERTARGET, 0,
+			srgb, aa, aaHint); 
+
+		texList->push_back(ret);
+
+	}
+
+	// record that we used this one in the requester's list
+	texturesAssigned.insert(ret.get());
+
+
+	return ret;
+}
+//---------------------------------------------------------------------
+bool CompositorManager::isInputPreviousTarget(CompositorInstance* inst, const Ogre::String& localName)
+{
+	CompositionTechnique::TargetPassIterator tpit = inst->getTechnique()->getTargetPassIterator();
+	while(tpit.hasMoreElements())
+	{
+		CompositionTargetPass* tp = tpit.getNext();
+		if (tp->getInputMode() == CompositionTargetPass::IM_PREVIOUS &&
+			tp->getOutputName() == localName)
+		{
+			return true;
+		}
+
+	}
+
+	return false;
+
+}
+//---------------------------------------------------------------------
+bool CompositorManager::isInputPreviousTarget(CompositorInstance* inst, TexturePtr tex)
+{
+	CompositionTechnique::TargetPassIterator tpit = inst->getTechnique()->getTargetPassIterator();
+	while(tpit.hasMoreElements())
+	{
+		CompositionTargetPass* tp = tpit.getNext();
+		if (tp->getInputMode() == CompositionTargetPass::IM_PREVIOUS)
+		{
+			// Don't have to worry about an MRT, because no MRT can be input previous
+			TexturePtr t = inst->getTextureInstance(tp->getOutputName(), 0);
+			if (!t.isNull() && t.get() == tex.get())
+				return true;
+		}
+
+	}
+
+	return false;
+
+}
+//---------------------------------------------------------------------
+bool CompositorManager::isInputToOutputTarget(CompositorInstance* inst, const Ogre::String& localName)
+{
+	CompositionTargetPass* tp = inst->getTechnique()->getOutputTargetPass();
+	CompositionTargetPass::PassIterator pit = tp->getPassIterator();
+
+	while(pit.hasMoreElements())
+	{
+		CompositionPass* p = pit.getNext();
+		for (size_t i = 0; i < p->getNumInputs(); ++i)
+		{
+			if (p->getInput(i).name == localName)
+				return true;
+		}
+	}
+
+	return false;
+
+}
+//---------------------------------------------------------------------()
+bool CompositorManager::isInputToOutputTarget(CompositorInstance* inst, TexturePtr tex)
+{
+	CompositionTargetPass* tp = inst->getTechnique()->getOutputTargetPass();
+	CompositionTargetPass::PassIterator pit = tp->getPassIterator();
+
+	while(pit.hasMoreElements())
+	{
+		CompositionPass* p = pit.getNext();
+		for (size_t i = 0; i < p->getNumInputs(); ++i)
+		{
+			TexturePtr t = inst->getTextureInstance(p->getInput(i).name, 0);
+			if (!t.isNull() && t.get() == tex.get())
+				return true;
+		}
+	}
+
+	return false;
+
+}
+//---------------------------------------------------------------------
+void CompositorManager::freeSharedTextures(bool onlyIfUnreferenced)
+{
+	if (onlyIfUnreferenced)
+	{
+		for (TexturesByDef::iterator i = mTexturesByDef.begin(); i != mTexturesByDef.end(); ++i)
+		{
+			TextureList* texList = i->second;
+			for (TextureList::iterator j = texList->begin(); j != texList->end();)
+			{
+				// if the resource system, plus this class, are the only ones to have a reference..
+				// NOTE: any material references will stop this texture getting freed (e.g. compositor demo)
+				// until this routine is called again after the material no longer references the texture
+				if (j->useCount() == ResourceGroupManager::RESOURCE_SYSTEM_NUM_REFERENCE_COUNTS + 1)
+				{
+					TextureManager::getSingleton().remove((*j)->getHandle());
+					j = texList->erase(j);
+				}
+				else
+					++j;
+			}
+		}
+		
+	}
+	else
+	{
+		// destroy all
+		for (TexturesByDef::iterator i = mTexturesByDef.begin(); i != mTexturesByDef.end(); ++i)
+		{
+			OGRE_DELETE_T(i->second, TextureList, MEMCATEGORY_GENERAL);
+		}
+		mTexturesByDef.clear();
+
+	}
+
+}
+
 
 }

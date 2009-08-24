@@ -29,6 +29,11 @@ Torus Knot Software Ltd.
 #ifndef __Config_H_
 #define __Config_H_
 
+// Include the CMake-generated build settings, if applicable
+#ifdef HAVE_OGRE_BUILDSETTINGS_H
+#include "buildsettings.h"
+#endif
+
 // Read configuration options; some systems use an auto-generated config.h,
 // other use a manually generated config.h; in any case just define
 // HAVE_CONFIG_H to include the custom config.h file.
@@ -84,11 +89,23 @@ Torus Knot Software Ltd.
 
 // define the memory allocator configuration to use
 #define OGRE_MEMORY_ALLOCATOR_STD 1
-#define OGRE_MEMORY_ALLOCATOR_NED 2			 // you need to have nedmalloc on your path for this
+#define OGRE_MEMORY_ALLOCATOR_NED 2
 #define OGRE_MEMORY_ALLOCATOR_USER 3
 
 #ifndef OGRE_MEMORY_ALLOCATOR
 #  define OGRE_MEMORY_ALLOCATOR OGRE_MEMORY_ALLOCATOR_NED
+#endif
+
+// Whether to use the custom memory allocator in STL containers
+#ifndef OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR
+#  define OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR 1
+#endif
+
+//if you want to make Ogre::String use the custom memory allocator then set:
+//#define OGRE_STRING_USE_CUSTOM_MEMORY_ALLOCATOR 1
+// Doing this will mean Ogre's strings will not be compatible with std::string however
+#ifndef OGRE_STRING_USE_CUSTOM_MEMORY_ALLOCATOR
+#	define OGRE_STRING_USE_CUSTOM_MEMORY_ALLOCATOR 0
 #endif
 
 // enable or disable the memory tracker, recording the memory allocations & tracking leaks
@@ -129,6 +146,21 @@ OGRE_THREAD_SUPPORT = 2
 #endif
 #if OGRE_THREAD_SUPPORT != 0 && OGRE_THREAD_SUPPORT != 1 && OGRE_THREAD_SUPPORT != 2
 #define OGRE_THREAD_SUPPORT 1
+#endif
+
+/** Provider for threading functionality, there are 4 options.
+
+OGRE_THREAD_PROVIDER = 0
+	No support for threading.
+OGRE_THREAD_PROVIDER = 1
+	Boost libraries provide threading functionality.
+OGRE_THREAD_PROVIDER = 2
+	Poco libraries provide threading functionality.
+OGRE_THREAD_PROVIDER = 3
+	TBB library provides threading functionality.
+*/
+#ifndef OGRE_THREAD_PROVIDER
+#define OGRE_THREAD_PROVIDER 0
 #endif
 
 /** Disables use of the FreeImage image library for loading images.

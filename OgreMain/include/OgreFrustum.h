@@ -38,7 +38,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre
 {
-    /** Specifies perspective (realistic) or orthographic (architectural) projection.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Math
+	*  @{
+	*/
+	/** Specifies perspective (realistic) or orthographic (architectural) projection.
     */
     enum ProjectionType
     {
@@ -623,8 +629,15 @@ namespace Ogre
 		virtual const Vector3& getPositionForViewUpdate(void) const;
 		/** Get the derived orientation of this frustum. */
 		virtual const Quaternion& getOrientationForViewUpdate(void) const;
+
+		/** Gets a world-space list of planes enclosing the frustum.
+		*/
+		PlaneBoundedVolume getPlaneBoundedVolume();
+
     };
 
+	/** @} */
+	/** @} */
 
 }
 

@@ -48,7 +48,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Implementation of a Quaternion, i.e. a rotation around an axis.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Math
+	*  @{
+	*/
+	/** Implementation of a Quaternion, i.e. a rotation around an axis.
     */
     class _OgreExport Quaternion
     {
@@ -86,6 +92,16 @@ namespace Ogre {
 		inline Quaternion(Real* valptr)
 		{
 			memcpy(&w, valptr, sizeof(Real)*4);
+		}
+
+		/** Exchange the contents of this quaternion with another. 
+		*/
+		inline void swap(Quaternion& other)
+		{
+			std::swap(w, other.w);
+			std::swap(x, other.x);
+			std::swap(y, other.y);
+			std::swap(z, other.z);
 		}
 
 		/// Array accessor operator
@@ -245,6 +261,8 @@ namespace Ogre {
         }
 
     };
+	/** @} */
+	/** @} */
 
 }
 

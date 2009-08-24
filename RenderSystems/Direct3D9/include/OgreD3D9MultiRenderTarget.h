@@ -36,10 +36,6 @@ Torus Knot Software Ltd.
 #include "OgreException.h"
 #include "OgreD3D9HardwarePixelBuffer.h"
 
-#include <d3d9.h>
-#include <d3dx9.h>
-#include <dxerr9.h>
-
 namespace Ogre {
 	class D3D9MultiRenderTarget : public MultiRenderTarget
 	{
@@ -47,13 +43,13 @@ namespace Ogre {
 		D3D9MultiRenderTarget(const String &name);
 		~D3D9MultiRenderTarget();
 
-        virtual void update(bool swapBuffers = true);
+        virtual void update(bool swapBuffers);
 
 		virtual void getCustomAttribute( const String& name, void *pData );
 
 		bool requiresTextureFlipping() const { return false; }
 	private:
-		D3D9HardwarePixelBuffer *targets[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
+		D3D9HardwarePixelBuffer *mRenderTargets[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
 		virtual void bindSurfaceImpl(size_t attachment, RenderTexture *target);
 		virtual void unbindSurfaceImpl(size_t attachment);
 

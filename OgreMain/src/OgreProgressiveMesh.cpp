@@ -197,7 +197,7 @@ namespace Ogre {
 		float* pFloat;
 		Vector3 pos;
 		// Map for identifying duplicate position vertices
-		typedef std::map<Vector3, size_t, vectorLess> CommonVertexMap;
+		typedef map<Vector3, size_t, vectorLess>::type CommonVertexMap;
 		CommonVertexMap commonVertexMap;
 		CommonVertexMap::iterator iCommonVertex;
 		size_t numCommon = 0;
@@ -248,8 +248,8 @@ namespace Ogre {
 
         // Build tri list
         size_t numTris = indexData->indexCount / 3;
-		unsigned short* pShort;
-		unsigned int* pInt;
+		unsigned short* pShort = 0;
+		unsigned int* pInt = 0;
 		HardwareIndexBufferSharedPtr ibuf = indexData->indexBuffer;
 		bool use32bitindexes = (ibuf->getType() == HardwareIndexBuffer::IT_32BIT);
 		if (use32bitindexes)
@@ -509,7 +509,7 @@ namespace Ogre {
     void ProgressiveMesh::collapse(ProgressiveMesh::PMVertex *src)
     {
         PMVertex *dest = src->collapseTo;
-		std::set<PMVertex*> recomputeSet;
+		set<PMVertex*>::type recomputeSet;
 
 		// Abort if we're never supposed to collapse
 		if (src->collapseCost == NEVER_COLLAPSE_COST) 
@@ -612,7 +612,7 @@ namespace Ogre {
         src->notifyRemoved();
 
         // recompute costs
-		std::set<PMVertex*>::iterator irecomp, irecompend;
+		set<PMVertex*>::type::iterator irecomp, irecompend;
 		irecompend = recomputeSet.end();
 		for (irecomp = recomputeSet.begin(); irecomp != irecompend; ++irecomp)
 		{
@@ -670,8 +670,8 @@ namespace Ogre {
 			use32bitindexes? HardwareIndexBuffer::IT_32BIT : HardwareIndexBuffer::IT_16BIT,
 			pData->indexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY, false);
 
-        unsigned short* pShort;
-		unsigned int* pInt;
+        unsigned short* pShort = 0;
+		unsigned int* pInt = 0;
 		if (use32bitindexes)
 		{
 			pInt = static_cast<unsigned int*>(

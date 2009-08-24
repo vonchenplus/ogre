@@ -28,6 +28,7 @@ Torus Knot Software Ltd.
 */
 
 #include "OgreGLContext.h"
+#include "OgreSharedPtr.h"
 
 namespace Ogre {
     // Empty base class
@@ -42,3 +43,23 @@ namespace Ogre {
     }
     
 }
+
+#if OGRE_THREAD_SUPPORT == 1
+
+// declared in OgreGLPrerequisites.h 
+GLEWContext * glewGetContext()
+{
+	using namespace Ogre;
+	static OGRE_THREAD_POINTER_VAR(GLEWContext, GLEWContextsPtr);
+
+	GLEWContext * currentGLEWContextsPtr =  OGRE_THREAD_POINTER_GET(GLEWContextsPtr);
+	if (currentGLEWContextsPtr == NULL)
+	{
+		currentGLEWContextsPtr = new GLEWContext();
+		OGRE_THREAD_POINTER_SET(GLEWContextsPtr, currentGLEWContextsPtr);
+		memset(currentGLEWContextsPtr, 0, sizeof(GLEWContext));
+		glewInit();
+	}
+	return currentGLEWContextsPtr;
+}
+#endif

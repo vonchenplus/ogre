@@ -69,9 +69,9 @@ namespace Ogre {
     }
 
     //-----------------------------------------------------------------------
-    std::vector<String> StringUtil::split( const String& str, const String& delims, unsigned int maxSplits)
+    vector<String>::type StringUtil::split( const String& str, const String& delims, unsigned int maxSplits)
     {
-        std::vector<String> ret;
+        vector<String>::type ret;
         // Pre-allocate some space for performance
         ret.reserve(maxSplits ? maxSplits+1 : 10);    // 10 is guessed capacity for most case
 
@@ -284,5 +284,17 @@ namespace Ogre {
 		}
 
     }
+	//-----------------------------------------------------------------------
+	const String StringUtil::replaceAll(const String& source, const String& replaceWhat, const String& replaceWithWhat)
+	{
+		String result = source;
+		while(1)
+		{
+			String::size_type pos = result.find(replaceWhat);
+			if (pos == String::npos) break;
+			result.replace(pos,replaceWhat.size(),replaceWithWhat);
+		}
+		return result;
+	}
 
 }

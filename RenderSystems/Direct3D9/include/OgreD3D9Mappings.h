@@ -37,10 +37,6 @@ Torus Knot Software Ltd.
 #include "OgreHardwareBuffer.h"
 #include "OgreHardwareIndexBuffer.h"
 
-#include <d3d9.h>
-#include <d3dx9.h>
-#include <dxerr9.h>
-
 namespace Ogre 
 {
 	class D3D9Mappings
@@ -86,6 +82,8 @@ namespace Ogre
 		static DWORD get(LayerBlendSource lbs, bool perStageConstants);
 		/// return a D3D9 equivalent for a Ogre SceneBlendFactor value
 		static D3DBLEND get(SceneBlendFactor sbf);
+		/// return a D3D9 equivlalent for a Ogre SceneBlendOperation value
+		static D3DBLENDOP get(SceneBlendOperation sbo);
 		/// return a D3D9 equivalent for a Ogre CompareFunction value
 		static DWORD get(CompareFunction cf);
 		/// return a D3D9 equivalent for a Ogre CillingMode value

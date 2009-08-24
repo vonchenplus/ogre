@@ -35,6 +35,12 @@ Torus Knot Software Ltd.
 namespace Ogre {
 
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
 	/** Implements the plane optimal shadow camera algorithm.
         @remarks
             Given a plane of interest, it is possible to set up the shadow camera
@@ -62,8 +68,8 @@ namespace Ogre {
 
 		/// helper function computing projection matrix given constraints
 		Matrix4 computeConstrainedProjection( const Vector4& pinhole, 
-											  const std::vector<Vector4>& fpoint, 
-											  const std::vector<Vector2>& constraint) const;
+											  const vector<Vector4>::type& fpoint, 
+											  const vector<Vector2>::type& constraint) const;
 
 	public:
 		/// Constructor -- requires a plane of interest
@@ -75,6 +81,8 @@ namespace Ogre {
 		virtual void getShadowCamera (const SceneManager *sm, const Camera *cam, 
 									  const Viewport *vp, const Light *light, Camera *texCam, size_t iteration) const;
 	};
+	/** @} */
+	/** @} */
 
 }
 

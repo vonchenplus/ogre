@@ -30,12 +30,12 @@ Torus Knot Software Ltd.
 #ifndef __OSXTimer_H__
 #define __OSXTimer_H__
 
-#include "../OgrePrerequisites.h"
+#include "OgrePrerequisites.h"
 
 namespace Ogre
 {
 	/** Timer class */
-	class Timer : public TimerAlloc
+	class _OgreExport Timer : public TimerAlloc
 	{
 	private:
 		struct timeval start;

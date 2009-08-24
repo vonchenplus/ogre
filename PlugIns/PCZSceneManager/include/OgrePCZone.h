@@ -62,16 +62,19 @@ namespace Ogre
 
     class PCZone;
     class Portal;
+    class AntiPortal;
 	class PCZSceneNode;
 	class PCZSceneManager;
     class PCZLight;
 
-    typedef std::map<String, PCZone*> ZoneMap;
-	typedef std::list<PCZone*> PCZoneList;
-    typedef std::list < Portal * > PortalList;
-	typedef std::list < SceneNode * > NodeList;
-	typedef std::set < PCZSceneNode * > PCZSceneNodeList;
-    typedef std::map<String, SceneNode*> SceneNodeList;
+    typedef map<String, PCZone*>::type ZoneMap;
+	typedef list<PCZone*>::type PCZoneList;
+	typedef list<Portal*>::type PortalList;
+	typedef list<AntiPortal*>::type AntiPortalList;
+	typedef vector<PortalBase*>::type PortalBaseList;
+	typedef vector<SceneNode*>::type NodeList;
+	typedef set< PCZSceneNode * >::type PCZSceneNodeList;
+    typedef map<String, SceneNode*>::type SceneNodeList;
 
     /** Portal-Connected Zone datastructure for managing scene nodes.
     @remarks
@@ -153,13 +156,17 @@ namespace Ogre
 		*/
 		virtual Portal * findMatchingPortal(Portal *);
 
-		/* Add a portal to the zone
-		*/
-		virtual void _addPortal( Portal * ) = 0;
+		/* Add a portal to the zone */
+		virtual void _addPortal(Portal* newPortal);
 
-		/* Remove a portal from the zone
-		*/
-		virtual void _removePortal( Portal * ) = 0;
+		/* Remove a portal from the zone */
+		virtual void _removePortal(Portal* removePortal);
+
+		/* Add an anti portal to the zone */
+		virtual void _addAntiPortal(AntiPortal* newAntiPortal);
+
+		/* Remove an anti portal from the zone */
+		virtual void _removeAntiPortal(AntiPortal* removeAntiPortal);
 
 		/** (recursive) check the given node against all portals in the zone
 		*/
@@ -168,17 +175,16 @@ namespace Ogre
         /** (recursive) check the given light against all portals in the zone
         */
         virtual void _checkLightAgainstPortals(PCZLight *, 
-                                               long, 
+                                               unsigned long, 
                                                PCZFrustum *,
                                                Portal *) = 0;
-
-		/** Update the spatial data for the portals in the zone
-		*/
-		virtual void updatePortalsSpatially(void) = 0;
 
 		/* Update the zone data for each portal 
 		*/
 		virtual void updatePortalsZoneData(void) = 0;
+
+		/** Mark nodes dirty base on moving portals. */
+		virtual void dirtyNodeByMovingPortals(void) = 0;
 
 		/* Update a node's home zone */
 		virtual PCZone * updateNodeHomeZone(PCZSceneNode * pczsn, bool allowBackTouces) = 0;
@@ -244,10 +250,26 @@ namespace Ogre
 		/** list of Portals which this zone contains (each portal leads to another zone)
 		*/
 		PortalList mPortals;
+		AntiPortalList mAntiPortals;
 		// pointer to the pcz scene manager that created this zone
 		PCZSceneManager * mPCZSM;
 
 	protected:
+		/** Binary pradicate for portal <-> camera distance sorting. */
+		struct PortalSortDistance
+		{
+			const Vector3& cameraPosition;
+			PortalSortDistance(const Vector3& cameraPosition) : cameraPosition(cameraPosition)
+			{ }
+
+			bool _OgrePCZPluginExport operator()(const PortalBase* p1, const PortalBase* p2) const
+			{
+				Real depth1 = p1->getDerivedCP().squaredDistance(cameraPosition);
+				Real depth2 = p2->getDerivedCP().squaredDistance(cameraPosition);
+				return (depth1 < depth2);
+			}
+		};
+
 		// name of the zone (must be unique)
 		String mName;
 		/// Zone type name
@@ -290,5 +312,6 @@ namespace Ogre
 }
 
 #endif
+
 
 

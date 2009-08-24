@@ -329,6 +329,18 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
+	void Animation::applyToNode(Node* node, Real timePos, Real weight, Real scale)
+    {
+        // Calculate time index for fast keyframe search
+        TimeIndex timeIndex = _getTimeIndex(timePos);
+
+        NodeTrackList::iterator i;
+        for (i = mNodeTrackList.begin(); i != mNodeTrackList.end(); ++i)
+        {
+            i->second->applyToNode(node, timeIndex, weight, scale);
+        }
+    }
+    //---------------------------------------------------------------------
     void Animation::apply(Skeleton* skel, Real timePos, Real weight, 
 		Real scale)
     {
@@ -430,6 +442,30 @@ namespace Ogre {
 
 	}
     //---------------------------------------------------------------------
+	void Animation::applyToAnimable(const AnimableValuePtr& anim, Real timePos, Real weight, Real scale)
+    {
+        // Calculate time index for fast keyframe search
+        TimeIndex timeIndex = _getTimeIndex(timePos);
+
+		NumericTrackList::iterator j;
+		for (j = mNumericTrackList.begin(); j != mNumericTrackList.end(); ++j)
+		{
+			j->second->applyToAnimable(anim, weight, scale);
+		}
+   }
+    //---------------------------------------------------------------------
+	void Animation::applyToVertexData(VertexData* data, Real timePos, Real weight)
+    {
+        // Calculate time index for fast keyframe search
+        TimeIndex timeIndex = _getTimeIndex(timePos);
+
+		VertexTrackList::iterator k;
+		for (k = mVertexTrackList.begin(); k != mVertexTrackList.end(); ++k)
+		{
+			k->second->applyToVertexData(data, timeIndex, weight);
+		}
+    }
+    //---------------------------------------------------------------------
     void Animation::setInterpolationMode(InterpolationMode im)
     {
         mInterpolationMode = im;
@@ -520,7 +556,7 @@ namespace Ogre {
 	void Animation::optimiseNodeTracks(bool discardIdentityTracks)
 	{
 		// Iterate over the node tracks and identify those with no useful keyframes
-		std::list<unsigned short> tracksToDestroy;
+		list<unsigned short>::type tracksToDestroy;
 		NodeTrackList::iterator i;
 		for (i = mNodeTrackList.begin(); i != mNodeTrackList.end(); ++i)
 		{
@@ -538,7 +574,7 @@ namespace Ogre {
 		}
 
 		// Now destroy the tracks we marked for death
-		for(std::list<unsigned short>::iterator h = tracksToDestroy.begin();
+		for(list<unsigned short>::type::iterator h = tracksToDestroy.begin();
 			h != tracksToDestroy.end(); ++h)
 		{
 			destroyNodeTrack(*h);
@@ -548,7 +584,7 @@ namespace Ogre {
 	void Animation::optimiseVertexTracks(void)
 	{
 		// Iterate over the node tracks and identify those with no useful keyframes
-		std::list<unsigned short> tracksToDestroy;
+		list<unsigned short>::type tracksToDestroy;
 		VertexTrackList::iterator i;
 		for (i = mVertexTrackList.begin(); i != mVertexTrackList.end(); ++i)
 		{
@@ -566,7 +602,7 @@ namespace Ogre {
 		}
 
 		// Now destroy the tracks we marked for death
-		for(std::list<unsigned short>::iterator h = tracksToDestroy.begin();
+		for(list<unsigned short>::type::iterator h = tracksToDestroy.begin();
 			h != tracksToDestroy.end(); ++h)
 		{
 			destroyVertexTrack(*h);

@@ -34,9 +34,9 @@ Torus Knot Software Ltd.
 namespace Ogre {
 
 	//---------------------------------------------------------------------
-    GLHardwareVertexBuffer::GLHardwareVertexBuffer(size_t vertexSize, 
+    GLHardwareVertexBuffer::GLHardwareVertexBuffer(HardwareBufferManagerBase* mgr, size_t vertexSize, 
         size_t numVertices, HardwareBuffer::Usage usage, bool useShadowBuffer)
-        : HardwareVertexBuffer(vertexSize, numVertices, usage, false, useShadowBuffer)
+        : HardwareVertexBuffer(mgr, vertexSize, numVertices, usage, false, useShadowBuffer)
     {
         glGenBuffersARB( 1, &mBufferId );
 
@@ -70,7 +70,7 @@ namespace Ogre {
         {
             OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
                 "Invalid attempt to lock an index buffer that has already been locked",
-                "GLHardwareIndexBuffer::lock");
+                "GLHardwareVertexBuffer::lock");
         }
 
 

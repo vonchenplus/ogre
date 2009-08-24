@@ -37,7 +37,7 @@ namespace Ogre
 {
 	// AbstractNode
 	AbstractNode::AbstractNode(AbstractNode *ptr)
-		:parent(ptr), type(ANT_UNKNOWN), line(0)
+		:line(0), type(ANT_UNKNOWN), parent(ptr)
 	{}
 
 	// AtomAbstractNode
@@ -65,7 +65,7 @@ namespace Ogre
 
 	// ObjectAbstractNode
 	ObjectAbstractNode::ObjectAbstractNode(AbstractNode *ptr)
-		:AbstractNode(ptr), abstract(false), id(0)
+		:AbstractNode(ptr), id(0), abstract(false)
 	{
 		type = ANT_OBJECT;
 	}
@@ -113,7 +113,7 @@ namespace Ogre
 
 	std::pair<bool,String> ObjectAbstractNode::getVariable(const String &name) const
 	{
-		std::map<String,String>::const_iterator i = mEnv.find(name);
+		map<String,String>::type::const_iterator i = mEnv.find(name);
 		if(i != mEnv.end())
 			return std::make_pair(true, i->second);
 
@@ -128,7 +128,7 @@ namespace Ogre
 		return std::make_pair(false, "");
 	}
 
-	const std::map<String,String> &ObjectAbstractNode::getVariables() const
+	const map<String,String>::type &ObjectAbstractNode::getVariables() const
 	{
 		return mEnv;
 	}
@@ -237,14 +237,9 @@ namespace Ogre
 		Ogre::LogManager::getSingleton().logMessage(str);
 	}
 
-	bool ScriptCompilerListener::handleEvent(ScriptCompiler *compiler, const String &name, const std::vector<Ogre::Any> &args, Ogre::Any *retval)
+	bool ScriptCompilerListener::handleEvent(ScriptCompiler *compiler, ScriptCompilerEvent *evt, void *retval)
 	{
 		return false;
-	}
-
-	Ogre::Any ScriptCompilerListener::createObject(ScriptCompiler *compiler, const String &type, const std::vector<Ogre::Any> &args)
-	{
-		return Ogre::Any();
 	}
 
 	// ScriptCompiler
@@ -390,7 +385,33 @@ namespace Ogre
 		return mErrors.empty();
 	}
 
-	bool ScriptCompiler::_compile(AbstractNodeListPtr nodes, const String &group)
+	AbstractNodeListPtr ScriptCompiler::_generateAST(const String &str, const String &source, bool doImports, bool doObjects, bool doVariables)
+	{
+		// Clear the past errors
+		mErrors.clear();
+
+		ScriptLexer lexer;
+		ScriptParser parser;
+		ConcreteNodeListPtr cst = parser.parse(lexer.tokenize(str, source));
+
+		// Call the listener to intercept CST
+		if(mListener)
+			mListener->preConversion(this, cst);
+
+		// Convert our nodes to an AST
+		AbstractNodeListPtr ast = convertToAST(cst);
+
+		if(!ast.isNull() && doImports)
+			processImports(ast);
+		if(!ast.isNull() && doObjects)
+			processObjects(ast.get(), ast);
+		if(!ast.isNull() && doVariables)
+			processVariables(ast.get());
+
+		return ast;
+	}
+
+	bool ScriptCompiler::_compile(AbstractNodeListPtr nodes, const String &group, bool doImports, bool doObjects, bool doVariables)
 	{
 		// Set up the compilation context
 		mGroup = group;
@@ -402,11 +423,14 @@ namespace Ogre
 		mEnv.clear();
 
 		// Processes the imports for this script
-		processImports(nodes);
+		if(doImports)
+			processImports(nodes);
 		// Process object inheritance
-		processObjects(nodes.get(), nodes);
+		if(doObjects)
+			processObjects(nodes.get(), nodes);
 		// Process variable expansion
-		processVariables(nodes.get());
+		if(doVariables)
+			processVariables(nodes.get());
 
 		// Translate the nodes
 		for(AbstractNodeList::iterator i = nodes->begin(); i != nodes->end(); ++i)
@@ -462,18 +486,11 @@ namespace Ogre
 		return mGroup;
 	}
 
-	bool ScriptCompiler::_fireEvent(const Ogre::String &name, const std::vector<Any> &args, Ogre::Any *retval)
+	bool ScriptCompiler::_fireEvent(ScriptCompilerEvent *evt, void *retval)
 	{
 		if(mListener)
-			return mListener->handleEvent(this, name, args, retval);
+			return mListener->handleEvent(this, evt, retval);
 		return false;
-	}
-
-	Any ScriptCompiler::_fireCreateObject(const Ogre::String &type, const std::vector<Any> &args)
-	{
-		if(mListener)
-			return mListener->createObject(this, type, args);
-		return Any();
 	}
 
 	AbstractNodeListPtr ScriptCompiler::convertToAST(const Ogre::ConcreteNodeListPtr &nodes)
@@ -621,23 +638,22 @@ namespace Ogre
 			{
 				ObjectAbstractNode *obj = (ObjectAbstractNode*)(*i).get();
 
-				// Check if it is inheriting anything
-				if(!obj->base.empty())
+				// Overlay base classes in order.
+                for (std::vector<String>::const_iterator baseIt = obj->bases.begin(), end_it = obj->bases.end(); baseIt != end_it; ++baseIt)
 				{
+                    const String& base = *baseIt;
 					// Check the top level first, then check the import table
-					AbstractNodeListPtr newNodes = locateTarget(top.get(), obj->base);
+					AbstractNodeListPtr newNodes = locateTarget(top.get(), base);
 					if(newNodes->empty())
-						newNodes = locateTarget(&mImportTable, obj->base);
+						newNodes = locateTarget(&mImportTable, base);
 
-					if(!newNodes->empty())
-					{
-						for(AbstractNodeList::iterator j = newNodes->begin(); j != newNodes->end(); ++j)
+					if (!newNodes->empty()) {
+						for(AbstractNodeList::iterator j = newNodes->begin(); j != newNodes->end(); ++j) {
 							overlayObject(*j, obj);
-					}
-					else
-					{
+                        }
+					} else {
 						addError(CE_OBJECTBASENOTFOUND, obj->file, obj->line,
-							"base object named \"" + obj->base + "\" not found in script definition");
+							"base object named \"" + base + "\" not found in script definition");
 					}
 				}
 
@@ -659,7 +675,7 @@ namespace Ogre
 			ObjectAbstractNode *src = reinterpret_cast<ObjectAbstractNode*>(source.get());
 
 			// Overlay the environment of one on top the other first
-			for(std::map<String,String>::const_iterator i = src->getVariables().begin(); i != src->getVariables().end(); ++i)
+			for(map<String,String>::type::const_iterator i = src->getVariables().begin(); i != src->getVariables().end(); ++i)
 			{
 				std::pair<bool,String> var = dest->getVariable(i->first);
 				if(!var.first)
@@ -667,12 +683,12 @@ namespace Ogre
 			}
 			
 			// Create a vector storing each pairing of override between source and destination
-			std::vector<std::pair<AbstractNodePtr,AbstractNodeList::iterator> > overrides; 
+			vector<std::pair<AbstractNodePtr,AbstractNodeList::iterator> >::type overrides; 
 			// A list of indices for each destination node tracks the minimum
 			// source node they can index-match against
-			std::map<ObjectAbstractNode*,size_t> indices;
+			map<ObjectAbstractNode*,size_t>::type indices;
 			// A map storing which nodes have overridden from the destination node
-			std::map<ObjectAbstractNode*,bool> overridden;
+			map<ObjectAbstractNode*,bool>::type overridden;
 
 			// Fill the vector with objects from the source node (base)
 			// And insert non-objects into the overrides list of the destination
@@ -784,7 +800,7 @@ namespace Ogre
 							for(size_t j = overrideIndex; j < overrides.size(); ++j)
 							{
 								ObjectAbstractNode *temp = reinterpret_cast<ObjectAbstractNode*>(overrides[j].first.get());
-								if(temp->cls == node->cls && overrides[j].second == dest->children.end())
+								if(temp->name.empty() && temp->cls == node->cls && overrides[j].second == dest->children.end())
 								{
 									overrides[j] = std::make_pair(overrides[j].first, i);
 									break;
@@ -829,13 +845,11 @@ namespace Ogre
 	bool ScriptCompiler::isNameExcluded(const String &cls, AbstractNode *parent)
 	{
 		// Run past the listener
-		Any retval;
-		std::vector<Any> args;
-		args.push_back(Any(cls));
-		args.push_back(Any(parent));
-		_fireEvent("processNameExclusion", args, &retval);
+		bool excludeName = false;
+		ProcessNameExclusionScriptCompilerEvent evt(cls, parent);
+		bool processed = _fireEvent(&evt, (void*)&excludeName);
 
-		if(retval.isEmpty())
+		if(!processed)
 		{
 			// Process the built-in name exclusions
 			if(cls == "emitter" || cls == "affector")
@@ -877,7 +891,7 @@ namespace Ogre
 		}
 		else
 		{
-			return any_cast<bool>(retval);
+			return excludeName;
 		}
 		return false;
 	}
@@ -928,7 +942,7 @@ namespace Ogre
 					varAccess = scope->getVariable(var->name);
 				if(!scope || !varAccess.first)
 				{
-					std::map<String,String>::iterator k = mEnv.find(var->name);
+					map<String,String>::type::iterator k = mEnv.find(var->name);
 					varAccess.first = k != mEnv.end();
 					if(varAccess.first)
 						varAccess.second = k->second;
@@ -989,6 +1003,8 @@ namespace Ogre
 		mIds["shadow_receiver_vertex_program_ref"] = ID_SHADOW_RECEIVER_VERTEX_PROGRAM_REF;
 		mIds["shadow_receiver_fragment_program_ref"] = ID_SHADOW_RECEIVER_FRAGMENT_PROGRAM_REF;
 
+        mIds["lod_values"] = ID_LOD_VALUES;
+        mIds["lod_strategy"] = ID_LOD_STRATEGY;
 		mIds["lod_distances"] = ID_LOD_DISTANCES;
 		mIds["receive_shadows"] = ID_RECEIVE_SHADOWS;
 		mIds["transparency_casts_shadows"] = ID_TRANSPARENCY_CASTS_SHADOWS;
@@ -1031,6 +1047,11 @@ namespace Ogre
 			mIds["one_minus_dest_alpha"] = ID_ONE_MINUS_DEST_ALPHA;
 			mIds["one_minus_src_alpha"] = ID_ONE_MINUS_SRC_ALPHA;
 		mIds["separate_scene_blend"] = ID_SEPARATE_SCENE_BLEND;
+		mIds["scene_blend_op"] = ID_SCENE_BLEND_OP;
+			mIds["reverse_subtract"] = ID_REVERSE_SUBTRACT;
+			mIds["min"] = ID_MIN;
+			mIds["max"] = ID_MAX;
+		mIds["separate_scene_blend_op"] = ID_SEPARATE_SCENE_BLEND_OP;
 		mIds["depth_check"] = ID_DEPTH_CHECK;
 		mIds["depth_write"] = ID_DEPTH_WRITE;
 		mIds["depth_func"] = ID_DEPTH_FUNC;
@@ -1172,6 +1193,10 @@ namespace Ogre
 			mIds["named"] = ID_NAMED;
 			mIds["shadow"] = ID_SHADOW;
 		mIds["texture_source"] = ID_TEXTURE_SOURCE;
+		mIds["shared_params"] = ID_SHARED_PARAMS;
+		mIds["shared_param_named"] = ID_SHARED_PARAM_NAMED;
+		mIds["shared_params_ref"] = ID_SHARED_PARAMS_REF;
+
 
 		// Particle system
 		mIds["particle_system"] = ID_PARTICLE_SYSTEM;
@@ -1190,6 +1215,9 @@ namespace Ogre
 			mIds["target_height"] = ID_TARGET_HEIGHT;
 			mIds["target_width_scaled"] = ID_TARGET_WIDTH_SCALED;
 			mIds["target_height_scaled"] = ID_TARGET_HEIGHT_SCALED;
+			mIds["shared"] = ID_SHARED;
+			//mIds["gamma"] = ID_GAMMA; - already registered
+			mIds["no_fsaa"] = ID_NO_FSAA;
 		mIds["only_initial"] = ID_ONLY_INITIAL;
 		mIds["visibility_mask"] = ID_VISIBILITY_MASK;
 		mIds["lod_bias"] = ID_LOD_BIAS;
@@ -1203,6 +1231,9 @@ namespace Ogre
 		mIds["identifier"] = ID_IDENTIFIER;
 		mIds["first_render_queue"] = ID_FIRST_RENDER_QUEUE;
 		mIds["last_render_queue"] = ID_LAST_RENDER_QUEUE;
+		mIds["quad_normals"] = ID_QUAD_NORMALS;
+			mIds["camera_far_corners_view_space"] = ID_CAMERA_FAR_CORNERS_VIEW_SPACE;
+			mIds["camera_far_corners_world_space"] = ID_CAMERA_FAR_CORNERS_WORLD_SPACE;
 
 		mIds["buffers"] = ID_BUFFERS;
 			mIds["colour"] = ID_COLOUR;
@@ -1229,7 +1260,7 @@ namespace Ogre
 
 	// AbstractTreeeBuilder
 	ScriptCompiler::AbstractTreeBuilder::AbstractTreeBuilder(ScriptCompiler *compiler)
-		:mCurrent(0), mNodes(OGRE_NEW_T(AbstractNodeList, MEMCATEGORY_GENERAL)(), SPFM_DELETE_T), mCompiler(compiler)
+		:mNodes(OGRE_NEW_T(AbstractNodeList, MEMCATEGORY_GENERAL)(), SPFM_DELETE_T), mCurrent(0), mCompiler(compiler)
 	{
 	}
 
@@ -1349,7 +1380,7 @@ namespace Ogre
 				impl->abstract = false;
 
 				// Create a temporary detail list
-				std::list<ConcreteNode*> temp;
+				list<ConcreteNode*>::type temp;
 				if(node->token == "abstract")
 				{
 					impl->abstract = true;
@@ -1364,7 +1395,7 @@ namespace Ogre
 				}
 
 				// Get the type of object
-				std::list<ConcreteNode*>::const_iterator iter = temp.begin();
+				list<ConcreteNode*>::type::const_iterator iter = temp.begin();
 				impl->cls = (*iter)->token;
 				++iter;
 
@@ -1401,15 +1432,13 @@ namespace Ogre
 					++iter;
 				}
 
-				// Find the base
+				// Find the bases
 				if(iter != temp.end() && (*iter)->type == CNT_COLON)
 				{
-					if((*iter)->children.empty())
-					{
-						mCompiler->addError(CE_STRINGEXPECTED, (*iter)->file, (*iter)->line);
-						return;
-					}
-					impl->base = (*iter)->children.front()->token;
+					// Children of the ':' are bases
+					for(ConcreteNodeList::iterator j = (*iter)->children.begin(); j != (*iter)->children.end(); ++j)
+						impl->bases.push_back((*j)->token);
+                    ++iter;
 				}
 
 				// Finally try to map the cls to an id
@@ -1507,7 +1536,7 @@ namespace Ogre
     }
 	//-----------------------------------------------------------------------
 	ScriptCompilerManager::ScriptCompilerManager()
-		:mListener(0)
+		:mListener(0), OGRE_THREAD_POINTER_INIT(mScriptCompiler)
 	{
 		OGRE_LOCK_AUTO_MUTEX
 #if OGRE_USE_NEW_COMPILERS == 1
@@ -1552,7 +1581,7 @@ namespace Ogre
 	{
 		OGRE_LOCK_AUTO_MUTEX
 		
-		for(std::vector<ScriptTranslatorManager*>::iterator i = mManagers.begin(); i != mManagers.end(); ++i)
+		for(vector<ScriptTranslatorManager*>::type::iterator i = mManagers.begin(); i != mManagers.end(); ++i)
 		{
 			if(*i == man)
 			{
@@ -1574,7 +1603,7 @@ namespace Ogre
 			OGRE_LOCK_AUTO_MUTEX
 			
 			// Start looking from the back
-			for(std::vector<ScriptTranslatorManager*>::reverse_iterator i = mManagers.rbegin(); i != mManagers.rend(); ++i)
+			for(vector<ScriptTranslatorManager*>::type::reverse_iterator i = mManagers.rbegin(); i != mManagers.rend(); ++i)
 			{
 				translator = (*i)->getTranslator(node);
 				if(translator != 0)
@@ -1599,19 +1628,39 @@ namespace Ogre
     {
 #if OGRE_THREAD_SUPPORT
 		// check we have an instance for this thread (should always have one for main thread)
-		if (!mScriptCompiler.get())
+		if (!OGRE_THREAD_POINTER_GET(mScriptCompiler))
 		{
 			// create a new instance for this thread - will get deleted when
 			// the thread dies
-			mScriptCompiler.reset(OGRE_NEW ScriptCompiler());
+			OGRE_THREAD_POINTER_SET(mScriptCompiler, OGRE_NEW ScriptCompiler());
 		}
 #endif
 		// Set the listener on the compiler before we continue
 		{
 			OGRE_LOCK_AUTO_MUTEX
-			mScriptCompiler->setListener(mListener);
+			OGRE_THREAD_POINTER_GET(mScriptCompiler)->setListener(mListener);
 		}
-        mScriptCompiler->compile(stream->getAsString(), stream->getName(), groupName);
+        OGRE_THREAD_POINTER_GET(mScriptCompiler)->compile(stream->getAsString(), stream->getName(), groupName);
     }
+
+	//-------------------------------------------------------------------------
+	String PreApplyTextureAliasesScriptCompilerEvent::eventType = "preApplyTextureAliases";
+	//-------------------------------------------------------------------------
+	String ProcessResourceNameScriptCompilerEvent::eventType = "processResourceName";
+	//-------------------------------------------------------------------------
+	String ProcessNameExclusionScriptCompilerEvent::eventType = "processNameExclusion";
+	//----------------------------------------------------------------------------
+	String CreateMaterialScriptCompilerEvent::eventType = "createMaterial";
+	//----------------------------------------------------------------------------
+	String CreateGpuProgramScriptCompilerEvent::eventType = "createGpuProgram";
+	//-------------------------------------------------------------------------
+	String CreateHighLevelGpuProgramScriptCompilerEvent::eventType = "createHighLevelGpuProgram";
+	//-------------------------------------------------------------------------
+	String CreateGpuSharedParametersScriptCompilerEvent::eventType = "createGpuSharedParameters";
+	//-------------------------------------------------------------------------
+	String CreateParticleSystemScriptCompilerEvent::eventType = "createParticleSystem";
+	//-------------------------------------------------------------------------
+	String CreateCompositorScriptCompilerEvent::eventType = "createCompositor";
 }
+
 

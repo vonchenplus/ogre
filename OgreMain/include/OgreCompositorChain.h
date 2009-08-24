@@ -36,20 +36,22 @@ Torus Knot Software Ltd.
 #include "OgreCompositor.h"
 namespace Ogre {
     
-    /** Chain of compositor effects applying to one viewport.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	/** Chain of compositor effects applying to one viewport.
      */
     class _OgreExport CompositorChain: public RenderTargetListener, public CompositorInstAlloc
     {
     public:
         CompositorChain(Viewport *vp);
-        /** Another gcc warning here, which is no problem because RenderTargetListener is never used
-            to delete an object.
-            warning: `class Ogre::CompositorChain' has virtual functions but non-virtual destructor
-        */
         virtual ~CompositorChain();
         
         /// Data types
-        typedef std::vector<CompositorInstance*> Instances;
+        typedef vector<CompositorInstance*>::type Instances;
         typedef VectorIterator<Instances> InstanceIterator;
         
         /// Identifier for "last" compositor in chain
@@ -60,10 +62,9 @@ namespace Ogre {
         /** Apply a compositor. Initially, the filter is enabled.
         @param filter     Filter to apply
         @param addPosition    Position in filter chain to insert this filter at; defaults to the end (last applied filter)
-        @param technique      Technique to use; CompositorChain::BEST (default) chooses to the best one 
-                            available (first technique supported)
+        @param scheme      Scheme to use (blank means default)
         */
-        CompositorInstance* addCompositor(CompositorPtr filter, size_t addPosition=LAST, size_t technique=BEST);
+		CompositorInstance* addCompositor(CompositorPtr filter, size_t addPosition=LAST, const String& scheme = StringUtil::BLANK);
     
         /** Remove a compositor.
         @param position    Position in filter chain of filter to remove; defaults to the end (last applied filter)
@@ -128,6 +129,14 @@ namespace Ogre {
 		/** Compile this Composition chain into a series of RenderTarget operations.
 		*/
 		void _compile();
+
+		/** Get the previous instance in this chain to the one specified. 
+		*/
+		CompositorInstance* getPreviousInstance(CompositorInstance* curr, bool activeOnly = true);
+		/** Get the next instance in this chain to the one specified. 
+		*/
+		CompositorInstance* getNextInstance(CompositorInstance* curr, bool activeOnly = true);
+
     protected:    
         /// Viewport affected by this CompositorChain
         Viewport *mViewport;
@@ -150,7 +159,7 @@ namespace Ogre {
 		/// Render System operations queued by last compile, these are created by this
 		/// instance thus managed and deleted by it. The list is cleared with 
 		/// clearCompilationState()
-		typedef std::vector<CompositorInstance::RenderSystemOperation*> RenderSystemOperations;
+		typedef vector<CompositorInstance::RenderSystemOperation*>::type RenderSystemOperations;
 		RenderSystemOperations mRenderSystemOperations;
 
         
@@ -209,6 +218,8 @@ namespace Ogre {
 		bool mOldShadowsEnabled;
 
     };
+	/** @} */
+	/** @} */
 }
 
 #endif

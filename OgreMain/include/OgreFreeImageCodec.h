@@ -35,7 +35,13 @@ struct FIBITMAP;
 
 namespace Ogre {
 
-    /** Codec specialized in images loaded using FreeImage.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Image
+	*  @{
+	*/
+	/** Codec specialized in images loaded using FreeImage.
         @remarks
             The users implementing subclasses of ImageCodec are required to return
             a valid pointer to a ImageData class from the decode(...) function.
@@ -46,7 +52,7 @@ namespace Ogre {
         String mType;
         unsigned int mFreeImageType;
 
-		typedef std::list<ImageCodec*> RegisteredCodecList;
+		typedef list<ImageCodec*>::type RegisteredCodecList;
 		static RegisteredCodecList msCodecList;
 
 		/** Common encoding routine. */
@@ -74,6 +80,8 @@ namespace Ogre {
 		/// Static method to shutdown FreeImage and unregister the FreeImage codecs
 		static void shutdown(void);
     };
+	/** @} */
+	/** @} */
 
 } // namespace
 

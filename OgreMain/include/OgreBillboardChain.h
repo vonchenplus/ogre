@@ -37,9 +37,16 @@ Torus Knot Software Ltd.
 
 #include "OgreMovableObject.h"
 #include "OgreRenderable.h"
+#include "OgreResourceGroupManager.h"
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
 
 	/** Allows the rendering of a chain of connected billboards.
 	@remarks
@@ -93,7 +100,7 @@ namespace Ogre {
 			ColourValue colour;
 
 		};
-		typedef std::vector<Element> ElementList;
+		typedef vector<Element>::type ElementList;
 
 		/** Constructor (don't use directly, use factory) 
 		@param name The name to give this object
@@ -228,7 +235,7 @@ namespace Ogre {
 		/// Get the material name in use
 		virtual const String& getMaterialName(void) const { return mMaterialName; }
 		/// Set the material name to use for rendering
-		virtual void setMaterialName(const String& name);
+		virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 
 
 		// Overridden members follow
@@ -304,7 +311,7 @@ namespace Ogre {
 			/// The 'tail' of the chain, relative to start
 			size_t tail;
 		};
-		typedef std::vector<ChainSegment> ChainSegmentList;
+		typedef vector<ChainSegment>::type ChainSegmentList;
 		ChainSegmentList mChainSegmentList;
 
 		/// Setup the STL collections
@@ -340,8 +347,11 @@ namespace Ogre {
 
 	};
 
+	/** @} */
+	/** @} */
 
 } // namespace
 
 #endif
+
 

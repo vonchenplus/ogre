@@ -297,7 +297,7 @@ void GLTextureBuffer::upload(const PixelBox &data, const Image::Box &dest)
 		if(data.format != mFormat || !data.isConsecutive())
 			OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
 			"Compressed images must be consecutive, in the source format",
-		 	"GLHardwarePixelBuffer::upload");
+		 	"GLTextureBuffer::upload");
 		GLenum format = GLPixelUtil::getClosestGLInternalFormat(mFormat);
 		// Data must be consecutive and at beginning of buffer as PixelStorei not allowed
 		// for compressed formats
@@ -469,14 +469,14 @@ void GLTextureBuffer::download(const PixelBox &data)
 		data.getHeight() != getHeight() ||
 		data.getDepth() != getDepth())
 		OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "only download of entire buffer is supported by GL",
-		 	"GLHardwarePixelBuffer::download");
+		 	"GLTextureBuffer::download");
 	glBindTexture( mTarget, mTextureID );
 	if(PixelUtil::isCompressed(data.format))
 	{
 		if(data.format != mFormat || !data.isConsecutive())
 			OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
 			"Compressed images must be consecutive, in the source format",
-		 	"GLHardwarePixelBuffer::upload");
+		 	"GLTextureBuffer::download");
 		// Data must be consecutive and at beginning of buffer as PixelStorei not allowed
 		// for compressed formate
 		glGetCompressedTexImageARB(mFaceTarget, mLevel, data.data);
@@ -550,7 +550,10 @@ void GLTextureBuffer::blit(const HardwarePixelBufferSharedPtr &src, const Image:
     /// Check for FBO support first
     /// Destination texture must be 1D, 2D, 3D, or Cube
     /// Source texture must be 1D, 2D or 3D
-    if(GLEW_EXT_framebuffer_object &&
+	
+	// This does not sem to work for RTTs after the first update
+	// I have no idea why! For the moment, disable 
+    if(GLEW_EXT_framebuffer_object && (src->getUsage() & TU_RENDERTARGET) == 0 &&
         (srct->mTarget==GL_TEXTURE_1D||srct->mTarget==GL_TEXTURE_2D||srct->mTarget==GL_TEXTURE_3D))
     {
         blitFromTexture(srct, srcBox, dstBox);
@@ -583,13 +586,14 @@ void GLTextureBuffer::blitFromTexture(GLTextureBuffer *src, const Image::Box &sr
 
 	// Important to disable all other texture units
 	RenderSystem* rsys = Root::getSingleton().getRenderSystem();
-	rsys->_disableTextureUnitsFrom(1);
+	rsys->_disableTextureUnitsFrom(0);
 	if (GLEW_VERSION_1_2)
 	{
 		glActiveTextureARB(GL_TEXTURE0);
 	}
 
-	/// Disable alpha, depth and scissor testing, disable blending, 
+
+    /// Disable alpha, depth and scissor testing, disable blending, 
     /// disable culling, disble lighting, disable fog and reset foreground
     /// colour.
     glDisable(GL_ALPHA_TEST);
@@ -702,7 +706,7 @@ void GLTextureBuffer::blitFromTexture(GLTextureBuffer *src, const Image::Box &sr
         /// Normalise to texture coordinate in 0.0 .. 1.0
         w = (w+0.5f) / (float)src->mDepth;
         
-        /// Finally we're ready to rumble
+        /// Finally we're ready to rumble	
         glBindTexture(src->mTarget, src->mTextureID);
         glEnable(src->mTarget);
         glBegin(GL_QUADS);
@@ -792,7 +796,7 @@ void GLTextureBuffer::blitFromMemory(const PixelBox &src_orig, const Image::Box 
     }
     if(!mBuffer.contains(dstBox))
         OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "destination box out of range",
-                    "GLHardwarePixelBuffer::blitFromMemory");
+                    "GLTextureBuffer::blitFromMemory");
     /// For scoped deletion of conversion buffer
     MemoryDataStreamPtr buf;
     PixelBox src;

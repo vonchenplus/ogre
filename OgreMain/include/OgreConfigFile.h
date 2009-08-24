@@ -38,7 +38,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Class for quickly loading settings from a text file.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
+	/** Class for quickly loading settings from a text file.
         @remarks
             This class is designed to quickly parse a simple file containing
             key/value pairs, mainly for use in configuration settings.
@@ -79,10 +85,10 @@ namespace Ogre {
         /** Gets all settings from the file with the named key. */
         StringVector getMultiSetting(const String& key, const String& section = StringUtil::BLANK) const;
 
-        typedef std::multimap<String, String> SettingsMultiMap;
+        typedef multimap<String, String>::type SettingsMultiMap;
         typedef MapIterator<SettingsMultiMap> SettingsIterator;
         /** Gets an iterator for stepping through all the keys / values in the file. */
-        typedef std::map<String, SettingsMultiMap*> SettingsBySection;
+        typedef map<String, SettingsMultiMap*>::type SettingsBySection;
         typedef MapIterator<SettingsBySection> SectionIterator;
         /** Get an iterator over all the available sections in the config file */
         SectionIterator getSectionIterator(void);
@@ -96,6 +102,8 @@ namespace Ogre {
     protected:
         SettingsBySection mSettings;
     };
+	/** @} */
+	/** @} */
 
 }
 
