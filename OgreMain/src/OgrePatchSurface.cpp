@@ -87,7 +87,7 @@ namespace Ogre {
         // Determine max level
         // Initialise to 100% detail
         mSubdivisionFactor = 1.0f;
-        if (uMaxSubdivisionLevel == AUTO_LEVEL)
+        if (uMaxSubdivisionLevel == (size_t)AUTO_LEVEL)
         {
             mULevel = mMaxULevel = getAutoULevel();
         }
@@ -96,7 +96,7 @@ namespace Ogre {
             mULevel = mMaxULevel = uMaxSubdivisionLevel;
         }
 
-        if (vMaxSubdivisionLevel == AUTO_LEVEL)
+        if (vMaxSubdivisionLevel == (size_t)AUTO_LEVEL)
         {
             mVLevel = mMaxVLevel = getAutoVLevel();
         }
@@ -118,8 +118,8 @@ namespace Ogre {
         mRequiredIndexCount = (mMeshWidth-1) * (mMeshHeight-1) * 2 * iterations * 3;
 
         // Calculate bounds based on control points
-        std::vector<Vector3>::const_iterator ctli;
-        Vector3 min, max;
+        vector<Vector3>::type::const_iterator ctli;
+        Vector3 min = Vector3::ZERO, max = Vector3::UNIT_SCALE;
         Real maxSqRadius;
         bool first = true;
         for (ctli = mVecCtlPoints.begin(); ctli != mVecCtlPoints.end(); ++ctli)
@@ -363,7 +363,7 @@ namespace Ogre {
         Vector3 min, max;
         Real maxSquaredRadius;
         bool first = true;
-        std::vector<Vector3>::iterator i, iend;
+        vector<Vector3>::type::iterator i, iend;
         iend = mVecCtlPoints.end();
         for (i = mVecCtlPoints.begin(); i != iend; ++i)
         {
@@ -547,8 +547,8 @@ namespace Ogre {
 
         size_t v1, v2, v3;
         // Lock just the section of the buffer we need
-        unsigned short* p16;
-        unsigned int* p32;
+        unsigned short* p16 = 0;
+        unsigned int* p32 = 0;
         if (use32bitindexes)
         {
             p32 = static_cast<unsigned int*>(

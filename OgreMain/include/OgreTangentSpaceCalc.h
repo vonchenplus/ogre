@@ -38,6 +38,12 @@ Torus Knot Software Ltd.
 namespace Ogre
 {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Math
+	*  @{
+	*/
 	/** Class for calculating a tangent space basis.
 	*/
 	class _OgreExport TangentSpaceCalc
@@ -62,9 +68,9 @@ namespace Ogre
 		};
 		/** List of indexes that were remapped (split vertices).
 		*/
-		typedef std::list<IndexRemap> IndexRemapList;
+		typedef list<IndexRemap>::type IndexRemapList;
 
-		typedef std::list<VertexSplit> VertexSplits;
+		typedef list<VertexSplit>::type VertexSplits;
 
 		/// The result of having built a tangent space basis
 		struct Result
@@ -177,8 +183,8 @@ namespace Ogre
 	protected:
 
 		VertexData* mVData;
-		typedef std::vector<IndexData*> IndexDataList;
-		typedef std::vector<RenderOperation::OperationType> OpTypeList;
+		typedef vector<IndexData*>::type IndexDataList;
+		typedef vector<RenderOperation::OperationType>::type OpTypeList;
 		IndexDataList mIDataList;
 		OpTypeList mOpTypes;
 		bool mSplitMirrored;
@@ -201,7 +207,7 @@ namespace Ogre
 			VertexInfo() : tangent(Vector3::ZERO), binormal(Vector3::ZERO), 
 				parity(0), oppositeParityIndex(0) {}
 		};
-		typedef std::vector<VertexInfo> VertexInfoArray;
+		typedef vector<VertexInfo>::type VertexInfoArray;
 		VertexInfoArray mVertexArray;
 
 		void extendBuffers(VertexSplits& splits);
@@ -253,6 +259,8 @@ namespace Ogre
 		
 
 	};
+	/** @} */
+	/** @} */
 
 }
 

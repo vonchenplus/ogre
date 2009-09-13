@@ -40,6 +40,12 @@ namespace Ogre {
 
 	// forward decls
 	struct VisibleObjectsBoundsInfo;
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Materials
+	*  @{
+	*/
 
 
     /** This utility class is used to hold the information used to generate the matrices
@@ -165,6 +171,7 @@ namespace Ogre {
         virtual const Vector4& getCameraPositionObjectSpace(void) const;
 		virtual const Vector4& getLodCameraPosition(void) const;
 		virtual const Vector4& getLodCameraPositionObjectSpace(void) const;
+		virtual bool hasLightList() const { return mCurrentLightList != 0; }
         /** Get the light which is 'index'th closest to the current object */        
 		virtual float getLightNumber(size_t index) const;
 		virtual float getLightCount() const;
@@ -250,7 +257,10 @@ namespace Ogre {
         virtual int getPassNumber(void) const;
         virtual void setPassNumber(const int passNumber);
         virtual void incPassNumber(void);
+		virtual void updateLightCustomGpuParameter(const GpuProgramParameters::AutoConstantEntry& constantEntry, GpuProgramParameters *params) const;
     };
+	/** @} */
+	/** @} */
 }
 
 #endif

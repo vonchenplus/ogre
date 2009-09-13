@@ -19,6 +19,17 @@ LGPL like the rest of the engine.
 #include "CompositorDemo_FrameListener.h"
 #include "Compositor.h"
 
+
+inline Ogre::String operator +(const Ogre::String& l,const CEGUI::String& o)
+{
+	return l+o.c_str();
+}
+/*
+inline CEGUI::String operator +(const CEGUI::String& l,const Ogre::String& o)
+{
+	return l+o.c_str();
+}
+*/
 /*************************************************************************
 	                    HeatVisionListener Methods
 *************************************************************************/
@@ -158,7 +169,7 @@ LGPL like the rest of the engine.
 				mat->load();
 				Ogre::GpuProgramParametersSharedPtr fparams =
 					mat->getBestTechnique()->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
+//				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
 				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsHorz[0], 15);
 				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
 
@@ -170,7 +181,7 @@ LGPL like the rest of the engine.
 				mat->load();
 				Ogre::GpuProgramParametersSharedPtr fparams =
 					mat->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
+//				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
 				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsVert[0], 15);
 				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
 
@@ -250,7 +261,7 @@ LGPL like the rest of the engine.
 				mat->load();
 				Ogre::GpuProgramParametersSharedPtr fparams =
 					mat->getBestTechnique()->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
+//				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
 				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsHorz[0], 15);
 				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
 
@@ -262,7 +273,7 @@ LGPL like the rest of the engine.
 				mat->load();
 				Ogre::GpuProgramParametersSharedPtr fparams =
 					mat->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
+//				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
 				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsVert[0], 15);
 				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
 
@@ -468,7 +479,7 @@ LGPL like the rest of the engine.
 
         if (e.key == OIS::KC_SYSRQ )
         {
-			std::ostringstream ss;
+			Ogre::StringStream ss;
             ss << "screenshot_" << ++mNumScreenShots << ".png";
             mMain->getRenderWindow()->writeContentsToFile(ss.str());
             mDebugText = "Saved: " + ss.str();
@@ -536,7 +547,7 @@ LGPL like the rest of the engine.
             + " " + Ogre::StringConverter::toString(stats.worstFrameTime)+" ms");
 
         mGuiTris->setText(tris + Ogre::StringConverter::toString(stats.triangleCount));
-        mGuiDbg->setText(mDebugText);
+        mGuiDbg->setText(mDebugText.c_str());
         mAvgFrameTime = 1.0f/(stats.avgFPS + 1.0f);
         if (mAvgFrameTime > 0.1f) mAvgFrameTime = 0.1f;
 
@@ -801,6 +812,7 @@ LGPL like the rest of the engine.
 			CEGUI::ImagesetManager::getSingleton().destroyImageset(*isIt);
 		}
 		mDebugRTTImageSets.clear();
+		Ogre::set<Ogre::String>::type uniqueTextureNames;
 		// Add an entry for each render texture for all active compositors
 		Ogre::Viewport* vp = mMain->getRenderWindow()->getViewport(0);
 		Ogre::CompositorChain* chain = Ogre::CompositorManager::getSingleton().getCompositorChain(vp);
@@ -819,22 +831,29 @@ LGPL like the rest of the engine.
 					// Get instance name of texture (NB only index 0 if MRTs for now)
 					const Ogre::String& instName = inst->getTextureInstanceName(texDef->name, 0);
 					// Create CEGUI texture from name of OGRE texture
-					CEGUI::Texture* tex = mMain->getGuiRenderer()->createTexture(instName);
+					CEGUI::Texture* tex = mMain->getGuiRenderer()->createTexture(instName.c_str());
 					// Create imageset
-					CEGUI::Imageset* imgSet =
-						CEGUI::ImagesetManager::getSingleton().createImageset(
-							instName, tex);
-					mDebugRTTImageSets.push_back(imgSet);
-					imgSet->defineImage((CEGUI::utf8*)"RttImage",
-						CEGUI::Point(0.0f, 0.0f),
-						CEGUI::Size(tex->getWidth(), tex->getHeight()),
-						CEGUI::Point(0.0f,0.0f));
+					// Note that if we use shared textures in compositor, the same texture name
+					// will occur more than once, so we have to cater for this
+					if (uniqueTextureNames.find(instName) == uniqueTextureNames.end())
+					{
+						CEGUI::Imageset* imgSet =
+							CEGUI::ImagesetManager::getSingleton().createImageset(
+								instName.c_str(), tex);
+						mDebugRTTImageSets.push_back(imgSet);
+						imgSet->defineImage((CEGUI::utf8*)"RttImage",
+							CEGUI::Point(0.0f, 0.0f),
+							CEGUI::Size(tex->getWidth(), tex->getHeight()),
+							CEGUI::Point(0.0f,0.0f));
 
 
-					CEGUI::ListboxTextItem *item = new CEGUI::ListboxTextItem(texDef->name, 0, imgSet);
-					item->setSelectionBrushImage("TaharezLook", "ListboxSelectionBrush");
-					item->setSelectionColours(CEGUI::colour(0,0,1));
-					mDebugRTTListbox->addItem(item);
+						CEGUI::ListboxTextItem *item = new CEGUI::ListboxTextItem(texDef->name.c_str(), 0, imgSet);
+						item->setSelectionBrushImage("TaharezLook", "ListboxSelectionBrush");
+						item->setSelectionColours(CEGUI::colour(0,0,1));
+						mDebugRTTListbox->addItem(item);
+
+						uniqueTextureNames.insert(instName);
+					}
 
 				}
 

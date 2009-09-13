@@ -33,8 +33,16 @@ Torus Knot Software Ltd.
 #include "OgreMaterial.h"
 #include "OgreTexture.h"
 #include "OgreRenderQueue.h"
+#include "OgreCompositionTechnique.h"
+
 namespace Ogre {
-    const size_t RENDER_QUEUE_COUNT = RENDER_QUEUE_MAX+1;       
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	const size_t RENDER_QUEUE_COUNT = RENDER_QUEUE_MAX+1;       
             
     /** An instance of a Compositor object for one Viewport. It is part of the CompositorChain
 		for a Viewport.
@@ -42,7 +50,7 @@ namespace Ogre {
 	class _OgreExport CompositorInstance : public CompositorInstAlloc
     {
     public:
-        CompositorInstance(Compositor *filter, CompositionTechnique *technique, CompositorChain *chain);
+        CompositorInstance(CompositionTechnique *technique, CompositorChain *chain);
         virtual ~CompositorInstance();
 		/** Provides an interface to "listen in" to to render system operations executed by this 
 			CompositorInstance.
@@ -84,9 +92,9 @@ namespace Ogre {
 			/// Set state to SceneManager and RenderSystem
 			virtual void execute(SceneManager *sm, RenderSystem *rs) = 0;
 		};
-		typedef std::map<int, MaterialPtr> QuadMaterialMap;
+		typedef map<int, MaterialPtr>::type QuadMaterialMap;
 		typedef std::pair<int, RenderSystemOperation*> RenderSystemOpPair;
-		typedef std::vector<RenderSystemOpPair> RenderSystemOpPairs;
+		typedef vector<RenderSystemOpPair>::type RenderSystemOpPairs;
         /** Operation setup for a RenderTarget (collected).
         */
         class TargetOperation
@@ -142,7 +150,7 @@ namespace Ogre {
 			/** Whether shadows will be enabled */
 			bool shadowsEnabled;
         };
-        typedef std::vector<TargetOperation> CompiledState;
+        typedef vector<TargetOperation>::type CompiledState;
         
         /** Set enabled flag. The compositor instance will only render if it is
             enabled, otherwise it is pass-through.
@@ -164,6 +172,18 @@ namespace Ogre {
 		@returns The instance name for the texture, corresponds to a real texture
 		*/
 		const String& getTextureInstanceName(const String& name, size_t mrtIndex);
+
+		/** Get the instance of a local texture.
+		@note Textures are only valid when local textures have been loaded, 
+			which in practice means that the compositor instance is active. Calling
+			this method at other times will return null pointers. Note that since textures
+			are cleaned up aggressively, this pointer is not guaranteed to stay the
+			same if you disable and re-enable the compositor instance.
+		@param name The name of the texture in the original compositor definition
+		@param mrtIndex If name identifies a MRT, which texture attachment to retrieve
+		@returns The texture pointer, corresponds to a real texture
+		*/
+		TexturePtr getTextureInstance(const String& name, size_t mrtIndex);
 
 		/** Get the render target for a given render texture name. 
 		@remarks
@@ -191,6 +211,37 @@ namespace Ogre {
         /** Get CompositionTechnique used by this instance
         */
         CompositionTechnique *getTechnique();
+
+		/** Change the technique we're using to render this compositor. 
+		@param tech The technique to use (must be supported and from the same Compositor)
+		@param reuseTextures If textures have already been created for the current
+			technique, whether to try to re-use them if sizes & formats match.
+		*/
+		void setTechnique(CompositionTechnique* tech, bool reuseTextures = true);
+
+		/** Pick a technique to use to render this compositor based on a scheme. 
+		@remarks
+			If there is no specific supported technique with this scheme name, 
+			then the first supported technique with no specific scheme will be used.
+			@see CompositionTechnique::setSchemeName
+		@param schemeName The scheme to use 
+		@param reuseTextures If textures have already been created for the current
+			technique, whether to try to re-use them if sizes & formats match.
+			Note that for this feature to be of benefit, the textures must have been created
+			with the 'shared' option enabled.
+		*/
+		void setScheme(const String& schemeName, bool reuseTextures = true);
+
+		/// Returns the name of the scheme this compositor is using
+		const String& getScheme() const { return mActiveScheme; }
+
+		/** Notify this instance that the primary surface has been resized. 
+		@remarks
+			This will allow the instance to recreate its resources that 
+			are dependent on the size. 
+		*/
+		void notifyResized();
+
 
 		/** Get Chain that this instance is part of
         */
@@ -225,18 +276,27 @@ namespace Ogre {
         /// Is this instance enabled?
         bool mEnabled;
         /// Map from name->local texture
-        typedef std::map<String,TexturePtr> LocalTextureMap;
+        typedef map<String,TexturePtr>::type LocalTextureMap;
         LocalTextureMap mLocalTextures;
 		/// Store a list of MRTs we've created
-		typedef std::map<String,MultiRenderTarget*> LocalMRTMap;
+		typedef map<String,MultiRenderTarget*>::type LocalMRTMap;
 		LocalMRTMap mLocalMRTs;
+		typedef map<CompositionTechnique::TextureDefinition*, TexturePtr>::type ReserveTextureMap;
+		/** Textures that are not currently in use, but that we want to keep for now,
+			for example if we switch techniques but want to keep all textures available
+			in case we switch back. 
+		*/
+		ReserveTextureMap mReserveTextures;
 
 		/// Vector of listeners
-		typedef std::vector<Listener*> Listeners;
+		typedef vector<Listener*>::type Listeners;
 		Listeners mListeners;
         
         /// Previous instance (set by chain)
         CompositorInstance *mPreviousInstance;
+
+		/// The scheme which is being used in this instance
+		String mActiveScheme;
 		
 		/** Collect rendering passes. Here, passes are converted into render target operations
 			and queued with queueRenderSystemOp.
@@ -251,11 +311,11 @@ namespace Ogre {
         
         /** Create local rendertextures and other resources. Builds mLocalTextures.
         */
-        void createResources();
+        void createResources(bool forResizeOnly);
         
         /** Destroy local rendertextures and other resources.
         */
-        void freeResources();
+        void freeResources(bool forResizeOnly, bool clearReserveTextures);
 
         /** Get RenderTarget for a named local texture.
         */
@@ -278,11 +338,14 @@ namespace Ogre {
 		/** Search for options like AA and hardware gamma which we may want to 
 			inherit from the main render target to which we're attached. 
 		*/
-		void deriveTextureRenderTargetOptions(const String& texname,
-			bool *hwGammaWrite, uint *fsaa);
+		void deriveTextureRenderTargetOptions(const String& texname, 
+			bool *hwGammaWrite, uint *fsaa, String* fsaaHint);
         
         friend class CompositorChain;
     };
+	/** @} */
+	/** @} */
+
 }
 
 #endif

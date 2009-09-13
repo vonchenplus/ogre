@@ -40,7 +40,13 @@ namespace Ogre {
 	// forward decl
 	struct VisibleObjectsBoundsInfo;
 
-    /** Class representing a node in the scene graph.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
+	/** Class representing a node in the scene graph.
         @remarks
             A SceneNode is a type of Node which is used to organise objects in a scene.
             It has the same hierarchical transformation properties of the generic Node class,
@@ -63,6 +69,7 @@ namespace Ogre {
 		WireBoundingBox *mWireBoundingBox;
 		/// Flag that determines if the bounding box of the node should be displayed
 		bool mShowBoundingBox;
+        bool mHideBoundingBox;
 
         /// SceneManager which created this node
         SceneManager* mCreator;
@@ -278,6 +285,13 @@ namespace Ogre {
         */
 		virtual void showBoundingBox(bool bShow);
 
+        /** Allows the overriding of the node's bounding box
+            over the SceneManager's bounding box setting.
+        @remarks
+            Use this to override the bounding box setting of the node.
+        */
+		virtual void hideBoundingBox(bool bHide);
+
         /** Add the bounding box to the rendering queue.
         */
 		virtual void _addBoundingBoxToQueue(RenderQueue* queue);
@@ -326,8 +340,9 @@ namespace Ogre {
             cleared by this method before population.
         @param radius Parameter to specify lights intersecting a given radius of
             this SceneNode's centre.
+		@param lightMask The mask with which to include / exclude lights
         */
-        virtual void findLights(LightList& destList, Real radius) const;
+        virtual void findLights(LightList& destList, Real radius, uint32 lightMask = 0xFFFFFFFF) const;
 
         /** Tells the node whether to yaw around it's own local Y axis or a fixed axis of choice.
         @remarks
@@ -442,10 +457,15 @@ namespace Ogre {
         */
         virtual void setDebugDisplayEnabled(bool enabled, bool cascade = true);
 
+		/// As Node::getDebugRenderable, except scaling is automatically determined
+		virtual DebugRenderable* getDebugRenderable();
+
 
 
 
     };
+	/** @} */
+	/** @} */
 
 
 }// namespace

@@ -36,12 +36,21 @@ Torus Knot Software Ltd.
 #include "OgreString.h"
 #include "OgreSceneManagerEnumerator.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreLodStrategyManager.h"
+#include "OgreWorkQueue.h"
 
 #include <exception>
 
 namespace Ogre
 {
-    typedef std::vector<RenderSystem*> RenderSystemList;
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
+
+    typedef vector<RenderSystem*>::type RenderSystemList;
 	
     /** The root class of the Ogre system.
         @remarks
@@ -93,6 +102,7 @@ namespace Ogre
 		ShadowTextureManager* mShadowTextureManager;
 		RenderSystemCapabilitiesManager* mRenderSystemCapabilitiesManager;
 		ScriptCompilerManager *mCompilerManager;
+        LodStrategyManager *mLodStrategyManager;
 
         Timer* mTimer;
         RenderWindow* mAutoWindow;
@@ -104,15 +114,15 @@ namespace Ogre
 		Real mFrameSmoothingTime;
 
 	public:
-		typedef std::vector<DynLib*> PluginLibList;
-		typedef std::vector<Plugin*> PluginInstanceList;
+		typedef vector<DynLib*>::type PluginLibList;
+		typedef vector<Plugin*>::type PluginInstanceList;
 	protected:
 		/// List of plugin DLLs loaded
         PluginLibList mPluginLibs;
 		/// List of Plugin instances registered
 		PluginInstanceList mPlugins;
 
-		typedef std::map<String, MovableObjectFactory*> MovableObjectFactoryMap;
+		typedef map<String, MovableObjectFactory*>::type MovableObjectFactoryMap;
 		MovableObjectFactoryMap mMovableObjectFactoryMap;
 		uint32 mNextMovableObjectTypeFlag;
 		// stock movable factories
@@ -123,11 +133,13 @@ namespace Ogre
 		MovableObjectFactory* mBillboardChainFactory;
 		MovableObjectFactory* mRibbonTrailFactory;
 
-		typedef std::map<String, RenderQueueInvocationSequence*> RenderQueueInvocationSequenceMap;
+		typedef map<String, RenderQueueInvocationSequence*>::type RenderQueueInvocationSequenceMap;
 		RenderQueueInvocationSequenceMap mRQSequenceMap;
 
 		/// Are we initialised yet?
 		bool mIsInitialised;
+
+		WorkQueue* mWorkQueue;
 
         /** Method reads a plugins configuration file and instantiates all
             plugins.
@@ -153,10 +165,10 @@ namespace Ogre
         void oneTimePostWindowInit(void);
 
         /** Set of registered frame listeners */
-        std::set<FrameListener*> mFrameListeners;
+        set<FrameListener*>::type mFrameListeners;
 
         /** Set of frame listeners marked for removal*/
-        std::set<FrameListener*> mRemovedFrameListeners;
+        set<FrameListener*>::type mRemovedFrameListeners;
 
         /** Indicates the type of event to be considered by calculateEventTime(). */
         enum FrameEventTimeType {
@@ -168,13 +180,18 @@ namespace Ogre
         };
 
         /// Contains the times of recently fired events
-        std::deque<unsigned long> mEventTimes[FETT_COUNT];
+		typedef deque<unsigned long>::type EventTimesQueue;
+        EventTimesQueue mEventTimes[FETT_COUNT];
 
         /** Internal method for calculating the average time between recently fired events.
         @param now The current time in ms.
         @param type The type of event to be considered.
         */
         Real calculateEventTime(unsigned long now, FrameEventTimeType type);
+
+		/** Update a set of event times (note, progressive, only call once for each type per frame) */
+		void populateFrameEvent(FrameEventTimeType type, FrameEvent& evtToUpdate);
+
     public:
 
         /** Constructor
@@ -248,7 +265,7 @@ namespace Ogre
                 list of RenderSystem subclasses. Can be used to build a
                 custom settings dialog.
         */
-        RenderSystemList* getAvailableRenderers(void);
+        const RenderSystemList& getAvailableRenderers(void);
 
         /** Retrieve a pointer to the render system by the given name
             @param
@@ -475,6 +492,15 @@ namespace Ogre
             raising frame events before and after.
         */
         bool renderOneFrame(void);
+
+		/** Render one frame, with custom frame time information. 
+		@remarks
+		Updates all the render targets automatically and then returns,
+		raising frame events before and after - all per-frame times are based on
+		the time value you pass in.
+		*/
+		bool renderOneFrame(Real timeSinceLastFrame);
+
         /** Shuts down the system manually.
             @remarks
                 This is normally done by Ogre automatically so don't think
@@ -568,6 +594,11 @@ namespace Ogre
 		RenderWindow* createRenderWindow(const String &name, unsigned int width, unsigned int height, 
 			bool fullScreen, const NameValuePairList *miscParams = 0) ;
 
+		/** @copydoc RenderSystem::_createRenderWindows
+		*/
+		bool createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
+			RenderWindowList& createdWindows);
+	
         /** Destroys a rendering window.
         */
         void detachRenderTarget( RenderTarget* pWin );
@@ -758,6 +789,19 @@ namespace Ogre
         */
         bool _updateAllRenderTargets(void);
 
+        /** Internal method used for updating all RenderTarget objects (windows, 
+            renderable textures etc) which are set to auto-update, with a custom time
+			passed to the frameRenderingQueued events.
+        @remarks
+            You don't need to use this method if you're using Ogre's own internal
+            rendering loop (Root::startRendering). If you're running your own loop
+            you may wish to call it to update all the render targets which are
+            set to auto update (RenderTarget::setAutoUpdated). You can also update
+            individual RenderTarget instances using their own update() method.
+		@returns false if a FrameListener indicated it wishes to exit the render loop
+        */
+        bool _updateAllRenderTargets(FrameEvent& evt);
+
 		/** Create a new RenderQueueInvocationSequence, useful for linking to
 			Viewport instances to perform custom rendering.
 		@param name The name to give the new sequence
@@ -883,6 +927,34 @@ namespace Ogre
 			registered.
 		*/
 		MovableObjectFactoryIterator getMovableObjectFactoryIterator(void) const;
+
+		/**
+		* Gets the number of display monitors.
+		*/
+		unsigned int getDisplayMonitorCount() const;
+
+		/** Get the WorkQueue for processing background tasks.
+			You are free to add new requests and handlers to this queue to
+			process your custom background tasks using the shared thread pool. 
+			However, you may only use channels up to MAX_USER_WORKQUEUE_CHANNEL,
+			anything above that is reserved for OGRE's own use.
+		*/
+		WorkQueue* getWorkQueue() const { return mWorkQueue; }
+
+		/** Replace the current work queue with an alternative. 
+			You can use this method to replace the internal implementation of
+			WorkQueue with  your own, e.g. to externalise the processing of 
+			background events. Doing so will delete the existing queue and
+			replace it with this one. 
+		@param queue The new WorkQueue instance. Root will delete this work queue
+			at shutdown, so do not destroy it yourself.
+		*/
+		void setWorkQueue(WorkQueue* queue);
+			
+		/// The maximum channel number that may be used by users (above this is reserved for OGRE)
+		static const uint16 MAX_USER_WORKQUEUE_CHANNEL;
     };
+	/** @} */
+	/** @} */
 } // Namespace Ogre
 #endif

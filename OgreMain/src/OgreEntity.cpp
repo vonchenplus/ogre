@@ -51,6 +51,8 @@ Torus Knot Software Ltd.
 #include "OgreAnimation.h"
 #include "OgreOptimisedUtil.h"
 #include "OgreSceneNode.h"
+#include "OgreLodStrategy.h"
+#include "OgreLodListener.h"
 
 namespace Ogre {
     //-----------------------------------------------------------------------
@@ -72,11 +74,13 @@ namespace Ogre {
 		  mVertexProgramInUse(false),
 		  mSoftwareAnimationRequests(0),
 		  mSoftwareAnimationNormalsRequests(0),
+          mSkipAnimStateUpdates(false),
 		  mMeshLodIndex(0),
-		  mMeshLodFactorInv(1.0f),
+		  mMeshLodFactorTransformed(1.0f),
 		  mMinMeshLodIndex(99),
 		  mMaxMeshLodIndex(0),		// Backwards, remember low value = high detail
-		  mMaterialLodFactorInv(1.0f),
+          mMaterialLodFactor(1.0f),
+          mMaterialLodFactorTransformed(1.0f),
 		  mMinMaterialLodIndex(99),
 		  mMaxMaterialLodIndex(0), 		// Backwards, remember low value = high detail
           mSkeletonInstance(0),
@@ -106,11 +110,13 @@ namespace Ogre {
 		mVertexProgramInUse(false),
 		mSoftwareAnimationRequests(0),
 		mSoftwareAnimationNormalsRequests(0),
+        mSkipAnimStateUpdates(false),
 		mMeshLodIndex(0),
-		mMeshLodFactorInv(1.0f),
+		mMeshLodFactorTransformed(1.0f),
 		mMinMeshLodIndex(99),
 		mMaxMeshLodIndex(0),		// Backwards, remember low value = high detail
-		mMaterialLodFactorInv(1.0f),
+        mMaterialLodFactor(1.0f),
+        mMaterialLodFactorTransformed(1.0f),
 		mMinMaterialLodIndex(99),
 		mMaxMaterialLodIndex(0), 		// Backwards, remember low value = high detail
 		mSkeletonInstance(0),
@@ -352,7 +358,7 @@ namespace Ogre {
         return newEnt;
     }
     //-----------------------------------------------------------------------
-    void Entity::setMaterialName(const String& name)
+    void Entity::setMaterialName( const String& name, const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
     {
         // Set for all subentities
         SubEntityList::iterator i;
@@ -382,36 +388,77 @@ namespace Ogre {
         // Calculate the LOD
         if (mParentNode)
         {
-			const Camera* lodCamera = cam->getLodCamera();
-            Real squaredDepth = mParentNode->getSquaredViewDepth(lodCamera);
+            // Get mesh lod strategy
+            const LodStrategy *meshStrategy = mMesh->getLodStrategy();
+            // Get the appropriate lod value
+            Real lodValue = meshStrategy->getValue(this, cam);
+            // Bias the lod value
+            Real biasedMeshLodValue = lodValue * mMeshLodFactorTransformed;
 
-            // Do Mesh LOD
-            // Adjust this depth by the entity bias factor
-            Real tmp = squaredDepth * mMeshLodFactorInv;
-            // Now adjust it by the camera bias
-            tmp = tmp * lodCamera->_getLodBiasInverse();
+
             // Get the index at this biased depth
-            mMeshLodIndex = mMesh->getLodIndexSquaredDepth(tmp);
+            ushort newMeshLodIndex = mMesh->getLodIndex(biasedMeshLodValue);
             // Apply maximum detail restriction (remember lower = higher detail)
-            mMeshLodIndex = std::max(mMaxMeshLodIndex, mMeshLodIndex);
+            newMeshLodIndex = std::max(mMaxMeshLodIndex, newMeshLodIndex);
             // Apply minimum detail restriction (remember higher = lower detail)
-            mMeshLodIndex = std::min(mMinMeshLodIndex, mMeshLodIndex);
+            newMeshLodIndex = std::min(mMinMeshLodIndex, newMeshLodIndex);
+
+            // Construct event object
+            EntityMeshLodChangedEvent evt;
+            evt.entity = this;
+            evt.camera = cam;
+            evt.lodValue = biasedMeshLodValue;
+            evt.previousLodIndex = mMeshLodIndex;
+            evt.newLodIndex = newMeshLodIndex;
+
+            // Notify lod event listeners
+            cam->getSceneManager()->_notifyEntityMeshLodChanged(evt);
+
+            // Change lod index
+            mMeshLodIndex = evt.newLodIndex;
 
             // Now do material LOD
-            // Adjust this depth by the entity bias factor
-            tmp = squaredDepth * mMaterialLodFactorInv;
-            // Now adjust it by the camera bias
-            tmp = tmp * lodCamera->_getLodBiasInverse();
+            lodValue *= mMaterialLodFactorTransformed;
+
+
+
             SubEntityList::iterator i, iend;
             iend = mSubEntityList.end();
             for (i = mSubEntityList.begin(); i != iend; ++i)
             {
+                // Get sub-entity material
+                MaterialPtr material = (*i)->mpMaterial;
+                
+                // Get material lod strategy
+                const LodStrategy *materialStrategy = material->getLodStrategy();
+                
+                // Recalculate lod value if strategies do not match
+                Real biasedMaterialLodValue;
+                if (meshStrategy == materialStrategy)
+                    biasedMaterialLodValue = lodValue;
+                else
+                    biasedMaterialLodValue = materialStrategy->getValue(this, cam) * materialStrategy->transformBias(mMaterialLodFactor);
+
                 // Get the index at this biased depth
-                unsigned short idx = (*i)->mpMaterial->getLodIndexSquaredDepth(tmp);
+                unsigned short idx = material->getLodIndex(biasedMaterialLodValue);
                 // Apply maximum detail restriction (remember lower = higher detail)
                 idx = std::max(mMaxMaterialLodIndex, idx);
                 // Apply minimum detail restriction (remember higher = lower detail)
-                (*i)->mMaterialLodIndex = std::min(mMinMaterialLodIndex, idx);
+                idx = std::min(mMinMaterialLodIndex, idx);
+
+                // Construct event object
+                EntityMaterialLodChangedEvent evt;
+                evt.subEntity = (*i);
+                evt.camera = cam;
+                evt.lodValue = biasedMaterialLodValue;
+                evt.previousLodIndex = (*i)->mMaterialLodIndex;
+                evt.newLodIndex = idx;
+
+                // Notify lod event listeners
+                cam->getSceneManager()->_notifyEntityMaterialLodChanged(evt);
+
+                // Change lod index
+                (*i)->mMaterialLodIndex = evt.newLodIndex;
 
 				// Also invalidate any camera distance cache
 				(*i)->_invalidateCameraCache ();
@@ -589,9 +636,9 @@ namespace Ogre {
                 Bone* bone = mSkeletonInstance->getBone(b);
                 if(mRenderQueueIDSet)
                 {
-                     queue->addRenderable(bone, mRenderQueueID);
+                     queue->addRenderable(bone->getDebugRenderable(1), mRenderQueueID);
                 } else {
-                     queue->addRenderable(bone);
+                     queue->addRenderable(bone->getDebugRenderable(1));
                 }
             }
         }
@@ -1099,7 +1146,8 @@ namespace Ogre {
         unsigned long currentFrameNumber = root.getNextFrameNumber();
         if (*mFrameBonesLastUpdated  != currentFrameNumber) {
 
-            mSkeletonInstance->setAnimationState(*mAnimationState);
+			if (!mSkipAnimStateUpdates)
+	            mSkeletonInstance->setAnimationState(*mAnimationState);
             mSkeletonInstance->_getBoneMatrices(mBoneMatrices);
             *mFrameBonesLastUpdated  = currentFrameNumber;
         }
@@ -1129,8 +1177,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Entity::setMeshLodBias(Real factor, ushort maxDetailIndex, ushort minDetailIndex)
     {
-        assert(factor > 0.0f && "Bias factor must be > 0!");
-        mMeshLodFactorInv = 1.0f / factor;
+        mMeshLodFactorTransformed = mMesh->getLodStrategy()->transformBias(factor);
         mMaxMeshLodIndex = maxDetailIndex;
         mMinMeshLodIndex = minDetailIndex;
 
@@ -1138,8 +1185,8 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Entity::setMaterialLodBias(Real factor, ushort maxDetailIndex, ushort minDetailIndex)
     {
-        assert(factor > 0.0f && "Bias factor must be > 0!");
-        mMaterialLodFactorInv = 1.0f / factor;
+        mMaterialLodFactor = factor;
+        mMaterialLodFactorTransformed = mMesh->getLodStrategy()->transformBias(factor);
         mMaxMaterialLodIndex = maxDetailIndex;
         mMinMaterialLodIndex = minDetailIndex;
 
@@ -1158,7 +1205,7 @@ namespace Ogre {
             subMesh = mesh->getSubMesh(i);
             subEnt = OGRE_NEW SubEntity(this, subMesh);
             if (subMesh->isMatInitialised())
-                subEnt->setMaterialName(subMesh->getMaterialName());
+                subEnt->setMaterialName(subMesh->getMaterialName(), mesh->getGroup());
             sublist->push_back(subEnt);
         }
     }
@@ -1535,6 +1582,11 @@ namespace Ogre {
         {
             mFrameAnimationLastUpdated = mAnimationState->getDirtyFrameNumber() - 1;
         }
+    }
+    //-----------------------------------------------------------------------
+    Real Entity::_getMeshLodFactorTransformed() const
+    {
+        return mMeshLodFactorTransformed;
     }
     //-----------------------------------------------------------------------
     ShadowCaster::ShadowRenderableListIterator
@@ -2082,14 +2134,24 @@ namespace Ogre {
 		MeshPtr pMesh;
 		if (params != 0)
 		{
-			NameValuePairList::const_iterator ni = params->find("mesh");
+			String groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME;
+
+			NameValuePairList::const_iterator ni;
+
+			ni = params->find("resourceGroup");
+			if (ni != params->end())
+			{
+				groupName = ni->second;
+			}
+
+			ni = params->find("mesh");
 			if (ni != params->end())
 			{
 				// Get mesh (load if required)
 				pMesh = MeshManager::getSingleton().load(
 					ni->second,
 					// autodetect group location
-					ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
+					groupName );
 			}
 
 		}

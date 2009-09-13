@@ -68,14 +68,14 @@ void CompositorChain::destroyResources(void)
 		if (mOriginalScene)
 		{
 			mViewport->getTarget()->removeListener(this);
-			mOriginalScene->getTechnique()->destroyInstance(mOriginalScene);
+			OGRE_DELETE mOriginalScene;
 			mOriginalScene = 0;
 		}
 		mViewport = 0;
 	}
 }
 //-----------------------------------------------------------------------
-CompositorInstance* CompositorChain::addCompositor(CompositorPtr filter, size_t addPosition, size_t technique)
+CompositorInstance* CompositorChain::addCompositor(CompositorPtr filter, size_t addPosition, const String& scheme)
 {
 	// Init on demand
 	if (!mOriginalScene)
@@ -85,21 +85,21 @@ CompositorInstance* CompositorChain::addCompositor(CompositorPtr filter, size_t 
 		/// Create base "original scene" compositor
 		CompositorPtr base = CompositorManager::getSingleton().load("Ogre/Scene",
 			ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
-		mOriginalScene = base->getSupportedTechnique(0)->createInstance(this);
+		mOriginalScene = OGRE_NEW CompositorInstance(base->getSupportedTechnique(), this);
 	}
 
 
 	filter->touch();
-    if(technique >= filter->getNumSupportedTechniques())
-    {
-        /// Warn user
-        LogManager::getSingleton().logMessage(
-            "CompositorChain: Compositor " + filter->getName() + " has no supported techniques.", LML_CRITICAL
-        );
-        return 0;
-    }
-    CompositionTechnique *tech = filter->getSupportedTechnique(technique);
-    CompositorInstance *t = tech->createInstance(this);
+    CompositionTechnique *tech = filter->getSupportedTechnique(scheme);
+	if(!tech)
+	{
+		/// Warn user
+		LogManager::getSingleton().logMessage(
+			"CompositorChain: Compositor " + filter->getName() + " has no supported techniques.", LML_CRITICAL
+			);
+		return 0;
+	}
+    CompositorInstance *t = OGRE_NEW CompositorInstance(tech, this);
     
     if(addPosition == LAST)
         addPosition = mInstances.size();
@@ -116,7 +116,7 @@ void CompositorChain::removeCompositor(size_t index)
 {
     assert (index < mInstances.size() && "Index out of bounds.");
     Instances::iterator i = mInstances.begin() + index;
-    (*i)->getTechnique()->destroyInstance(*i);
+    OGRE_DELETE *i;
     mInstances.erase(i);
     
     mDirty = true;
@@ -133,7 +133,7 @@ void CompositorChain::removeAllCompositors()
     iend = mInstances.end();
     for (i = mInstances.begin(); i != iend; ++i)
     {
-        (*i)->getTechnique()->destroyInstance(*i);
+		OGRE_DELETE *i;
     }
     mInstances.clear();
     
@@ -143,7 +143,7 @@ void CompositorChain::removeAllCompositors()
 void CompositorChain::_removeInstance(CompositorInstance *i)
 {
 	mInstances.erase(std::find(mInstances.begin(), mInstances.end(), i));
-	i->getTechnique()->destroyInstance(i);
+	OGRE_DELETE i;
 }
 //-----------------------------------------------------------------------
 void CompositorChain::_queuedOperation(CompositorInstance::RenderSystemOperation* op)
@@ -166,7 +166,34 @@ CompositorChain::InstanceIterator CompositorChain::getCompositors()
 //-----------------------------------------------------------------------
 void CompositorChain::setCompositorEnabled(size_t position, bool state)
 {
-    getCompositor(position)->setEnabled(state);
+	CompositorInstance* inst = getCompositor(position);
+	if (!state && inst->getEnabled())
+	{
+		// If we're disabling a 'middle' compositor in a chain, we have to be
+		// careful about textures which might have been shared by non-adjacent
+		// instances which have now become adjacent. 
+		CompositorInstance* nextInstance = getNextInstance(inst, true);
+		if (nextInstance)
+		{
+			CompositionTechnique::TargetPassIterator tpit = nextInstance->getTechnique()->getTargetPassIterator();
+			while(tpit.hasMoreElements())
+			{
+				CompositionTargetPass* tp = tpit.getNext();
+				if (tp->getInputMode() == CompositionTargetPass::IM_PREVIOUS)
+				{
+					if (nextInstance->getTechnique()->getTextureDefinition(tp->getOutputName())->shared)
+					{
+						// recreate
+						nextInstance->freeResources(false, true);
+						nextInstance->createResources(false);
+					}
+				}
+
+			}
+		}
+
+	}
+    inst->setEnabled(state);
 }
 //-----------------------------------------------------------------------
 void CompositorChain::preRenderTargetUpdate(const RenderTargetEvent& evt)
@@ -441,4 +468,43 @@ void CompositorChain::RQListener::flushUpTo(uint8 id)
 	}
 }
 //-----------------------------------------------------------------------
+CompositorInstance* CompositorChain::getPreviousInstance(CompositorInstance* curr, bool activeOnly)
+{
+	bool found = false;
+	for(Instances::reverse_iterator i=mInstances.rbegin(); i!=mInstances.rend(); ++i)
+	{
+		if (found)
+		{
+			if ((*i)->getEnabled() || !activeOnly)
+				return *i;
+		}
+		else if(*i == curr)
+		{
+			found = true;
+		}
+	}
+
+	return 0;
 }
+//---------------------------------------------------------------------
+CompositorInstance* CompositorChain::getNextInstance(CompositorInstance* curr, bool activeOnly)
+{
+	bool found = false;
+	for(Instances::iterator i=mInstances.begin(); i!=mInstances.end(); ++i)
+	{
+		if (found)
+		{
+			if ((*i)->getEnabled() || !activeOnly)
+				return *i;
+		}
+		else if(*i == curr)
+		{
+			found = true;
+		}
+	}
+
+	return 0;
+}
+//---------------------------------------------------------------------
+}
+

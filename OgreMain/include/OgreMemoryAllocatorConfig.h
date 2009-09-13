@@ -30,8 +30,14 @@ Torus Knot Software Ltd
 #ifndef __MemoryAllocatorConfig_H__
 #define __MemoryAllocatorConfig_H__
 
-#include "OgrePrerequisites.h"
+#include "OgreMemoryAllocatedObject.h" 
 
+/** \addtogroup Core
+*  @{
+*/
+/** \addtogroup Memory
+*  @{
+*/
 /** @file
 
 	This file configures Ogre's memory allocators. You can modify this
@@ -129,9 +135,18 @@ Torus Knot Software Ltd
 	int & float. You free the memory using OGRE_FREE, and both variants have SIMD
 	and custom alignment variants.
 */
+/** @} */
+/** @} */
 
 namespace Ogre
 {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Memory
+	*  @{
+	*/
+
 	/** A set of categories that indicate the purpose of a chunk of memory
 	being allocated. 
 	These categories will be provided at allocation time in order to allow
@@ -164,6 +179,9 @@ namespace Ogre
 		// sentinel value, do not use 
 		MEMCATEGORY_COUNT = 8
 	};
+	/** @} */
+	/** @} */
+
 }
 
 #include "OgreMemoryAllocatedObject.h"
@@ -214,14 +232,14 @@ namespace Ogre
 namespace Ogre
 {
 	// Useful shortcuts
-	typedef CategorisedAllocPolicy<MEMCATEGORY_GENERAL> GeneralAllocPolicy;
-	typedef CategorisedAllocPolicy<MEMCATEGORY_GEOMETRY> GeometryAllocPolicy;
-	typedef CategorisedAllocPolicy<MEMCATEGORY_ANIMATION> AnimationAllocPolicy;
-	typedef CategorisedAllocPolicy<MEMCATEGORY_SCENE_CONTROL> SceneCtlAllocPolicy;
-	typedef CategorisedAllocPolicy<MEMCATEGORY_SCENE_OBJECTS> SceneObjAllocPolicy;
-	typedef CategorisedAllocPolicy<MEMCATEGORY_RESOURCE> ResourceAllocPolicy;
-	typedef CategorisedAllocPolicy<MEMCATEGORY_SCRIPTING> ScriptingAllocPolicy;
-	typedef CategorisedAllocPolicy<MEMCATEGORY_RENDERSYS> RenderSysAllocPolicy;
+	typedef CategorisedAllocPolicy<Ogre::MEMCATEGORY_GENERAL> GeneralAllocPolicy;
+	typedef CategorisedAllocPolicy<Ogre::MEMCATEGORY_GEOMETRY> GeometryAllocPolicy;
+	typedef CategorisedAllocPolicy<Ogre::MEMCATEGORY_ANIMATION> AnimationAllocPolicy;
+	typedef CategorisedAllocPolicy<Ogre::MEMCATEGORY_SCENE_CONTROL> SceneCtlAllocPolicy;
+	typedef CategorisedAllocPolicy<Ogre::MEMCATEGORY_SCENE_OBJECTS> SceneObjAllocPolicy;
+	typedef CategorisedAllocPolicy<Ogre::MEMCATEGORY_RESOURCE> ResourceAllocPolicy;
+	typedef CategorisedAllocPolicy<Ogre::MEMCATEGORY_SCRIPTING> ScriptingAllocPolicy;
+	typedef CategorisedAllocPolicy<Ogre::MEMCATEGORY_RENDERSYS> RenderSysAllocPolicy;
 
 	// Now define all the base classes for each allocation
 	typedef AllocatedObject<GeneralAllocPolicy> GeneralAllocatedObject;
@@ -283,11 +301,12 @@ namespace Ogre
 	typedef GeneralAllocatedObject		UtilityAlloc;
 	typedef GeometryAllocatedObject		VertexDataAlloc;
 	typedef RenderSysAllocatedObject	ViewportAlloc;
+	typedef SceneCtlAllocatedObject		LodAlloc;
 
 	// Containers (by-value only)
 	// Will  be of the form:
 	// typedef STLAllocator<T, DefaultAllocPolicy, Category> TAlloc;
-	// for use in std::vector<T, TAlloc> 
+	// for use in vector<T, TAlloc>::type 
 	
 
 
@@ -296,6 +315,13 @@ namespace Ogre
 // Util functions
 namespace Ogre
 {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Memory
+	*  @{
+	*/
+
 	/** Utility function for constructing an array of objects with placement new,
 		without using new[] (which allocates an undocumented amount of extra memory
 		and so isn't appropriate for custom allocators).
@@ -309,8 +335,18 @@ namespace Ogre
 		}
 		return basePtr;
 	}
+	/** @} */
+	/** @} */
+
 }
 // define macros 
+
+/** \addtogroup Core
+*  @{
+*/
+/** \addtogroup Memory
+*  @{
+*/
 
 #if OGRE_DEBUG_MODE
 
@@ -423,5 +459,21 @@ namespace Ogre
 
 #endif // OGRE_DEBUG_MODE
 
+
+namespace Ogre
+{
+	/** Function which invokes OGRE_DELETE on a given pointer. 
+	@remarks
+		Useful to pass custom deletion policies to external libraries (e. g. boost).
+	*/
+	template<typename T>
+	void deletePtr(T* ptr)
+	{
+		OGRE_DELETE ptr;
+	}
+}
+
+/** @} */
+/** @} */
 
 #endif

@@ -34,10 +34,17 @@ Torus Knot Software Ltd.
 #include "OgreString.h"
 #include "OgreRenderable.h"
 #include "OgreHardwareBufferManager.h"
+#include "OgreResourceGroupManager.h"
 
 namespace Ogre {
 
-    /** Utility class which defines the sub-parts of an Entity.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
+	/** Utility class which defines the sub-parts of an Entity.
         @remarks
             Just as meshes are split into submeshes, an Entity is made up of
             potentially multiple SubMeshes. These are mainly here to provide the
@@ -120,7 +127,7 @@ namespace Ogre {
                 uses. This call can alter that so that the Material is different
                 for this instance.
         */
-        void setMaterialName( const String& name );
+        void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 
 		/** Sets a Material to be used.
 			@remarks
@@ -224,6 +231,8 @@ namespace Ogre {
 		void _invalidateCameraCache ()
 		{ mCachedCamera = 0; }
     };
+	/** @} */
+	/** @} */
 
 }
 

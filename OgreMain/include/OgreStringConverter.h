@@ -37,7 +37,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Class for converting the core Ogre data types to/from Strings.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
+	/** Class for converting the core Ogre data types to/from Strings.
     @remarks
         The code for converting values to and from strings is here as a separate
         class to avoid coupling String to other datatypes (and vice-versa) which reduces
@@ -80,7 +86,7 @@ namespace Ogre {
         static String toString(int val, unsigned short width = 0, 
             char fill = ' ', 
             std::ios::fmtflags flags = std::ios::fmtflags(0) );
-#if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_64 || OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+#if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_64 || OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
         /** Converts an unsigned int to a String. */
         static String toString(unsigned int val, 
             unsigned short width = 0, char fill = ' ', 
@@ -249,6 +255,8 @@ namespace Ogre {
         static bool isNumber(const String& val);
     };
 
+	/** @} */
+	/** @} */
 
 }
 

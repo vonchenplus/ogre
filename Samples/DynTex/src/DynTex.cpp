@@ -19,7 +19,7 @@ TexturePtr ptex;
 HardwarePixelBufferSharedPtr buffer;
 Overlay* overlay;
 static const int reactorExtent = 130; // must be 2^N + 2
-uint32 clut[1024];
+Ogre::uint32 clut[1024];
 AnimationState *swim;
 // Nano fixed point library
 #define FROMFLOAT(X) ((int)((X)*((float)(1<<16))))
@@ -112,7 +112,7 @@ public:
 	void fireUpReactor()
 	{
 		LogManager::getSingleton().logMessage("Warning: reactor is being fired up");
-		int center = reactorExtent/2;
+		unsigned int center = reactorExtent/2;
 		for(unsigned int x=center-10; x<center+10; x++) 
 		{
 			for(unsigned int y=center-10; y<center+10; y++) 
@@ -126,7 +126,7 @@ public:
 	
 	void runStep()
 	{
-		unsigned int x, y;
+        unsigned int x, y;
 		for(x=0; x<mSize; x++) 
 		{
 			delta[0][x] = 0;
@@ -135,7 +135,7 @@ public:
 		// Boundary conditions
 		unsigned int idx;
 		idx = 0;
-		for(y=0; y<reactorExtent; y++) 
+		for(y=0; y<(unsigned int)reactorExtent; y++) 
 		{
 			chemical[0][idx] = chemical[0][idx+reactorExtent-2];
 			chemical[0][idx+reactorExtent-1] = chemical[0][idx+1];
@@ -144,7 +144,7 @@ public:
 			idx += reactorExtent;
 		}
 		unsigned int skip = reactorExtent*(reactorExtent-1);
-		for(y=0; y<reactorExtent; y++) 
+		for(y=0; y<(unsigned int)reactorExtent; y++) 
 		{
 			chemical[0][y] = chemical[0][y + skip - reactorExtent];
 			chemical[0][y + skip] = chemical[0][y + reactorExtent];
@@ -197,7 +197,7 @@ public:
 		const PixelBox &pb = buffer->getCurrentLock();
 		unsigned int idx = reactorExtent+1;
 		for(unsigned int y=0; y<(reactorExtent-2); y++) {
-			uint32 *data = static_cast<uint32*>(pb.data) + y*pb.rowPitch;
+			Ogre::uint32 *data = static_cast<Ogre::uint32*>(pb.data) + y*pb.rowPitch;
 			int *chem = &chemical[0][idx];
 			for(unsigned int x=0; x<(reactorExtent-2); x++) {
 				data[x] = clut[(chem[x]>>6)&1023];
@@ -378,7 +378,7 @@ protected:
 		//TextureManager::getSingleton().getByName("RustySteel.jpg");
 		
 		
-		std::stringstream d;
+		Ogre::StringStream d;
 		d << "HardwarePixelBuffer " << buffer->getWidth() << " " << buffer->getHeight() << " " << buffer->getDepth();
 		LogManager::getSingleton().logMessage(d.str());
 		
@@ -416,6 +416,12 @@ INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT )
 int main(int argc, char *argv[])
 #endif
 {
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+        NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+        int retVal = UIApplicationMain(argc, argv, @"UIApplication", @"AppDelegate");
+        [pool release];
+        return retVal;
+#else
     // Create application object
     DynTexApplication app;
 
@@ -431,8 +437,82 @@ int main(int argc, char *argv[])
     }
 
     return 0;
+#endif
 }
 
 #ifdef __cplusplus
 }
+#endif
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#   ifdef __OBJC__
+@interface AppDelegate : NSObject <UIApplicationDelegate>
+{
+}
+
+- (void)go;
+
+@end
+
+@implementation AppDelegate
+
+- (void)go {
+    // Create application object
+    DynTexApplication app;
+    try {
+        app.go();
+    } catch( Ogre::Exception& e ) {
+        std::cerr << "An exception has occured: " <<
+        e.getFullDescription().c_str() << std::endl;
+    }
+}
+
+- (void)applicationDidFinishLaunching:(UIApplication *)application {
+    // Hide the status bar
+    [[UIApplication sharedApplication] setStatusBarHidden:YES];
+
+    // Create a window
+    UIWindow *window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+
+    // Create an image view
+    UIImageView *imageView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"Default.png"]];
+    [window addSubview:imageView];
+    
+    // Create an indeterminate status indicator
+    UIActivityIndicatorView *indicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
+    [indicator setFrame:CGRectMake(150, 280, 20, 20)];
+    [indicator startAnimating];
+    [window addSubview:indicator];
+    
+    // Display our window
+    [window makeKeyAndVisible];
+    
+    // Clean up
+    [imageView release];
+    [indicator release];
+
+    [NSThread detachNewThreadSelector:@selector(go) toTarget:self withObject:nil];
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application {
+    Root::getSingleton().queueEndRendering();
+}
+
+//- (void)applicationWillResignActive:(UIApplication *)application
+//{
+//    // Pause FrameListeners and rendering
+//}
+//
+//- (void)applicationDidBecomeActive:(UIApplication *)application
+//{
+//    // Resume FrameListeners and rendering
+//}
+
+- (void)dealloc {
+    [super dealloc];
+}
+
+@end
+#   endif
+
 #endif

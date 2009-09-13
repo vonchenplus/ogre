@@ -37,10 +37,14 @@ namespace Ogre {
 #define OGRE_PLATFORM_WIN32 1
 #define OGRE_PLATFORM_LINUX 2
 #define OGRE_PLATFORM_APPLE 3
+#define OGRE_PLATFORM_SYMBIAN 4
+#define OGRE_PLATFORM_IPHONE 5
 
 #define OGRE_COMPILER_MSVC 1
 #define OGRE_COMPILER_GNUC 2
 #define OGRE_COMPILER_BORL 3
+#define OGRE_COMPILER_WINSCW 4
+#define OGRE_COMPILER_GCCE 5
 
 #define OGRE_ENDIAN_LITTLE 1
 #define OGRE_ENDIAN_BIG 2
@@ -50,10 +54,16 @@ namespace Ogre {
 
 /* Finds the compiler type and version.
 */
-#if defined( _MSC_VER )
+#if defined( __GCCE__ )
+#   define OGRE_COMPILER OGRE_COMPILER_GCCE
+#   define OGRE_COMP_VER _MSC_VER
+//#	include <staticlibinit_gcce.h> // This is a GCCE toolchain workaround needed when compiling with GCCE 
+#elif defined( __WINSCW__ )
+#   define OGRE_COMPILER OGRE_COMPILER_WINSCW
+#   define OGRE_COMP_VER _MSC_VER
+#elif defined( _MSC_VER )
 #   define OGRE_COMPILER OGRE_COMPILER_MSVC
 #   define OGRE_COMP_VER _MSC_VER
-
 #elif defined( __GNUC__ )
 #   define OGRE_COMPILER OGRE_COMPILER_GNUC
 #   define OGRE_COMP_VER (((__GNUC__)*100) + \
@@ -84,12 +94,18 @@ namespace Ogre {
 
 /* Finds the current platform */
 
-#if defined( __WIN32__ ) || defined( _WIN32 )
+#if defined( __SYMBIAN32__ ) 
+#   define OGRE_PLATFORM OGRE_PLATFORM_SYMBIAN
+#elif defined( __WIN32__ ) || defined( _WIN32 )
 #   define OGRE_PLATFORM OGRE_PLATFORM_WIN32
-
 #elif defined( __APPLE_CC__)
-#   define OGRE_PLATFORM OGRE_PLATFORM_APPLE
-
+    // Device                                                     Simulator
+    // Both requiring OS version 2.0 or greater
+#   if __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 30000 || __IPHONE_OS_VERSION_MIN_REQUIRED >= 30000
+#       define OGRE_PLATFORM OGRE_PLATFORM_IPHONE
+#   else
+#       define OGRE_PLATFORM OGRE_PLATFORM_APPLE
+#   endif
 #else
 #   define OGRE_PLATFORM OGRE_PLATFORM_LINUX
 #endif
@@ -153,10 +169,21 @@ namespace Ogre {
 
 #endif
 //----------------------------------------------------------------------------
-
+// Symbian Settings
+#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+#	define OGRE_UNICODE_SUPPORT 1
+#   define OGRE_DEBUG_MODE 0
+#   define _OgreExport
+#   define _OgrePrivate
+#	define CLOCKS_PER_SEC  1000
+// pragma def were found here: http://www.inf.pucrs.br/~eduardob/disciplinas/SistEmbarcados/Mobile/Nokia/Tools/Carbide_vs/WINSCW/Help/PDF/C_Compilers_Reference_3.2.pdf
+#	pragma warn_unusedarg off
+#	pragma warn_emptydecl off
+#	pragma warn_possunwant off
+#endif
 //----------------------------------------------------------------------------
 // Linux/Apple Settings
-#if OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+#if OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
 
 // Enable GCC symbol visibility
 #   if defined( OGRE_GCC_VISIBILITY )
@@ -182,8 +209,9 @@ namespace Ogre {
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
     #define OGRE_PLATFORM_LIB "OgrePlatform.bundle"
-#else
-    //OGRE_PLATFORM_LINUX
+#elif OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+    #define OGRE_PLATFORM_LIB "OgrePlatform.a"
+#else //OGRE_PLATFORM_LINUX
     #define OGRE_PLATFORM_LIB "libOgrePlatform.so"
 #endif
 

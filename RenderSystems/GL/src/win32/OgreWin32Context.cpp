@@ -85,4 +85,36 @@ namespace Ogre {
 
 		return new Win32Context(mHDC, newCtx);
 	}
+
+	void Win32Context::releaseContext()
+	{
+		if (mGlrc != NULL)
+		{
+			wglDeleteContext(mGlrc);
+			mGlrc = NULL;
+			mHDC  = NULL;
+		}		
+	}
 }
+
+#if OGRE_THREAD_SUPPORT == 1
+
+// declared in OgreGLPrerequisites.h 
+WGLEWContext * wglewGetContext()
+{
+	using namespace Ogre;
+	static OGRE_THREAD_POINTER_VAR(WGLEWContext, WGLEWContextsPtr);
+
+	WGLEWContext * currentWGLEWContextsPtr = OGRE_THREAD_POINTER_GET(WGLEWContextsPtr);
+	if (currentWGLEWContextsPtr == NULL)
+	{
+		currentWGLEWContextsPtr = new WGLEWContext();
+		OGRE_THREAD_POINTER_SET(WGLEWContextsPtr, currentWGLEWContextsPtr);
+		ZeroMemory(currentWGLEWContextsPtr, sizeof(WGLEWContext));
+		wglewInit();
+
+	}
+	return currentWGLEWContextsPtr;
+}
+
+#endif

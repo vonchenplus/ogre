@@ -37,7 +37,13 @@ Torus Knot Software Ltd.
 namespace Ogre {
 
 
-    /** A very simple spline class which implements the Catmull-Rom class of splines.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Math
+	*  @{
+	*/
+	/** A very simple spline class which implements the Catmull-Rom class of splines.
     @remarks
         Splines are bendy lines. You define a series of points, and the spline forms
         a smoother line between the points to eliminate the sharp angles.
@@ -78,13 +84,13 @@ namespace Ogre {
             whole length of the spline, this method returns an interpolated point.
         @param t Parametric value.
         */
-        Vector3 interpolate(Real t);
+        Vector3 interpolate(Real t) const;
 
         /** Interpolates a single segment of the spline given a parametric value.
         @param fromIndex The point index to treat as t=0. fromIndex + 1 is deemed to be t=1
         @param t Parametric value
         */
-        Vector3 interpolate(unsigned int fromIndex, Real t);
+        Vector3 interpolate(unsigned int fromIndex, Real t) const;
 
 
         /** Tells the spline whether it should automatically calculate tangents on demand
@@ -112,8 +118,8 @@ namespace Ogre {
 
         bool mAutoCalc;
 
-        std::vector<Vector3> mPoints;
-        std::vector<Vector3> mTangents;
+        vector<Vector3>::type mPoints;
+        vector<Vector3>::type mTangents;
 
         /// Matrix of coefficients 
         Matrix4 mCoeffs;
@@ -122,6 +128,8 @@ namespace Ogre {
 
     };
 
+	/** @} */
+	/** @} */
 
 }
 

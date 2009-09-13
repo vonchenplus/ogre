@@ -86,6 +86,7 @@ Format: technique { }@*@*
 Techniques can have the following nested elements:
 @itemize @bullet
 @item @ref{compositor_texture,texture}
+@item @ref{compositor_scheme,scheme}
 @item @ref{Compositor Target Passes,target}
 @item @ref{Compositor Target Passes,target_output}
 @end itemize
@@ -96,7 +97,7 @@ Techniques can have the following nested elements:
 This declares a render texture for use in subsequent @ref{Compositor Target Passes,target passes}.
 
 @*@*
-Format: texture <Name> <Width> <Height> <Pixel Format> [<MRT Pixel Format2>] [<MRT Pixel FormatN>]@*@*
+Format: texture <Name> <Width> <Height> <Pixel Format> [<MRT Pixel Format2>] [<MRT Pixel FormatN>] [shared] [gamma] [no_fsaa]@*@*
 
 Here is a description of the parameters:
 @table @asis
@@ -106,12 +107,27 @@ A name to give the render texture, which must be unique within this compositor. 
 The dimensions of the render texture. You can either specify a fixed width and height, or you can request that the texture is based on the physical dimensions of the viewport to which the compositor is attached. The options for the latter are 'target_width', 'target_height', 'target_width_scaled <factor>' and 'target_height_scaled <factor>' - where 'factor' is the amount by which you wish to multiply the size of the main target to derive the dimensions.
 @item Pixel Format
 The pixel format of the render texture. This affects how much memory it will take, what colour channels will be available, and what precision you will have within those channels. The available options are PF_A8R8G8B8, PF_R8G8B8A8, PF_R8G8B8, PF_FLOAT16_RGBA, PF_FLOAT16_RGB, PF_FLOAT16_R, PF_FLOAT32_RGBA, PF_FLOAT32_RGB, and PF_FLOAT32_R.
+@item shared
+If present, this directive makes this texture 'shared' among compositor instances, which can save some memory.
+@item gamma
+If present, this directive means that sRGB gamma correction will be enabled on writes to this texture. You should remember to include the opposite sRGB conversion when you read this texture back in another material, such as a quad. This option will automatically enabled if you use a render_scene pass on this texture and the viewport on which the compositor is based has sRGB write support enabled.
+@item no_fsaa
+If present, this directive disables the use of anti-aliasing on this texture. FSAA is only used if this texture is subject to a render_scene pass and FSAA was enabled on the original viewport on which this compositor is based; this option allows you to override it and disable the FSAA if you wish. 
 @end table
 
 Example: texture rt0 512 512 PF_R8G8B8A8@*
 Example: texture rt1 target_width target_height PF_FLOAT32_RGB@*@*
 
 You can in fact repeat this element if you wish. If you do so, that means that this render texture becomes a Multiple Render Target (MRT), when the GPU writes to multiple textures at once. It is imperative that if you use MRT that the shaders that render to it render to ALL the targets. Not doing so can cause undefined results. It is also important to note that although you can use different pixel formats for each target in a MRT, each one should have the same total bit depth since most cards do not support independent bit depths. If you try to use this feature on cards that do not support the number of MRTs you've asked for, the technique will be skipped (so you ought to write a fallback technique).
+
+@anchor{compositor_scheme}
+@subheading scheme
+
+This gives a compositor technique a scheme name, allowing you to manually switch between different techniques for this compositor when instantiated on a viewport by calling CompositorInstance::setScheme. 
+
+@*@*
+Format: texture <Name> <Width> <Height> <Pixel Format> [<MRT Pixel Format2>] [<MRT Pixel FormatN>] [shared] [gamma] [no_fsaa]@*@*
+
 
 @node Compositor Target Passes
 @subsection Target Passes

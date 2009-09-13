@@ -46,21 +46,34 @@ typedef struct HINSTANCE__* hInstance;
 #    define DYNLIB_GETSYM( a, b ) dlsym( a, b )
 #    define DYNLIB_UNLOAD( a ) dlclose( a )
 
-#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-#    define DYNLIB_HANDLE CFBundleRef
-#    define DYNLIB_LOAD( a ) mac_loadExeBundle( a )
-#    define DYNLIB_GETSYM( a, b ) mac_getBundleSym( a, b )
-#    define DYNLIB_UNLOAD( a ) mac_unloadExeBundle( a )
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#    define DYNLIB_HANDLE void*
+#    define DYNLIB_LOAD( a ) mac_loadDylib( a )
+#    define DYNLIB_GETSYM( a, b ) dlsym( a, b )
+#    define DYNLIB_UNLOAD( a ) dlclose( a )
+
+#elif OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+#    define DYNLIB_HANDLE void*
+#    define DYNLIB_LOAD( a ) 0
+#    define DYNLIB_GETSYM( a, b ) 0
+#    define DYNLIB_UNLOAD( a ) 0
+
 #endif
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
 
     /** Resource holding data about a dynamic library.
         @remarks
             This class holds the data required to get symbols from
             libraries loaded at run-time (i.e. from DLL's for so's)
         @author
-            Adrian Cearnãu (cearny@cearny.ro)
+            Adrian Cearnâ€žu (cearny@cearny.ro)
         @since
             27 January 2002
         @see
@@ -110,6 +123,8 @@ namespace Ogre {
         /// Handle to the loaded library.
         DYNLIB_HANDLE m_hInst;
     };
+	/** @} */
+	/** @} */
 
 }
 

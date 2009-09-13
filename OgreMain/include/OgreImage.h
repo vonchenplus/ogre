@@ -35,6 +35,12 @@ Torus Knot Software Ltd.
 #include "OgreDataStream.h"
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Image
+	*  @{
+	*/
 
     enum ImageFlags
     {
@@ -291,8 +297,59 @@ namespace Ogre {
                 Image::load( const String& strFileName )
         */
 		Image & load(DataStreamPtr& stream, const String& type = StringUtil::BLANK );
+
+		/** Utility method to combine 2 separate images into this one, with the first
+		image source supplying the RGB channels, and the second image supplying the 
+		alpha channel (as luminance or separate alpha). 
+		@param rgbFilename Filename of image supplying the RGB channels (any alpha is ignored)
+		@param alphaFilename Filename of image supplying the alpha channel. If a luminance image the
+			single channel is used directly, if an RGB image then the values are
+			converted to greyscale.
+		@param groupName The resource group from which to load the images
+		@param format The destination format
+		*/
+		Image & loadTwoImagesAsRGBA(const String& rgbFilename, const String& alphaFilename,
+			const String& groupName, PixelFormat format = PF_BYTE_RGBA);
+
+		/** Utility method to combine 2 separate images into this one, with the first
+		image source supplying the RGB channels, and the second image supplying the 
+		alpha channel (as luminance or separate alpha). 
+		@param rgbStream Stream of image supplying the RGB channels (any alpha is ignored)
+		@param alphaStream Stream of image supplying the alpha channel. If a luminance image the
+			single channel is used directly, if an RGB image then the values are
+			converted to greyscale.
+		@param format The destination format
+		@param rgbType The type of the RGB image. Used to decide what decompression
+			codec to use. Can be left blank if the stream data includes
+			a header to identify the data.
+		@param alphaType The type of the alpha image. Used to decide what decompression
+			codec to use. Can be left blank if the stream data includes
+			a header to identify the data.
+		*/
+		Image & loadTwoImagesAsRGBA(DataStreamPtr& rgbStream, DataStreamPtr& alphaStream, PixelFormat = PF_BYTE_RGBA,
+			const String& rgbType = StringUtil::BLANK, const String& alphaType = StringUtil::BLANK);
+
+		/** Utility method to combine 2 separate images into this one, with the first
+			image source supplying the RGB channels, and the second image supplying the 
+			alpha channel (as luminance or separate alpha). 
+		@param rgb Image supplying the RGB channels (any alpha is ignored)
+		@param alpha Image supplying the alpha channel. If a luminance image the
+			single channel is used directly, if an RGB image then the values are
+			converted to greyscale.
+		@param format The destination format
+		*/
+		Image & combineTwoImagesAsRGBA(const Image& rgb, const Image& alpha, PixelFormat format = PF_BYTE_RGBA);
+
         
-        /** Save the image as a file. */
+        /** Save the image as a file. 
+		@remarks
+			Saving and loading are implemented by back end (sometimes third 
+			party) codecs.  Implemented saving functionality is more limited
+			than loading in some cases.	Particulary DDS file format support 
+			is currently limited to true colour or single channel float32, 
+			square, power of two textures with no mipmaps.  Volumetric support
+			is currently limited to DDS files.
+		*/
         void save(const String& filename);
 
 		/** Encode the image and return a stream to the data. 
@@ -381,6 +438,9 @@ namespace Ogre {
          */
         PixelBox getPixelBox(size_t face = 0, size_t mipmap = 0) const;
 
+		/// Delete all the memory held by this image, if owned by this image (not dynamic)
+		void freeMemory();
+
 		enum Filter
 		{
 			FILTER_NEAREST,
@@ -433,9 +493,11 @@ namespace Ogre {
 		bool m_bAutoDelete;
     };
 
-	typedef std::vector<Image*> ImagePtrList;
-	typedef std::vector<const Image*> ConstImagePtrList;
+	typedef vector<Image*>::type ImagePtrList;
+	typedef vector<const Image*>::type ConstImagePtrList;
 
+	/** @} */
+	/** @} */
 
 } // namespace
 

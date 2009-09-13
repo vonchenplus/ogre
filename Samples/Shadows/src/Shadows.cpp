@@ -50,7 +50,7 @@ LGPL like the rest of the engine.
 Entity* mAthene;
 AnimationState* mAnimState = 0;
 Entity* pPlaneEnt;
-std::vector<Entity*> pColumns;
+vector<Entity*>::type pColumns;
 Light* mLight;
 Light* mSunLight;
 SceneNode* mLightNode = 0;
@@ -203,7 +203,7 @@ public:
 				mat->load();
 				Ogre::GpuProgramParametersSharedPtr fparams = 
 					mat->getBestTechnique()->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
+//				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
 				// A bit hacky - Cg & HLSL index arrays via [0], GLSL does not
 				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsHorz[0], 15);
 				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
@@ -216,7 +216,7 @@ public:
 				mat->load();
 				Ogre::GpuProgramParametersSharedPtr fparams = 
 					mat->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
+//				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
 				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsVert[0], 15);
 				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
 
@@ -736,6 +736,7 @@ protected:
             mMinFlareSize, mMaxFlareSize));
         Controller<Real>* controller = contMgr.createController(
             contMgr.getFrameTimeSource(), val, func);
+        (void)controller; // Silence warning
 
         //mLight->setPosition(Vector3(300,250,-300));
         mLightNode->setPosition(Vector3(300,1750,-700));
@@ -1306,11 +1307,11 @@ protected:
 
 
 		mFixedBiasText->setText(StringConverter::toString(
-			mFixedBias->getScrollPosition(), 4, 5, '0', std::ios::fixed));
+			mFixedBias->getScrollPosition(), 4, 5, '0', std::ios::fixed).c_str());
 		mGradientBiasText->setText(StringConverter::toString(
-			mGradientBias->getScrollPosition(), 4, 5, '0', std::ios::fixed));
+			mGradientBias->getScrollPosition(), 4, 5, '0', std::ios::fixed).c_str());
 		mGradientClampText->setText(StringConverter::toString(
-			mGradientClamp->getScrollPosition(), 4, 5, '0', std::ios::fixed));
+			mGradientClamp->getScrollPosition(), 4, 5, '0', std::ios::fixed).c_str());
 	}
 
 	void setDefaultDepthShadowParams()
@@ -1361,7 +1362,7 @@ protected:
 		// Sort out base materials
 		pPlaneEnt->setMaterialName(BASIC_ROCKWALL_MATERIAL);
 		mAthene->setMaterialName(BASIC_ATHENE_MATERIAL);
-		for (std::vector<Entity*>::iterator i = pColumns.begin();
+		for (vector<Entity*>::type::iterator i = pColumns.begin();
 			i != pColumns.end(); ++i)
 		{
 			(*i)->setMaterialName(BASIC_ROCKWALL_MATERIAL);
@@ -1416,7 +1417,7 @@ protected:
 					// Sort out base materials
 					pPlaneEnt->setMaterialName(CUSTOM_ROCKWALL_MATERIAL);
 					mAthene->setMaterialName(CUSTOM_ATHENE_MATERIAL);
-					for (std::vector<Entity*>::iterator i = pColumns.begin();
+					for (vector<Entity*>::type::iterator i = pColumns.begin();
 						i != pColumns.end(); ++i)
 					{
 						(*i)->setMaterialName(CUSTOM_ROCKWALL_MATERIAL);
@@ -1453,7 +1454,7 @@ protected:
 					// Sort out base materials
 					pPlaneEnt->setMaterialName(CUSTOM_ROCKWALL_MATERIAL + "/PCF");
 					mAthene->setMaterialName(CUSTOM_ATHENE_MATERIAL + "/PCF");
-					for (std::vector<Entity*>::iterator i = pColumns.begin();
+					for (vector<Entity*>::type::iterator i = pColumns.begin();
 						i != pColumns.end(); ++i)
 					{
 						(*i)->setMaterialName(CUSTOM_ROCKWALL_MATERIAL + "/PCF");
@@ -1522,7 +1523,6 @@ public:
 };
 
 
-
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 #define WIN32_LEAN_AND_MEAN
 #include "windows.h"
@@ -1538,6 +1538,12 @@ INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT )
 int main(int argc, char *argv[])
 #endif
 {
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+        NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+        int retVal = UIApplicationMain(argc, argv, @"UIApplication", @"AppDelegate");
+        [pool release];
+        return retVal;
+#else
     // Create application object
     ShadowsApplication app;
 
@@ -1553,8 +1559,82 @@ int main(int argc, char *argv[])
     }
 
     return 0;
+#endif
 }
 
 #ifdef __cplusplus
 }
+#endif
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#   ifdef __OBJC__
+@interface AppDelegate : NSObject <UIApplicationDelegate>
+{
+}
+
+- (void)go;
+
+@end
+
+@implementation AppDelegate
+
+- (void)go {
+    // Create application object
+    ShadowsApplication app;
+    try {
+        app.go();
+    } catch( Ogre::Exception& e ) {
+        std::cerr << "An exception has occured: " <<
+        e.getFullDescription().c_str() << std::endl;
+    }
+}
+
+- (void)applicationDidFinishLaunching:(UIApplication *)application {
+    // Hide the status bar
+    [[UIApplication sharedApplication] setStatusBarHidden:YES];
+
+    // Create a window
+    UIWindow *window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+
+    // Create an image view
+    UIImageView *imageView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"Default.png"]];
+    [window addSubview:imageView];
+    
+    // Create an indeterminate status indicator
+    UIActivityIndicatorView *indicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
+    [indicator setFrame:CGRectMake(150, 280, 20, 20)];
+    [indicator startAnimating];
+    [window addSubview:indicator];
+    
+    // Display our window
+    [window makeKeyAndVisible];
+    
+    // Clean up
+    [imageView release];
+    [indicator release];
+
+    [NSThread detachNewThreadSelector:@selector(go) toTarget:self withObject:nil];
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application {
+    Root::getSingleton().queueEndRendering();
+}
+
+//- (void)applicationWillResignActive:(UIApplication *)application
+//{
+//    // Pause FrameListeners and rendering
+//}
+//
+//- (void)applicationDidBecomeActive:(UIApplication *)application
+//{
+//    // Resume FrameListeners and rendering
+//}
+
+- (void)dealloc {
+    [super dealloc];
+}
+
+@end
+#   endif
+
 #endif

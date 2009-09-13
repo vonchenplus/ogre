@@ -112,7 +112,7 @@ private:
 	MeshPtr clonedMesh ;
 
 	Entity *objectEntity ;
-	std::vector<MaterialPtr> clonedMaterials ;
+	vector<MaterialPtr>::type clonedMaterials ;
 
 	// configuration
 	Real displacement ;
@@ -522,7 +522,7 @@ private:
 		unsigned int i ;
 		String cubeMapName = availableCubeMaps[currentCubeMapIndex];
 		Pass *pass = material->getTechnique(0)->getPass(0);
-		for(i=0;i<(int)pass->getTextureUnitState(0)->getNumFrames();i++) {
+		for(i=0;i<(unsigned int)pass->getTextureUnitState(0)->getNumFrames();i++) {
 			String oldTexName = pass->getTextureUnitState(0)->
 				getFrameTextureName(i);
 			TexturePtr oldTex = TextureManager::getSingleton().getByName(oldTexName);
@@ -533,7 +533,7 @@ private:
 		MaterialPtr mat2 = 
 			MaterialManager::getSingleton().getByName(SKYBOX_MATERIAL);
         Pass* pass2 = mat2->getTechnique(0)->getPass(0);
-		for(i=0;i<(int)pass2->getTextureUnitState(0)->getNumFrames();i++) {
+		for(i=0;i<(unsigned int)pass2->getTextureUnitState(0)->getNumFrames();i++) {
 			String oldTexName = pass2->getTextureUnitState(0)->
 				getFrameTextureName(i);
 			TexturePtr oldTex = TextureManager::getSingleton().getByName(oldTexName);
@@ -564,7 +564,7 @@ private:
 #define MEDIA_FILENAME "media.cfg"
 	void readConfig()
 	{
-        std::string media_filename(MEDIA_FILENAME);
+        String media_filename(MEDIA_FILENAME);
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
         media_filename = macBundlePath() + "/Contents/Resources/" + media_filename;
 #endif

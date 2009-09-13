@@ -195,7 +195,7 @@ namespace Ogre
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
 	FloatGpuParameterControllerValue::FloatGpuParameterControllerValue(
-			GpuProgramParameters* params, size_t index) :
+			GpuProgramParametersSharedPtr params, size_t index) :
 		mParams(params), mParamIndex(index)
 	{
 	}
@@ -208,7 +208,7 @@ namespace Ogre
     //-----------------------------------------------------------------------
 	void FloatGpuParameterControllerValue::setValue(Real val)
 	{
-		static Vector4 v4 = Vector4(0,0,0,0);
+		Vector4 v4 = Vector4(0,0,0,0);
 		v4.x = val;
 		mParams->setConstant(mParamIndex, v4);
 	}
@@ -301,7 +301,7 @@ namespace Ogre
     Real WaveformControllerFunction::calculate(Real source)
     {
         Real input = getAdjustedInput(source * mFrequency);
-        Real output;
+        Real output = 0;
         // For simplicity, factor input down to {0,1)
         // Use looped subtract rather than divide / round
         while (input >= 1.0)

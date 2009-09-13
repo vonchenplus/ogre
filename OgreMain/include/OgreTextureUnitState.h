@@ -38,7 +38,13 @@ Torus Knot Software Ltd.
 #include "OgreTexture.h"
 
 namespace Ogre {
-    /** Class representing the state of a single texture unit during a Pass of a
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Materials
+	*  @{
+	*/
+	/** Class representing the state of a single texture unit during a Pass of a
         Technique, of a Material.
     @remarks
         Texture units are pipelines for retrieving texture data for rendering onto
@@ -164,7 +170,7 @@ namespace Ogre {
 
         /** Texture effects in a multimap paired array
         */
-        typedef std::multimap<TextureEffectType, TextureEffect> EffectMap;
+        typedef multimap<TextureEffectType, TextureEffect>::type EffectMap;
 
         /** Default constructor.
         */
@@ -1142,8 +1148,8 @@ protected:
         // Complex members (those that can't be copied using memcpy) are at the end to 
         // allow for fast copying of the basic members.
         //
-        std::vector<String> mFrames;
-		mutable std::vector<TexturePtr> mFramePtrs;
+        vector<String>::type mFrames;
+		mutable vector<TexturePtr>::type mFramePtrs;
         String mName;               // optional name for the TUS
         String mTextureNameAlias;       // optional alias for texture frames
         EffectMap mEffects;
@@ -1178,6 +1184,8 @@ protected:
 
     };
 
+	/** @} */
+	/** @} */
 
 }
 

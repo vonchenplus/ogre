@@ -32,18 +32,15 @@ Torus Knot Software Ltd.
 #include "OgreD3D9Prerequisites.h"
 #include "OgreD3D9Driver.h"
 
-#include <d3d9.h>
-
 namespace Ogre 
 {
 	class D3D9DriverList
 	{
 	private:
-		std::vector<D3D9Driver> mDriverList;
-		LPDIRECT3D9 mpD3D;
-
+		vector<D3D9Driver>::type mDriverList;
+		
 	public:
-		D3D9DriverList( LPDIRECT3D9 pD3D );
+		D3D9DriverList();
 		~D3D9DriverList();
 
 		BOOL enumerate();

@@ -105,38 +105,6 @@ namespace Ogre
 		return false;
 	}
 
-	/* Add a portal to the zone
-	*/
-	void DefaultZone::_addPortal( Portal * newPortal)
-	{
-		if (newPortal)
-		{
-			// make sure portal is unique (at least in this zone)
-			PortalList::iterator it = std::find( mPortals.begin(), mPortals.end(), newPortal );
-			if (it != mPortals.end())
-			{
-				OGRE_EXCEPT(
-					Exception::ERR_DUPLICATE_ITEM,
-					"A portal with the name " + newPortal->getName() + " already exists",
-					"DefaultZone::_addPortal" );
-			}
-			// add portal to portals list
-	        mPortals.push_back( newPortal );
-			// tell the portal which zone it's currently in
-			newPortal->setCurrentHomeZone(this);
-		}
-	}
-
-	/* Remove a portal from the zone (does not erase the portal object, just removes reference)
-	*/
-	void DefaultZone::_removePortal( Portal * removePortal)
-	{
-		if (removePortal)
-		{
-			mPortals.erase( std::find( mPortals.begin(), mPortals.end(), removePortal ) );
-		}
-	}
-
 	/* Recursively check for intersection of the given scene node
 	 * with zone portals.  If the node touches a portal, then the
 	 * connected zone is assumed to be touched.  The zone adds
@@ -187,7 +155,7 @@ namespace Ogre
     *       of any zone-specific optimizations for checking portal visibility
     */
     void DefaultZone::_checkLightAgainstPortals(PCZLight *light, 
-                                                long frameCount, 
+                                                unsigned long frameCount, 
                                                 PCZFrustum *portalFrustum,
                                                 Portal * ignorePortal)
     {
@@ -299,51 +267,92 @@ namespace Ogre
         }           
     }
 
-	/** Update the spatial data for the portals in the zone
-	* NOTE: All scenenodes must be up-to-date before calling this routine.
-	*/
-	void DefaultZone::updatePortalsSpatially(void)
-	{
-		// update each portal spatial data
-		for ( PortalList::iterator it = mPortals.begin(); it != mPortals.end(); ++it )
-		{
-			Portal * p = *it;
-			p->updateDerivedValues();
-		}
-	}
-
 	/** Update the zone data for the portals in the zone
 	* NOTE: All portal spatial data must be up-to-date before calling this routine.
 	*/
 	void DefaultZone::updatePortalsZoneData(void)
 	{
 		PortalList transferPortalList;
-		// check each portal to see if it's intersecting another portal of greater size
+		AntiPortalList transferAntiPortalList;
+		// check each portal to see if it's intersecting another portal of smaller size
 		for ( PortalList::iterator it = mPortals.begin(); it != mPortals.end(); ++it )
 		{
 			Portal * p = *it;
+			bool portalNeedUpdate = p->needUpdate();
+
 			Real pRadius = p->getRadius();
+
 			// First we check against portals in the SAME zone (and only if they have a 
 			// target zone different from the home zone)
-			for ( PortalList::iterator it2 = mPortals.begin(); it2 != mPortals.end(); ++it2 )
+			// Here we check only against portals that moved and of smaller size.
+
+			// We do not need to check portal againts previous portals 
+			// since it would have been already checked.
+			// Hence we start with the next portal after the current portal.
+			PortalList::iterator it2 = it;
+			for ( ++it2; it2 != mPortals.end(); ++it2 )
 			{
 				Portal * p2 = (*it2);
-				// only check against bigger portals (this will also prevent checking against self)
-				// and only against portals which point to another zone
-				if (pRadius < p2->getRadius() && p2->getTargetZone() != this)
+
+				// Skip portal if it doesn't need updating.
+				// If both portals are not moving, then there's no need to check between them.
+				if (!portalNeedUpdate && !p2->needUpdate()) continue;
+
+				// Skip portal if it's not pointing to another zone.
+				if (p2->getTargetZone() == this) continue;
+
+				// Skip portal if it's pointing to the same target zone as this portal points to
+				if (p2->getTargetZone() == p->getTargetZone()) continue;
+
+				if (pRadius > p2->getRadius())
 				{
-					// Portal#2 is bigger than Portal1, check for crossing
-					if (p->crossedPortal(p2) && p->getCurrentHomeZone() != p2->getTargetZone())
+					// Portal#1 is bigger than Portal#2, check for crossing
+					if (p2->getCurrentHomeZone() != p->getTargetZone() && p2->crossedPortal(p))
+					{
+						// portal#2 crossed portal#1 - flag portal#2 to be moved to portal#1's target zone
+						p2->setNewHomeZone(p->getTargetZone());
+						transferPortalList.push_back(p2);
+					}
+				}
+				else if (pRadius < p2->getRadius())
+				{
+					// Portal #2 is bigger than Portal #1, check for crossing
+					if (p->getCurrentHomeZone() != p2->getTargetZone() && p->crossedPortal(p2))
 					{
 						// portal#1 crossed portal#2 - flag portal#1 to be moved to portal#2's target zone
 						p->setNewHomeZone(p2->getTargetZone());
 						transferPortalList.push_back(p);
-						break;
+						continue;
 					}
 				}
 			}
 
-			// Second we check against portals in the target zone (and only if that target
+			// Secondly we check againts the antiportals of this zone.
+			for (AntiPortalList::iterator ait = mAntiPortals.begin(); ait != mAntiPortals.end(); ++ait)
+			{
+				AntiPortal* ap = (*ait);
+
+				// Skip portal if it doesn't need updating.
+				// If both portals are not moving, then there's no need to check between them.
+				if (!portalNeedUpdate && !ap->needUpdate()) continue;
+
+				// only check for crossing if AntiPortal smaller than portal.
+				if (pRadius > ap->getRadius())
+				{
+					// Portal#1 is bigger than AntiPortal, check for crossing
+					if (ap->crossedPortal(p))
+					{
+						// AntiPortal crossed Portal#1 - flag AntiPortal to be moved to Portal#1's target zone
+						ap->setNewHomeZone(p->getTargetZone());
+						transferAntiPortalList.push_back(ap);
+					}
+				}
+			}
+
+			// Skip portal if it doesn't need updating.
+			if (!portalNeedUpdate) continue;
+
+			// Thirdly we check against portals in the target zone (and only if that target
 			// zone is different from the home zone)
 			PCZone * tzone = p->getTargetZone();
 			if (tzone != this)
@@ -351,12 +360,11 @@ namespace Ogre
 				for ( PortalList::iterator it3 = tzone->mPortals.begin(); it3 != tzone->mPortals.end(); ++it3 )
 				{
 					Portal * p3 = (*it3);
-					// only check against bigger portals
+					// only check against bigger regular portals
 					if (pRadius < p3->getRadius())
 					{
 						// Portal#3 is bigger than Portal#1, check for crossing
-						if (p->crossedPortal(p3) && 
-							p->getCurrentHomeZone() != p3->getTargetZone())
+						if (p->getCurrentHomeZone() != p3->getTargetZone() && p->crossedPortal(p3))
 						{
 							// Portal#1 crossed Portal#3 - switch target zones for Portal#1
 							p->setTargetZone(p3->getTargetZone());
@@ -377,7 +385,48 @@ namespace Ogre
 				p->setNewHomeZone(0);
 			}
 		}
-		transferPortalList.clear();
+		// transfer any anti portals to new zones that have been flagged
+		for (AntiPortalList::iterator it = transferAntiPortalList.begin(); it != transferAntiPortalList.end(); ++it)
+		{
+			AntiPortal* p = *it;
+			if (p->getNewHomeZone() != 0)
+			{
+				_removeAntiPortal(p);
+				p->getNewHomeZone()->_addAntiPortal(p);
+				p->setNewHomeZone(0);
+			}
+		}
+	}
+
+	/** Mark nodes dirty base on moving portals. */
+	void DefaultZone::dirtyNodeByMovingPortals(void)
+	{
+		// default zone has no space partitioning algo.
+		// So it's impracticle to do any AABB to find node of interest by portals.
+		// Hence for this case, we just mark all nodes as dirty as long as there's
+		// any moving portal within the zone.
+		for ( PortalList::iterator it = mPortals.begin(); it != mPortals.end(); ++it )
+		{
+			if ((*it)->needUpdate())
+			{
+				// Mark all home nodes.
+				PCZSceneNodeList::iterator it2 = mHomeNodeList.begin();
+				while ( it2 != mHomeNodeList.end() )
+				{
+					(*it2)->setMoved(true);
+					++it2;
+				}
+
+				// Mark all visitor nodes.
+				it2 = mVisitorNodeList.begin();
+				while ( it2 != mVisitorNodeList.end() )
+				{
+					(*it2)->setMoved(true);
+					++it2;
+				}
+				return;
+			}
+		}
 	}
 
     /* The following function checks if a node has left it's current home zone.
@@ -400,6 +449,7 @@ namespace Ogre
 		for (pi = mPortals.begin(); pi != piend; pi++)
 		{
 			portal = *pi;
+
 			Portal::PortalIntersectResult pir = portal->intersects(pczsn);
 			switch (pir)
 			{
@@ -490,7 +540,7 @@ namespace Ogre
 					// if we are displaying nodes, add the node renderable to the queue
 					if ( displayNodes )
 					{
-						queue -> addRenderable( pczsn );
+						queue -> addRenderable( pczsn->getDebugRenderable() );
 					}
 					// if the scene manager or the node wants the bounding box shown, add it to the queue
 					if (pczsn->getShowBoundingBox() || showBoundingBoxes)
@@ -524,7 +574,7 @@ namespace Ogre
 					// if we are displaying nodes, add the node renderable to the queue
 					if ( displayNodes )
 					{
-						queue -> addRenderable( pczsn );
+						queue -> addRenderable( pczsn->getDebugRenderable() );
 					}
 					// if the scene manager or the node wants the bounding box shown, add it to the queue
 					if (pczsn->getShowBoundingBox() || showBoundingBoxes)
@@ -539,46 +589,100 @@ namespace Ogre
             ++it;
         }
 
-		// find visible portals in the zone and recurse into them
-        PortalList::iterator pit = mPortals.begin();
-
-        while ( pit != mPortals.end() )
-        {
-            Portal * portal = *pit;
-			// for portal, check visibility using world bounding sphere & direction
-			vis = camera->isVisible(portal);
-			if (vis)
+		// Here we merge both portal and antiportal visible to the camera into one list.
+		// Then we sort them in the order from nearest to furthest from camera.
+		PortalBaseList sortedPortalList;
+		for (AntiPortalList::iterator iter = mAntiPortals.begin(); iter != mAntiPortals.end(); ++iter)
+		{
+			AntiPortal* portal = *iter;
+			if (camera->isVisible(portal))
 			{
+				sortedPortalList.push_back(portal);
+			}
+		}
+		for (PortalList::iterator iter = mPortals.begin(); iter != mPortals.end(); ++iter)
+		{
+			Portal* portal = *iter;
+			if (camera->isVisible(portal))
+			{
+				sortedPortalList.push_back(portal);
+			}
+		}
+		const Vector3& cameraOrigin(camera->getDerivedPosition());
+		std::sort(sortedPortalList.begin(), sortedPortalList.end(),
+			PortalSortDistance(cameraOrigin));
+
+		// create a standalone frustum for anti portal use.
+		// we're doing this instead of using camera because we don't need
+		// to do camera frustum check again.
+		PCZFrustum antiPortalFrustum;
+		antiPortalFrustum.setOrigin(cameraOrigin);
+		antiPortalFrustum.setProjectionType(camera->getProjectionType());
+
+		// now we do culling check and remove hidden portals.
+		// whenever we get a portal in the main loop, we can be sure that it is not
+		// occluded by AntiPortal. So we do traversal right there and then.
+		// This is because the portal list has been sorted.
+		size_t sortedPortalListCount = sortedPortalList.size();
+		for (size_t i = 0; i < sortedPortalListCount; ++i)
+		{
+			PortalBase* portalBase = sortedPortalList[i];
+			if (!portalBase) continue; // skip removed portal.
+
+			if (portalBase->getTypeFlags() == PortalFactory::FACTORY_TYPE_FLAG)
+			{
+				Portal* portal = static_cast<Portal*>(portalBase);
 				// portal is visible. Add the portal as extra culling planes to camera
 				int planes_added = camera->addPortalCullingPlanes(portal);
 				// tell target zone it's visible this frame
 				portal->getTargetZone()->setLastVisibleFrame(mLastVisibleFrame);
 				portal->getTargetZone()->setLastVisibleFromCamera(camera);
 				// recurse into the connected zone 
-				portal->getTargetZone()->findVisibleNodes(camera, 
-														  visibleNodeList, 
-														  queue, 
-														  visibleBounds, 
+				portal->getTargetZone()->findVisibleNodes(camera,
+														  visibleNodeList,
+														  queue,
+														  visibleBounds,
 														  onlyShadowCasters,
 														  displayNodes,
 														  showBoundingBoxes);
 				if (planes_added > 0)
 				{
-					// Then remove the extra culling planes added before going to the next portal in this zone.
+					// Then remove the extra culling planes added before going to the next portal in the list.
 					camera->removePortalCullingPlanes(portal);
 				}
 			}
-			pit++;
+			else if (i < sortedPortalListCount) // skip antiportal test if it is the last item in the list.
+			{
+				// this is an anti portal. So we use it to test preceding portals in the list.
+				AntiPortal* antiPortal = static_cast<AntiPortal*>(portalBase);
+				int planes_added = antiPortalFrustum.addPortalCullingPlanes(antiPortal);
+
+				for (size_t j = i + 1; j < sortedPortalListCount; ++j)
+				{
+					PortalBase* otherPortal = sortedPortalList[j];
+					// Since this is an antiportal, we are doing the inverse of the test.
+					// Here if the portal is fully visible in the anti portal fustrum, it means it's hidden.
+					if (otherPortal && antiPortalFrustum.isFullyVisible(otherPortal))
+						sortedPortalList[j] = NULL;
+				}
+
+				if (planes_added > 0)
+				{
+					// Then remove the extra culling planes added before going to the next portal in the list.
+					antiPortalFrustum.removePortalCullingPlanes(antiPortal);
+				}
+			}
 		}
-    }
-    // --- find nodes which intersect various types of BV's ---
+	}
+
+	// --- find nodes which intersect various types of BV's ---
 	void DefaultZone::_findNodes( const AxisAlignedBox &t, 
-							      PCZSceneNodeList &list, 
-                                  PortalList &visitedPortals,
-						 		  bool includeVisitors,
+								  PCZSceneNodeList &list, 
+								  PortalList &visitedPortals,
+								  bool includeVisitors,
 								  bool recurseThruPortals,
 								  PCZSceneNode *exclude )
-    {
+	{
 		// if this zone has an enclosure, check against the enclosure AABB first
 		if (mEnclosureNode)
 		{
@@ -644,7 +748,7 @@ namespace Ogre
             {
                 Portal * portal = *pit;
 			    // check portal versus bounding box
-			    if (portal->intersects(t))
+				if (portal->intersects(t))
 			    {
                     // make sure portal hasn't already been recursed through
                     PortalList::iterator pit2 = std::find(visitedPortals.begin(), visitedPortals.end(), portal);
@@ -730,36 +834,36 @@ namespace Ogre
 			}
 		}
 
-        // if asked to, recurse through portals
-        if (recurseThruPortals)
-        {
-            PortalList::iterator pit = mPortals.begin();
-            while ( pit != mPortals.end() )
-            {
-                Portal * portal = *pit;
-			    // check portal versus boundign box
-			    if (portal->intersects(t))
-			    {
-                    // make sure portal hasn't already been recursed through
-                    PortalList::iterator pit2 = std::find(visitedPortals.begin(), visitedPortals.end(), portal);
-                    if (pit2 == visitedPortals.end())
-                    {
-                        // save portal to the visitedPortals list
-                        visitedPortals.push_front(portal);
-				        // recurse into the connected zone 
-				        portal->getTargetZone()->_findNodes(t, 
-														    list, 
-                                                            visitedPortals,
-														    includeVisitors, 
-														    recurseThruPortals, 
-														    exclude);
-                    }
-			    }
-			    pit++;
-		    }
-        }
+		// if asked to, recurse through portals
+		if (recurseThruPortals)
+		{
+			PortalList::iterator pit = mPortals.begin();
+			while ( pit != mPortals.end() )
+			{
+				Portal * portal = *pit;
+				// check portal versus boundign box
+				if (portal->intersects(t))
+				{
+					// make sure portal hasn't already been recursed through
+					PortalList::iterator pit2 = std::find(visitedPortals.begin(), visitedPortals.end(), portal);
+					if (pit2 == visitedPortals.end())
+					{
+						// save portal to the visitedPortals list
+						visitedPortals.push_front(portal);
+						// recurse into the connected zone 
+						portal->getTargetZone()->_findNodes(t, 
+															list, 
+															visitedPortals,
+															includeVisitors, 
+															recurseThruPortals, 
+															exclude);
+					}
+				}
+				pit++;
+			}
+		}
 
-    }
+	}
 
     void DefaultZone::_findNodes( const PlaneBoundedVolume &t, 
 							      PCZSceneNodeList &list, 
@@ -825,36 +929,36 @@ namespace Ogre
 			}
 		}
 
-        // if asked to, recurse through portals
-        if (recurseThruPortals)
-        {
-            PortalList::iterator pit = mPortals.begin();
-            while ( pit != mPortals.end() )
-            {
-                Portal * portal = *pit;
-			    // check portal versus boundign box
-			    if (portal->intersects(t))
-			    {
-                    // make sure portal hasn't already been recursed through
-                    PortalList::iterator pit2 = std::find(visitedPortals.begin(), visitedPortals.end(), portal);
-                    if (pit2 == visitedPortals.end())
-                    {
-                        // save portal to the visitedPortals list
-                        visitedPortals.push_front(portal);
-				        // recurse into the connected zone 
-				        portal->getTargetZone()->_findNodes(t, 
-														    list, 
-                                                            visitedPortals,
-														    includeVisitors, 
-														    recurseThruPortals, 
-														    exclude);
-                    }
-			    }
-			    pit++;
-		    }
-        }
+		// if asked to, recurse through portals
+		if (recurseThruPortals)
+		{
+			PortalList::iterator pit = mPortals.begin();
+			while ( pit != mPortals.end() )
+			{
+				Portal * portal = *pit;
+				// check portal versus boundign box
+				if (portal->intersects(t))
+				{
+					// make sure portal hasn't already been recursed through
+					PortalList::iterator pit2 = std::find(visitedPortals.begin(), visitedPortals.end(), portal);
+					if (pit2 == visitedPortals.end())
+					{
+						// save portal to the visitedPortals list
+						visitedPortals.push_front(portal);
+						// recurse into the connected zone 
+						portal->getTargetZone()->_findNodes(t, 
+															list, 
+															visitedPortals,
+															includeVisitors, 
+															recurseThruPortals, 
+															exclude);
+					}
+				}
+				pit++;
+			}
+		}
 
-    }
+	}
 
     void DefaultZone::_findNodes( const Ray &t, 
 							      PCZSceneNodeList &list, 
@@ -921,36 +1025,36 @@ namespace Ogre
 			}
 		}
 
-        // if asked to, recurse through portals
-        if (recurseThruPortals)
-        {
-            PortalList::iterator pit = mPortals.begin();
-            while ( pit != mPortals.end() )
-            {
-                Portal * portal = *pit;
-			    // check portal versus boundign box
-			    if (portal->intersects(t))
-			    {
-                    // make sure portal hasn't already been recursed through
-                    PortalList::iterator pit2 = std::find(visitedPortals.begin(), visitedPortals.end(), portal);
-                    if (pit2 == visitedPortals.end())
-                    {
-                        // save portal to the visitedPortals list
-                        visitedPortals.push_front(portal);
-				        // recurse into the connected zone 
-				        portal->getTargetZone()->_findNodes(t, 
-														    list, 
-                                                            visitedPortals,
-														    includeVisitors, 
-														    recurseThruPortals, 
-														    exclude);
-                    }
-			    }
-			    pit++;
-		    }
-        }
+		// if asked to, recurse through portals
+		if (recurseThruPortals)
+		{
+			PortalList::iterator pit = mPortals.begin();
+			while ( pit != mPortals.end() )
+			{
+				Portal * portal = *pit;
+				// check portal versus bounding box
+				if (portal->intersects(t))
+				{
+					// make sure portal hasn't already been recursed through
+					PortalList::iterator pit2 = std::find(visitedPortals.begin(), visitedPortals.end(), portal);
+					if (pit2 == visitedPortals.end())
+					{
+						// save portal to the visitedPortals list
+						visitedPortals.push_front(portal);
+						// recurse into the connected zone 
+						portal->getTargetZone()->_findNodes(t, 
+															list, 
+															visitedPortals,
+															includeVisitors, 
+															recurseThruPortals, 
+															exclude);
+					}
+				}
+				pit++;
+			}
+		}
 
-    }
+	}
 
 	/* Set option for the zone */
 	bool DefaultZone::setOption( const String &name, const void *value )

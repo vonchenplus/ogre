@@ -37,6 +37,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Resources
+	*  @{
+	*/
 	/** Interface definition for factories of HighLevelGpuProgram. */
 	class _OgreExport HighLevelGpuProgramFactory : public FactoryAlloc
 	{
@@ -67,7 +73,7 @@ namespace Ogre {
 		: public ResourceManager, public Singleton<HighLevelGpuProgramManager>
 	{
 	public:
-		typedef std::map<String, HighLevelGpuProgramFactory*> FactoryMap;
+		typedef map<String, HighLevelGpuProgramFactory*>::type FactoryMap;
 	protected:
 		/// Factories capable of creating HighLevelGpuProgram instances
 		FactoryMap mFactories;
@@ -90,6 +96,9 @@ namespace Ogre {
 		void addFactory(HighLevelGpuProgramFactory* factory);
 		/** Remove a factory object for high-level programs of a given language. */
 		void removeFactory(HighLevelGpuProgramFactory* factory);
+
+		/** Returns whether a given high-level language is supported. */
+		bool isLanguageSupported(const String& lang);
 
 
         /** Create a new, unloaded HighLevelGpuProgram. 
@@ -142,6 +151,8 @@ namespace Ogre {
 
 
 	};
+	/** @} */
+	/** @} */
 
 }
 

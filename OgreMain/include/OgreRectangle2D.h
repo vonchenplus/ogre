@@ -35,7 +35,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Allows the rendering of a simple 2D rectangle
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Scene
+	*  @{
+	*/
+	/** Allows the rendering of a simple 2D rectangle
     This class renders a simple 2D rectangle; this rectangle has no depth and
     therefore is best used with specific render queue and depth settings,
     like RENDER_QUEUE_BACKGROUND and 'depth_write off' for backdrops, and 
@@ -62,11 +68,17 @@ namespace Ogre {
         */
         void setCorners(Real left, Real top, Real right, Real bottom);
 
+		/** Sets the normals of the rectangle
+		*/
+		void setNormals(const Ogre::Vector3 &topLeft, const Ogre::Vector3 &bottomLeft, const Ogre::Vector3 &topRight, const Ogre::Vector3 &bottomRight);
+
         Real getSquaredViewDepth(const Camera* cam) const { return 0; }
 
         Real getBoundingRadius(void) const { return 0; }
 
     };
+	/** @} */
+	/** @} */
 
 }// namespace
 

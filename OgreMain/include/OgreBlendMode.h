@@ -33,6 +33,12 @@ Torus Knot Software Ltd.
 #include "OgreColourValue.h"
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Materials
+	*  @{
+	*/
 
     /** Type of texture blend mode.
     */
@@ -240,6 +246,22 @@ namespace Ogre {
         SBF_ONE_MINUS_SOURCE_ALPHA
 
     };
+
+	/** Blending operations controls how objects are blended into the scene. The default operation
+		is add (+) but by changing this you can change how drawn objects are blended into the
+		existing scene.
+	*/
+	enum SceneBlendOperation
+	{
+		SBO_ADD,
+		SBO_SUBTRACT,
+		SBO_REVERSE_SUBTRACT,
+		SBO_MIN,
+		SBO_MAX
+	};
+	/** @} */
+	/** @} */
+
 }
 
 #endif

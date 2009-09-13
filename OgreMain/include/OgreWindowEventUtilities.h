@@ -36,10 +36,20 @@ Torus Knot Software Ltd.
 #  define WIN32_LEAN_AND_MEAN
 #  define NOMINMAX // required to stop windows.h messing up std::min
 #  include <windows.h>
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+#  include <Carbon/Carbon.h>
 #endif
+
+
 
 namespace Ogre
 {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup RenderSystem
+	*  @{
+	*/
 	/**
 	@Remarks
 		Callback class used to send out window events to client app
@@ -159,11 +169,13 @@ namespace Ogre
 #endif
 
 		//These are public only so GLXProc can access them without adding Xlib headers header
-		typedef std::multimap<RenderWindow*, WindowEventListener*> WindowEventListeners;
+		typedef multimap<RenderWindow*, WindowEventListener*>::type WindowEventListeners;
 		static WindowEventListeners _msListeners;
 
-		typedef std::vector<RenderWindow*> Windows;
+		typedef vector<RenderWindow*>::type Windows;
 		static Windows _msWindows;
 	};
+	/** @} */
+	/** @} */
 }
 #endif
