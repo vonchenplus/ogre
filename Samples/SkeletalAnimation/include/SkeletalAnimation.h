@@ -4,11 +4,11 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 /*
@@ -40,7 +40,7 @@ class SkeletalAnimationFrameListener : public ExampleFrameListener
 {
 protected:
 public:
-	SkeletalAnimationFrameListener(RenderWindow* win, Camera* cam, const std::string &debugText)
+	SkeletalAnimationFrameListener(RenderWindow* win, Camera* cam, const String &debugText)
         : ExampleFrameListener(win, cam)
     {
 		mDebugText = debugText;
@@ -88,7 +88,7 @@ public:
     SkeletalApplication() {}
 
 protected:
-	std::string mDebugText;
+	String mDebugText;
 
     // Just override the mandatory create scene method
     void createScene(void)

@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
@@ -34,6 +33,12 @@ Torus Knot Software Ltd.
 #include "OgrePrerequisites.h"
 
 namespace Ogre {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
 
     /** Compiler2Pass is a generic 2 pass compiler/assembler
     @remarks
@@ -170,7 +175,7 @@ class _OgreExport Compiler2Pass : public ScriptTranslatorAlloc
                 : operation(ot), tokenID(token) {}
 	    };
 
-	    typedef std::vector<TokenRule> TokenRuleContainer;
+	    typedef vector<TokenRule>::type TokenRuleContainer;
 	    typedef TokenRuleContainer::iterator TokenRuleIterator;
 
         static const size_t SystemTokenBase = 1000;
@@ -224,10 +229,10 @@ class _OgreExport Compiler2Pass : public ScriptTranslatorAlloc
 
 	    };
 
-        typedef std::vector<LexemeTokenDef> LexemeTokenDefContainer;
+        typedef vector<LexemeTokenDef>::type LexemeTokenDefContainer;
         typedef LexemeTokenDefContainer::iterator LexemeTokenDefIterator;
 
-        typedef std::map<String, size_t> LexemeTokenMap;
+        typedef map<String, size_t>::type LexemeTokenMap;
         typedef LexemeTokenMap::iterator TokenKeyIterator;
         /// map used to lookup client token based on previously defined lexeme
 
@@ -242,7 +247,7 @@ class _OgreExport Compiler2Pass : public ScriptTranslatorAlloc
         bool found;                /// is true if expected token was found
 	    };
 
-	    typedef std::vector<TokenInst> TokenInstContainer;
+	    typedef vector<TokenInst>::type TokenInstContainer;
 	    typedef TokenInstContainer::iterator TokenInstIterator;
 
         // token que, definitions, rules
@@ -280,10 +285,10 @@ class _OgreExport Compiler2Pass : public ScriptTranslatorAlloc
 
 	    /// storage container for constants defined in source
         /// container uses Token index as a key associated with a float constant
-	    std::map<size_t, float> mConstants;
+	    map<size_t, float>::type mConstants;
 	    /// storage container for string labels defined in source
         /// container uses Token index as a key associated with a label
-        typedef std::map<size_t, String> LabelContainer;
+        typedef map<size_t, String>::type LabelContainer;
         LabelContainer mLabels;
         /// flag indicates when a label is being parsed.
         /// It gets set false when a terminal token not of _character_ is encountered
@@ -603,7 +608,7 @@ class _OgreExport Compiler2Pass : public ScriptTranslatorAlloc
         // no matter how many times this class is instantiated.
         static TokenState mBNFTokenState;
         // maintain a map of BNF grammar
-        typedef std::map<String, TokenState> TokenStateContainer;
+        typedef map<String, TokenState>::type TokenStateContainer;
         static TokenStateContainer mClientTokenStates;
         /// if a previous token action was setup then activate it now
         void activatePreviousTokenAction(void);
@@ -659,6 +664,8 @@ class _OgreExport Compiler2Pass : public ScriptTranslatorAlloc
         virtual const String& getClientGrammerName(void) const = 0;
 
     };
+	/** @} */
+	/** @} */
 
 }
 

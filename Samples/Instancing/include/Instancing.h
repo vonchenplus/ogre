@@ -1,5 +1,16 @@
-
-
+/*
+ -----------------------------------------------------------------------------
+ This source file is part of OGRE
+ (Object-oriented Graphics Rendering Engine)
+ For the latest info, see http://www.ogre3d.org/
+ 
+ Copyright (c) 2000-2009 Torus Knot Software Ltd
+ Also see acknowledgements in Readme.html
+ 
+ You may use this sample code for anything you like, it is not covered by the
+ same license as the rest of the engine.
+ -----------------------------------------------------------------------------
+*/
 
 #include "CEGUI/CEGUI.h"
 #include "OgreCEGUIRenderer.h"
@@ -11,12 +22,24 @@
 #include "OgreInstancedGeometry.h"
 
 using namespace Ogre;
-
+inline Ogre::String operator +(const Ogre::String& l,const CEGUI::String& o)
+{
+	return l+o.c_str();
+}
+/*
+inline CEGUI::String operator +(const CEGUI::String& l,const Ogre::String& o)
+{
+	return l+o.c_str();
+}
+*/
 #define maxObjectsPerBatch 80
-#define FLT_MAX         3.402823466e+38F        /* max value */
+#ifndef FLT_MAX
+#  define FLT_MAX         3.402823466e+38F        /* max value */
+#endif
+
 const size_t numTypeMeshes = 4;
 class InstancingApplication;
-String meshes[]=
+Ogre::String meshes[]=
 { 
 	"razor", //0
 	"knot", 
@@ -64,11 +87,11 @@ protected:
 	Ogre::Timer*timer;
 	double mLastTime,mBurnAmount;
 
-	std::vector <InstancedGeometry *>		renderInstance;
-	std::vector <StaticGeometry *>	renderStatic;
-	std::vector <Entity *>			renderEntity;
-	std::vector <SceneNode *>			nodes; 
-	std::vector <Vector3 *>			posMatrices;
+	vector <InstancedGeometry *>::type		renderInstance;
+	vector <StaticGeometry *>::type	renderStatic;
+	vector <Entity *>::type			renderEntity;
+	vector <SceneNode *>::type			nodes; 
+	vector <Vector3 *>::type			posMatrices;
 
 	CEGUI::Renderer* mGUIRenderer;
 	CEGUI::Window* mGuiAvg;
@@ -302,7 +325,7 @@ protected:
 		CEGUI::Combobox*ObjectList=((CEGUI::Combobox*)(wmgr.getWindow((CEGUI::utf8*)"Objects")));
 		for(size_t i=0;i<numTypeMeshes;++i)
 		{
-			CEGUI::ListboxTextItem*item=new CEGUI::ListboxTextItem(meshes[i],i);
+			CEGUI::ListboxTextItem*item=new CEGUI::ListboxTextItem(meshes[i].c_str(),i);
 			ObjectList->addItem(item);
 				
 		}

@@ -4,16 +4,40 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 
 #ifndef _CompositorDemo_H_
 #define _CompositorDemo_H_
+
+// Static plugins declaration section
+// Note that every entry in here adds an extra header / library dependency
+#ifdef OGRE_STATIC_LIB
+#  define OGRE_STATIC_GL
+#  if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#    define OGRE_STATIC_Direct3D9
+// dx10 will only work on vista, so be careful about statically linking
+#    if OGRE_USE_D3D10
+#      define OGRE_STATIC_Direct3D10
+#    endif
+#  endif
+#  define OGRE_STATIC_BSPSceneManager
+#  define OGRE_STATIC_ParticleFX
+#  define OGRE_STATIC_CgProgramManager
+#  ifdef OGRE_USE_PCZ
+#    define OGRE_STATIC_PCZSceneManager
+#    define OGRE_STATIC_OctreeZone
+#  else
+#    define OGRE_STATIC_OctreeSceneManager
+#  endif
+
+#  include "OgreStaticPluginLoader.h"
+#endif
 
 #include "OgreConfigFile.h"
 #include "OgreStringConverter.h"
@@ -41,6 +65,9 @@ LGPL like the rest of the engine.
     {
     protected:
         Ogre::Root*			  mRoot;
+#ifdef OGRE_STATIC_LIB
+		Ogre::StaticPluginLoader	  mStaticPluginLoader;
+#endif
         Ogre::Camera*		  mCamera;
         Ogre::SceneManager*	  mSceneMgr;
         // the scene node of the entity
@@ -54,7 +81,7 @@ LGPL like the rest of the engine.
         size_t				  mCurrentMaterial;
 		Ogre::SceneNode * mSpinny;
 
-//        typedef std::vector< ShaderControlGUIWidget > ShaderControlContainer;
+//        typedef vector< ShaderControlGUIWidget >::type ShaderControlContainer;
 //        typedef ShaderControlContainer::iterator ShaderControlIterator;
 
 //        ShaderControlContainer    mShaderControlContainer;

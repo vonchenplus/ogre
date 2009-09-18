@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include <stdio.h>
@@ -38,16 +37,24 @@ CPPUNIT_TEST_SUITE_REGISTRATION( MeshWithoutIndexDataTests );
 void MeshWithoutIndexDataTests::setUp()
 {
 	LogManager::getSingleton().createLog("MeshWithoutIndexDataTests.log", true);
+	new ResourceGroupManager();
+	new LodStrategyManager();
     mBufMgr = new DefaultHardwareBufferManager();
     mMeshMgr = new MeshManager();
     archiveMgr = new ArchiveManager();
     archiveMgr->addArchiveFactory(new FileSystemArchiveFactory());
+
+	MaterialManager* matMgr = new MaterialManager();
+	matMgr->initialise();
 }
 void MeshWithoutIndexDataTests::tearDown()
 {
     delete mMeshMgr;
     delete mBufMgr;
     delete archiveMgr;
+	delete MaterialManager::getSingletonPtr();
+	delete LodStrategyManager::getSingletonPtr();
+	delete ResourceGroupManager::getSingletonPtr();
 }
 
 void MeshWithoutIndexDataTests::testCreateSimpleLine()
@@ -71,7 +78,7 @@ void MeshWithoutIndexDataTests::testCreateSimpleLine()
     MeshSerializer meshWriter;
     meshWriter.exportMesh(lineMesh.get(), fileName);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 
     ResourceGroupManager::getSingleton().addResourceLocation(".", "FileSystem");
     MeshPtr loadedLine = mMeshMgr->load(fileName, "General");
@@ -84,7 +91,7 @@ void MeshWithoutIndexDataTests::testCreateSimpleLine()
     CPPUNIT_ASSERT(rop.useIndexes == false);
     CPPUNIT_ASSERT(lineMesh->getSubMesh(0)->vertexData->vertexCount == 2);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testCreateLineList()
@@ -112,7 +119,7 @@ void MeshWithoutIndexDataTests::testCreateLineList()
     MeshSerializer meshWriter;
     meshWriter.exportMesh(lineListMesh.get(), fileName);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 
     ResourceGroupManager::getSingleton().addResourceLocation(".", "FileSystem");
     MeshPtr loadedLineList = mMeshMgr->load(fileName, "General");
@@ -125,7 +132,7 @@ void MeshWithoutIndexDataTests::testCreateLineList()
     CPPUNIT_ASSERT(rop.useIndexes == false);
     CPPUNIT_ASSERT(loadedLineList->getSubMesh(0)->vertexData->vertexCount == 6);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testCreateLineStrip()
@@ -151,7 +158,7 @@ void MeshWithoutIndexDataTests::testCreateLineStrip()
     MeshSerializer meshWriter;
     meshWriter.exportMesh(lineStripMesh.get(), fileName);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 
     ResourceGroupManager::getSingleton().addResourceLocation(".", "FileSystem");
     MeshPtr loadedLineStrip = mMeshMgr->load(fileName, "General");
@@ -164,7 +171,7 @@ void MeshWithoutIndexDataTests::testCreateLineStrip()
     CPPUNIT_ASSERT(rop.useIndexes == false);
     CPPUNIT_ASSERT(loadedLineStrip->getSubMesh(0)->vertexData->vertexCount == 4);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testCreatePointList()
@@ -190,7 +197,7 @@ void MeshWithoutIndexDataTests::testCreatePointList()
     MeshSerializer meshWriter;
     meshWriter.exportMesh(pointListMesh.get(), fileName);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 
     ResourceGroupManager::getSingleton().addResourceLocation(".", "FileSystem");
     MeshPtr loadedPointList = mMeshMgr->load(fileName, "General");
@@ -203,7 +210,7 @@ void MeshWithoutIndexDataTests::testCreatePointList()
     CPPUNIT_ASSERT(rop.useIndexes == false);
     CPPUNIT_ASSERT(loadedPointList->getSubMesh(0)->vertexData->vertexCount == 4);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testCreateLineWithMaterial()
@@ -237,7 +244,7 @@ void MeshWithoutIndexDataTests::testCreateLineWithMaterial()
         matName + ".material"
         );
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 
     ResourceGroupManager::getSingleton().addResourceLocation(".", "FileSystem");
     MeshPtr loadedLine = mMeshMgr->load(fileName, "General");
@@ -251,7 +258,7 @@ void MeshWithoutIndexDataTests::testCreateLineWithMaterial()
     CPPUNIT_ASSERT(rop.useIndexes == false);
     CPPUNIT_ASSERT(lineMesh->getSubMesh(0)->vertexData->vertexCount == 2);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void createMeshWithMaterial(String fileName)
@@ -333,7 +340,7 @@ void MeshWithoutIndexDataTests::testCreateMesh()
     MeshSerializer meshWriter;
     meshWriter.exportMesh(mesh.get(), fileName);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 
     ResourceGroupManager::getSingleton().addResourceLocation(".", "FileSystem");
     MeshPtr loadedMesh = mMeshMgr->load(fileName, "General");
@@ -342,7 +349,7 @@ void MeshWithoutIndexDataTests::testCreateMesh()
 
     CPPUNIT_ASSERT(loadedMesh->getNumSubMeshes() == 4);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testCloneMesh()
@@ -358,7 +365,7 @@ void MeshWithoutIndexDataTests::testCloneMesh()
     MeshSerializer meshWriter;
     meshWriter.exportMesh(mesh.get(), fileName);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 
     ResourceGroupManager::getSingleton().addResourceLocation(".", "FileSystem");
     MeshPtr loadedMesh = mMeshMgr->load(fileName, "General");
@@ -367,7 +374,7 @@ void MeshWithoutIndexDataTests::testCloneMesh()
 
     CPPUNIT_ASSERT(loadedMesh->getNumSubMeshes() == 4);
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testEdgeList()
@@ -392,7 +399,7 @@ void MeshWithoutIndexDataTests::testEdgeList()
 
     remove(fileName.c_str());
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testGenerateExtremes()
@@ -419,7 +426,7 @@ void MeshWithoutIndexDataTests::testGenerateExtremes()
         }
     }
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testBuildTangentVectors()
@@ -439,7 +446,7 @@ void MeshWithoutIndexDataTests::testBuildTangentVectors()
     	// ok
     }
     
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }
 
 void MeshWithoutIndexDataTests::testGenerateLodLevels()
@@ -448,7 +455,7 @@ void MeshWithoutIndexDataTests::testGenerateLodLevels()
     createMeshWithMaterial(fileName);
     MeshPtr mesh = mMeshMgr->getByName(fileName);
 
-    Mesh::LodDistanceList lodDistanceList;
+    Mesh::LodValueList lodDistanceList;
     lodDistanceList.push_back(600.0);
     mesh->generateLodLevels(lodDistanceList, ProgressiveMesh::VRQ_CONSTANT, 2);
 
@@ -474,5 +481,5 @@ void MeshWithoutIndexDataTests::testGenerateLodLevels()
 
     remove(fileName.c_str());
 
-    mMeshMgr->remove( mMeshMgr->getByName(fileName) );
+    mMeshMgr->remove( fileName );
 }

@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 PCZSceneManager.cpp  -  description
 -----------------------------------------------------------------------------
@@ -49,15 +48,17 @@ email                : ericc@xenopi.com
 
 namespace Ogre
 {
-    PCZSceneManager::PCZSceneManager(const String& name) : SceneManager(name)
-    {
-        mDefaultZone = 0;
-		mActiveCameraZone = 0;
-		mZoneFactoryManager = 0;
-        mShowPortals = false;
-		mDefaultZoneTypeName = "ZoneType_Default";
-		mDefaultZoneFileName = "none";
-    }
+	PCZSceneManager::PCZSceneManager(const String& name) :
+	SceneManager(name),
+	mDefaultZoneTypeName("ZoneType_Default"),
+	mDefaultZoneFileName("none"),
+	mLastActiveCamera(0),
+	mDefaultZone(0),
+	mShowPortals(false),
+	mZoneFactoryManager(0),
+	mActiveCameraZone(0)
+	{ }
+
     PCZSceneManager::~PCZSceneManager()
     {
         // we don't delete the root scene node here because the
@@ -121,9 +122,11 @@ namespace Ogre
     }
 
 	// Create a portal instance
-	Portal* PCZSceneManager::createPortal(const String &name, Ogre::Portal::PORTAL_TYPE type)
+	Portal* PCZSceneManager::createPortal(const String& name, PortalBase::PORTAL_TYPE type)
 	{
 		Portal* newPortal = OGRE_NEW Portal(name, type);
+		newPortal->_notifyCreator(Root::getSingleton().getMovableObjectFactory("Portal"));
+		newPortal->_notifyManager(this);
 		mPortals.push_front(newPortal);
 		return newPortal;
 	}
@@ -190,6 +193,71 @@ namespace Ogre
 				// inform zone of portal change 
 				homeZone->setPortalsUpdated(true);   
 				homeZone->_removePortal(thePortal);
+			}
+
+			// delete the portal instance
+			OGRE_DELETE thePortal;
+		}
+	}
+
+	/** Create a new anti portal instance */
+	AntiPortal* PCZSceneManager::createAntiPortal(const String& name, PortalBase::PORTAL_TYPE type)
+	{
+		AntiPortal* newAntiPortal = OGRE_NEW AntiPortal(name, type);
+		newAntiPortal->_notifyCreator(Root::getSingleton().getMovableObjectFactory("AntiPortal"));
+		newAntiPortal->_notifyManager(this);
+		mAntiPortals.push_front(newAntiPortal);
+		return newAntiPortal;
+	}
+
+	/** Delete a anti portal instance by pointer */
+	void PCZSceneManager::destroyAntiPortal(AntiPortal * p)
+	{
+		// remove the Portal from it's home zone
+		PCZone* homeZone = p->getCurrentHomeZone();
+		if (homeZone)
+		{
+			// inform zone of portal change. Do here since PCZone is abstract 
+			homeZone->setPortalsUpdated(true);
+			homeZone->_removeAntiPortal(p);
+		}
+
+		// remove the portal from the master portal list
+		AntiPortalList::iterator it = std::find(mAntiPortals.begin(), mAntiPortals.end(), p);
+		if (it != mAntiPortals.end()) mAntiPortals.erase(it);
+
+		// delete the portal instance
+		OGRE_DELETE p;
+	}
+
+	/** Delete a anti portal instance by name */
+	void PCZSceneManager::destroyAntiPortal(const String& portalName)
+	{
+		// find the anti portal from the master portal list
+		AntiPortal* p;
+		AntiPortal* thePortal = 0;
+		AntiPortalList::iterator it = mAntiPortals.begin();
+		while (it != mAntiPortals.end())
+		{
+			p = *it;
+			if (p->getName() == portalName)
+			{
+				thePortal = p;
+				// erase entry in the master list
+				mAntiPortals.erase(it);
+				break;
+			}
+			it++;
+		}
+		if (thePortal)
+		{
+			// remove the Portal from it's home zone
+			PCZone* homeZone = thePortal->getCurrentHomeZone();
+			if (homeZone)
+			{
+				// inform zone of portal change 
+				homeZone->setPortalsUpdated(true);
+				homeZone->_removeAntiPortal(thePortal);
 			}
 
 			// delete the portal instance
@@ -464,66 +532,21 @@ namespace Ogre
 	   2) update the spatial data for all zones (& portals in the zones)
 	   3) Update the PCZSNMap entry for every scene node
 	*/
-    void PCZSceneManager::_updateSceneGraph( Camera * cam )
-    {
+	void PCZSceneManager::_updateSceneGraph( Camera * cam )
+	{
 		// First do the standard scene graph update
-        SceneManager::_updateSceneGraph( cam );
-		// Then do the portal update.  This is done after all the regular
-		// scene graph node updates because portals can move (being attached to scene nodes)
-		// (also clear node refs in every zone)
-	    _updatePortalSpatialData();
+		SceneManager::_updateSceneGraph( cam );
 		// check for portal zone-related changes (portals intersecting other portals)
 		_updatePortalZoneData();
+		// mark nodes dirty base on portals that changed.
+		_dirtyNodeByMovingPortals();
 		// update all scene nodes
 		_updatePCZSceneNodes();
-        // calculate zones affected by each light
-        _calcZonesAffectedByLights(cam);
-		// save node positions
-		//_saveNodePositions();
+		// calculate zones affected by each light
+		_calcZonesAffectedByLights(cam);
 		// clear update flags at end so user triggered updated are 
 		// not cleared prematurely 
 		_clearAllZonesPortalUpdateFlag(); 
-    }
-
-	/* Save the position of all nodes (saved to PCZSN->prevPosition)
-	* NOTE: Yeah, this is inefficient because it's doing EVERY node in the
-	*       scene.  A more efficient way would be override all scene node
-	*	    functions that change position/orientation and save old position
-	*	    & orientation when those functions are called, but that's more 
-	*       coding work than I willing to do right now...
-	*/
-	void PCZSceneManager::_saveNodePositions(void)
-	{
-		SceneNodeList::iterator it = mSceneNodes.begin();
-		PCZSceneNode * pczsn;
-
-	    while ( it != mSceneNodes.end() )
-	    {
-		    pczsn = (PCZSceneNode*)(it->second);
-			// Update a single entry 
-			pczsn->savePrevPosition();
-			// proceed to next entry in the map
-		    ++it;
-	    }
-	}
-
-	/** Update the spatial data for every zone portal in the scene */
-
-	void PCZSceneManager::_updatePortalSpatialData(void)
-	{
-		PCZone * zone;
-	    ZoneMap::iterator zit = mZones.begin();
-
-	    while ( zit != mZones.end() )
-	    {
-		    zone = zit->second;
-			// this call updates Portal spatials 
-			zone->updatePortalsSpatially(); 
-			// clear the visitor node list in the zone while we're here
-			zone->_clearNodeLists(PCZone::VISITOR_NODE_LIST);
-			// proceed to next zone in the list
-		    ++zit;
-	    }
 	}
 
 	/** Update the zone data for every zone portal in the scene */
@@ -543,6 +566,22 @@ namespace Ogre
 	    }
 	}
 
+	/** Mark nodes dirty for every zone with moving portal in the scene */
+	void PCZSceneManager::_dirtyNodeByMovingPortals(void)
+	{
+		PCZone * zone;
+		ZoneMap::iterator zit = mZones.begin();
+
+		while ( zit != mZones.end() )
+		{
+			zone = zit->second;
+			// this call mark nodes dirty base on moving portals 
+			zone->dirtyNodeByMovingPortals(); 
+			// proceed to next zone in the list
+			++zit;
+		}
+	}
+
 	/* Update all PCZSceneNodes. 
 	*/
 	void PCZSceneManager::_updatePCZSceneNodes(void)
@@ -550,17 +589,20 @@ namespace Ogre
 		SceneNodeList::iterator it = mSceneNodes.begin();
 		PCZSceneNode * pczsn;
 
-	    while ( it != mSceneNodes.end() )
-	    {
-		    pczsn = (PCZSceneNode*)(it->second);
-			if (pczsn->isEnabled())
+		while ( it != mSceneNodes.end() )
+		{
+			pczsn = (PCZSceneNode*)(it->second);
+			if (pczsn->isMoved() && pczsn->isEnabled())
 			{
 				// Update a single entry 
-				_updatePCZSceneNode(pczsn); 
+				_updatePCZSceneNode(pczsn);
+
+				// reset moved state.
+				pczsn->setMoved(false);
 			}
 			// proceed to next entry in the list
-		    ++it;
-	    }
+			++it;
+		}
 	}
 
     /*
@@ -605,7 +647,7 @@ namespace Ogre
 			return;
 
 		// clear all references to visiting zones
-		pczsn->clearVisitingZonesMap();
+		pczsn->clearNodeFromVisitedZones();
 
         // Find the current home zone of the node associated with the pczsn entry.
 		_updateHomeZone( pczsn, false );
@@ -879,15 +921,15 @@ namespace Ogre
             "Function doesn't do as advertised",
             "PCZSceneManager::_alertVisibleObjects" );
 
-        NodeList::iterator it = mVisible.begin();
-
-        while ( it != mVisible.end() )
-        {
-            SceneNode * node = *it;
-            // this is where you would do whatever you wanted to the visible node
-            // but right now, it does nothing.
-            ++it;
-        }
+//        NodeList::iterator it = mVisible.begin();
+//
+//        while ( it != mVisible.end() )
+//        {
+//            SceneNode * node = *it;
+//            // this is where you would do whatever you wanted to the visible node
+//            // but right now, it does nothing.
+//            ++it;
+//        }
     }
 
     //-----------------------------------------------------------------------
@@ -986,8 +1028,7 @@ namespace Ogre
 				// add cam distance for sorting if texture shadows
 				if (isShadowTechniqueTextureBased())
 				{
-					(*j)->tempSquareDist = 
-						(camera->getDerivedPosition() - (*j)->getDerivedPosition()).squaredLength();
+					(*j)->_calcTempSquareDist(camera->getDerivedPosition());
 				}
 			}
 
@@ -1139,18 +1180,37 @@ namespace Ogre
 		}
 	}
 
-    // main visibility determination & render queue filling routine
-    // over-ridden from base/default scene manager.  This is *the*
-    // main call.
-    void PCZSceneManager::_findVisibleObjects(Camera * cam, 
-											  VisibleObjectsBoundsInfo* visibleBounds, 
-											  bool onlyShadowCasters )
-    {
-	
+	// main visibility determination & render queue filling routine
+	// over-ridden from base/default scene manager.  This is *the*
+	// main call.
+	void PCZSceneManager::_findVisibleObjects(Camera* cam,
+											  VisibleObjectsBoundsInfo* visibleBounds,
+											  bool onlyShadowCasters)
+	{
 		// clear the render queue
-        getRenderQueue()->clear();
+		getRenderQueue()->clear();
+
+		// if we are re-rendering the scene again with the same camera, we can just use the cache.
+		// this helps post processing compositors.
+		unsigned long frameCount = Root::getSingleton().getNextFrameNumber();
+		if (mLastActiveCamera == cam && mFrameCount == frameCount)
+		{
+			RenderQueue* queue = getRenderQueue();
+			size_t count = mVisible.size();
+			for (size_t i = 0; i < count; ++i)
+			{
+				((PCZSceneNode*)mVisible[i])->_addToRenderQueue(
+					cam, queue, onlyShadowCasters, visibleBounds);
+			}
+			return;
+		}
+
+		// increment the visibility frame counter
+		mFrameCount = frameCount;
+		mLastActiveCamera = cam;
+
 		// clear the list of visible nodes
-        mVisible.clear();
+		mVisible.clear();
 
 		// turn off sky 
 		enableSky(false);
@@ -1158,17 +1218,13 @@ namespace Ogre
 		// remove all extra culling planes
 		((PCZCamera*)cam)->removeAllExtraCullingPlanes();
 
-        // increment the visibility frame counter
-        //mFrameCount++;
-		mFrameCount = Root::getSingleton().getNextFrameNumber();
-
-        // update the camera
-        ((PCZCamera*)cam)->update();
+		// update the camera
+		((PCZCamera*)cam)->update();
 
 		// get the home zone of the camera
-		PCZone * cameraHomeZone = ((PCZSceneNode*)(cam->getParentSceneNode()))->getHomeZone();
+		PCZone* cameraHomeZone = ((PCZSceneNode*)(cam->getParentSceneNode()))->getHomeZone();
 
-        // walk the zones, starting from the camera home zone,
+		// walk the zones, starting from the camera home zone,
 		// adding all visible scene nodes to the mVisibles list
 		cameraHomeZone->setLastVisibleFrame(mFrameCount);
 		cameraHomeZone->findVisibleNodes((PCZCamera*)cam, 
@@ -1178,8 +1234,7 @@ namespace Ogre
 										  onlyShadowCasters,
 										  mDisplayNodes,
 										  mShowBoundingBoxes);
-
-    }
+	}
 
     void PCZSceneManager::findNodesIn( const AxisAlignedBox &box, 
                                        PCZSceneNodeList &list, 

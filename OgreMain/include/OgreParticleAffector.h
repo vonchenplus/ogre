@@ -4,7 +4,7 @@ This source file is part of OGRE
 	(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -36,7 +36,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Abstract class defining the interface to be implemented by particle affectors.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+/** Abstract class defining the interface to be implemented by particle affectors.
     @remarks
         Particle affectors modify particles in a particle system over their lifetime. They can be
         grouped into types, e.g. 'vector force' affectors, 'fader' affectors etc; each type will 
@@ -108,6 +114,8 @@ namespace Ogre {
         const String &getType(void) const { return mType; }
 
     };
+	/** @} */
+	/** @} */
 
 }
 

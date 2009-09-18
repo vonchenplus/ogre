@@ -4,11 +4,11 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 
@@ -39,7 +39,7 @@ struct ShaderControl
 	float convertScrollPositionToParam(const float val) const { return val + MinVal; }
 };
 
-typedef std::vector<ShaderControl> ShaderControlsContainer;
+typedef Ogre::vector<ShaderControl>::type ShaderControlsContainer;
 typedef ShaderControlsContainer::iterator ShaderControlIterator;
 // used for materials that have user controls
 
@@ -87,7 +87,7 @@ protected:
     ShaderControlsContainer mShaderControlsContainer;
 };
 
-typedef std::vector<MaterialControls> MaterialControlsContainer;
+typedef Ogre::vector<MaterialControls>::type MaterialControlsContainer;
 typedef MaterialControlsContainer::iterator MaterialControlsIterator;
 
 

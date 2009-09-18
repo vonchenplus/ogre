@@ -4,11 +4,11 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 /*
@@ -35,9 +35,12 @@ D:        Step right
 #ifndef __ExampleFrameListener_H__
 #define __ExampleFrameListener_H__
 
+
+
 #include "Ogre.h"
 #include "OgreStringConverter.h"
 #include "OgreException.h"
+
 
 //Use this define to signify OIS will be used as a DLL
 //(so that dll import/export macros are in effect)
@@ -45,6 +48,79 @@ D:        Step right
 #include <OIS/OIS.h>
 
 using namespace Ogre;
+
+#ifdef USE_RTSHADER_SYSTEM
+
+#include "OgreRTShaderSystem.h"
+
+/** This class simply demonstrates basic usage of the CRTShader system.
+It sub class the material manager listener class and when a target scheme callback
+is invoked with the shader generator scheme it tries to create an equvialent shader
+based technique based on the default technique of the given material.
+*/
+class ShaderGeneratorTechniqueResolverListener : public MaterialManager::Listener
+{
+public:
+
+	ShaderGeneratorTechniqueResolverListener(RTShader::ShaderGenerator* pShaderGenerator)
+	{
+		mShaderGenerator = pShaderGenerator;
+	}
+
+	virtual Technique* handleSchemeNotFound(unsigned short schemeIndex, 
+		const String& schemeName, Material* originalMaterial, unsigned short lodIndex, 
+		const Renderable* rend)
+	{		
+		// Case this is the default shader generator scheme.
+		if (schemeName == RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
+		{
+			MaterialRegisterIterator itFind = mRegisteredMaterials.find(originalMaterial);
+			bool techniqueCreated = false;
+
+			// This material was not registered before.
+			if (itFind == mRegisteredMaterials.end())
+			{
+				techniqueCreated = mShaderGenerator->createShaderBasedTechnique(
+					originalMaterial->getName(), 
+					MaterialManager::DEFAULT_SCHEME_NAME, 
+					RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);				
+			}
+			mRegisteredMaterials[originalMaterial] = techniqueCreated;
+		}
+
+		return NULL;
+	}
+
+
+	void clearRegisteredMaterials()
+	{
+		MaterialRegisterIterator itMat    = mRegisteredMaterials.begin();
+		MaterialRegisterIterator itMatEnd = mRegisteredMaterials.end();
+
+		// Remove the shader based technique of the registered materials.
+		for (; itMat != itMatEnd; ++itMat)
+		{
+			if (itMat->second)
+			{
+				mShaderGenerator->removeShaderBasedTechnique(itMat->first->getName(), 
+					MaterialManager::DEFAULT_SCHEME_NAME, 
+					RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+			}			
+		}
+		mRegisteredMaterials.clear();
+	}
+
+
+protected:
+	typedef std::map<Material*, bool>		MaterialRegisterMap;
+	typedef MaterialRegisterMap::iterator	MaterialRegisterIterator;
+
+
+protected:
+	MaterialRegisterMap				mRegisteredMaterials;		// Registered mateirla map.
+	RTShader::ShaderGenerator*		mShaderGenerator;			// The shader generator instance.
+};
+#endif
 
 class ExampleFrameListener: public FrameListener, public WindowEventListener
 {
@@ -124,8 +200,110 @@ public:
 		showDebugOverlay(true);
 
 		//Register as a Window listener
-		WindowEventUtilities::addWindowEventListener(mWindow, this);
+		WindowEventUtilities::addWindowEventListener(mWindow, this);		
 	}
+
+#ifdef USE_RTSHADER_SYSTEM
+	virtual void initializeShaderGenerator(SceneManager* sceneMgr)
+	{
+		mShaderGenerator	 = NULL;		
+		mMaterialMgrListener = NULL;
+
+		if (RTShader::ShaderGenerator::initialize())
+		{
+			mShaderGenerator = RTShader::ShaderGenerator::getSingletonPtr();
+
+			// Set the scene manager.
+			mShaderGenerator->setSceneManager(sceneMgr);
+
+			// Setup shader cache path.
+			ResourceGroupManager::LocationList resLocationsList = ResourceGroupManager::getSingleton().getResourceLocationList(ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+			ResourceGroupManager::LocationList::iterator it = resLocationsList.begin();
+			ResourceGroupManager::LocationList::iterator itEnd = resLocationsList.end();
+			String shaderCachePath;
+			
+			// Default cache path is current directory;
+			shaderCachePath = "./";
+
+			// Try to find the location of the core shader lib functions and use it
+			// as shader cache path as well - this will reduce the number of generated files
+			// when running from different directories.
+			for (; it != itEnd; ++it)
+			{
+				
+				if ((*it)->archive->getName().find("RTShaderLib") != String::npos)
+				{
+					shaderCachePath = (*it)->archive->getName() + "/";
+					break;
+				}
+			}
+						
+
+			ResourceGroupManager::getSingleton().addResourceLocation(shaderCachePath , "FileSystem");			
+			mShaderGenerator->setShaderCachePath(shaderCachePath);	
+				
+			// Create and register the material manager listener.
+			mMaterialMgrListener = new ShaderGeneratorTechniqueResolverListener(mShaderGenerator);				
+			MaterialManager::getSingleton().addListener(mMaterialMgrListener);								
+		}
+	}
+
+	virtual void finalizeShaderGenerator()
+	{
+		// Unregister the material manager listener.
+		if (mMaterialMgrListener != NULL)
+		{			
+			MaterialManager::getSingleton().removeListener(mMaterialMgrListener);
+			delete mMaterialMgrListener;
+			mMaterialMgrListener = NULL;
+		}
+
+		// Finalize CRTShader system.
+		if (mShaderGenerator != NULL)
+		{
+			RTShader::ShaderGenerator::finalize();
+
+			mShaderGenerator = NULL;
+		}
+	}
+
+	virtual void processShaderGeneratorInput()
+	{
+		if (mShaderGenerator != NULL)
+		{
+			// Switch to default scheme.
+			if (mKeyboard->isKeyDown(OIS::KC_F2))
+			{	
+				mCamera->getViewport()->setMaterialScheme(MaterialManager::DEFAULT_SCHEME_NAME);			
+				mDebugText = "Active Viewport Scheme: ";
+				mDebugText += MaterialManager::DEFAULT_SCHEME_NAME;
+				
+				// Clear registered materials.
+				mMaterialMgrListener->clearRegisteredMaterials();
+			}
+
+			// Switch to shader generator scheme.
+			if (mKeyboard->isKeyDown(OIS::KC_F3))
+			{	
+				// Update light information.
+				SceneManager* sceneMgr = mShaderGenerator->getSceneManager();
+				const LightList& lightList =  sceneMgr->_getLightsAffectingFrustum();
+				int maxLightCount[3] = {0};
+
+				for (unsigned int i=0; i < lightList.size(); ++i)
+				{
+					maxLightCount[lightList[i]->getType()]++;
+				}
+				mShaderGenerator->setLightCount(maxLightCount);
+				
+				mCamera->getViewport()->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+				mDebugText = "Active Viewport Scheme: ";
+				mDebugText += RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME;
+			}
+		}
+	}
+
+#endif
 
 	//Adjust mouse clipping area
 	virtual void windowResized(RenderWindow* rw)
@@ -158,7 +336,7 @@ public:
 	}
 
 	virtual ~ExampleFrameListener()
-	{
+	{		
 		//Remove ourself as a Window listener
 		WindowEventUtilities::removeWindowEventListener(mWindow, this);
 		windowClosed(mWindow);
@@ -166,24 +344,27 @@ public:
 
 	virtual bool processUnbufferedKeyInput(const FrameEvent& evt)
 	{
+		Real moveScale = mMoveScale;
+		if(mKeyboard->isKeyDown(OIS::KC_LSHIFT))
+			moveScale *= 10;
 
 		if(mKeyboard->isKeyDown(OIS::KC_A))
-			mTranslateVector.x = -mMoveScale;	// Move camera left
+			mTranslateVector.x = -moveScale;	// Move camera left
 
 		if(mKeyboard->isKeyDown(OIS::KC_D))
-			mTranslateVector.x = mMoveScale;	// Move camera RIGHT
+			mTranslateVector.x = moveScale;	// Move camera RIGHT
 
 		if(mKeyboard->isKeyDown(OIS::KC_UP) || mKeyboard->isKeyDown(OIS::KC_W) )
-			mTranslateVector.z = -mMoveScale;	// Move camera forward
+			mTranslateVector.z = -moveScale;	// Move camera forward
 
 		if(mKeyboard->isKeyDown(OIS::KC_DOWN) || mKeyboard->isKeyDown(OIS::KC_S) )
-			mTranslateVector.z = mMoveScale;	// Move camera backward
+			mTranslateVector.z = moveScale;	// Move camera backward
 
 		if(mKeyboard->isKeyDown(OIS::KC_PGUP))
-			mTranslateVector.y = mMoveScale;	// Move camera up
+			mTranslateVector.y = moveScale;	// Move camera up
 
 		if(mKeyboard->isKeyDown(OIS::KC_PGDOWN))
-			mTranslateVector.y = -mMoveScale;	// Move camera down
+			mTranslateVector.y = -moveScale;	// Move camera down
 
 		if(mKeyboard->isKeyDown(OIS::KC_RIGHT))
 			mCamera->yaw(-mRotScale);
@@ -228,7 +409,7 @@ public:
 
 		if(mKeyboard->isKeyDown(OIS::KC_SYSRQ) && mTimeUntilNextToggle <= 0)
 		{
-			std::ostringstream ss;
+			Ogre::StringStream ss;
 			ss << "screenshot_" << ++mNumScreenShots << ".png";
 			mWindow->writeContentsToFile(ss.str());
 			mTimeUntilNextToggle = 0.5;
@@ -279,6 +460,30 @@ public:
 		{
 			mRotX = Degree(-ms.X.rel * 0.13);
 			mRotY = Degree(-ms.Y.rel * 0.13);
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+            // Adjust the input depending upon viewport orientation
+            Radian origRotY, origRotX;
+            switch(mCamera->getViewport()->getOrientation())
+            {
+                case Viewport::OR_LANDSCAPELEFT:
+                    origRotY = mRotY;
+                    origRotX = mRotX;
+                    mRotX = origRotY;
+                    mRotY = -origRotX;
+                    break;
+                case Viewport::OR_LANDSCAPERIGHT:
+                    origRotY = mRotY;
+                    origRotX = mRotX;
+                    mRotX = -origRotY;
+                    mRotY = origRotX;
+                    break;
+                    
+                // Portrait doesn't need any change
+                case Viewport::OR_PORTRAIT:
+                default:
+                    break;
+            }
+#endif
 		}
 
 		return true;
@@ -341,9 +546,16 @@ public:
 		}
 
 		//Check to see which device is not buffered, and handle it
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 		if( !mKeyboard->buffered() )
 			if( processUnbufferedKeyInput(evt) == false )
 				return false;
+
+#ifdef USE_RTSHADER_SYSTEM
+		processShaderGeneratorInput();
+#endif
+		
+#endif
 		if( !mMouse->buffered() )
 			if( processUnbufferedMouseInput(evt) == false )
 				return false;
@@ -390,7 +602,7 @@ protected:
 	RenderWindow* mWindow;
 	bool mStatsOn;
 
-	std::string mDebugText;
+	String mDebugText;
 
 	unsigned int mNumScreenShots;
 	float mMoveScale;
@@ -412,6 +624,12 @@ protected:
 	OIS::Mouse*    mMouse;
 	OIS::Keyboard* mKeyboard;
 	OIS::JoyStick* mJoy;
+
+#ifdef USE_RTSHADER_SYSTEM
+	RTShader::ShaderGenerator* mShaderGenerator;						// The Shader generator instance.
+	ShaderGeneratorTechniqueResolverListener* mMaterialMgrListener;		// Material manager listener.
+#endif
+	
 };
 
 #endif

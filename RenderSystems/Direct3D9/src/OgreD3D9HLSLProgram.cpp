@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software you can redistribute it and/or modify it under
@@ -37,6 +37,7 @@ namespace Ogre {
     D3D9HLSLProgram::CmdTarget D3D9HLSLProgram::msCmdTarget;
     D3D9HLSLProgram::CmdPreprocessorDefines D3D9HLSLProgram::msCmdPreprocessorDefines;
     D3D9HLSLProgram::CmdColumnMajorMatrices D3D9HLSLProgram::msCmdColumnMajorMatrices;
+	D3D9HLSLProgram::CmdOptimisation D3D9HLSLProgram::msCmdOptimisation;
 
 	class HLSLIncludeHandler : public ID3DXInclude
 	{
@@ -88,7 +89,7 @@ namespace Ogre {
         // Populate preprocessor defines
         String stringBuffer;
 
-        std::vector<D3DXMACRO> defines;
+        vector<D3DXMACRO>::type defines;
         const D3DXMACRO* pDefines = 0;
         if (!mPreprocessorDefines.empty())
         {
@@ -171,6 +172,28 @@ namespace Ogre {
 #if OGRE_DEBUG_MODE
 		compileFlags |= D3DXSHADER_DEBUG;
 #endif
+		switch (mOptimisationLevel)
+		{
+		case OPT_DEFAULT:
+			compileFlags |= D3DXSHADER_OPTIMIZATION_LEVEL1;
+			break;
+		case OPT_NONE:
+			compileFlags |= D3DXSHADER_SKIPOPTIMIZATION;
+			break;
+		case OPT_0:
+			compileFlags |= D3DXSHADER_OPTIMIZATION_LEVEL0;
+			break;
+		case OPT_1:
+			compileFlags |= D3DXSHADER_OPTIMIZATION_LEVEL1;
+			break;
+		case OPT_2:
+			compileFlags |= D3DXSHADER_OPTIMIZATION_LEVEL2;
+			break;
+		case OPT_3:
+			compileFlags |= D3DXSHADER_OPTIMIZATION_LEVEL3;
+			break;
+		}
+
 
         LPD3DXBUFFER errors = 0;
 
@@ -234,10 +257,7 @@ namespace Ogre {
         D3DXCONSTANTTABLE_DESC desc;
         HRESULT hr = mpConstTable->GetDesc(&desc);
 
-		mFloatLogicalToPhysical.bufferSize = 0;
-		mIntLogicalToPhysical.bufferSize = 0;
-		mConstantDefs.floatBufferSize = 0;
-		mConstantDefs.intBufferSize = 0;
+		createParameterMappingStructures(true);
 
         if (FAILED(hr))
         {
@@ -309,29 +329,29 @@ namespace Ogre {
 				populateDef(desc, def);
 				if (def.isFloat())
 				{
-					def.physicalIndex = mFloatLogicalToPhysical.bufferSize;
-					OGRE_LOCK_MUTEX(mFloatLogicalToPhysical.mutex)
-					mFloatLogicalToPhysical.map.insert(
+					def.physicalIndex = mFloatLogicalToPhysical->bufferSize;
+					OGRE_LOCK_MUTEX(mFloatLogicalToPhysical->mutex)
+					mFloatLogicalToPhysical->map.insert(
 						GpuLogicalIndexUseMap::value_type(paramIndex, 
-						GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize)));
-					mFloatLogicalToPhysical.bufferSize += def.arraySize * def.elementSize;
-					mConstantDefs.floatBufferSize = mFloatLogicalToPhysical.bufferSize;
+						GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));
+					mFloatLogicalToPhysical->bufferSize += def.arraySize * def.elementSize;
+					mConstantDefs->floatBufferSize = mFloatLogicalToPhysical->bufferSize;
 				}
 				else
 				{
-					def.physicalIndex = mIntLogicalToPhysical.bufferSize;
-					OGRE_LOCK_MUTEX(mIntLogicalToPhysical.mutex)
-					mIntLogicalToPhysical.map.insert(
+					def.physicalIndex = mIntLogicalToPhysical->bufferSize;
+					OGRE_LOCK_MUTEX(mIntLogicalToPhysical->mutex)
+					mIntLogicalToPhysical->map.insert(
 						GpuLogicalIndexUseMap::value_type(paramIndex, 
-						GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize)));
-					mIntLogicalToPhysical.bufferSize += def.arraySize * def.elementSize;
-					mConstantDefs.intBufferSize = mIntLogicalToPhysical.bufferSize;
+						GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));
+					mIntLogicalToPhysical->bufferSize += def.arraySize * def.elementSize;
+					mConstantDefs->intBufferSize = mIntLogicalToPhysical->bufferSize;
 				}
 
-                mConstantDefs.map.insert(GpuConstantDefinitionMap::value_type(name, def));
+                mConstantDefs->map.insert(GpuConstantDefinitionMap::value_type(name, def));
 
 				// Now deal with arrays
-				mConstantDefs.generateConstantDefinitionArrayEntries(name, def);
+				mConstantDefs->generateConstantDefinitionArrayEntries(name, def);
             }
         }
             
@@ -347,19 +367,15 @@ namespace Ogre {
 			{
 			case 1:
 				def.constType = GCT_INT1;
-				def.elementSize = 4; // HLSL always packs
 				break;
 			case 2:
 				def.constType = GCT_INT2;
-				def.elementSize = 4; // HLSL always packs
 				break;
 			case 3:
 				def.constType = GCT_INT3;
-				def.elementSize = 4; // HLSL always packs
 				break;
 			case 4:
 				def.constType = GCT_INT4;
-				def.elementSize = 4; 
 				break;
 			} // columns
 			break;
@@ -375,15 +391,12 @@ namespace Ogre {
 					{
 					case 2:
 						def.constType = GCT_MATRIX_2X2;
-						def.elementSize = 8; // HLSL always packs
 						break;
 					case 3:
 						def.constType = GCT_MATRIX_2X3;
-						def.elementSize = 8; // HLSL always packs
 						break;
 					case 4:
 						def.constType = GCT_MATRIX_2X4;
-						def.elementSize = 8; 
 						break;
 					} // columns
 					break;
@@ -392,15 +405,12 @@ namespace Ogre {
 					{
 					case 2:
 						def.constType = GCT_MATRIX_3X2;
-						def.elementSize = 12; // HLSL always packs
 						break;
 					case 3:
 						def.constType = GCT_MATRIX_3X3;
-						def.elementSize = 12; // HLSL always packs
 						break;
 					case 4:
 						def.constType = GCT_MATRIX_3X4;
-						def.elementSize = 12; 
 						break;
 					} // columns
 					break;
@@ -409,15 +419,12 @@ namespace Ogre {
 					{
 					case 2:
 						def.constType = GCT_MATRIX_4X2;
-						def.elementSize = 16; // HLSL always packs
 						break;
 					case 3:
 						def.constType = GCT_MATRIX_4X3;
-						def.elementSize = 16; // HLSL always packs
 						break;
 					case 4:
 						def.constType = GCT_MATRIX_4X4;
-						def.elementSize = 16; 
 						break;
 					} // columns
 					break;
@@ -430,19 +437,15 @@ namespace Ogre {
 				{
 				case 1:
 					def.constType = GCT_FLOAT1;
-					def.elementSize = 4; // HLSL always packs
 					break;
 				case 2:
 					def.constType = GCT_FLOAT2;
-					def.elementSize = 4; // HLSL always packs
 					break;
 				case 3:
 					def.constType = GCT_FLOAT3;
-					def.elementSize = 4; // HLSL always packs
 					break;
 				case 4:
 					def.constType = GCT_FLOAT4;
-					def.elementSize = 4; 
 					break;
 				} // columns
 				break;
@@ -451,6 +454,10 @@ namespace Ogre {
 			// not mapping samplers, don't need to take the space 
 			break;
 		};
+
+		// D3D9 pads to 4 elements
+		def.elementSize = GpuConstantDefinition::getElementSize(def.constType, true);
+
 
 	}
     //-----------------------------------------------------------------------
@@ -463,6 +470,7 @@ namespace Ogre {
         , mPreprocessorDefines()
         , mColumnMajorMatrices(true)
         , mpMicroCode(NULL), mpConstTable(NULL)
+		, mOptimisationLevel(OPT_DEFAULT)
     {
         if (createParamDictionary("D3D9HLSLProgram"))
         {
@@ -481,6 +489,9 @@ namespace Ogre {
             dict->addParameter(ParameterDef("column_major_matrices", 
                 "Whether matrix packing in column-major order.",
                 PT_BOOL),&msCmdColumnMajorMatrices);
+			dict->addParameter(ParameterDef("optimisation_level", 
+				"The optimisation level to use.",
+				PT_STRING),&msCmdOptimisation);
         }
         
     }
@@ -568,5 +579,40 @@ namespace Ogre {
     {
         static_cast<D3D9HLSLProgram*>(target)->setColumnMajorMatrices(StringConverter::parseBool(val));
     }
+	//-----------------------------------------------------------------------
+	String D3D9HLSLProgram::CmdOptimisation::doGet(const void *target) const
+	{
+		switch(static_cast<const D3D9HLSLProgram*>(target)->getOptimisationLevel())
+		{
+		default:
+		case OPT_DEFAULT:
+			return "default";
+		case OPT_NONE:
+			return "none";
+		case OPT_0:
+			return "0";
+		case OPT_1:
+			return "1";
+		case OPT_2:
+			return "2";
+		case OPT_3:
+			return "3";
+		}
+	}
+	void D3D9HLSLProgram::CmdOptimisation::doSet(void *target, const String& val)
+	{
+		if (StringUtil::startsWith(val, "default", true))
+			static_cast<D3D9HLSLProgram*>(target)->setOptimisationLevel(OPT_DEFAULT);
+		else if (StringUtil::startsWith(val, "none", true))
+			static_cast<D3D9HLSLProgram*>(target)->setOptimisationLevel(OPT_NONE);
+		else if (StringUtil::startsWith(val, "0", true))
+			static_cast<D3D9HLSLProgram*>(target)->setOptimisationLevel(OPT_0);
+		else if (StringUtil::startsWith(val, "1", true))
+			static_cast<D3D9HLSLProgram*>(target)->setOptimisationLevel(OPT_1);
+		else if (StringUtil::startsWith(val, "2", true))
+			static_cast<D3D9HLSLProgram*>(target)->setOptimisationLevel(OPT_2);
+		else if (StringUtil::startsWith(val, "3", true))
+			static_cast<D3D9HLSLProgram*>(target)->setOptimisationLevel(OPT_3);
+	}
 
 }

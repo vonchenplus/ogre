@@ -4,11 +4,11 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 /*
@@ -23,8 +23,8 @@ Description: Fresnel reflections and refractions
 // Hacky globals
 Camera* theCam;
 Entity* pPlaneEnt;
-std::vector<Entity*> aboveWaterEnts;
-std::vector<Entity*> belowWaterEnts;
+Ogre::vector<Entity*>::type aboveWaterEnts;
+Ogre::vector<Entity*>::type belowWaterEnts;
 
 // Fish!
 #define NUM_FISH 30
@@ -48,7 +48,7 @@ public:
     {
         // Hide plane and objects above the water
         pPlaneEnt->setVisible(false);
-        std::vector<Entity*>::iterator i, iend;
+		vector<Entity*>::type::iterator i, iend;
         iend = aboveWaterEnts.end();
         for (i = aboveWaterEnts.begin(); i != iend; ++i)
         {
@@ -60,7 +60,7 @@ public:
     {
         // Show plane and objects above the water
         pPlaneEnt->setVisible(true);
-        std::vector<Entity*>::iterator i, iend;
+		vector<Entity*>::type::iterator i, iend;
         iend = aboveWaterEnts.end();
         for (i = aboveWaterEnts.begin(); i != iend; ++i)
         {
@@ -76,7 +76,7 @@ public:
     {
         // Hide plane and objects below the water
         pPlaneEnt->setVisible(false);
-        std::vector<Entity*>::iterator i, iend;
+		vector<Entity*>::type::iterator i, iend;
         iend = belowWaterEnts.end();
         for (i = belowWaterEnts.begin(); i != iend; ++i)
         {
@@ -89,7 +89,7 @@ public:
     {
         // Show plane and objects below the water
         pPlaneEnt->setVisible(true);
-        std::vector<Entity*>::iterator i, iend;
+		vector<Entity*>::type::iterator i, iend;
         iend = belowWaterEnts.end();
         for (i = belowWaterEnts.begin(); i != iend; ++i)
         {
@@ -284,7 +284,7 @@ protected:
 
             // Generate a random selection of points for the fish to swim to
             fishSplines[fishNo].setAutoCalculate(false);
-            Vector3 lastPos;
+            Vector3 lastPos = Vector3::ZERO;
             for (size_t waypoint = 0; waypoint < NUM_FISH_WAYPOINTS; ++waypoint)
             {
                 Vector3 pos = Vector3(
@@ -342,6 +342,12 @@ INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT )
 int main(int argc, char **argv)
 #endif
 {
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+        NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+        int retVal = UIApplicationMain(argc, argv, @"UIApplication", @"AppDelegate");
+        [pool release];
+        return retVal;
+#else
     // Create application object
     FresnelApplication app;
 
@@ -355,10 +361,83 @@ int main(int argc, char **argv)
 #endif
     }
 
-
     return 0;
+#endif
 }
 
 #ifdef __cplusplus
 }
+#endif
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#   ifdef __OBJC__
+@interface AppDelegate : NSObject <UIApplicationDelegate>
+{
+}
+
+- (void)go;
+
+@end
+
+@implementation AppDelegate
+
+- (void)go {
+    // Create application object
+    FresnelApplication app;
+    try {
+        app.go();
+    } catch( Ogre::Exception& e ) {
+        std::cerr << "An exception has occured: " <<
+        e.getFullDescription().c_str() << std::endl;
+    }
+}
+
+- (void)applicationDidFinishLaunching:(UIApplication *)application {
+    // Hide the status bar
+    [[UIApplication sharedApplication] setStatusBarHidden:YES];
+
+    // Create a window
+    UIWindow *window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+
+    // Create an image view
+    UIImageView *imageView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"Default.png"]];
+    [window addSubview:imageView];
+    
+    // Create an indeterminate status indicator
+    UIActivityIndicatorView *indicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
+    [indicator setFrame:CGRectMake(150, 280, 20, 20)];
+    [indicator startAnimating];
+    [window addSubview:indicator];
+    
+    // Display our window
+    [window makeKeyAndVisible];
+    
+    // Clean up
+    [imageView release];
+    [indicator release];
+
+    [NSThread detachNewThreadSelector:@selector(go) toTarget:self withObject:nil];
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application {
+    Root::getSingleton().queueEndRendering();
+}
+
+//- (void)applicationWillResignActive:(UIApplication *)application
+//{
+//    // Pause FrameListeners and rendering
+//}
+//
+//- (void)applicationDidBecomeActive:(UIApplication *)application
+//{
+//    // Resume FrameListeners and rendering
+//}
+
+- (void)dealloc {
+    [super dealloc];
+}
+
+@end
+#   endif
+
 #endif

@@ -4,26 +4,25 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
@@ -38,10 +37,13 @@ Torus Knot Software Ltd.
 #include "OgreMesh.h"
 #include "OgreSubMesh.h"
 #include "OgreCamera.h"
+#include "OgreTechnique.h"
+#include "OgrePass.h"
+#include "OgreManualObject.h"
 
 namespace Ogre {
 
-    unsigned long Node::msNextGeneratedNameExt = 1;
+    NameGenerator Node::msNameGenerator("Unnamed_");
 	Node::QueuedUpdates Node::msQueuedUpdates;
     //-----------------------------------------------------------------------
     Node::Node()
@@ -62,18 +64,18 @@ namespace Ogre {
 		mInitialOrientation(Quaternion::IDENTITY),
 		mInitialScale(Vector3::UNIT_SCALE),
 		mCachedTransformOutOfDate(true),
-		mListener(0)
+		mListener(0), 
+		mDebug(0)
     {
         // Generate a name
-		StringUtil::StrStreamType str;
-		str << "Unnamed_" << msNextGeneratedNameExt++;
-        mName = str.str();
+        mName = msNameGenerator.generate();
 
         needUpdate();
 
     }
     //-----------------------------------------------------------------------
-	Node::Node(const String& name) : Renderable(),
+	Node::Node(const String& name)
+		:
 		mParent(0),
 		mNeedParentUpdate(false),
 		mNeedChildUpdate(false),
@@ -92,7 +94,8 @@ namespace Ogre {
 		mInitialOrientation(Quaternion::IDENTITY),
 		mInitialScale(Vector3::UNIT_SCALE),
 		mCachedTransformOutOfDate(true),
-		mListener(0)
+		mListener(0), 
+		mDebug(0)
 
     {
 
@@ -103,6 +106,9 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Node::~Node()
     {
+		OGRE_DELETE mDebug;
+		mDebug = 0;
+
 		// Call listener (note, only called if there's something to do)
 		if (mListener)
 		{
@@ -126,6 +132,7 @@ namespace Ogre {
                 msQueuedUpdates.pop_back();
             }
         }
+
 	}
     //-----------------------------------------------------------------------
     Node* Node::getParent(void) const
@@ -636,39 +643,6 @@ namespace Ogre {
         return mName;
     }
     //-----------------------------------------------------------------------
-    const MaterialPtr& Node::getMaterial(void) const
-    {
-        if (mpMaterial.isNull())
-        {
-            mpMaterial = MaterialManager::getSingleton().getByName("Core/NodeMaterial");
-			if (mpMaterial.isNull())
-				OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find material Core/NodeMaterial",
-					"Node::getMaterial" );
-            mpMaterial->load();
-        }
-        return mpMaterial;
-
-    }
-    //-----------------------------------------------------------------------
-    void Node::getRenderOperation(RenderOperation& op)
-    {
-        SubMesh* pSubMesh = 0;
-        MeshPtr pMesh = MeshManager::getSingleton().getByName("axes.mesh");
-        if (pMesh.isNull())
-        {
-            pMesh = MeshManager::getSingleton().load("axes.mesh",
-				ResourceGroupManager::BOOTSTRAP_RESOURCE_GROUP_NAME);            
-        }
-        pSubMesh = pMesh->getSubMesh(0);
-        pSubMesh->_getRenderOperation(op);
-    }
-    //-----------------------------------------------------------------------
-    void Node::getWorldTransforms(Matrix4* xform) const
-    {
-        // Assumes up to date
-        *xform = this->_getFullTransform();
-    }
-    //-----------------------------------------------------------------------
     void Node::setInitialState(void)
     {
         mInitialPosition = mPosition;
@@ -825,12 +799,149 @@ namespace Ogre {
 		}
 		msQueuedUpdates.clear();
 	}
-    //-----------------------------------------------------------------------
-    const LightList& Node::getLights(void) const
-    {
-        // Nodes should not be lit by the scene, this will not get called
-        static LightList ll;
-        return ll;
-    }
+	//---------------------------------------------------------------------
+	Node::DebugRenderable* Node::getDebugRenderable(Real scaling)
+	{
+		if (!mDebug)
+		{
+			mDebug = OGRE_NEW DebugRenderable(this);
+		}
+		mDebug->setScaling(scaling);
+		return mDebug;
+	}
+	//---------------------------------------------------------------------
+	//-----------------------------------------------------------------------
+	Node::DebugRenderable::DebugRenderable(Node* parent)
+		: mParent(parent)
+	{
+		String matName = "Ogre/Debug/AxesMat";
+		mMat = MaterialManager::getSingleton().getByName(matName);
+		if (mMat.isNull())
+		{
+			mMat = MaterialManager::getSingleton().create(matName, ResourceGroupManager::BOOTSTRAP_RESOURCE_GROUP_NAME);
+			Pass* p = mMat->getTechnique(0)->getPass(0);
+			p->setLightingEnabled(false);
+			p->setPolygonModeOverrideable(false);
+			p->setVertexColourTracking(TVC_AMBIENT);
+			p->setSceneBlending(SBT_TRANSPARENT_ALPHA);
+			p->setCullingMode(CULL_NONE);
+			p->setDepthWriteEnabled(false);
+		}
+
+		String meshName = "Ogre/Debug/AxesMesh";
+		mMeshPtr = MeshManager::getSingleton().getByName(meshName);
+		if (mMeshPtr.isNull())
+		{
+			ManualObject mo("tmp");
+			mo.begin(mMat->getName());
+			/* 3 axes, each made up of 2 of these (base plane = XY)
+             *   .------------|\
+			 *   '------------|/
+             */
+			mo.estimateVertexCount(7 * 2 * 3);
+			mo.estimateIndexCount(3 * 2 * 3);
+			Quaternion quat[6];
+			ColourValue col[3];
+
+			// x-axis
+			quat[0] = Quaternion::IDENTITY;
+			quat[1].FromAxes(Vector3::UNIT_X, Vector3::NEGATIVE_UNIT_Z, Vector3::UNIT_Y);
+			col[0] = ColourValue::Red;
+			col[0].a = 0.8;
+			// y-axis
+			quat[2].FromAxes(Vector3::UNIT_Y, Vector3::NEGATIVE_UNIT_X, Vector3::UNIT_Z);
+			quat[3].FromAxes(Vector3::UNIT_Y, Vector3::UNIT_Z, Vector3::UNIT_X);
+			col[1] = ColourValue::Green;
+			col[1].a = 0.8;
+			// z-axis
+			quat[4].FromAxes(Vector3::UNIT_Z, Vector3::UNIT_Y, Vector3::NEGATIVE_UNIT_X);
+			quat[5].FromAxes(Vector3::UNIT_Z, Vector3::UNIT_X, Vector3::UNIT_Y);
+			col[2] = ColourValue::Blue;
+			col[2].a = 0.8;
+
+			Vector3 basepos[7] = 
+			{
+				// stalk
+				Vector3(0, 0.05, 0), 
+				Vector3(0, -0.05, 0),
+				Vector3(0.7, -0.05, 0),
+				Vector3(0.7, 0.05, 0),
+				// head
+				Vector3(0.7, -0.15, 0),
+				Vector3(1, 0, 0),
+				Vector3(0.7, 0.15, 0)
+			};
+
+
+			// vertices
+			// 6 arrows
+			for (size_t i = 0; i < 6; ++i)
+			{
+				// 7 points
+				for (size_t p = 0; p < 7; ++p)
+				{
+					Vector3 pos = quat[i] * basepos[p];
+					mo.position(pos);
+					mo.colour(col[i / 2]);
+				}
+			}
+
+			// indices
+			// 6 arrows
+			for (size_t i = 0; i < 6; ++i)
+			{
+				size_t base = i * 7; 
+				mo.triangle(base + 0, base + 1, base + 2);
+				mo.triangle(base + 0, base + 2, base + 3);
+				mo.triangle(base + 4, base + 5, base + 6);
+			}
+
+			mo.end();
+
+			mMeshPtr = mo.convertToMesh(meshName, ResourceGroupManager::BOOTSTRAP_RESOURCE_GROUP_NAME);
+
+		}
+
+	}
+	//---------------------------------------------------------------------
+	Node::DebugRenderable::~DebugRenderable()
+	{
+	}
+	//-----------------------------------------------------------------------
+	const MaterialPtr& Node::DebugRenderable::getMaterial(void) const
+	{
+		return mMat;
+	}
+	//---------------------------------------------------------------------
+	void Node::DebugRenderable::getRenderOperation(RenderOperation& op)
+	{
+		return mMeshPtr->getSubMesh(0)->_getRenderOperation(op);
+	}
+	//-----------------------------------------------------------------------
+	void Node::DebugRenderable::getWorldTransforms(Matrix4* xform) const
+	{
+		// Assumes up to date
+		*xform = mParent->_getFullTransform();
+		if (!Math::RealEqual(mScaling, 1.0))
+		{
+			Matrix4 m = Matrix4::IDENTITY;
+			Vector3 s(mScaling, mScaling, mScaling);
+			m.setScale(s);
+			*xform = (*xform) * m;
+		}
+	}
+	//-----------------------------------------------------------------------
+	Real Node::DebugRenderable::getSquaredViewDepth(const Camera* cam) const
+	{
+		return mParent->getSquaredViewDepth(cam);
+	}
+	//-----------------------------------------------------------------------
+	const LightList& Node::DebugRenderable::getLights(void) const
+	{
+		// Nodes should not be lit by the scene, this will not get called
+		static LightList ll;
+		return ll;
+	}
+
 }
 

@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
@@ -53,7 +52,7 @@ namespace Ogre {
 		"<Compositor> ::= 'compositor' <Flex_Label> '{' {<Technique>} '}' \n"
 		// Technique
 		"<Technique> ::= 'technique' '{' {<Texture>} {<Target>} <TargetOutput> '}' \n"
-		"<Texture> ::= 'texture' <Label> <WidthOption> <HeightOption> <PixelFormat> {<PixelFormat>} \n"
+		"<Texture> ::= 'texture' <Label> <WidthOption> <HeightOption> <PixelFormat> {<PixelFormat>} [<Shared>] \n"
 		"<WidthOption> ::= <TargetWidthScaled> | 'target_width' | <#width> \n"
 		"<HeightOption> ::= <TargetHeightScaled> | 'target_height' | <#height> \n"
 		"<TargetWidthScaled> ::= 'target_width_scaled' <#scaling> \n"
@@ -61,6 +60,7 @@ namespace Ogre {
 		"<PixelFormat> ::= 'PF_A8R8G8B8' | 'PF_R8G8B8A8' | 'PF_R8G8B8' | 'PF_FLOAT16_RGBA' | \n"
         "   'PF_FLOAT16_RGB' | 'PF_FLOAT16_R' | 'PF_FLOAT32_RGBA' | 'PF_FLOAT32_RGB' | 'PF_FLOAT32_R' | \n"
 		"   'PF_FLOAT16_GR' | 'PF_FLOAT32_GR' \n"
+		"<Shared> ::= 'shared' \n"
 		// Target
 		"<Target> ::= 'target ' <Label> '{' {<TargetOptions>} {<Pass>} '}' \n"
 	    "<TargetOptions> ::=	<TargetInput> | <OnlyInitial> | <VisibilityMask> | \n"
@@ -153,6 +153,7 @@ namespace Ogre {
 		// Technique section
 		addLexemeAction("technique", &CompositorScriptCompiler::parseTechnique);
 		addLexemeAction("texture", &CompositorScriptCompiler::parseTexture);
+		addLexemeAction("scheme", &CompositorScriptCompiler::parseScheme);
 		addLexemeToken("target_width_scaled", ID_TARGET_WIDTH_SCALED);
 		addLexemeToken("target_height_scaled", ID_TARGET_HEIGHT_SCALED);
 		addLexemeToken("target_width", ID_TARGET_WIDTH);
@@ -168,6 +169,9 @@ namespace Ogre {
 		addLexemeToken("PF_FLOAT32_GR", ID_PF_FLOAT32_GR);
 		addLexemeToken("PF_FLOAT32_RGB", ID_PF_FLOAT32_RGB);
 		addLexemeToken("PF_FLOAT32_RGBA", ID_PF_FLOAT32_RGBA);
+		addLexemeToken("shared", ID_SHARED);
+		addLexemeToken("gamma", ID_GAMMA);
+		addLexemeToken("no_fsaa", ID_NO_FSAA);
 
 		// Target section
 		addLexemeAction("target ", &CompositorScriptCompiler::parseTarget);
@@ -397,7 +401,7 @@ namespace Ogre {
         {
             textureDef->height = static_cast<size_t>(getNextTokenValue());
         }
-        // get pixel factor
+        // get pixel factor & shared option
 		while (getRemainingTokensForAction() > 0)
 		{
 			switch (getNextTokenID())
@@ -436,11 +440,28 @@ namespace Ogre {
 			case ID_PF_FLOAT32_RGBA:
 				textureDef->formatList.push_back(PF_FLOAT32_RGBA);
 				break;
+			case ID_SHARED:
+				textureDef->shared = true;
+				break;
+			case ID_GAMMA:
+				textureDef->hwGammaWrite = true;
+				break;
+			case ID_NO_FSAA:
+				textureDef->fsaa = false;
+				break;
 			default:
 				// should never get here?
 				break;
 			}
 		}
+	}
+	//-----------------------------------------------------------------------
+	void CompositorScriptCompiler::parseScheme(void)
+	{
+		assert(mScriptContext.technique);
+		const String schemeName = getNextTokenLabel();
+
+		mScriptContext.technique->setSchemeName(schemeName);
 	}
 	//-----------------------------------------------------------------------
 	void CompositorScriptCompiler::parseTarget(void)

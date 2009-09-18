@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2006  Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under
@@ -38,8 +38,8 @@ namespace Ogre
 	// --------------------------------------------------------------------
 	Matrix4 PlaneOptimalShadowCameraSetup::computeConstrainedProjection(
 		const Vector4& pinhole, 
-		const std::vector<Vector4>& fpoint, 
-		const std::vector<Vector2>& constraint) const
+		const vector<Vector4>::type& fpoint, 
+		const vector<Vector2>::type& constraint) const
 	{
 		// NOTE: will assume the z coordinates should be decided such that
 		// the first 3 points (in fpoint) will have post projective
@@ -297,7 +297,7 @@ namespace Ogre
 		Matrix4 camProjection = cam->getProjectionMatrix() * cam->getViewMatrix();
 
 		// get the world points to constrain
-		std::vector<Vector4> vhull;
+		vector<Vector4>::type vhull;
 		cam->forwardIntersect(worldPlane, &vhull);
 		if (vhull.size() < 4)
 			return;
@@ -333,7 +333,7 @@ namespace Ogre
         vhull.resize(4);
 
 		// get the post-projective coordinate constraints
-		std::vector<Vector2> constraint;
+		vector<Vector2>::type constraint;
 		for (int i=0; i<4; i++)
 		{
 			Vector4 postProjPt = camProjection * vhull[i];

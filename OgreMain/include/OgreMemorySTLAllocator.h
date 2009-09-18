@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2008 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under
@@ -36,6 +36,12 @@ namespace Ogre
 {
 
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Memory
+	*  @{
+	*/
 	/**
 	Wrapper class for operating as an STL container allocator.
 	This class acts as the host for a configured allocation policy.
@@ -86,7 +92,7 @@ namespace Ogre
 		{ }
 
 		/// copy ctor - done component wise
-		inline STLAllocator( STLAllocator const& rhs )
+		inline STLAllocator( STLAllocator const& )
 		{ }
 
 		/// cast
@@ -96,7 +102,7 @@ namespace Ogre
 
 		/// cast
 		template <typename U, typename P>
-		inline STLAllocator( STLAllocator<U, P> const& rhs )
+		inline STLAllocator( STLAllocator<U, P> const& )
 		{ }
 
 		/// memory allocation (elements, used by STL)
@@ -110,10 +116,10 @@ namespace Ogre
 		}
 
 		/// memory deallocation (elements, used by STL)
-		inline void deallocate( pointer ptr, size_type count )
+		inline void deallocate( pointer ptr, size_type )
 		{
 			// convert request to bytes, but we can't use this?
-			register size_type sz = count*sizeof( T );
+			// register size_type sz = count*sizeof( T );
 			AllocPolicy::deallocateBytes(ptr);
 		}
 
@@ -186,6 +192,8 @@ namespace Ogre
 	}
 
 
+	/** @} */
+	/** @} */
 
 }// namespace Ogre
 
