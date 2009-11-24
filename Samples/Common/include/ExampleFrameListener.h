@@ -4,11 +4,11 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 /*
@@ -29,15 +29,21 @@ D:        Step right
              T:        Cycle texture filtering
                        Bilinear, Trilinear, Anisotropic(8)
              P:        Toggle on/off display of camera position / orientation
+			 F2:	   Set the main viewport material scheme to default material manager scheme.
+			 F3:	   Set the main viewport material scheme to shader generator default scheme.
+			 F4:	   Toggle default shader generator lighting model from per vertex to per pixel.
 -----------------------------------------------------------------------------
 */
 
 #ifndef __ExampleFrameListener_H__
 #define __ExampleFrameListener_H__
 
+
+
 #include "Ogre.h"
 #include "OgreStringConverter.h"
 #include "OgreException.h"
+
 
 //Use this define to signify OIS will be used as a DLL
 //(so that dll import/export macros are in effect)
@@ -45,6 +51,10 @@ D:        Step right
 #include <OIS/OIS.h>
 
 using namespace Ogre;
+
+#ifdef USE_RTSHADER_SYSTEM
+#include "OgreRTShaderSystem.h"
+#endif
 
 class ExampleFrameListener: public FrameListener, public WindowEventListener
 {
@@ -124,8 +134,63 @@ public:
 		showDebugOverlay(true);
 
 		//Register as a Window listener
-		WindowEventUtilities::addWindowEventListener(mWindow, this);
+		WindowEventUtilities::addWindowEventListener(mWindow, this);		
 	}
+
+#ifdef USE_RTSHADER_SYSTEM
+	virtual void processShaderGeneratorInput()
+	{		
+		// Switch to default scheme.
+		if (mKeyboard->isKeyDown(OIS::KC_F2))
+		{	
+			mCamera->getViewport()->setMaterialScheme(MaterialManager::DEFAULT_SCHEME_NAME);			
+			mDebugText = "Active Viewport Scheme: ";
+			mDebugText += MaterialManager::DEFAULT_SCHEME_NAME;						
+		}
+
+		// Switch to shader generator scheme.
+		if (mKeyboard->isKeyDown(OIS::KC_F3))
+		{
+			mCamera->getViewport()->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+			mDebugText = "Active Viewport Scheme: ";
+			mDebugText += RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME;
+		}	
+
+		// Toggles per pixel per light model.
+		if (mKeyboard->isKeyDown(OIS::KC_F4) && mTimeUntilNextToggle <= 0)
+		{	
+			mTimeUntilNextToggle = 1.0;
+
+			static bool userPerPixelLightModel = true;
+			RTShader::ShaderGenerator* shaderGenerator = RTShader::ShaderGenerator::getSingletonPtr();			
+			RTShader::RenderState* renderState = shaderGenerator->getRenderState(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+
+			// Remove all global sub render states.
+			renderState->reset();
+
+			// Add per pixel lighting sub render state to the global scheme render state.
+			// It will override the default FFP lighting sub render state.
+			if (userPerPixelLightModel)
+			{
+				RTShader::SubRenderState* perPixelLightModel = shaderGenerator->createSubRenderState(RTShader::PerPixelLighting::Type);
+				renderState->addSubRenderState(perPixelLightModel);
+
+				mDebugText = "Per pixel lighting model applied to shader generator default scheme";
+			}
+			else
+			{
+				mDebugText = "Per vertex lighting model applied to shader generator default scheme";
+			}
+
+			// Invalidate the scheme in order to re-generate all shaders based technique related to this scheme.
+			shaderGenerator->invalidateScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+
+			userPerPixelLightModel = !userPerPixelLightModel;
+		}	
+		
+	}
+
+#endif
 
 	//Adjust mouse clipping area
 	virtual void windowResized(RenderWindow* rw)
@@ -158,7 +223,7 @@ public:
 	}
 
 	virtual ~ExampleFrameListener()
-	{
+	{		
 		//Remove ourself as a Window listener
 		WindowEventUtilities::removeWindowEventListener(mWindow, this);
 		windowClosed(mWindow);
@@ -166,24 +231,27 @@ public:
 
 	virtual bool processUnbufferedKeyInput(const FrameEvent& evt)
 	{
+		Real moveScale = mMoveScale;
+		if(mKeyboard->isKeyDown(OIS::KC_LSHIFT))
+			moveScale *= 10;
 
 		if(mKeyboard->isKeyDown(OIS::KC_A))
-			mTranslateVector.x = -mMoveScale;	// Move camera left
+			mTranslateVector.x = -moveScale;	// Move camera left
 
 		if(mKeyboard->isKeyDown(OIS::KC_D))
-			mTranslateVector.x = mMoveScale;	// Move camera RIGHT
+			mTranslateVector.x = moveScale;	// Move camera RIGHT
 
 		if(mKeyboard->isKeyDown(OIS::KC_UP) || mKeyboard->isKeyDown(OIS::KC_W) )
-			mTranslateVector.z = -mMoveScale;	// Move camera forward
+			mTranslateVector.z = -moveScale;	// Move camera forward
 
 		if(mKeyboard->isKeyDown(OIS::KC_DOWN) || mKeyboard->isKeyDown(OIS::KC_S) )
-			mTranslateVector.z = mMoveScale;	// Move camera backward
+			mTranslateVector.z = moveScale;	// Move camera backward
 
 		if(mKeyboard->isKeyDown(OIS::KC_PGUP))
-			mTranslateVector.y = mMoveScale;	// Move camera up
+			mTranslateVector.y = moveScale;	// Move camera up
 
 		if(mKeyboard->isKeyDown(OIS::KC_PGDOWN))
-			mTranslateVector.y = -mMoveScale;	// Move camera down
+			mTranslateVector.y = -moveScale;	// Move camera down
 
 		if(mKeyboard->isKeyDown(OIS::KC_RIGHT))
 			mCamera->yaw(-mRotScale);
@@ -228,7 +296,7 @@ public:
 
 		if(mKeyboard->isKeyDown(OIS::KC_SYSRQ) && mTimeUntilNextToggle <= 0)
 		{
-			std::ostringstream ss;
+			Ogre::StringStream ss;
 			ss << "screenshot_" << ++mNumScreenShots << ".png";
 			mWindow->writeContentsToFile(ss.str());
 			mTimeUntilNextToggle = 0.5;
@@ -279,6 +347,30 @@ public:
 		{
 			mRotX = Degree(-ms.X.rel * 0.13);
 			mRotY = Degree(-ms.Y.rel * 0.13);
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+            // Adjust the input depending upon viewport orientation
+            Radian origRotY, origRotX;
+            switch(mCamera->getViewport()->getOrientation())
+            {
+                case Viewport::OR_LANDSCAPELEFT:
+                    origRotY = mRotY;
+                    origRotX = mRotX;
+                    mRotX = origRotY;
+                    mRotY = -origRotX;
+                    break;
+                case Viewport::OR_LANDSCAPERIGHT:
+                    origRotY = mRotY;
+                    origRotX = mRotX;
+                    mRotX = -origRotY;
+                    mRotY = origRotX;
+                    break;
+                    
+                // Portrait doesn't need any change
+                case Viewport::OR_PORTRAIT:
+                default:
+                    break;
+            }
+#endif
 		}
 
 		return true;
@@ -341,9 +433,16 @@ public:
 		}
 
 		//Check to see which device is not buffered, and handle it
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 		if( !mKeyboard->buffered() )
 			if( processUnbufferedKeyInput(evt) == false )
 				return false;
+
+#ifdef USE_RTSHADER_SYSTEM
+		processShaderGeneratorInput();
+#endif
+
+#endif
 		if( !mMouse->buffered() )
 			if( processUnbufferedMouseInput(evt) == false )
 				return false;
@@ -390,7 +489,7 @@ protected:
 	RenderWindow* mWindow;
 	bool mStatsOn;
 
-	std::string mDebugText;
+	String mDebugText;
 
 	unsigned int mNumScreenShots;
 	float mMoveScale;

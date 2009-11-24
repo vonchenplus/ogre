@@ -4,7 +4,7 @@ This source file is part of OGRE
 	(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -35,7 +35,13 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
-    /** Abstract class defining the interface to be implemented by creators of ParticleAffector subclasses.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	/** Abstract class defining the interface to be implemented by creators of ParticleAffector subclasses.
     @remarks
         Plugins or 3rd party applications can add new types of particle affectors to Ogre by creating
         subclasses of the ParticleAffector class. Because multiple instances of these affectors may be
@@ -49,7 +55,7 @@ namespace Ogre {
 	class _OgreExport ParticleAffectorFactory : public FXAlloc
     {
     protected:
-        std::vector<ParticleAffector*> mAffectors;
+        vector<ParticleAffector*>::type mAffectors;
     public:
         ParticleAffectorFactory() {};
         virtual ~ParticleAffectorFactory();
@@ -66,6 +72,8 @@ namespace Ogre {
         virtual void destroyAffector(ParticleAffector* e);
     };
 
+	/** @} */
+	/** @} */
 
 }
 

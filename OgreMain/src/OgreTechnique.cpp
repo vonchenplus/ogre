@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software you can redistribute it and/or modify it under
@@ -94,6 +94,12 @@ namespace Ogre {
 			Pass* currPass = *i;
 			// Adjust pass index
 			currPass->_notifyIndex(passNum);
+			// Check for advanced blending operation support
+			if((currPass->getSceneBlendingOperation() != SBO_ADD || currPass->getSceneBlendingOperationAlpha() != SBO_ADD) && 
+				!caps->hasCapability(RSC_ADVANCED_BLEND_OPERATIONS))
+			{
+				return false;		
+			}
 			// Check texture unit requirements
 			size_t numTexUnitsRequested = currPass->getNumTextureUnitStates();
 			// Don't trust getNumTextureUnits for programmable
@@ -495,6 +501,19 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------------
+    bool Technique::isTransparentSortingForced(void) const
+    {
+        if (mPasses.empty())
+        {
+            return false;
+        }
+        else
+        {
+            // Base decision on the first pass
+            return mPasses[0]->getTransparentSortingForced();
+        }
+    }
+    //-----------------------------------------------------------------------------
     bool Technique::isDepthWriteEnabled(void) const
     {
         if (mPasses.empty())
@@ -614,7 +633,7 @@ namespace Ogre {
 		for (i = mPasses.begin(); i != iend; ++i)
 		{
 			(*i)->_unload();
-		}
+		}	
     }
     //-----------------------------------------------------------------------------
     bool Technique::isLoaded(void) const
@@ -1154,6 +1173,8 @@ namespace Ogre {
 					++i; // always increment on decal, since nothing more to do with this pass
 
 					break;
+                case IS_UNKNOWN:
+                    break;
 				}
 			}
 		}

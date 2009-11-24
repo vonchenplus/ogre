@@ -4,7 +4,7 @@ This source file is part of OGRE
 	(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -33,8 +33,8 @@ Torus Knot Software Ltd.
 namespace Ogre {
 
     //-----------------------------------------------------------------------
-    ParticleIterator::ParticleIterator(std::list<Particle*>::iterator start, 
-        std::list<Particle*>::iterator end)
+    ParticleIterator::ParticleIterator(list<Particle*>::type::iterator start, 
+        list<Particle*>::type::iterator end)
     {
         mStart = mPos = start;
         mEnd = end;

@@ -4,26 +4,25 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #ifndef __D3D10RENDERSYSTEM_H__
@@ -50,6 +49,21 @@ namespace Ogre
 	class D3D10RenderSystem : public RenderSystem
 	{
 	private:
+
+		// an enum to define the driver type of d3d10
+		enum OGRE_D3D10_DRIVER_TYPE
+		{
+			DT_HARDWARE, // GPU based
+			DT_SOFTWARE, // microsoft original (slow) software driver
+			DT_WARP // microsoft new (faster) software driver
+
+		};
+
+		OGRE_D3D10_DRIVER_TYPE mDriverType; // d3d10 driver type
+
+
+
+
 		/// Direct3D
 		//int			mpD3D;
 		/// Direct3D rendering device
@@ -57,10 +71,6 @@ namespace Ogre
 		
 		// Stored options
 		ConfigOptionMap mOptions;
-		/// full-screen multisampling antialiasing type
-		DXGI_SAMPLE_DESC mFSAAType;
-		/// full-screen multisampling antialiasing level
-		//DWORD mFSAAQuality;
 
 		/// instance
 		HINSTANCE mhInstance;
@@ -93,8 +103,6 @@ namespace Ogre
 		DWORD _getCurrentAnisotropy(size_t unit);
 		/// check if a FSAA is supported
 		bool _checkMultiSampleQuality(UINT SampleCount, UINT *outQuality, DXGI_FORMAT format);
-		/// set FSAA
-		void _setFSAA(DXGI_SAMPLE_DESC type, DWORD qualityLevel);
 		
 		D3D10HardwareBufferManager* mHardwareBufferManager;
 		D3D10GpuProgramManager* mGpuProgramManager;
@@ -114,7 +122,8 @@ namespace Ogre
 		void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, RenderTarget* primary);
 
         void convertVertexShaderCaps(RenderSystemCapabilities* rsc) const;
-        void convertPixelShaderCaps(RenderSystemCapabilities* rsc) const;
+		void convertPixelShaderCaps(RenderSystemCapabilities* rsc) const;
+		void convertGeometryShaderCaps(RenderSystemCapabilities* rsc) const;
 		bool checkVertexTextureFormats(void);
 
 
@@ -140,6 +149,7 @@ namespace Ogre
 
 		D3D10HLSLProgram* mBoundVertexProgram;
 		D3D10HLSLProgram* mBoundFragmentProgram;
+		D3D10HLSLProgram* mBoundGeometryProgram;
 
 
 		ID3D10BlendState * mBoundBlendState;
@@ -182,7 +192,7 @@ namespace Ogre
 		/// Primary window, the one used to create the device
 		D3D10RenderWindow* mPrimaryWindow;
 
-		typedef std::vector<D3D10RenderWindow*> SecondaryWindowList;
+		typedef vector<D3D10RenderWindow*>::type SecondaryWindowList;
 		// List of additional windows after the first (swap chains)
 		SecondaryWindowList mSecondaryWindows;
 
@@ -205,7 +215,7 @@ namespace Ogre
 			IDXGISurface *surface;
 			size_t width, height;
 		};
-		typedef std::map<ZBufferFormat, ZBufferRef> ZBufferHash;
+		typedef map<ZBufferFormat, ZBufferRef>::type ZBufferHash;
 		ZBufferHash mZBufferHash;
 	protected:
 		void setClipPlanesImpl(const PlaneList& clipPlanes);
@@ -274,8 +284,9 @@ namespace Ogre
         void _setTextureBorderColour(size_t stage, const ColourValue& colour);
 		void _setTextureMipmapBias(size_t unit, float bias);
 		void _setTextureMatrix( size_t unit, const Matrix4 &xform );
-		void _setSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor );
-		void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha );
+		void _setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op = SBO_ADD);
+		void _setSeparateSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, 
+			SceneBlendFactor destFactorAlpha, SceneBlendOperation op = SBO_ADD, SceneBlendOperation alphaOp = SBO_ADD);
 		void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
 		void _setViewport( Viewport *vp );
 		void _beginFrame(void);
@@ -315,7 +326,7 @@ namespace Ogre
         /** See
           RenderSystem
          */
-        void bindGpuProgramParameters(GpuProgramType gptype, GpuProgramParametersSharedPtr params);
+        void bindGpuProgramParameters(GpuProgramType gptype, GpuProgramParametersSharedPtr params, uint16 mask);
         /** See
           RenderSystem
          */
@@ -336,6 +347,11 @@ namespace Ogre
 		void unregisterThread();
 		void preExtraThreadsStarted();
 		void postExtraThreadsStarted();
+
+		/**
+         * Set current render target to target, enabling its GL context if needed
+         */
+		void _setRenderTarget(RenderTarget *target);
 
 		/** D3D specific method to restore a lost device. */
 		void restoreLostDevice(void);
@@ -363,6 +379,12 @@ namespace Ogre
         with the given usage options.
         */
         bool _checkTextureFilteringSupported(TextureType ttype, PixelFormat format, int usage);
+
+		void determineFSAASettings(uint fsaa, const String& fsaaHint, DXGI_FORMAT format, DXGI_SAMPLE_DESC* outFSAASettings);
+
+		/// @copydoc RenderSystem::getDisplayMonitorCount
+		unsigned int getDisplayMonitorCount() const {return 1;} //todo
+
 	};
 }
 #endif

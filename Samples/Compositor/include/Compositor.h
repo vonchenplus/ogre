@@ -4,11 +4,11 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 
@@ -18,92 +18,60 @@ LGPL like the rest of the engine.
 #include "OgreConfigFile.h"
 #include "OgreStringConverter.h"
 #include "OgreException.h"
-#include "ItemSelectorViewManager.h"
 
-#include <CEGUI/CEGUIImageset.h>
-#include <CEGUI/CEGUISystem.h>
-#include <CEGUI/CEGUILogger.h>
-#include <CEGUI/CEGUISchemeManager.h>
-#include <CEGUI/CEGUIWindowManager.h>
-#include <CEGUI/CEGUIWindow.h>
-#include <CEGUI/elements/CEGUICombobox.h>
-#include <CEGUI/elements/CEGUIListbox.h>
-#include <CEGUI/elements/CEGUIListboxTextItem.h>
-#include <CEGUI/elements/CEGUIPushButton.h>
-#include <CEGUI/elements/CEGUIScrollbar.h>
+#include "SdkSample.h"
+#include "SamplePlugin.h"
 
-#include "OgreCEGUIRenderer.h"
+using namespace Ogre;
+using namespace OgreBites;
 
-//---------------------------------------------------------------------------
-    class CompositorDemo_FrameListener;
-//---------------------------------------------------------------------------
-    class CompositorDemo
-    {
-    protected:
-        Ogre::Root*			  mRoot;
-        Ogre::Camera*		  mCamera;
-        Ogre::SceneManager*	  mSceneMgr;
-        // the scene node of the entity
-        Ogre::SceneNode*	  mMainNode;
+#define COMPOSITORS_PER_PAGE 10
 
-        CompositorDemo_FrameListener* mFrameListener;
-        Ogre::RenderWindow*	  mWindow;
-        CEGUI::OgreCEGUIRenderer*    mGUIRenderer;
-        CEGUI::System*        mGUISystem;
+class _OgreSampleClassExport Sample_Compositor : public SdkSample
+{
+public:
+	Sample_Compositor();
 
-        size_t				  mCurrentMaterial;
-		Ogre::SceneNode * mSpinny;
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+	bool touchPressed(const OIS::MultiTouchEvent& evt);
+	bool touchReleased(const OIS::MultiTouchEvent& evt);
+	bool touchMoved(const OIS::MultiTouchEvent& evt);
+#else
+	bool mousePressed(const OIS::MouseEvent& evt, OIS::MouseButtonID id);
+	bool mouseReleased(const OIS::MouseEvent& evt, OIS::MouseButtonID id);
+	bool mouseMoved(const OIS::MouseEvent& evt);
+#endif
 
-//        typedef std::vector< ShaderControlGUIWidget > ShaderControlContainer;
-//        typedef ShaderControlContainer::iterator ShaderControlIterator;
+    void setupContent(void);
+    void cleanupContent(void);
 
-//        ShaderControlContainer    mShaderControlContainer;
-//        MaterialControlsContainer mMaterialControlsContainer;
+	bool frameRenderingQueued(const FrameEvent& evt);
+	
+	void checkBoxToggled(OgreBites::CheckBox * box);
+	void buttonHit(OgreBites::Button* button);        
+	void itemSelected(OgreBites::SelectMenu* menu);
 
-        // These internal methods package up the stages in the startup process
-        /** Sets up the application - returns false if the user chooses to abandon configuration. */
-        bool setup(void);
+protected:
+	
+	void createCamera(void);
+	void createControls(void);
+    void createScene(void);
+    void createEffects(void);
+	void createTextures(void);
 
-        /** Configures the application - returns false if the user chooses to abandon configuration. */
-        bool configure(void);
-        void chooseSceneManager(void);
-        void createCamera(void);
-        void createViewports(void);
+	void registerCompositors();
+	void changePage(size_t pageNum);
+	
+	SceneNode * mSpinny;
+	StringVector mCompositorNames;
+	size_t mActiveCompositorPage;
+	size_t mNumCompositorPages;	
 
-        /// Method which will define the source of resources (other than current folder)
-        void setupResources(void);
-        void loadResources(void);
-        void createScene(void);
-        void createFrameListener(void);
-        void createEffects(void);
-		void createTextures(void);
+	String mDebugCompositorName;
+	SelectMenu* mDebugTextureSelectMenu;
+	TextureUnitState* mDebugTextureTUS;
 
-        void connectEventHandlers(void);
-        //void configureShaderControls(void);
-
-        void doErrorBox(const char* text);
-
-        bool handleQuit(const CEGUI::EventArgs& e);
-        //bool handleShaderControl(const CEGUI::EventArgs& e);
-        //bool handleShaderComboChanged(const CEGUI::EventArgs& e);
-        bool handleErrorBox(const CEGUI::EventArgs& e);
-        //void setShaderControlVal(const float val, const size_t index);
-
-    public:
-        CompositorDemo() : mRoot(0), mFrameListener(0), mGUIRenderer(0), mGUISystem(0)
-        {
-        }
-
-        ~CompositorDemo();
-
-        void go(void);
-        Ogre::Camera* getCamera(void) const { return mCamera; }
-        Ogre::SceneManager* getSceneManager(void) const { return mSceneMgr; }
-        Ogre::RenderWindow* getRenderWindow(void) const { return mWindow; }
-        Ogre::SceneNode* getMainNode(void) const { return mMainNode; }
-		CEGUI::OgreCEGUIRenderer* getGuiRenderer(void) const { return mGUIRenderer; }
-
-    };
+};
 
 
 #endif	// end _CompositorDemo_H_

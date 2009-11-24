@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 PCZSceneManager.h  -  Portal Connected Zone Scene Manager
 
@@ -46,6 +45,7 @@ Code Style Update	 :
 #include "OgrePCZone.h"
 #include "OgrePCZoneFactory.h"
 #include "OgrePortal.h"
+#include "OgreAntiPortal.h"
 
 namespace Ogre
 {
@@ -58,8 +58,8 @@ namespace Ogre
     class PCZAxisAlignedBoxSceneQuery;
     class PCZPlaneBoundedVolumeListSceneQuery;
 
-    typedef std::list < SceneNode * > NodeList;
-    typedef std::list < WireBoundingBox * > BoxList;
+	typedef vector<SceneNode*>::type NodeList;
+	typedef list<WireBoundingBox*>::type BoxList;
 
     /** Specialized SceneManager that uses Portal-Connected-Zones to divide the scene spatially.
     */
@@ -88,7 +88,7 @@ namespace Ogre
 
 		/** Create a new portal instance
 		*/
-		Portal* createPortal(const String &name, const Ogre::Portal::PORTAL_TYPE type = Ogre::Portal::PORTAL_TYPE_QUAD);
+		Portal* createPortal(const String& name, PortalBase::PORTAL_TYPE type = PortalBase::PORTAL_TYPE_QUAD);
 
 		/** Delete a portal instance by pointer
 		*/
@@ -97,6 +97,15 @@ namespace Ogre
 		/** Delete a portal instance by name
 		*/
 		void destroyPortal(const String & portalName);
+
+		/** Create a new anti portal instance */
+		AntiPortal* createAntiPortal(const String& name, PortalBase::PORTAL_TYPE type = PortalBase::PORTAL_TYPE_QUAD);
+
+		/** Delete a anti portal instance by pointer */
+		void destroyAntiPortal(AntiPortal * p);
+
+		/** Delete a anti portal instance by name */
+		void destroyAntiPortal(const String& portalName);
 
 		/** Create a zone from a file (type of file
 		  * depends on the zone type
@@ -185,19 +194,14 @@ namespace Ogre
         */
         virtual void destroyAllLights(void);
 
-		/* Save the position of all nodes (saved to PCZSN->prevPosition)
-		*/
-		void _saveNodePositions(void);
-
-		/** Update the spatial data for every zone portal in the scene */
-
-		void _updatePortalSpatialData(void);
-
 		/** Check/Update the zone data for every portal in the scene.
 		 *  Essentially, this routine checks each portal for intersections
 		 *  with other portals and updates if a crossing occurs 
 		 */
 		void _updatePortalZoneData(void);
+
+		/** Mark nodes dirty for every zone with moving portal in the scene */
+		void _dirtyNodeByMovingPortals(void);
 
 		/** Update the PCZSceneNodes 
 		*/
@@ -323,17 +327,23 @@ namespace Ogre
 		ZoneIterator getZoneIterator(void) {return ZoneIterator(mZones.begin(), mZones.end());}
 
 		// clear portal update flag from all zones 
-		void _clearAllZonesPortalUpdateFlag(void);   
+		void _clearAllZonesPortalUpdateFlag(void);
 
-    protected:
+		/// See SceneManager::prepareShadowTextures.
+		virtual void prepareShadowTextures(Camera* cam, Viewport* vp, const LightList* lightList = 0);
+
+	protected:
 		// type of default zone to be used
 		String mDefaultZoneTypeName;
 
 		// name of data file for default zone
 		String mDefaultZoneFileName;
 
-		// list of visible nodes 
-        NodeList mVisible;
+		/// list of visible nodes since last _findVisibleObjects()
+		NodeList mVisible;
+
+		/// camera of last _findVisibleObjects()
+		Camera* mLastActiveCamera;
 
         /// The root PCZone;
         PCZone *mDefaultZone;
@@ -343,6 +353,9 @@ namespace Ogre
 
 		/// Master list of Portals in the world (includes all portals)
 		PortalList mPortals;
+
+		/// Master list of AntiPortals in the world.
+		AntiPortalList mAntiPortals;
 
         /// Portals visibility flag
         bool mShowPortals;
@@ -367,8 +380,6 @@ namespace Ogre
 		virtual void ensureShadowTexturesCreated();
 		/// Internal method for destroying shadow textures (texture-based shadows)
 		virtual void destroyShadowTextures(void);
-		/// Internal method for preparing shadow textures ready for use in a regular render
-		virtual void prepareShadowTextures(Camera* cam, Viewport* vp);
 		/// Internal method for firing the pre caster texture shadows event
 		virtual void fireShadowTexturesPreCaster(Light* light, Camera* camera, size_t iteration);
     };
@@ -392,4 +403,5 @@ namespace Ogre
 }
 
 #endif
+
 

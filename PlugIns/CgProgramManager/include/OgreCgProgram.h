@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software you can redistribute it and/or modify it under
@@ -109,8 +109,6 @@ namespace Ogre {
         void buildArgs(void);
         /// Releases memory for the horrible Cg char**
         void freeCgArgs(void);
-		/// Preprocess the file for #include support
-		String preprocess(const String& source);
 
 
     public:
@@ -135,6 +133,9 @@ namespace Ogre {
         bool isSupported(void) const;
         /// Overridden from GpuProgram
         const String& getLanguage(void) const;
+
+		/// scan the file for #include and replace with source from the OGRE resources
+		static String resolveCgIncludes(const String& source, Resource* resourceBeingLoaded, const String& fileName);
 
     };
 }

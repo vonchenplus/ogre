@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software you can redistribute it and/or modify it under
@@ -74,6 +74,10 @@ namespace Ogre {
 		void attachToProgramObject( const GLhandleARB programObject );
 		void detachFromProgramObject( const GLhandleARB programObject );
 		String getAttachedShaderNames() const { return mAttachedShaderNames; }
+
+		/// Overridden
+		bool getPassTransformStates(void) const;
+		bool getPassSurfaceAndLightStates(void) const;
 
         /** Attach another GLSL Shader to this one. */
         void attachChildShader(const String& name);
@@ -186,7 +190,7 @@ namespace Ogre {
 		/// Preprocessor options
 		String mPreprocessorDefines;
 		/// container of attached programs
-		typedef std::vector< GLSLProgram* > GLSLProgramContainer;
+		typedef vector< GLSLProgram* >::type GLSLProgramContainer;
 		typedef GLSLProgramContainer::iterator GLSLProgramContainerIterator;
 		GLSLProgramContainer mAttachedGLSLPrograms;
 

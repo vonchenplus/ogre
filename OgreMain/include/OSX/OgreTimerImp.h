@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
  
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
  
 This program is free software; you can redistribute it and/or modify it under
@@ -30,12 +30,12 @@ Torus Knot Software Ltd.
 #ifndef __OSXTimer_H__
 #define __OSXTimer_H__
 
-#include "../OgrePrerequisites.h"
+#include "OgrePrerequisites.h"
 
 namespace Ogre
 {
 	/** Timer class */
-	class Timer : public TimerAlloc
+	class _OgreExport Timer : public TimerAlloc
 	{
 	private:
 		struct timeval start;
