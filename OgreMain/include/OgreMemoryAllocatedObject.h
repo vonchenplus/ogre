@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2008 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under
@@ -43,6 +43,12 @@ Torus Knot Software Ltd
 
 namespace Ogre
 {
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Memory
+	*  @{
+	*/
 	/** Superclass for all objects that wish to use custom memory allocators
 		when their new / delete operators are called.
 		Requires a template parameter identifying the memory allocator policy 
@@ -72,6 +78,7 @@ namespace Ogre
 		/// placement operator new
 		void* operator new(size_t sz, void* ptr)
 		{
+			(void) sz;
 			return ptr;
 		}
 
@@ -116,6 +123,8 @@ namespace Ogre
 	};
 
 
+	/** @} */
+	/** @} */
 
 }
 #endif

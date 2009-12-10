@@ -4,7 +4,7 @@ This source file is part of OGRE
 	(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -38,11 +38,18 @@ Torus Knot Software Ltd.
 #include "OgreMovableObject.h"
 #include "OgreRadixSort.h"
 #include "OgreController.h"
+#include "OgreResourceGroupManager.h"
 
 
 namespace Ogre {
 
-    /** Class defining particle system based special effects.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	/** Class defining particle system based special effects.
     @remarks
         Particle systems are special effects generators which are based on a 
         number of moving points to create the impression of things like like 
@@ -346,7 +353,7 @@ namespace Ogre {
             @param
                 name The new name of the material to use for this set.
         */
-        virtual void setMaterialName(const String& name);
+        virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 
         /** Sets the name of the material to be used for this billboard set.
             @returns The name of the material that is used for this set.
@@ -612,6 +619,24 @@ namespace Ogre {
         */
         void _updateBounds(void);
 
+		/** This is used to turn on or off particle emission for this system.
+		@remarks
+			By default particle system is always emitting particles (if a emitters exists)
+			and this can be used to stop the emission for all emitters. To turn it on again, 
+			call it passing true.
+
+			Note that this does not detach the particle system from the scene node, it will 
+			still use some CPU.
+		*/
+		void setEmitting(bool v);
+
+		/** Returns true if the particle system emitting flag is turned on.
+		@remarks
+			This function will not actually return whether the particles are being emitted.
+			It only returns the value of emitting flag.
+		*/
+		bool getEmitting() const;
+
 		/// Override to return specific type flag
 		uint32 getTypeFlags(void) const;
     protected:
@@ -673,10 +698,12 @@ namespace Ogre {
 		Controller<Real>* mTimeController;
         /// Indication whether the emitted emitter pool (= pool with particle emitters that are emitted) is initialised
 		bool mEmittedEmitterPoolInitialised;
+		/// Used to control if the particle system should emit particles or not.
+		bool mIsEmitting;
 
-        typedef std::list<Particle*> ActiveParticleList;
-        typedef std::list<Particle*> FreeParticleList;
-        typedef std::vector<Particle*> ParticlePool;
+        typedef list<Particle*>::type ActiveParticleList;
+        typedef list<Particle*>::type FreeParticleList;
+        typedef vector<Particle*>::type ParticlePool;
 
         /** Sort by direction functor */
         struct SortByDirectionFunctor
@@ -728,11 +755,11 @@ namespace Ogre {
         */
         ParticlePool mParticlePool;
 
-		typedef std::list<ParticleEmitter*> FreeEmittedEmitterList;
-		typedef std::list<ParticleEmitter*> ActiveEmittedEmitterList;
-		typedef std::vector<ParticleEmitter*> EmittedEmitterList;
-		typedef std::map<String, FreeEmittedEmitterList> FreeEmittedEmitterMap;
-		typedef std::map<String, EmittedEmitterList> EmittedEmitterPool;
+		typedef list<ParticleEmitter*>::type FreeEmittedEmitterList;
+		typedef list<ParticleEmitter*>::type ActiveEmittedEmitterList;
+		typedef vector<ParticleEmitter*>::type EmittedEmitterList;
+		typedef map<String, FreeEmittedEmitterList>::type FreeEmittedEmitterMap;
+		typedef map<String, EmittedEmitterList>::type EmittedEmitterPool;
 
 		/** Pool of emitted emitters for use and reuse in the active emitted emitter list.
         @remarks
@@ -757,8 +784,8 @@ namespace Ogre {
 				the list with active emitted emitters.        */
         ActiveEmittedEmitterList mActiveEmittedEmitters;
 
-		typedef std::vector<ParticleEmitter*> ParticleEmitterList;
-        typedef std::vector<ParticleAffector*> ParticleAffectorList;
+		typedef vector<ParticleEmitter*>::type ParticleEmitterList;
+        typedef vector<ParticleAffector*>::type ParticleAffectorList;
         
         /// List of particle emitters, ie sources of particles
         ParticleEmitterList mEmitters;
@@ -813,7 +840,7 @@ namespace Ogre {
 		/** Resize the internal pool of emitted emitters.
             @remarks
                 The pool consists of multiple vectors containing pointers to particle emitters. Increasing the 
-				pool with ´size´ implies that the vectors are equally increased. The quota of emitted emitters is 
+				pool with size implies that the vectors are equally increased. The quota of emitted emitters is 
 				defined on a particle system level and not on a particle emitter level. This is to prevent that
 				the number of created emitters becomes too high; the quota is shared amongst the emitted emitters.
 		*/
@@ -871,11 +898,13 @@ namespace Ogre {
             @remarks
                 This function should be called if new emitters are added to a ParticleSystem or deleted from a
 				ParticleSystem. The emitted emitter data structures become out of sync and need to be build up
-				again. The data structures are not reorganised in this function, but by setting a ´flag´, 
+				again. The data structures are not reorganised in this function, but by setting a flag, 
 				they are rebuild in the regular process flow.
         */
 		void _notifyReorganiseEmittedEmitterData (void);
     };
+	/** @} */
+	/** @} */
 
 }
 

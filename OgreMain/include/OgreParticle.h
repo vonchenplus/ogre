@@ -4,7 +4,7 @@ This source file is part of OGRE
 	(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -34,6 +34,12 @@ Torus Knot Software Ltd.
 
 namespace Ogre {
 
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
 	/** Abstract class containing any additional data required to be associated
 		with a particle to perform the required rendering. 
 	@remarks
@@ -141,6 +147,8 @@ namespace Ogre {
         /// Utility method to reset this particle
         void resetDimensions(void);
     };
+	/** @} */
+	/** @} */
 }
 
 #endif

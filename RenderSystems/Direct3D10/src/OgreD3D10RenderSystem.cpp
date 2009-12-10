@@ -4,26 +4,25 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreD3D10RenderSystem.h"
@@ -79,12 +78,13 @@ namespace Ogre
 
 		mBoundVertexProgram = NULL;
 		mBoundFragmentProgram = NULL;
+		mBoundGeometryProgram = NULL;
 
 		ZeroMemory( &mBlendDesc, sizeof(mBlendDesc));
 
 		ZeroMemory( &mRasterizerDesc, sizeof(mRasterizerDesc));
 		mRasterizerDesc.FrontCounterClockwise = true;
-		mRasterizerDesc.DepthClipEnable = true;
+		mRasterizerDesc.DepthClipEnable = false;
 		mRasterizerDesc.MultisampleEnable = true;
 
 
@@ -115,7 +115,7 @@ namespace Ogre
 		}
 
 		ID3D10Device * device;
-		if(FAILED(D3D10CreateDevice(NULL,D3D10_DRIVER_TYPE_HARDWARE ,0,deviceFlags,D3D10_SDK_VERSION, &device)))
+		if(FAILED(D3D10CreateDevice(NULL, D3D10_DRIVER_TYPE_HARDWARE ,0,deviceFlags, D3D10_SDK_VERSION, &device)))
 		{
 			OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, 
 				"Failed to create Direct3D10 object", 
@@ -125,9 +125,6 @@ namespace Ogre
 		// set config options defaults
 		initConfigOptions();
 
-		// fsaa options
-		mFSAAType.Count =1;
-		mFSAAType.Quality = 0;
 
 		// set stages desc. to defaults
 		for (size_t n = 0; n < OGRE_MAX_TEXTURE_LAYERS; n++)
@@ -140,8 +137,8 @@ namespace Ogre
 		mLastVertexSourceCount = 0;
 
 		// Enumerate events
-		mEventNames.push_back("DeviceLost");
-		mEventNames.push_back("DeviceRestored");
+	//	mEventNames.push_back("DeviceLost");
+	//	mEventNames.push_back("DeviceRestored");
 
 		mFixedFuncEmuShaderManager.registerGenerator(&mHlslFixedFuncEmuShaderGenerator);
 
@@ -207,11 +204,13 @@ namespace Ogre
 		ConfigOption optVideoMode;
 		ConfigOption optFullScreen;
 		ConfigOption optVSync;
+		ConfigOption optVSyncInterval;
 		ConfigOption optAA;
 		ConfigOption optFPUMode;
 		ConfigOption optNVPerfHUD;
 		ConfigOption optSRGB;
 		ConfigOption optExceptionsErrorLevel;
+		ConfigOption optDriverType;
 
 		driverList = this->getDirect3DDrivers();
 
@@ -245,7 +244,15 @@ namespace Ogre
 		optVSync.possibleValues.push_back( "No" );
 		optVSync.currentValue = "No";
 
-		optAA.name = "Anti aliasing";
+		optVSyncInterval.name = "VSync Interval";
+		optVSyncInterval.immutable = false;
+		optVSyncInterval.possibleValues.push_back( "1" );
+		optVSyncInterval.possibleValues.push_back( "2" );
+		optVSyncInterval.possibleValues.push_back( "3" );
+		optVSyncInterval.possibleValues.push_back( "4" );
+		optVSyncInterval.currentValue = "1";
+
+		optAA.name = "FSAA";
 		optAA.immutable = false;
 		optAA.possibleValues.push_back( "None" );
 		optAA.currentValue = "None";
@@ -272,7 +279,7 @@ namespace Ogre
  		optSRGB.possibleValues.push_back("Yes");
  		optSRGB.possibleValues.push_back("No");
  		optSRGB.currentValue = "No";
- 		optSRGB.immutable = false;
+ 		optSRGB.immutable = false;		
 
 
 		// Exceptions Error Level
@@ -282,7 +289,7 @@ namespace Ogre
 		optExceptionsErrorLevel.possibleValues.push_back("Error");
 		optExceptionsErrorLevel.possibleValues.push_back("Warning");
 		optExceptionsErrorLevel.possibleValues.push_back("Info (exception on any message)");
-#ifdef _DEBUG
+#ifdef OGRE_DEBUG_MODE
 		optExceptionsErrorLevel.currentValue = "Info (exception on any message)";
 #else
 		optExceptionsErrorLevel.currentValue = "No information queue exceptions";
@@ -290,17 +297,27 @@ namespace Ogre
 		optExceptionsErrorLevel.immutable = false;
 		
 
+		// Driver type
+		optDriverType.name = "Driver type";
+		optDriverType.possibleValues.push_back("Hardware");
+		optDriverType.possibleValues.push_back("Software");
+		optDriverType.possibleValues.push_back("Warp");
+		optDriverType.currentValue = "Hardware";
+		optDriverType.immutable = false;
+
 
 		mOptions[optDevice.name] = optDevice;
 		mOptions[optVideoMode.name] = optVideoMode;
 		mOptions[optFullScreen.name] = optFullScreen;
 		mOptions[optVSync.name] = optVSync;
+		mOptions[optVSyncInterval.name] = optVSyncInterval;
 		mOptions[optAA.name] = optAA;
 		mOptions[optFPUMode.name] = optFPUMode;
 		mOptions[optNVPerfHUD.name] = optNVPerfHUD;
 		mOptions[optSRGB.name] = optSRGB;
 		mOptions[optExceptionsErrorLevel.name] = optExceptionsErrorLevel;
-
+		mOptions[optDriverType.name] = optDriverType;
+		
 		refreshD3DSettings();
 
 	}
@@ -386,33 +403,6 @@ namespace Ogre
             }
 		}
 
-		if( name == "Anti aliasing" )
-		{
-/*			if (value == "None")
-				_setFSAA(D3DMULTISAMPLE_NONE, 0);
-			else 
-			{
-				DXGI_SAMPLE_DESC fsaa = D3DMULTISAMPLE_NONE;
-				DWORD level = 0;
-
-				if (StringUtil::startsWith(value, "NonMaskable", false))
-				{
-					fsaa = D3DMULTISAMPLE_NONMASKABLE;
-					size_t pos = value.find_last_of(" ");
-					String sNum = value.substr(pos + 1);
-					level = StringConverter::parseInt(sNum);
-					level -= 1;
-				}
-				else if (StringUtil::startsWith(value, "Level", false))
-				{
-					size_t pos = value.find_last_of(" ");
-					String sNum = value.substr(pos + 1);
-					fsaa = (DXGI_SAMPLE_DESC)StringConverter::parseInt(sNum);
-				}
-
-				_setFSAA(fsaa, level);
-			}
-*/		}
 
 		if( name == "VSync" )
 		{
@@ -420,6 +410,11 @@ namespace Ogre
 				mVSync = true;
 			else
 				mVSync = false;
+		}
+
+		if( name == "VSync Interval" )
+		{
+			mVSyncInterval = StringConverter::parseUnsignedInt(value);
 		}
 
 		if( name == "Allow NVPerfHUD" )
@@ -440,10 +435,10 @@ namespace Ogre
     void D3D10RenderSystem::refreshFSAAOptions(void)
     {
 
-        ConfigOptionMap::iterator it = mOptions.find( "Anti aliasing" );
+        ConfigOptionMap::iterator it = mOptions.find( "FSAA" );
         ConfigOption* optFSAA = &it->second;
         optFSAA->possibleValues.clear();
-        optFSAA->possibleValues.push_back("None");
+        optFSAA->possibleValues.push_back("0");
 
         it = mOptions.find("Rendering Device");
         D3D10Driver *driver = getDirect3DDrivers()->item(it->second.currentValue);
@@ -454,21 +449,7 @@ namespace Ogre
             if (videoMode)
             {
                 UINT numLevels = 0;
-               // get non maskable FSAA for this VMODE
 				 bool bOK=false;
-               /*  bool bOK = this->_checkMultiSampleQuality(
-                    D3DMULTISAMPLE_NONMASKABLE, 
-                    &numLevels, 
-                    videoMode->getFormat(), 
-                    driver->getAdapterNumber(),
-                    D3DDEVTYPE_HAL,
-                    TRUE);
-                if (bOK && numLevels > 0)
-                {
-                    for (DWORD n = 0; n < numLevels; n++)
-                        optFSAA->possibleValues.push_back("NonMaskable " + StringConverter::toString(n + 1));
-                }
-			*/
                 // set maskable levels supported
                 for (unsigned int n = 2; n < 17; n++)
                 {
@@ -478,7 +459,13 @@ namespace Ogre
                         videoMode->getFormat()
                         );
                     if (bOK)
-                        optFSAA->possibleValues.push_back("Level " + StringConverter::toString(n));
+					{
+                        optFSAA->possibleValues.push_back(StringConverter::toString(n));
+						if (n >=8)
+						{
+							optFSAA->possibleValues.push_back(StringConverter::toString(n) + " [Quality]");
+						}
+					}
                 }
             }
         }
@@ -490,7 +477,7 @@ namespace Ogre
                       optFSAA->currentValue);
         if (itValue == optFSAA->possibleValues.end())
         {
-            optFSAA->currentValue = "None";
+            optFSAA->currentValue = "0";
         }
 
     }
@@ -595,6 +582,28 @@ namespace Ogre
 
 
 
+			// Driver type
+			opt = mOptions.find( "Driver type" );
+			if( opt == mOptions.end() )
+				OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Can't find driver type!", "D3D10RenderSystem::initialise" );
+			String driverTypeName = opt->second.currentValue;
+
+			mDriverType = DT_HARDWARE;
+			if ("Hardware" == driverTypeName)
+			{
+				 mDriverType = DT_HARDWARE;
+			}
+			if ("Software" == driverTypeName)
+			{
+				mDriverType = DT_SOFTWARE;
+			}
+			if ("Warp" == driverTypeName)
+			{
+				mDriverType = DT_WARP;
+			}
+
+
+
 			UINT deviceFlags = 0;
 			if (D3D10Device::D3D_NO_EXCEPTION != D3D10Device::getExceptionsErrorLevel())
 			{
@@ -604,9 +613,84 @@ namespace Ogre
 			{
 				deviceFlags |= D3D10_CREATE_DEVICE_SINGLETHREADED;
 			}
-			
+			D3D10_DRIVER_TYPE driverType = D3D10_DRIVER_TYPE_HARDWARE;
+
+			// Search for a PerfHUD adapter
+			UINT nAdapter = 0;
+			IDXGIAdapter* pAdapter = NULL;
+			IDXGIAdapter* pSelectedAdapter = mActiveD3DDriver->getDeviceAdapter();
+			if ( mUseNVPerfHUD )
+			{
+				IDXGIFactory* pDXGIFactory;
+
+				HRESULT hr;
+				hr = CreateDXGIFactory( __uuidof( IDXGIFactory), (void**)&pDXGIFactory);
+
+				if (FAILED(hr))
+				{
+					OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "A DX10 Compliant Video Card is Required",
+						"D3D10RenderSystem::D3D10RenderSystem" );
+				}
+
+				// Search for a PerfHUD adapter
+				while( pDXGIFactory->EnumAdapters( nAdapter, &pAdapter ) != DXGI_ERROR_NOT_FOUND )
+				{
+					if ( pAdapter )
+					{
+						DXGI_ADAPTER_DESC adaptDesc;
+						if ( SUCCEEDED( pAdapter->GetDesc( &adaptDesc ) ) )
+						{
+							const bool isPerfHUD = wcscmp( adaptDesc.Description, L"NVIDIA PerfHUD" ) == 0;
+							if ( isPerfHUD )
+							{
+								pSelectedAdapter = pAdapter;
+								driverType = D3D10_DRIVER_TYPE_REFERENCE;
+							}
+						}
+						++nAdapter;
+					}
+				}
+
+				pDXGIFactory->Release();
+			}
+
 			ID3D10Device * device;
-			if(FAILED(D3D10CreateDevice(mActiveD3DDriver->getDeviceAdapter(),D3D10_DRIVER_TYPE_HARDWARE ,0,deviceFlags,D3D10_SDK_VERSION, &device)))			
+
+			HMODULE Software3d310Dll = NULL;
+			if (mDriverType == DT_SOFTWARE)
+			{
+				driverType = D3D10_DRIVER_TYPE_SOFTWARE; 
+				pSelectedAdapter = NULL;
+				Software3d310Dll = LoadLibrary(TEXT("D3D10Ref.dll"));
+				if (Software3d310Dll == NULL) 
+				{
+					OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, 
+						"Failed to load Direct3D10 software DLL (D3D10Ref.dll)", 
+						"D3D10RenderSystem::D3D10RenderSystem" );
+
+				}
+			}
+			else if (mDriverType == DT_WARP)
+			{
+				// you have to use D3D10_DRIVER_TYPE_SOFTWARE (D3D10_DRIVER_TYPE_WARP doesn't work)
+				driverType = D3D10_DRIVER_TYPE_SOFTWARE; 
+				pSelectedAdapter = NULL;
+				Software3d310Dll = LoadLibrary(TEXT("D3D10WARP.dll"));
+				if (Software3d310Dll == NULL) 
+				{
+					// try to load the beta that was released
+					Software3d310Dll = LoadLibrary(TEXT("D3D10WARP_beta.dll"));
+					if (Software3d310Dll == NULL) 
+					{
+						OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, 
+							"Failed to load Direct3D10 Wrap DLL (D3D10WARP.dll or D3D10WARP_beta.dll)", 
+							"D3D10RenderSystem::D3D10RenderSystem" );
+
+					}
+				}
+			}
+
+			if(FAILED(D3D10CreateDevice(pSelectedAdapter,driverType , Software3d310Dll, deviceFlags,D3D10_SDK_VERSION, &device)))         
 			{
 				OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, 
 					"Failed to create Direct3D10 object", 
@@ -678,12 +762,23 @@ namespace Ogre
 			if( opt == mOptions.end() )
 				OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Can't find sRGB option!", "D3D9RenderSystem::initialise" );
 			hwGamma = opt->second.currentValue == "Yes";
+			uint fsaa = 0;
+			String fsaaHint;
+			if( (opt = mOptions.find("FSAA")) != mOptions.end() )
+			{
+				StringVector values = StringUtil::split(opt->second.currentValue, " ", 1);
+				fsaa = StringConverter::parseUnsignedInt(values[0]);
+				if (values.size() > 1)
+					fsaaHint = values[1];
+			}				
+			
 
 			NameValuePairList miscParams;
 			miscParams["colourDepth"] = StringConverter::toString(videoMode->getColourDepth());
-			miscParams["FSAA"] = StringConverter::toString(mFSAAType.Count);
-			miscParams["FSAAQuality"] = StringConverter::toString(mFSAAType.Quality);
+			miscParams["FSAA"] = fsaa;
+			miscParams["FSAAHint"] = fsaaHint;
 			miscParams["vsync"] = StringConverter::toString(mVSync);
+			miscParams["vsyncInterval"] = StringConverter::toString(mVSyncInterval);
 			miscParams["useNVPerfHUD"] = StringConverter::toString(mUseNVPerfHUD);
 			miscParams["gamma"] = StringConverter::toString(hwGamma);
 
@@ -718,15 +813,6 @@ namespace Ogre
 
 		return autoWindow;
 	}
-	//---------------------------------------------------------------------
-	void D3D10RenderSystem::_setFSAA(DXGI_SAMPLE_DESC type, DWORD qualityLevel)
-	{
-/*		if (!mDevice)
-		{
-			mFSAAType = type;
-			mFSAAQuality = qualityLevel;
-		}
-*/	}
 	//---------------------------------------------------------------------
 	void D3D10RenderSystem::reinitialise()
 	{
@@ -771,7 +857,7 @@ namespace Ogre
 		}
 		
 		// Log a message
-		std::stringstream ss;
+		StringStream ss;
 		ss << "D3D10RenderSystem::_createRenderWindow \"" << name << "\", " <<
 			width << "x" << height << " ";
 		if(fullScreen)
@@ -875,6 +961,7 @@ namespace Ogre
 
 		convertVertexShaderCaps(rsc);
 		convertPixelShaderCaps(rsc);
+		convertGeometryShaderCaps(rsc);
 
 		rsc->setCapability(RSC_USER_CLIP_PLANES);
 		rsc->setCapability(RSC_VERTEX_FORMAT_UBYTE4);
@@ -1018,6 +1105,59 @@ namespace Ogre
 		rsc->setFragmentProgramConstantFloatCount(512);
 
     }
+	//---------------------------------------------------------------------
+	void D3D10RenderSystem::convertGeometryShaderCaps(RenderSystemCapabilities* rsc) const
+	{
+
+		rsc->addShaderProfile("gs_4_0");
+		// Documentation\dx10help\d3d10.chm::/D3D10CompileShader.htm
+		// The Direct3D 10 currently supports only "vs_4_0", "ps_4_0", and "gs_4_0". 
+
+		rsc->setCapability(RSC_GEOMETRY_PROGRAM);
+		rsc->setCapability(RSC_HWRENDER_TO_VERTEX_BUFFER);
+
+		rsc->setGeometryProgramConstantFloatCount(0);
+		rsc->setGeometryProgramConstantIntCount(0);
+		rsc->setGeometryProgramConstantBoolCount(0);
+		rsc->setGeometryProgramNumOutputVertices(0);
+		/*
+		/// The number of floating-point constants geometry programs support
+		void setGeometryProgramConstantFloatCount(ushort c)
+		{
+			mGeometryProgramConstantFloatCount = c;           
+		}
+		/// The number of integer constants geometry programs support
+		void setGeometryProgramConstantIntCount(ushort c)
+		{
+			mGeometryProgramConstantIntCount = c;           
+		}
+		/// The number of boolean constants geometry programs support
+		void setGeometryProgramConstantBoolCount(ushort c)
+		{
+			mGeometryProgramConstantBoolCount = c;           
+		}
+		/// Set the number of vertices a single geometry program run can emit
+		void setGeometryProgramNumOutputVertices(int numOutputVertices)
+		{
+		mGeometryProgramNumOutputVertices = numOutputVertices;
+		}
+		/// Get the number of vertices a single geometry program run can emit
+		int getGeometryProgramNumOutputVertices(void) const
+		{
+		return mGeometryProgramNumOutputVertices;
+		}
+
+*/
+/*		// TODO: constant buffers have no limits but lower models do
+		// 16 boolean params allowed
+		rsc->setFragmentProgramConstantBoolCount(16);
+		// 16 integer params allowed, 4D
+		rsc->setFragmentProgramConstantIntCount(16);
+		// float params, always 4D
+		rsc->setFragmentProgramConstantFloatCount(512);
+*/
+	}
+
 	//-----------------------------------------------------------------------
 	bool D3D10RenderSystem::checkVertexTextureFormats(void)
 	{
@@ -1698,21 +1838,28 @@ namespace Ogre
 		}
 	}
 	//---------------------------------------------------------------------
-	void D3D10RenderSystem::_setSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor )
+	void D3D10RenderSystem::_setSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op /*= SBO_ADD*/ )
 	{
-		mBlendDesc.BlendEnable[0] = TRUE;
-		mBlendDesc.SrcBlend = D3D10Mappings::get(sourceFactor);
-		mBlendDesc.DestBlend = D3D10Mappings::get(destFactor);
-		mBlendDesc.BlendOp = D3D10_BLEND_OP_ADD ;
-		mBlendDesc.BlendOpAlpha = D3D10_BLEND_OP_ADD ;
-		mBlendDesc.SrcBlendAlpha = D3D10_BLEND_ZERO;
-		mBlendDesc.DestBlendAlpha = D3D10_BLEND_ZERO;
-		mBlendDesc.AlphaToCoverageEnable = mSceneAlphaToCoverage;
+		if( sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
+		{
+			mBlendDesc.BlendEnable[0] = FALSE;
+		}
+		else
+		{
+			mBlendDesc.BlendEnable[0] = TRUE;
+			mBlendDesc.SrcBlend = D3D10Mappings::get(sourceFactor);
+			mBlendDesc.DestBlend = D3D10Mappings::get(destFactor);
+			mBlendDesc.BlendOp = D3D10_BLEND_OP_ADD ;
+			mBlendDesc.BlendOpAlpha = D3D10_BLEND_OP_ADD ;
+			mBlendDesc.SrcBlendAlpha = D3D10_BLEND_ZERO;
+			mBlendDesc.DestBlendAlpha = D3D10_BLEND_ZERO;
+			mBlendDesc.AlphaToCoverageEnable = mSceneAlphaToCoverage;
 
-		mBlendDesc.RenderTargetWriteMask[0] = 0x0F;
+			mBlendDesc.RenderTargetWriteMask[0] = 0x0F;
+		}
 	}
 	//---------------------------------------------------------------------
-	void D3D10RenderSystem::_setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha )
+	void D3D10RenderSystem::_setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op /*= SBO_ADD*/, SceneBlendOperation alphaOp /*= SBO_ADD*/ )
 	{
 	/*	HRESULT hr;
 		if( sourceFactor == SBF_ONE && destFactor == SBF_ZERO && 
@@ -1762,7 +1909,7 @@ namespace Ogre
 	void D3D10RenderSystem::_setDepthBufferCheckEnabled( bool enabled )
 	{
 		mDepthStencilDesc.DepthEnable = enabled;
-		mRasterizerDesc.DepthClipEnable = enabled;
+		//mRasterizerDesc.DepthClipEnable = enabled;
 	}
 	//---------------------------------------------------------------------
 	void D3D10RenderSystem::_setDepthBufferWriteEnabled( bool enabled )
@@ -1932,12 +2079,94 @@ namespace Ogre
 	
 	}*/
 	//---------------------------------------------------------------------
+	void D3D10RenderSystem::_setRenderTarget(RenderTarget *target)
+	{
+		mActiveRenderTarget = target;
+
+
+		// Retrieve render surfaces (up to OGRE_MAX_MULTIPLE_RENDER_TARGETS)
+		/*	IDXGISurface * pBack[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
+		memset(pBack, 0, sizeof(pBack));
+		target->getCustomAttribute( "DDBACKBUFFER", &pBack );
+		if (!pBack[0])
+		return;
+
+		IDXGISurface * pDepth = NULL;
+		target->getCustomAttribute( "D3DZBUFFER", &pDepth );
+		if (!pDepth)
+		{
+		/// No depth buffer provided, use our own
+		/// Request a depth stencil that is compatible with the format, multisample type and
+		/// dimensions of the render target.
+		D3DSURFACE_DESC srfDesc;
+		if(FAILED(pBack[0]->GetDesc(&srfDesc)))
+		return; // ?
+		pDepth = _getDepthStencilFor(srfDesc.Format, srfDesc.MultiSampleType, srfDesc.Width, srfDesc.Height);
+		}
+		// Bind render targets
+		uint count = mCapabilities->numMultiRenderTargets();
+		for(uint x=0; x<count; ++x)
+		{
+		hr = mDevice->SetRenderTarget(x, pBack[x]);
+		if (FAILED(hr))
+		{
+		String msg ;//= DXGetErrorDescription(hr);
+		OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to setRenderTarget : " + msg, "D3D10RenderSystem::_setViewport" );
+		}
+		}
+		*/
+		ID3D10RenderTargetView * pRTView;
+		target->getCustomAttribute( "ID3D10RenderTargetView", &pRTView );
+		ID3D10DepthStencilView * pRTDepthView;
+		target->getCustomAttribute( "ID3D10DepthStencilView", &pRTDepthView );
+
+
+		// we need to clear the state 
+		mDevice->ClearState();
+
+		if (mDevice.isError())
+		{
+			String errorDescription = mDevice.getErrorDescription();
+			OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+				"D3D10 device cannot Clear State\nError Description:" + errorDescription,
+				"D3D10RenderSystem::_setViewport");
+		}
+
+
+
+		// now switch to the new render target
+		mDevice->OMSetRenderTargets(1,
+			&pRTView,
+			pRTDepthView);
+
+
+		if (mDevice.isError())
+		{
+			String errorDescription = mDevice.getErrorDescription();
+			OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+				"D3D10 device cannot set render target\nError Description:" + errorDescription,
+				"D3D10RenderSystem::_setViewport");
+		}
+
+		// TODO - support MRT
+
+		/*	hr = mDevice->SetDepthStencilSurface(pDepth);
+		if (FAILED(hr))
+		{
+		String msg ;//= DXGetErrorDescription(hr);
+		OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to setDepthStencil : " + msg, "D3D10RenderSystem::_setViewport" );
+		}
+		*/
+
+	}
+	//---------------------------------------------------------------------
 	void D3D10RenderSystem::_setViewport( Viewport *vp )
 	{
 		if( vp != mActiveViewport || vp->_isUpdated() )
 		{
 			mActiveViewport = vp;
-			mActiveRenderTarget = vp->getTarget();
+			
+
 
 			// ok, it's different, time to set render target and viewport params
 			D3D10_VIEWPORT d3dvp;
@@ -1947,79 +2176,7 @@ namespace Ogre
 			RenderTarget* target;
 			target = vp->getTarget();
 
-			// Retrieve render surfaces (up to OGRE_MAX_MULTIPLE_RENDER_TARGETS)
-		/*	IDXGISurface * pBack[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
-			memset(pBack, 0, sizeof(pBack));
-			target->getCustomAttribute( "DDBACKBUFFER", &pBack );
-			if (!pBack[0])
-				return;
-
-			IDXGISurface * pDepth = NULL;
-			target->getCustomAttribute( "D3DZBUFFER", &pDepth );
-			if (!pDepth)
-			{
-				/// No depth buffer provided, use our own
-				/// Request a depth stencil that is compatible with the format, multisample type and
-				/// dimensions of the render target.
-				D3DSURFACE_DESC srfDesc;
-				if(FAILED(pBack[0]->GetDesc(&srfDesc)))
-					return; // ?
-				pDepth = _getDepthStencilFor(srfDesc.Format, srfDesc.MultiSampleType, srfDesc.Width, srfDesc.Height);
-			}
-			// Bind render targets
-			uint count = mCapabilities->numMultiRenderTargets();
-			for(uint x=0; x<count; ++x)
-			{
-				hr = mDevice->SetRenderTarget(x, pBack[x]);
-				if (FAILED(hr))
-				{
-					String msg ;//= DXGetErrorDescription9(hr);
-					OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to setRenderTarget : " + msg, "D3D10RenderSystem::_setViewport" );
-				}
-			}
-			*/
-			ID3D10RenderTargetView * pRTView;
-			target->getCustomAttribute( "ID3D10RenderTargetView", &pRTView );
-			ID3D10DepthStencilView * pRTDepthView;
-			target->getCustomAttribute( "ID3D10DepthStencilView", &pRTDepthView );
-
-
-			// we need to clear the state 
-			mDevice->ClearState();
-
-			if (mDevice.isError())
-			{
-				String errorDescription = mDevice.getErrorDescription();
-				OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-					"D3D10 device cannot Clear State\nError Description:" + errorDescription,
-					"D3D10RenderSystem::_setViewport");
-			}
-
-
-
-			// now switch to the new render target
-			mDevice->OMSetRenderTargets(1,
-				&pRTView,
-				pRTDepthView);
-
-
-			if (mDevice.isError())
-			{
-				String errorDescription = mDevice.getErrorDescription();
-				OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-					"D3D10 device cannot set render target\nError Description:" + errorDescription,
-					"D3D10RenderSystem::_setViewport");
-			}
-
-			// TODO - support MRT
-
-		/*	hr = mDevice->SetDepthStencilSurface(pDepth);
-			if (FAILED(hr))
-			{
-				String msg ;//= DXGetErrorDescription9(hr);
-				OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to setDepthStencil : " + msg, "D3D10RenderSystem::_setViewport" );
-			}
-*/
+			_setRenderTarget(target);
 			_setCullingMode( mCullingMode );
 
 			// set viewport dimensions
@@ -2062,7 +2219,7 @@ namespace Ogre
 /*
 		if( FAILED( hr = mDevice->BeginScene() ) )
 		{
-			String msg = DXGetErrorDescription9(hr);
+			String msg = DXGetErrorDescription(hr);
 			OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Error beginning frame :" + msg, "D3D10RenderSystem::_beginFrame" );
 		}
 
@@ -2074,7 +2231,7 @@ namespace Ogre
 			hr = __SetRenderState(D3DRS_SPECULARENABLE, TRUE);
 			if (FAILED(hr))
 			{
-				String msg = DXGetErrorDescription9(hr);
+				String msg = DXGetErrorDescription(hr);
 				OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Error enabling alpha blending option : " + msg, "D3D10RenderSystem::_beginFrame");
 			}
 			mBasicStatesInitialised = true;
@@ -2226,12 +2383,12 @@ namespace Ogre
 
 		D3D10RenderOperationState * opState = NULL;
 		bool unstandardRenderOperation = false;
-		if (op.srcRenderable)
+		/*if (op.srcRenderable)
 		{
 			opState = (D3D10RenderOperationState *) op.srcRenderable->getRenderSystemData();
 		}
 		else
-		{
+		*/{
 			unstandardRenderOperation = true;
 		}
 
@@ -2314,21 +2471,11 @@ namespace Ogre
 					textureLayerState.setTextureType(curDesc.type);
 					textureLayerState.setTexCoordCalcMethod(curDesc.autoTexCoordType);
 					textureLayerState.setLayerBlendModeEx(curDesc.layerBlendMode);
-					textureLayerState.setCoordIndex(curDesc.coordIndex);
+					textureLayerState.setCoordIndex((uint8)curDesc.coordIndex);
 					opState->mTextureLayerStateList.push_back(textureLayerState);
 
 				}
 			}
-
-			mFixedFuncState.setTextureLayerStateList(opState->mTextureLayerStateList);
-
-			const VertexBufferDeclaration &  vertexBufferDeclaration = 
-				(static_cast<D3D10VertexDeclaration *>(op.vertexData->vertexDeclaration))->getVertexBufferDeclaration();
-
-			opState->mFixedFuncPrograms = mFixedFuncEmuShaderManager.getShaderPrograms("hlsl4", 
-				vertexBufferDeclaration,
-				mFixedFuncState
-				);
 
 
 			if (!unstandardRenderOperation)
@@ -2338,6 +2485,7 @@ namespace Ogre
 
 		}
 
+		mFixedFuncState.setTextureLayerStateList(opState->mTextureLayerStateList);
 
 		if (unstandardRenderOperation || opState->mBlendState != mBoundBlendState)
 		{
@@ -2412,33 +2560,52 @@ namespace Ogre
 
 
 
-		// well, in D3D10 we have to make sure that we have a vertex and fagmant shader
+		// well, in D3D10 we have to make sure that we have a vertex and fragment shader
 		// bound before we start rendering, so we do that first...
-		bool needToUnmapVS = false;
 		bool needToUnmapFS = false;
-	 	if (!mBoundVertexProgram) // I know this is bad code - but I want to get things going
+		bool needToUnmapVS = false;
+	 	if (!mBoundVertexProgram || !mBoundFragmentProgram) // I know this is bad code - but I want to get things going
 		{
-			assert (!mBoundFragmentProgram); // not allowed for now
+			
+
+	
+			{
+				const VertexBufferDeclaration &  vertexBufferDeclaration = 
+					(static_cast<D3D10VertexDeclaration *>(op.vertexData->vertexDeclaration))->getVertexBufferDeclaration();
+
+				opState->mFixedFuncPrograms = mFixedFuncEmuShaderManager.getShaderPrograms("hlsl4", 
+					vertexBufferDeclaration,
+					mFixedFuncState
+					);
+			}
+
+
 
 			FixedFuncPrograms * fixedFuncPrograms = opState->mFixedFuncPrograms;
-
-
-
-
-				needToUnmapVS = true;
-				needToUnmapFS = true;
 				
-				fixedFuncPrograms->setFixedFuncProgramsParameters(mFixedFuncProgramsParameters);
+			
+			fixedFuncPrograms->setFixedFuncProgramsParameters(mFixedFuncProgramsParameters);
 
+			if (!mBoundVertexProgram)
+			{
+				needToUnmapVS = true;
 				// Bind Vertex Program
 				bindGpuProgram(fixedFuncPrograms->getVertexProgramUsage()->getProgram().get());
 				bindGpuProgramParameters(GPT_VERTEX_PROGRAM, 
-					fixedFuncPrograms->getVertexProgramUsage()->getParameters());
-				
+					fixedFuncPrograms->getVertexProgramUsage()->getParameters(), (uint16)GPV_ALL);
+
+			}
+
+			if (!mBoundFragmentProgram)
+			{
+				needToUnmapFS = true;
 				// Bind Fragment Program 
 				bindGpuProgram(fixedFuncPrograms->getFragmentProgramUsage()->getProgram().get());
 				bindGpuProgramParameters(GPT_FRAGMENT_PROGRAM, 
-					fixedFuncPrograms->getFragmentProgramUsage()->getParameters());
+					fixedFuncPrograms->getFragmentProgramUsage()->getParameters(), (uint16)GPV_ALL);
+			}
+				
+
 		
 		}
 
@@ -2584,6 +2751,10 @@ namespace Ogre
 
 		if (unstandardRenderOperation)
 		{
+			mDevice->OMSetBlendState(0, 0, 0xffffffff); 
+			mDevice->RSSetState(0);
+			mDevice->OMSetDepthStencilState(0, 0); 
+//			mDevice->PSSetSamplers(static_cast<UINT>(0), static_cast<UINT>(0), 0);
 			delete opState;
 		}
 
@@ -2598,6 +2769,13 @@ namespace Ogre
 	//---------------------------------------------------------------------
     void D3D10RenderSystem::bindGpuProgram(GpuProgram* prg)
     {
+		if (!prg)
+		{
+			OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+				"Null program bound.",
+				"D3D10RenderSystem::bindGpuProgram");
+		}
+
 		switch (prg->getType())
 		{
 		case GPT_VERTEX_PROGRAM:
@@ -2632,6 +2810,22 @@ namespace Ogre
 				}		
 			}
 			break;
+		case GPT_GEOMETRY_PROGRAM:
+			{
+				mBoundGeometryProgram = static_cast<D3D10HLSLProgram*>(prg);
+				ID3D10GeometryShader* psShaderToSet = mBoundFragmentProgram->getGeometryShader();
+
+				mDevice->GSSetShader(psShaderToSet);
+				if (mDevice.isError())
+				{
+					String errorDescription = mDevice.getErrorDescription();
+					OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+						"D3D10 device cannot set geometry shader\nError Description:" + errorDescription,
+						"D3D10RenderSystem::bindGpuProgram");
+				}		
+
+			}
+			break;
 		};
 
 		RenderSystem::bindGpuProgram(prg);
@@ -2655,15 +2849,30 @@ namespace Ogre
 				mBoundFragmentProgram = NULL;
 				//mDevice->PSSetShader(NULL);
 			}
+
 			break;
+		case GPT_GEOMETRY_PROGRAM:
+			{
+				mActiveGeometryGpuProgramParameters.setNull();
+				mBoundGeometryProgram = NULL;
+
+			}
 		};
 		RenderSystem::unbindGpuProgram(gptype);
     }
 	//---------------------------------------------------------------------
-    void D3D10RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, 
-        GpuProgramParametersSharedPtr params)
-    {
+	void D3D10RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, GpuProgramParametersSharedPtr params, uint16 mask)
+	{
+		if (mask & (uint16)GPV_GLOBAL)
+		{
+			// TODO: Dx10 supports shared constant buffers, so use them
+			// check the match to constant buffers & use rendersystem data hooks to store
+			// for now, just copy
+			params->_copySharedParams();
+		}
 
+		// Do everything here in Dx10, since deal with via buffers anyway so number of calls
+		// is actually the same whether we categorise the updates or not
 		ID3D10Buffer* pBuffers[1] ;
 		switch(gptype)
 		{
@@ -2671,15 +2880,19 @@ namespace Ogre
 			{
 				//	if (params->getAutoConstantCount() > 0)
 				//{
-				pBuffers[0] = mBoundVertexProgram->getConstantBuffer(params);
-				mDevice->VSSetConstantBuffers( 0, 1, pBuffers );
-				if (mDevice.isError())
+				if (mBoundVertexProgram)
 				{
-					String errorDescription = mDevice.getErrorDescription();
-					OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-						"D3D10 device cannot set vertex shader constant buffers\nError Description:" + errorDescription,
-						"D3D10RenderSystem::bindGpuProgramParameters");
-				}		
+					pBuffers[0] = mBoundVertexProgram->getConstantBuffer(params, mask);
+					mDevice->VSSetConstantBuffers( 0, 1, pBuffers );
+					if (mDevice.isError())
+					{
+						String errorDescription = mDevice.getErrorDescription();
+						OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+							"D3D10 device cannot set vertex shader constant buffers\nError Description:" + errorDescription,
+							"D3D10RenderSystem::bindGpuProgramParameters");
+					}		
+
+				}
 				//}
 				//else
 				//{
@@ -2691,15 +2904,19 @@ namespace Ogre
 			{
 				//if (params->getAutoConstantCount() > 0)
 				//{
-				pBuffers[0] = mBoundFragmentProgram->getConstantBuffer(params);
-				mDevice->PSSetConstantBuffers( 0, 1, pBuffers );
-				if (mDevice.isError())
+				if (mBoundFragmentProgram)
 				{
-					String errorDescription = mDevice.getErrorDescription();
-					OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-						"D3D10 device cannot set fragment shader constant buffers\nError Description:" + errorDescription,
-						"D3D10RenderSystem::bindGpuProgramParameters");
-				}		
+					pBuffers[0] = mBoundFragmentProgram->getConstantBuffer(params, mask);
+					mDevice->PSSetConstantBuffers( 0, 1, pBuffers );
+					if (mDevice.isError())
+					{
+						String errorDescription = mDevice.getErrorDescription();
+						OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+							"D3D10 device cannot set fragment shader constant buffers\nError Description:" + errorDescription,
+							"D3D10RenderSystem::bindGpuProgramParameters");
+					}		
+
+				}
 				//}
 				//else
 				//{
@@ -2715,8 +2932,26 @@ namespace Ogre
 				//}
 			}
 			break;
+		case GPT_GEOMETRY_PROGRAM:
+			{
+				if (mBoundGeometryProgram)
+				{
+					pBuffers[0] = mBoundGeometryProgram->getConstantBuffer(params, mask);
+					mDevice->GSSetConstantBuffers( 0, 1, pBuffers );
+					if (mDevice.isError())
+					{
+						String errorDescription = mDevice.getErrorDescription();
+						OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+							"D3D10 device cannot set Geometry shader constant buffers\nError Description:" + errorDescription,
+							"D3D10RenderSystem::bindGpuProgramParameters");
+					}		
+
+				}
+			}
+			break;
+
 		};
-    }
+	}
 	//---------------------------------------------------------------------
     void D3D10RenderSystem::bindGpuProgramPassIterationParameters(GpuProgramType gptype)
     {
@@ -2724,12 +2959,16 @@ namespace Ogre
 		switch(gptype)
 		{
 		case GPT_VERTEX_PROGRAM:
-			bindGpuProgramParameters(gptype, mActiveVertexGpuProgramParameters);
+			bindGpuProgramParameters(gptype, mActiveVertexGpuProgramParameters, (uint16)GPV_PASS_ITERATION_NUMBER);
 			break;
 
 		case GPT_FRAGMENT_PROGRAM:
-			bindGpuProgramParameters(gptype, mActiveFragmentGpuProgramParameters);
+			bindGpuProgramParameters(gptype, mActiveFragmentGpuProgramParameters, (uint16)GPV_PASS_ITERATION_NUMBER);
 			break;
+		case GPT_GEOMETRY_PROGRAM:
+			bindGpuProgramParameters(gptype, mActiveGeometryGpuProgramParameters, (uint16)GPV_PASS_ITERATION_NUMBER);
+			break;
+
 		}
     }
 	//---------------------------------------------------------------------
@@ -3182,7 +3421,7 @@ namespace Ogre
 				NULL);
 			if(FAILED(hr))
 			{
-				String msg = DXGetErrorDescription9(hr);
+				String msg = DXGetErrorDescription(hr);
 				OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Error CreateDepthStencilSurface : " + msg, "D3D10RenderSystem::_getDepthStencilFor" );
 			}
 			/// And cache it
@@ -3228,5 +3467,113 @@ namespace Ogre
 	String D3D10RenderSystem::getErrorDescription( long errorNumber ) const
 	{
 		return mDevice.getErrorDescription(errorNumber);
+	}
+	//---------------------------------------------------------------------
+	void D3D10RenderSystem::determineFSAASettings(uint fsaa, const String& fsaaHint, 
+		DXGI_FORMAT format, DXGI_SAMPLE_DESC* outFSAASettings)
+	{
+		bool ok = false;
+		bool qualityHint = fsaaHint.find("Quality") != String::npos;
+		size_t origFSAA = fsaa;
+		bool tryCSAA = false;
+		// NVIDIA, prefer CSAA if available for 8+
+		// it would be tempting to use getCapabilities()->getVendor() == GPU_NVIDIA but
+		// if this is the first window, caps will not be initialised yet
+		
+		if (mActiveD3DDriver->getAdapterIdentifier().VendorId == 0x10DE && 
+			fsaa >= 8)
+		{
+			tryCSAA	 = true;
+		}
+
+		while (!ok)
+		{
+			// Deal with special cases
+			if (tryCSAA)
+			{
+				// see http://developer.nvidia.com/object/coverage-sampled-aa.html
+				switch(fsaa)
+				{
+				case 8:
+					if (qualityHint)
+					{
+						outFSAASettings->Count = 8;
+						outFSAASettings->Quality = 8;
+					}
+					else
+					{
+						outFSAASettings->Count = 4;
+						outFSAASettings->Quality = 8;
+					}
+					break;
+				case 16:
+					if (qualityHint)
+					{
+						outFSAASettings->Count = 8;
+						outFSAASettings->Quality = 16;
+					}
+					else
+					{
+						outFSAASettings->Count = 4;
+						outFSAASettings->Quality = 16;
+					}
+					break;
+				}
+			}
+			else // !CSAA
+			{
+				outFSAASettings->Count = fsaa == 0 ? 1 : fsaa;
+				outFSAASettings->Quality = 0;
+			}
+
+
+			HRESULT hr;
+			UINT outQuality;
+			hr = mDevice->CheckMultisampleQualityLevels( 
+				format, 
+				outFSAASettings->Count, 
+				&outQuality);
+
+			if (SUCCEEDED(hr) && 
+				(!tryCSAA || outQuality > outFSAASettings->Quality))
+			{
+				ok = true;
+			}
+			else
+			{
+				// downgrade
+				if (tryCSAA && fsaa == 8)
+				{
+					// for CSAA, we'll try downgrading with quality mode at all samples.
+					// then try without quality, then drop CSAA
+					if (qualityHint)
+					{
+						// drop quality first
+						qualityHint = false;
+					}
+					else
+					{
+						// drop CSAA entirely 
+						tryCSAA = false;
+					}
+					// return to original requested samples
+					fsaa = static_cast<uint>(origFSAA);
+				}
+				else
+				{
+					// drop samples
+					--fsaa;
+
+					if (fsaa == 1)
+					{
+						// ran out of options, no FSAA
+						fsaa = 0;
+						ok = true;
+					}
+				}
+			}
+
+		} // while !ok
+
 	}
 }

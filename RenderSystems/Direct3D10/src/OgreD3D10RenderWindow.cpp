@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreD3D10RenderWindow.h"
@@ -31,6 +30,7 @@ Torus Knot Software Ltd.
 #include "OgreD3D10RenderSystem.h"
 #include "OgreWindowEventUtilities.h"
 #include "OgreD3D10Driver.h"
+#include "OgreRoot.h"
 
 namespace Ogre
 {
@@ -85,9 +85,11 @@ namespace Ogre
 		HWND parentHWnd = 0;
 		HWND externalHandle = 0;
 		mFSAAType.Count = 1;
-		mFSAAType.Quality=0;
-		//mFSAAQuality = 0;
+		mFSAAType.Quality = 0;
+		mFSAA = 0;
+		mFSAAHint = "";
 		mVSync = false;
+		mVSyncInterval = 1;
 		String title = name;
 		unsigned int colourDepth = 32;
 		int left = -1; // Defaults to screen center
@@ -125,6 +127,10 @@ namespace Ogre
 			opt = miscParams->find("vsync");
 			if(opt != miscParams->end())
 				mVSync = StringConverter::parseBool(opt->second);
+			// vsyncInterval	[parseUnsignedInt]
+			opt = miscParams->find("vsyncInterval");
+			if(opt != miscParams->end())
+				mVSyncInterval = StringConverter::parseUnsignedInt(opt->second);
 			// displayFrequency
 			opt = miscParams->find("displayFrequency");
 			if(opt != miscParams->end())
@@ -142,12 +148,11 @@ namespace Ogre
 			if(opt != miscParams->end())
 			{
 				mFSAA = StringConverter::parseUnsignedInt(opt->second);
-				mFSAAType.Count = (UINT)mFSAA;
 			}
 			// FSAA quality
-			opt = miscParams->find("FSAAQuality");
+			opt = miscParams->find("FSAAHint");
 			if(opt != miscParams->end())
-				mFSAAType.Quality = StringConverter::parseUnsignedInt(opt->second);
+				mFSAAHint = opt->second;
 			// window border style
 			opt = miscParams->find("border");
 			if(opt != miscParams->end())
@@ -410,7 +415,8 @@ namespace Ogre
 		}
 		md3dpp.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-
+		D3D10RenderSystem* rsys = static_cast<D3D10RenderSystem*>(Root::getSingleton().getRenderSystem());
+		rsys->determineFSAASettings(mFSAA, mFSAAHint, md3dpp.BufferDesc.Format, &mFSAAType);
 
 
 		if (mVSync)
@@ -530,6 +536,8 @@ namespace Ogre
 
 			// create the render target view
 			D3D10_RENDER_TARGET_VIEW_DESC RTVDesc;
+			ZeroMemory( &RTVDesc, sizeof(RTVDesc) );
+
 			RTVDesc.Format = BBDesc.Format;
 			RTVDesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
 			RTVDesc.Texture2D.MipSlice = 0;
@@ -573,7 +581,7 @@ namespace Ogre
 				descDepth.Height = mHeight;
 				descDepth.MipLevels = 1;
 				descDepth.ArraySize = 1;
-				descDepth.Format = DXGI_FORMAT_D16_UNORM;
+				descDepth.Format = DXGI_FORMAT_R32_TYPELESS;
 				descDepth.SampleDesc.Count = 1;
 				descDepth.SampleDesc.Quality = 0;
 				descDepth.Usage = D3D10_USAGE_DEFAULT;
@@ -592,7 +600,7 @@ namespace Ogre
 
 				// Create the depth stencil view
 				D3D10_DEPTH_STENCIL_VIEW_DESC descDSV;
-				descDSV.Format = descDepth.Format;
+				descDSV.Format = DXGI_FORMAT_D32_FLOAT;
 				descDSV.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
 				descDSV.Texture2D.MipSlice = 0;
 				hr = mDevice->CreateDepthStencilView( pDepthStencil, &descDSV, &mDepthStencilView );
@@ -862,7 +870,7 @@ namespace Ogre
 			HRESULT hr;
 			if (mIsSwapChain)
 			{
-				hr = mpSwapChain->Present(0, 0);
+				hr = mpSwapChain->Present(waitForVSync ? mVSyncInterval : 0, 0);
 			}
 			else
 			{

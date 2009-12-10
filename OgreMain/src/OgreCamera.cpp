@@ -4,26 +4,25 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
@@ -60,11 +59,10 @@ namespace Ogre {
 		mCullFrustum(0),
 		mUseRenderingDistance(true),
 		mLodCamera(0)
-
     {
 
         // Reasonable defaults to camera params
-        mFOVy = Radian(Math::PI/4.0);
+        mFOVy = Radian(Math::PI/4.0f);
         mNearDist = 100.0f;
         mFarDist = 100000.0f;
         mAspect = 1.33333333333333f;
@@ -90,9 +88,11 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Camera::~Camera()
     {
-        // Do nothing
+		for (ListenerList::iterator i = mListeners.begin(); i != mListeners.end(); ++i)
+		{
+			(*i)->cameraDestroyed(this);
+		}
     }
-
     //-----------------------------------------------------------------------
     SceneManager* Camera::getSceneManager(void) const
     {
@@ -399,11 +399,31 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Camera::_renderScene(Viewport *vp, bool includeOverlays)
     {
+		for (ListenerList::iterator i = mListeners.begin(); i != mListeners.end(); ++i)
+		{
+			(*i)->cameraPreRenderScene(this);
+		}
 
         mSceneMgr->_renderScene(this, vp, includeOverlays);
-    }
 
-
+		for (ListenerList::iterator i = mListeners.begin(); i != mListeners.end(); ++i)
+		{
+			(*i)->cameraPostRenderScene(this);
+		}
+	}
+	//---------------------------------------------------------------------
+	void Camera::addListener(Listener* l)
+	{
+		if (std::find(mListeners.begin(), mListeners.end(), l) == mListeners.end())
+			mListeners.push_back(l);
+	}
+	//---------------------------------------------------------------------
+	void Camera::removeListener(Listener* l)
+	{
+		ListenerList::iterator i = std::find(mListeners.begin(), mListeners.end(), l);
+		if (i != mListeners.end())
+			mListeners.erase(i);
+	}
     //-----------------------------------------------------------------------
     std::ostream& operator<<( std::ostream& o, const Camera& c )
     {
@@ -767,7 +787,7 @@ namespace Ogre {
 
     }
     // -------------------------------------------------------------------
-    const std::vector<Plane>& Camera::getWindowPlanes(void) const
+    const vector<Plane>::type& Camera::getWindowPlanes(void) const
     {
         updateView();
         setWindowImpl();
@@ -778,7 +798,7 @@ namespace Ogre {
     {
         // return a little bigger than the near distance
         // just to keep things just outside
-        return mNearDist * 1.5;
+        return mNearDist * 1.5f;
 
     }
     //-----------------------------------------------------------------------
@@ -935,9 +955,9 @@ namespace Ogre {
 	//| coordinate system in which this is true.			|
 	//|_____________________________________________________|
 	//
-	std::vector<Vector4> Camera::getRayForwardIntersect(const Vector3& anchor, const Vector3 *dir, Real planeOffset) const
+	vector<Vector4>::type Camera::getRayForwardIntersect(const Vector3& anchor, const Vector3 *dir, Real planeOffset) const
 	{
-		std::vector<Vector4> res;
+		vector<Vector4>::type res;
 
 		if(!dir)
 			return res;
@@ -1018,7 +1038,7 @@ namespace Ogre {
 	//| line at infinity.									|
 	//|_____________________________________________________|
 	//
-	void Camera::forwardIntersect(const Plane& worldPlane, std::vector<Vector4>* intersect3d) const
+	void Camera::forwardIntersect(const Plane& worldPlane, vector<Vector4>::type* intersect3d) const
 	{
 		if(!intersect3d)
 			return;
@@ -1046,7 +1066,7 @@ namespace Ogre {
 		vec[3] = invPlaneRot * brCorner - lPos; 
 
 		// compute intersection points on plane
-		std::vector<Vector4> iPnt = getRayForwardIntersect(lPos, vec, -pval.d);
+		vector<Vector4>::type iPnt = getRayForwardIntersect(lPos, vec, -pval.d);
 
 
 		// return wanted data
@@ -1070,10 +1090,13 @@ namespace Ogre {
 		this->setAspectRatio(cam->getAspectRatio());
 		this->setNearClipDistance(cam->getNearClipDistance());
 		this->setFarClipDistance(cam->getFarClipDistance());
-		this->setLodCamera(cam->getLodCamera());
 		this->setUseRenderingDistance(cam->getUseRenderingDistance());
-		this->setCullingFrustum(cam->getCullingFrustum());
+		this->setFOVy(cam->getFOVy());
+		this->setFocalLength(cam->getFocalLength());
 
+		// Don't do these, they're not base settings and can cause referencing issues
+		//this->setLodCamera(cam->getLodCamera());
+		//this->setCullingFrustum(cam->getCullingFrustum());
 
 	}
 

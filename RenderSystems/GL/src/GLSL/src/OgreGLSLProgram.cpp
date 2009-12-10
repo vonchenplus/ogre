@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software you can redistribute it and/or modify it under
@@ -71,10 +71,10 @@ namespace Ogre {
 		// only create a shader object if glsl is supported
 		if (isSupported())
 		{
-			checkForGLSLError( "GLSLProgram::GLSLProgram", "GL Errors before creating shader object", 0 );
+			checkForGLSLError( "GLSLProgram::loadFromSource", "GL Errors before creating shader object", 0 );
 			// create shader object
 
-			GLenum shaderType;
+			GLenum shaderType = 0x0000;
 			switch (mType)
 			{
 			case GPT_VERTEX_PROGRAM:
@@ -89,7 +89,7 @@ namespace Ogre {
 			}
 			mGLHandle = glCreateShaderObjectARB(shaderType);
 
-			checkForGLSLError( "GLSLProgram::GLSLProgram", "Error creating GLSL shader Object", 0 );
+			checkForGLSLError( "GLSLProgram::loadFromSource", "Error creating GLSL shader object", 0 );
 		}
 
 		// Preprocess the GLSL shader in order to get a clean source
@@ -185,7 +185,7 @@ namespace Ogre {
 		// force exception if not compiled
 		if (checkErrors)
 		{
-			checkForGLSLError( "GLSLProgram::loadFromSource", "Cannot compile GLSL high-level shader : " + mName + " ", mGLHandle, !mCompiled, !mCompiled );
+			checkForGLSLError( "GLSLProgram::compile", "Cannot compile GLSL high-level shader : " + mName + " ", mGLHandle, !mCompiled, !mCompiled );
 			
 			if (mCompiled)
 			{
@@ -223,7 +223,8 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
 	void GLSLProgram::populateParameterNames(GpuProgramParametersSharedPtr params)
 	{
-		params->_setNamedConstants(&getConstantDefinitions());
+		getConstantDefinitions();
+		params->_setNamedConstants(mConstantDefs);
 		// Don't set logical / physical maps here, as we can't access parameters by logical index in GLHL.
 	}
 	//-----------------------------------------------------------------------
@@ -234,10 +235,9 @@ namespace Ogre {
 
 
 		// Therefore instead, parse the source code manually and extract the uniforms
-		mConstantDefs.floatBufferSize = 0;
-		mConstantDefs.intBufferSize = 0;
+		createParameterMappingStructures(true);
 		GLSLLinkProgramManager::getSingleton().extractConstantDefs(
-			mSource, mConstantDefs, mName);
+			mSource, *mConstantDefs.get(), mName);
 
 		// Also parse any attached sources
 		for (GLSLProgramContainer::const_iterator i = mAttachedGLSLPrograms.begin();
@@ -246,7 +246,7 @@ namespace Ogre {
 			GLSLProgram* childShader = *i;
 
 			GLSLLinkProgramManager::getSingleton().extractConstantDefs(
-				childShader->getSource(), mConstantDefs, childShader->getName());
+				childShader->getSource(), *mConstantDefs.get(), childShader->getName());
 
 		}
 	}
@@ -290,13 +290,20 @@ namespace Ogre {
         }
         // Manually assign language now since we use it immediately
         mSyntaxCode = "glsl";
-
-		// want scenemanager to pass on surface and light states to the rendersystem
-		mPassSurfaceAndLightStates = true;
-
         
     }
-
+	//---------------------------------------------------------------------
+	bool GLSLProgram::getPassSurfaceAndLightStates(void) const
+	{
+		// scenemanager should pass on light & material state to the rendersystem
+		return true;
+	}
+	//---------------------------------------------------------------------
+	bool GLSLProgram::getPassTransformStates(void) const
+	{
+		// scenemanager should pass on transform state to the rendersystem
+		return true;
+	}
 	//-----------------------------------------------------------------------
     String GLSLProgram::CmdAttach::doGet(const void *target) const
     {
@@ -373,7 +380,7 @@ namespace Ogre {
 			++childprogramcurrent;
 		}
 		glAttachObjectARB( programObject, mGLHandle );
-		checkForGLSLError( "GLSLLinkProgram::GLSLLinkProgram",
+		checkForGLSLError( "GLSLProgram::attachToProgramObject",
 			"Error attaching " + mName + " shader object to GLSL Program Object", programObject );
 
 	}
@@ -381,7 +388,7 @@ namespace Ogre {
 	void GLSLProgram::detachFromProgramObject( const GLhandleARB programObject )
 	{
 		glDetachObjectARB(programObject, mGLHandle);
-		checkForGLSLError( "GLSLLinkProgram::GLSLLinkProgram",
+		checkForGLSLError( "GLSLProgram::detachFromProgramObject",
 			"Error detaching " + mName + " shader object from GLSL Program Object", programObject );
 		// attach child objects
 		GLSLProgramContainerIterator childprogramcurrent = mAttachedGLSLPrograms.begin();

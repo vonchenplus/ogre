@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 OgrePCZFrustum.cpp  -  PCZ Supplemental culling Frustum 
 
@@ -51,13 +50,14 @@ email                : ericc@xenopi.com
 */
 
 #include "OgrePCZFrustum.h"
+#include "OgreAntiPortal.h"
 #include "OgrePortal.h"
 
 namespace Ogre
 {
 
 	PCZFrustum::PCZFrustum() :
-	mProjType(PT_PERSPECTIVE), mUseOriginPlane(false)
+    mUseOriginPlane(false), mProjType(PT_PERSPECTIVE)
 	{ }
 
     PCZFrustum::~PCZFrustum()
@@ -151,16 +151,13 @@ namespace Ogre
 		return true;
     }
 
-    /* isVisible() function for portals */
-    // NOTE: Everything needs to be updated spatially before this function is
-    //       called including portal corners, frustum planes, etc.
-    bool PCZFrustum::isVisible(Portal * portal)
-    {
-		// if portal isn't open, it's not visible
-		if (!portal->isOpen())
-		{
-			return false;
-		}
+	/* isVisible() function for portals */
+	// NOTE: Everything needs to be updated spatially before this function is
+	//       called including portal corners, frustum planes, etc.
+	bool PCZFrustum::isVisible(const PortalBase* portal) const
+	{
+		// if portal isn't enabled, it's not visible
+		if (!portal->getEnabled()) return false;
 
 		// if the frustum has no planes, just return true
         if (mActiveCullingPlanes.size() == 0)
@@ -180,26 +177,30 @@ namespace Ogre
             pit++;
         }
 		// if portal is of type AABB or Sphere, then use simple bound check against planes
-		if (portal->getType() == Portal::PORTAL_TYPE_AABB)
+		if (portal->getType() == PortalBase::PORTAL_TYPE_AABB)
 		{
 			AxisAlignedBox aabb;
 			aabb.setExtents(portal->getDerivedCorner(0), portal->getDerivedCorner(1));
 			return isVisible(aabb);
 		}
-		else if (portal->getType() == Portal::PORTAL_TYPE_SPHERE)
+		else if (portal->getType() == PortalBase::PORTAL_TYPE_SPHERE)
 		{
 			return isVisible(portal->getDerivedSphere());
 		}
 
-        // check if the portal norm is facing the frustum
-		Vector3 frustumToPortal = portal->getDerivedCP() - mOrigin;
-		Vector3 portalDirection = portal->getDerivedDirection();
-		Real dotProduct = frustumToPortal.dotProduct(portalDirection);
-		if ( dotProduct > 0 )
-        {
-            // portal is faced away from Frustum 
-            return false;
-        }
+		// only do this check if it's a portal. (anti portal doesn't care about facing)
+		if (portal->getTypeFlags() == PortalFactory::FACTORY_TYPE_FLAG)
+		{
+			// check if the portal norm is facing the frustum
+			Vector3 frustumToPortal = portal->getDerivedCP() - mOrigin;
+			Vector3 portalDirection = portal->getDerivedDirection();
+			Real dotProduct = frustumToPortal.dotProduct(portalDirection);
+			if ( dotProduct > 0 )
+			{
+				// portal is faced away from Frustum 
+				return false;
+			}
+		}
 
         // check against frustum culling planes
         bool visible_flag;
@@ -216,6 +217,7 @@ namespace Ogre
                 if (side != Plane::NEGATIVE_SIDE)
                 {
                     visible_flag = true;
+					break;
                 }
             }
             // if the visible_flag is still false, then the origin plane
@@ -242,6 +244,7 @@ namespace Ogre
                 if (side != Plane::NEGATIVE_SIDE)
                 {
                     visible_flag = true;
+					break;
                 }
             }
             // if the visible_flag is still false, then this plane
@@ -258,6 +261,155 @@ namespace Ogre
         return true;
 
     }
+
+	/* special function that returns true only when aabb fully fits inside the frustum. */
+	bool PCZFrustum::isFullyVisible(const AxisAlignedBox& bound) const
+	{
+		// Null boxes are always invisible
+		if (bound.isNull()) return false;
+
+		// Infinite boxes are never fully visible
+		if (bound.isInfinite()) return false;
+
+		// Get centre of the box
+		Vector3 centre = bound.getCenter();
+		// Get the half-size of the box
+		Vector3 halfSize = bound.getHalfSize();
+
+		// Check originplane if told to
+		if (mUseOriginPlane)
+		{
+			Plane::Side side = mOriginPlane.getSide(centre, halfSize);
+			if (side != Plane::POSITIVE_SIDE) return false;
+		}
+
+		// For each extra active culling plane,
+		// see if the aabb is not on the positive side
+		// If so, object is not fully visible
+		PCPlaneList::const_iterator pit = mActiveCullingPlanes.begin();
+		while ( pit != mActiveCullingPlanes.end() )
+		{
+			PCPlane * plane = *pit;
+			Plane::Side xside = plane->getSide(centre, halfSize);
+			if (xside != Plane::POSITIVE_SIDE)
+			{
+				return false;
+			}
+			pit++;
+		}
+		return true;
+	}
+
+	/* special function that returns true only when sphere fully fits inside the frustum. */
+	bool PCZFrustum::isFullyVisible(const Sphere& bound) const
+	{
+		// Check originplane if told to
+		if (mUseOriginPlane)
+		{
+			if (mOriginPlane.getDistance(bound.getCenter()) <= bound.getRadius() ||
+				mOriginPlane.getSide(bound.getCenter()) != Plane::POSITIVE_SIDE)
+			{
+				return false;
+			}
+		}
+
+		// For each extra active culling plane,
+		// see if the sphere is not on the positive side
+		// If so, object is not fully visible
+		PCPlaneList::const_iterator pit = mActiveCullingPlanes.begin();
+		while ( pit != mActiveCullingPlanes.end() )
+		{
+			PCPlane* plane = *pit;
+
+			if (plane->getDistance(bound.getCenter()) <= bound.getRadius() ||
+				plane->getSide(bound.getCenter()) != Plane::POSITIVE_SIDE)
+			{
+				return false;
+			}
+
+			pit++;
+		}
+		return true;
+	}
+
+	/* special function that returns true only when portal fully fits inside the frustum. */
+	bool PCZFrustum::isFullyVisible(const PortalBase* portal) const
+	{
+		// if portal isn't enabled, it's not visible
+		if (!portal->getEnabled()) return false;
+
+		// if the frustum has no planes, just return true
+		if (mActiveCullingPlanes.size() == 0)
+		{
+			return true;
+		}
+		// check if this portal is already in the list of active culling planes (avoid
+		// infinite recursion case)
+		PCPlaneList::const_iterator pit = mActiveCullingPlanes.begin();
+		while ( pit != mActiveCullingPlanes.end() )
+		{
+			PCPlane * plane = *pit;
+			if (plane->getPortal() == portal)
+			{
+				return false;
+			}
+			pit++;
+		}
+		// if portal is of type AABB or Sphere, then use simple bound check against planes
+		if (portal->getType() == PortalBase::PORTAL_TYPE_AABB)
+		{
+			AxisAlignedBox aabb;
+			aabb.setExtents(portal->getDerivedCorner(0), portal->getDerivedCorner(1));
+			return isFullyVisible(aabb);
+		}
+		else if (portal->getType() == PortalBase::PORTAL_TYPE_SPHERE)
+		{
+			return isFullyVisible(portal->getDerivedSphere());
+		}
+
+		// only do this check if it's a portal. (anti portal doesn't care about facing)
+		if (portal->getTypeFlags() == PortalFactory::FACTORY_TYPE_FLAG)
+		{
+			// check if the portal norm is facing the frustum
+			Vector3 frustumToPortal = portal->getDerivedCP() - mOrigin;
+			Vector3 portalDirection = portal->getDerivedDirection();
+			Real dotProduct = frustumToPortal.dotProduct(portalDirection);
+			if ( dotProduct > 0 )
+			{
+				// portal is faced away from Frustum 
+				return false;
+			}
+		}
+
+		// Check originPlane if told to
+		if (mUseOriginPlane)
+		{
+			// we have to check each corner of the portal
+			for (int corner = 0; corner < 4; corner++)
+			{
+				Plane::Side side = mOriginPlane.getSide(portal->getDerivedCorner(corner));
+				if (side == Plane::NEGATIVE_SIDE) return false;
+			}
+		}
+
+		// For each active culling plane, see if any portal points are on the negative 
+		// side. If so, the portal is not fully visible
+		pit = mActiveCullingPlanes.begin();
+		while ( pit != mActiveCullingPlanes.end() )
+		{
+			PCPlane * plane = *pit;
+			// we have to check each corner of the portal
+			for (int corner = 0; corner < 4; corner++)
+			{
+				Plane::Side side =plane->getSide(portal->getDerivedCorner(corner));
+				if (side == Plane::NEGATIVE_SIDE) return false;
+			}
+			pit++;
+		}
+		// no plane culled all the portal points and the norm
+		// was facing the frustum, so this portal is fully visible
+		return true;
+	}
 
 	/* A 'more detailed' check for visibility of an AAB.  This function returns
 	  none, partial, or full for visibility of the box.  This is useful for 
@@ -306,6 +458,7 @@ namespace Ogre
 			if(xside == Plane::BOTH_SIDE) 
             {
                 all_inside = false;
+				break;
             }
             pit++;
         }
@@ -317,19 +470,19 @@ namespace Ogre
 
 	}
 
-    // calculate  culling planes from portal and frustum 
-    // origin and add to list of  culling planes
+	// calculate  culling planes from portal and frustum 
+	// origin and add to list of  culling planes
 	// NOTE: returns 0 if portal was completely culled by existing planes
 	//		 returns > 0 if culling planes are added (# is planes added)
-    int PCZFrustum::addPortalCullingPlanes(Portal * portal)
-    {
+	int PCZFrustum::addPortalCullingPlanes(PortalBase* portal)
+	{
 		int addedcullingplanes = 0;
 
 		// If portal is of type aabb or sphere, add a plane which is same as frustum
 		// origin plane (ie. redundant).  We do this because we need the plane as a flag
 		// to prevent infinite recursion 
-		if (portal->getType() == Portal::PORTAL_TYPE_AABB ||
-			portal->getType() == Portal::PORTAL_TYPE_SPHERE)
+		if (portal->getType() == PortalBase::PORTAL_TYPE_AABB ||
+			portal->getType() == PortalBase::PORTAL_TYPE_SPHERE)
 		{
             PCPlane * newPlane = getUnusedCullingPlane();
 			newPlane->setFromOgrePlane(mOriginPlane);
@@ -337,6 +490,19 @@ namespace Ogre
             mActiveCullingPlanes.push_front(newPlane);
 			addedcullingplanes++;
 			return addedcullingplanes;
+		}
+
+		// only do this check if it's an anti portal since it's double facing.
+		bool flipPlane = false;
+		if (portal->getTypeFlags() == AntiPortalFactory::FACTORY_TYPE_FLAG)
+		{
+			// check if the portal norm is facing the frustum
+			Vector3 frustumToPortal = portal->getDerivedCP() - mOrigin;
+			Vector3 portalDirection = portal->getDerivedDirection();
+			Real dotProduct = frustumToPortal.dotProduct(portalDirection);
+
+			// it's facing away from the frustum. Flip the planes.
+			if (dotProduct > 0) flipPlane = true;
 		}
 
         // For portal Quads: Up to 4 planes can be added by the sides of a portal quad.
@@ -366,6 +532,7 @@ namespace Ogre
 				{
 					// the portal edge was actually completely culled by one of  culling planes
 					visible = false;
+					break;
 				}
 				pit++;
             }
@@ -376,12 +543,31 @@ namespace Ogre
                 PCPlane * newPlane = getUnusedCullingPlane();
 				if (mProjType == PT_ORTHOGRAPHIC) // use camera direction if projection is orthographic.
 				{
-					newPlane->redefine(portal->getDerivedCorner(j) + mOriginPlane.normal,
-						portal->getDerivedCorner(j), portal->getDerivedCorner(i));
+					if (flipPlane)
+					{
+						newPlane->redefine(portal->getDerivedCorner(j) + mOriginPlane.normal,
+							portal->getDerivedCorner(i), portal->getDerivedCorner(j));
+					}
+					else
+					{
+						newPlane->redefine(portal->getDerivedCorner(j) + mOriginPlane.normal,
+							portal->getDerivedCorner(j), portal->getDerivedCorner(i));
+					}
 				}
 				else
 				{
-					newPlane->redefine(mOrigin, portal->getDerivedCorner(j), portal->getDerivedCorner(i));
+					if (flipPlane)
+					{
+						newPlane->redefine(mOrigin,
+							portal->getDerivedCorner(i),
+							portal->getDerivedCorner(j));
+					}
+					else
+					{
+						newPlane->redefine(mOrigin,
+							portal->getDerivedCorner(j),
+							portal->getDerivedCorner(i));
+					}
 				}
                 newPlane->setPortal(portal);
                 mActiveCullingPlanes.push_front(newPlane);
@@ -393,7 +579,22 @@ namespace Ogre
 		if (addedcullingplanes > 0)
 		{
 			PCPlane * newPlane = getUnusedCullingPlane();
-			newPlane->redefine(portal->getDerivedCorner(2), portal->getDerivedCorner(1), portal->getDerivedCorner(0));
+
+			if (flipPlane)
+			{
+				newPlane->redefine(
+					portal->getDerivedCorner(2),
+					portal->getDerivedCorner(0),
+					portal->getDerivedCorner(1));
+			}
+			else
+			{
+				newPlane->redefine(
+					portal->getDerivedCorner(2),
+					portal->getDerivedCorner(1),
+					portal->getDerivedCorner(0));
+			}
+
 			newPlane->setPortal(portal);
 			mActiveCullingPlanes.push_back(newPlane);
 			addedcullingplanes++;
@@ -401,9 +602,9 @@ namespace Ogre
 		return addedcullingplanes;
     }
 
-    // remove culling planes created from the given portal
-    void PCZFrustum::removePortalCullingPlanes(Portal *portal)
-    {
+	// remove culling planes created from the given portal
+	void PCZFrustum::removePortalCullingPlanes(PortalBase* portal)
+	{
         PCPlaneList::iterator pit = mActiveCullingPlanes.begin();
         while ( pit != mActiveCullingPlanes.end() )
         {

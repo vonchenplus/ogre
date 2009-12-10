@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 PCZone.h  -  Portal Connected Zone (PCZone) header file.
 -----------------------------------------------------------------------------
@@ -62,16 +61,19 @@ namespace Ogre
 
     class PCZone;
     class Portal;
+    class AntiPortal;
 	class PCZSceneNode;
 	class PCZSceneManager;
     class PCZLight;
 
-    typedef std::map<String, PCZone*> ZoneMap;
-	typedef std::list<PCZone*> PCZoneList;
-    typedef std::list < Portal * > PortalList;
-	typedef std::list < SceneNode * > NodeList;
-	typedef std::set < PCZSceneNode * > PCZSceneNodeList;
-    typedef std::map<String, SceneNode*> SceneNodeList;
+    typedef map<String, PCZone*>::type ZoneMap;
+	typedef list<PCZone*>::type PCZoneList;
+	typedef list<Portal*>::type PortalList;
+	typedef list<AntiPortal*>::type AntiPortalList;
+	typedef vector<PortalBase*>::type PortalBaseList;
+	typedef vector<SceneNode*>::type NodeList;
+	typedef set< PCZSceneNode * >::type PCZSceneNodeList;
+    typedef map<String, SceneNode*>::type SceneNodeList;
 
     /** Portal-Connected Zone datastructure for managing scene nodes.
     @remarks
@@ -153,13 +155,17 @@ namespace Ogre
 		*/
 		virtual Portal * findMatchingPortal(Portal *);
 
-		/* Add a portal to the zone
-		*/
-		virtual void _addPortal( Portal * ) = 0;
+		/* Add a portal to the zone */
+		virtual void _addPortal(Portal* newPortal);
 
-		/* Remove a portal from the zone
-		*/
-		virtual void _removePortal( Portal * ) = 0;
+		/* Remove a portal from the zone */
+		virtual void _removePortal(Portal* removePortal);
+
+		/* Add an anti portal to the zone */
+		virtual void _addAntiPortal(AntiPortal* newAntiPortal);
+
+		/* Remove an anti portal from the zone */
+		virtual void _removeAntiPortal(AntiPortal* removeAntiPortal);
 
 		/** (recursive) check the given node against all portals in the zone
 		*/
@@ -168,17 +174,16 @@ namespace Ogre
         /** (recursive) check the given light against all portals in the zone
         */
         virtual void _checkLightAgainstPortals(PCZLight *, 
-                                               long, 
+                                               unsigned long, 
                                                PCZFrustum *,
                                                Portal *) = 0;
-
-		/** Update the spatial data for the portals in the zone
-		*/
-		virtual void updatePortalsSpatially(void) = 0;
 
 		/* Update the zone data for each portal 
 		*/
 		virtual void updatePortalsZoneData(void) = 0;
+
+		/** Mark nodes dirty base on moving portals. */
+		virtual void dirtyNodeByMovingPortals(void) = 0;
 
 		/* Update a node's home zone */
 		virtual PCZone * updateNodeHomeZone(PCZSceneNode * pczsn, bool allowBackTouces) = 0;
@@ -244,10 +249,26 @@ namespace Ogre
 		/** list of Portals which this zone contains (each portal leads to another zone)
 		*/
 		PortalList mPortals;
+		AntiPortalList mAntiPortals;
 		// pointer to the pcz scene manager that created this zone
 		PCZSceneManager * mPCZSM;
 
 	protected:
+		/** Binary pradicate for portal <-> camera distance sorting. */
+		struct PortalSortDistance
+		{
+			const Vector3& cameraPosition;
+			PortalSortDistance(const Vector3& cameraPosition) : cameraPosition(cameraPosition)
+			{ }
+
+			bool _OgrePCZPluginExport operator()(const PortalBase* p1, const PortalBase* p2) const
+			{
+				Real depth1 = p1->getDerivedCP().squaredDistance(cameraPosition);
+				Real depth2 = p2->getDerivedCP().squaredDistance(cameraPosition);
+				return (depth1 < depth2);
+			}
+		};
+
 		// name of the zone (must be unique)
 		String mName;
 		/// Zone type name
@@ -290,5 +311,6 @@ namespace Ogre
 }
 
 #endif
+
 
 

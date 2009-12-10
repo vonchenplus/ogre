@@ -6,16 +6,18 @@
 
 #include <cppunit/TestRunner.h>
 
+#include <OgrePlatform.h>
+
 #include "Suite.h"
 
-#ifdef OGRE_PLATFORM
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 #define WIN32_LEAN_AND_MEAN
 #include "windows.h"
-#endif
-#endif
 
-int main( int argc, char **argv)
+INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT )
+#else
+int main(int argc, char *argv[])
+#endif
 {
 
     setUpSuite();
@@ -36,11 +38,14 @@ int main( int argc, char **argv)
     runner.addTest( CPPUNIT_NS::TestFactoryRegistry::getRegistry().makeTest() );
     runner.run( controller );
 
-    // Print test in a compiler compatible format.
+    // Print test results to a file
+	std::ofstream ofile("OgreTestResults.log");
+	
     CPPUNIT_NS::CompilerOutputter* outputter =
-        CPPUNIT_NS::CompilerOutputter::defaultOutputter(&result, std::cout);
+        CPPUNIT_NS::CompilerOutputter::defaultOutputter(&result, ofile);
     outputter->write();
     delete outputter;
+
 
     tearDownSuite();
 

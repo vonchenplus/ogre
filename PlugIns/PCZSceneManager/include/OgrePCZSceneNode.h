@@ -4,26 +4,25 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-You may alternatively use this source under the terms of a specific version of
-the OGRE Unrestricted License provided you have obtained such a license from
-Torus Knot Software Ltd.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 -----------------------------------------------------------------------------
 PCZSceneNode.h  -  Node Zone Info header file.
 The PCZSceneNode is an extension used to store zone information and provide
@@ -53,8 +52,8 @@ namespace Ogre
 	class PCZone;
 	class ZoneData;
 	class PCZCamera;
-    typedef std::map<String, PCZone*> ZoneMap;
-	typedef std::map<String, ZoneData*> ZoneDataMap;
+    typedef map<String, PCZone*>::type ZoneMap;
+	typedef map<String, ZoneData*>::type ZoneDataMap;
 
 	class _OgrePCZPluginExport PCZSceneNode : public SceneNode
 	{
@@ -65,7 +64,8 @@ namespace Ogre
 		PCZSceneNode( SceneManager* creator, const String& name );
 		/** Standard destructor */
 		~PCZSceneNode();
-		virtual void _update(bool updateChildren, bool parentHasChanged);
+		void _update(bool updateChildren, bool parentHasChanged);
+		void updateFromParentImpl() const;
 
         /** Creates an unnamed new SceneNode as a child of this node.
         @param
@@ -115,17 +115,20 @@ namespace Ogre
 		void		updateZoneData(void);
 		void		enable(bool yesno) {mEnabled = yesno;}
 		bool		isEnabled(void) {return mEnabled;}
+		bool		isMoved(void) {return mMoved;}
+		void		setMoved(bool value) {mMoved = value;}
 	protected:
-		Vector3         mNewPosition; 
+		mutable Vector3	mNewPosition; 
 		PCZone *		mHomeZone;
 		bool			mAnchored;
 		bool			mAllowedToVisit;
 		ZoneMap			mVisitingZones;
-		Vector3			mPrevPosition;
+		mutable Vector3	mPrevPosition;
 		unsigned long	mLastVisibleFrame;
 		PCZCamera*		mLastVisibleFromCamera;
 		ZoneDataMap		mZoneData;
 		bool			mEnabled;
+		mutable bool	mMoved;
 	};
 }
 

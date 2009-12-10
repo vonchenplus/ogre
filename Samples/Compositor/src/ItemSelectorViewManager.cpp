@@ -4,11 +4,11 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 
@@ -29,7 +29,7 @@ LGPL like the rest of the engine.
     ItemSelectorViewManager::ItemSelectorViewManager(const Ogre::String& parentWindowName)
         : mItemSelectorController(0)
     {
-        mParentWindow = CEGUI::WindowManager::getSingleton().getWindow(parentWindowName);
+        mParentWindow = CEGUI::WindowManager::getSingleton().getWindow(parentWindowName.c_str());
         // add a scrollable pane as a child to the parent
         mScrollablePane = (CEGUI::ScrollablePane*)CEGUI::WindowManager::getSingleton().createWindow("TaharezLook/ScrollablePane",
                                     ("MainScrollPane"));
