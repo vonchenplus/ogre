@@ -1,7 +1,7 @@
 \input texinfo   @c -*-texinfo-*-
 @c %**start of header
 @setfilename manual.info
-@settitle OGRE Manual v1.6 ('Shoggoth')
+@settitle OGRE Manual v1.7 ('Cthugha')
 @c %**end of header
    
 @titlepage
@@ -377,9 +377,26 @@ You can also reference vertex and fragment programs (or vertex and pixel shaders
 @subheading Top-level material attributes
 The outermost section of a material definition does not have a lot of attributes of its own (most of the configurable parameters are within the child sections. However, it does have some, and here they are:@*@*
 @anchor{lod_distances}
-@subheading lod_distances
-This attribute controls the distances at which different Techniques can come into effect. @xref{Techniques} for a full discussion of this option.
+@subheading lod_distances (deprecated)
+This option is deprecated in favour of @ref{lod_values} now. 
 @*@*
+@anchor{lod_strategy}
+@subheading lod_strategy 
+Sets the name of the LOD strategy to use. Defaults to 'Distance' which means LOD changes based on distance from the camera. Also supported is 'PixelCount' which changes LOD based on an estimate of the screen-space pixels affected. @*@*
+Format: lod_strategy <name>@*
+Default: lod_strategy Distance@*@*
+@subheading lod_values 
+This attribute defines the values used to control the LOD transition for this material. By setting this attribute, you indicate that you want this material to alter the Technique that it uses based on some metric, such as the distance from the camera, or the approximate screen space coverage. The exact meaning of these values is determined by the option you select for @ref{lod_strategy} - it is a list of distances for the 'Distance' strategy, and a list of pixel counts for the 'PixelCount' strategy, for example. You must give it a list of values, in order from highest LOD value to lowest LOD value, each one indicating the point at which the material will switch to the next LOD. Implicitly, all materials activate LOD index 0 for values less than the first entry, so you do not have to specify '0' at the start of the list. You must ensure that there is at least one Technique with a @ref{lod_index} value for each value in the list (so if you specify 3 values, you must have techniques for LOD indexes 0, 1, 2 and 3). Note you must always have at least one Technique at lod_index 0.@*@*
+@*@*
+Format: lod_values <value0> <value1> <value2> ...@*
+Default: none@*@*
+
+Example: @*
+lod_strategy Distance
+lod_values 300.0 600.5 1200@*@*
+
+The above example would cause the material to use the best Technique at lod_index 0 up to a distance of 300 world units, the best from lod_index 1 from 300 up to 600, lod_index 2 from 600 to 1200, and lod_index 3 from 1200 upwards.@*@*
+
 @anchor{receive_shadows}
 @subheading receive_shadows
 This attribute controls whether objects using this material can have shadows cast upon them.@*@* 
@@ -467,18 +484,6 @@ The distance at which a LOD level is applied is determined by the lod_distances 
 
 Default: lod_index 0@*@*
 
-@anchor{lod_distances}
-@subheading lod_distances
-@strong{Note: this attribute must be specified in the outer material section (ie the parent of all the techniques), but it's specified here since it is most relevant to this section.}@*@*
-
-By setting this attribute, you indicate that you want this material to alter the Technique that it uses based on distance from the camera. You must give it a list of distances, in ascending order, each one indicating the distance at which the material will switch to the next LOD. Implicitly, all materials activate LOD index 0 for distances less than the smallest of these. You must ensure that there is at least one Technique with a @ref{lod_index} value for each distance in the list (so if you specify 3 distances, you must have techniques for indexes 1, 2 and 3). Note you must always have at least one Technique at lod_index 0.@*@*
-
-Format: lod_distances <distance_1> [<distance_2> ... <distance_n>]@*
-
-Example: lod_distances 300.0 600.5 1200@*@*
-
-The above example would cause the material to use the best Technique at lod_index 0 up to a distance of 300 world units, the best from lod_index 1 from 300 up to 600, lod_index 2 from 600 to 1200, and lod_index 3 from 1200 upwards.@*@*
-
 Techniques also contain one or more passes (and there must be at least one), @xref{Passes}.
 
 @anchor{shadow_caster_material}
@@ -533,6 +538,10 @@ Here are the attributes you can use in a 'pass' section of a .material script:
 @ref{scene_blend}
 @item
 @ref{separate_scene_blend}
+@item
+@ref{scene_blend_op}
+@item
+@ref{separate_scene_blend_op}
 @item
 @ref{depth_check}
 @item
@@ -726,6 +735,25 @@ Example: separate_scene_blend one one_minus_dest_alpha one one @*@*
 
 Again the options available in the second format are the same as those in the second format of @ref{scene_blend}.
 
+@anchor{scene_blend_op}
+@subheading scene_blend_op
+
+This directive changes the operation which is applied between the two components of the scene 
+blending equation, which by default is 'add' (sourceFactor * source + destFactor * dest). You may 
+change this to 'add', 'subtract', 'reverse_subtract', 'min' or 'max'.@*@*
+
+Format: scene_blend_op <add|subtract|reverse_subtract|min|max>@*@*
+Default: scene_blend_op add@*@*
+
+@anchor{separate_scene_blend_op}
+@subheading separate_scene_blend_op
+
+This directive is as scene_blend_op, except that you can set the operation for colour and alpha
+separately.
+
+Format: separate_scene_blend_op <colourOp> <alphaOp>@*@*
+Default: separate_scene_blend_op add add@*@*
+
 
 @anchor{depth_check}
 @subheading depth_check
@@ -868,9 +896,11 @@ Default: normalise_normals off@*
 
 Sets if transparent textures should be sorted by depth or not.@*@*
 
-Format: transparent_sorting <on|off>@*@*
+Format: transparent_sorting <on|off|force>@*@*
 
-By default all transparent materials are sorted such that renderables furthest away from the camera are rendered first. This is usually the desired behaviour but in certain cases this depth sorting may be unnecessary and undesirable. If for example it is necessary to ensure the rendering order does not change from one frame to the next.@*@*
+By default all transparent materials are sorted such that renderables furthest away from the camera are rendered first. This is usually the desired behaviour but in certain cases this depth sorting may be unnecessary and undesirable. If for example it is necessary to ensure the rendering order does not change from one frame to the next. In this case you could set the value to 'off' to prevent sorting.@*@*
+
+You can also use the keyword 'force' to force transparent sorting on, regardless of other circumstances. Usually sorting is only used when the pass is also transparent, and has a depth write or read which indicates it cannot reliably render without sorting. By using 'force', you tell OGRE to sort this pass no matter what other circumstances are present.@*@*
 
 Default: transparent_sorting on@*@*
 
@@ -1396,10 +1426,17 @@ Tells this texture unit where it should get its content from. The default is to 
 	The default option, this derives texture content from a texture name, loaded by ordinary means from a file or having been manually created with a given name.
 @item shadow
 	This option allows you to pull in a shadow texture, and is only valid when you use texture shadows and one of the 'custom sequence' shadowing types (@xref{Shadows}). The shadow texture in question will be from the 'n'th closest light that casts shadows, unless you use light-based pass iteration or the light_start option which may start the light index higher. When you use this option in multiple texture units within the same pass, each one references the next shadow texture. The shadow texture index is reset in the next pass, in case you want to take into account the same shadow textures again in another pass (e.g. a separate specular / gloss pass). By using this option, the correct light frustum projection is set up for you for use in fixed-function, if you use shaders just reference the texture_viewproj_matrix auto parameter in your shader.
+@item compositor
+	This option allows you to reference a texture from a compositor, and is only valid when the pass is rendered within a compositor sequence. This can be either in a render_scene directive inside a compositor script, or in a general pass in a viewport that has a compositor attached. Note that this is a reference only, meaning that it does not change the render order. You must make sure that the order is reasonable for what you are trying to achieve (for example, texture pooling might cause the referenced texture to be overwritten by something else by the time it is referenced). @*@*
+	The extra parameters for the content_type are only required for this type: @*@*
+	The first is the name of the compositor being referenced. (Required) @*@*
+	The second is the name of the texture to reference in the compositor. (Required) @*@*
+	The third is the index of the texture to take, in case of an MRT. (Optional)
 @end table
 
-Format: content_type <named|shadow>
-Default: content_type named
+Format: content_type <named|shadow|compositor> [<Referenced Compositor Name>] [<Referenced Texture Name>] [<Referenced MRT Index>] @*@*
+Default: content_type named @*@*
+Example: content_type compositor DepthCompositor OutputTexture @*@*
 
 @anchor{tex_coord_set}
 @subheading tex_coord_set
@@ -1757,13 +1794,13 @@ Another one of the DirectX vertex shader assembler syntaxes. @*
 Supported on cards from: ATI Radeon X series, nVidia GeForce FX 6 series @*
 @item vs_3_0
 Another one of the DirectX vertex shader assembler syntaxes. @*
-Supported on cards from: nVidia GeForce FX 6 series
+Supported on cards from: ATI Radeon HD 2000+, nVidia GeForce FX 6 series
 @item arbvp1
 This is the OpenGL standard assembler format for vertex programs. It's roughly equivalent to DirectX vs_1_1.
 @item vp20
-This is an nVidia-specific OpenGL vertex shader syntax which is a superset of vs 1.1. 
+This is an nVidia-specific OpenGL vertex shader syntax which is a superset of vs 1.1. ATI Radeon HD 2000+ also supports it. 
 @item vp30
-Another nVidia-specific OpenGL vertex shader syntax. It is a superset of vs 2.0, which is supported on nVidia GeForce FX 5 series and higher.
+Another nVidia-specific OpenGL vertex shader syntax. It is a superset of vs 2.0, which is supported on nVidia GeForce FX 5 series and higher. ATI Radeon HD 2000+ also supports it. 
 @item vp40
 Another nVidia-specific OpenGL vertex shader syntax. It is a superset of vs 3.0, which is supported on nVidia GeForce FX 6 series and higher.
 @item ps_1_1, ps_1_2, ps_1_3
@@ -1783,7 +1820,7 @@ ps_2_0 with a higher number of instructions. @*
 Supported cards: ATI Radeon X series, nVidia GeForce FX 6 series@*
 @item ps_3_0
 DirectX pixel shader (ie fragment program) assembler syntax. @*
-Supported cards: nVidia GeForce FX6 series@*
+Supported cards: ATI Radeon HD 2000+, nVidia GeForce FX6 series@*
 @item ps_3_x
 DirectX pixel shader (ie fragment program) assembler syntax. @*
 Supported cards: nVidia GeForce FX7 series@*
@@ -1792,7 +1829,7 @@ This is the OpenGL standard assembler format for fragment programs. It's roughly
 @item fp20
 This is an nVidia-specific OpenGL fragment syntax which is a superset of ps 1.3. It allows you to use the 'nvparse' format for basic fragment programs. It actually uses NV_texture_shader and NV_register_combiners to provide functionality equivalent to DirectX's ps_1_1 under GL, but only for nVidia cards. However, since ATI cards adopted arbfp1 a little earlier than nVidia, it is mainly nVidia cards like the GeForce3 and GeForce4 that this will be useful for. You can find more information about nvparse at http://developer.nvidia.com/object/nvparse.html.
 @item fp30
-Another nVidia-specific OpenGL fragment shader syntax. It is a superset of ps 2.0, which is supported on nVidia GeForce FX 5 series and higher.
+Another nVidia-specific OpenGL fragment shader syntax. It is a superset of ps 2.0, which is supported on nVidia GeForce FX 5 series and higher. ATI Radeon HD 2000+ also supports it. 
 @item fp40
 Another nVidia-specific OpenGL fragment shader syntax. It is a superset of ps 3.0, which is supported on nVidia GeForce FX 6 series and higher.
 @item gpu_gp, gp4_gp
@@ -1840,6 +1877,23 @@ vertex_program Ogre/CelShadingVP cg
 }
 @end example
 The syntax of the parameter definition is exactly the same as when you define parameters when using programs, @xref{Program Parameter Specification}. Defining default parameters allows you to avoid rebinding common parameters repeatedly (clearly in the above example, all but 'shininess' are unlikely to change between uses of the program) which makes your material declarations shorter.
+
+@anchor{Declaring Shared Parameters}
+@subheading Declaring Shared Parameters
+Often, not every parameter you want to pass to a shader is unique to that program, and perhaps you want to give the same value to a number of different programs, and a number of different materials using that program. Shared parameter sets allow you to define a 'holding area' for shared parameters that can then be referenced when you need them in particular shaders, while keeping the definition of that value in one place. To define a set of shared parameters, you do this:
+@example
+shared_params YourSharedParamsName
+{
+	shared_param_named mySharedParam1 float4 0.1 0.2 0.3 0.4
+	...
+}
+@end example
+As you can see, you need to use the keyword 'shared_params' and follow it with the name that you will use to identify these shared parameters. Inside the curly braces, you can define one parameter per line, in a way which is very similar to the @ref{param_named} syntax. The definition of these lines is:@*@*
+Format: shared_param_name <param_name> <param_type> [<[array_size]>] [<initial_values>]@*@*
+
+The param_name must be unique within the set, and the param_type can be any one of float, float2, float3, float4, int, int2, int3, int4, matrix2x2, matrix2x3, matrix2x4, matrix3x2, matrix3x3, matrix3x4, matrix4x2, matrix4x3 and matrix4x4. The array_size option allows you to define arrays of param_type should you wish, and if present must be a number enclosed in square brackets (and note, must be separated from the param_type with whitespace). If you wish, you can also initialise the parameters by providing a list of values.@*@*
+
+Once you have defined the shared parameters, you can reference them inside default_params and params blocks using @ref{shared_params_ref}. You can also obtain a reference to them in your code via GpuProgramManager::getSharedParameters, and update the values for all instances using them. 
 
 @node High-level Programs
 @heading High-level Programs
@@ -1918,7 +1972,7 @@ vertex_program myHLSLVertexProgram hlsl
 @end example
 As you can see, the main syntax is almost identical, except that instead of 'profiles' with a list of assembler formats, you have a 'target' parameter which allows a single assembler target to be specified - obviously this has to be a DirectX assembler format syntax code.@*@*
 
-@strong{Important Matrix Ordering Note:} One thing to bear in mind is that HLSL allows you to use 2 different ways to multiply a veector by a matrix - mul(v,m) or mul(m,v). The only difference between them is that the matrix is effectively transposed. You should use mul(m,v) with the matrices passed in from Ogre - this agrees with the shaders produced from tools like RenderMonkey, and is consistent with Cg too, but disagrees with the Dx9 SDK and FX Composer which use mul(v,m) - you will have to switch the parameters to mul() in those shaders.@*@*
+@strong{Important Matrix Ordering Note:} One thing to bear in mind is that HLSL allows you to use 2 different ways to multiply a vector by a matrix - mul(v,m) or mul(m,v). The only difference between them is that the matrix is effectively transposed. You should use mul(m,v) with the matrices passed in from Ogre - this agrees with the shaders produced from tools like RenderMonkey, and is consistent with Cg too, but disagrees with the Dx9 SDK and FX Composer which use mul(v,m) - you will have to switch the parameters to mul() in those shaders.@*@*
 
 Note that if you use the float3x4 / matrix3x4 type in your shader, bound to an OGRE auto-definition (such as bone matrices) you should use the column_major_matrices = false option (discussed below) in your program definition. This is because OGRE passes float3x4 as row-major to save constant space (3 float4's rather than 4 float4's with only the top 3 values used) and this tells OGRE to pass all matrices like this, so that you can use mul(m,v) consistently for all calculations. OGRE will also to tell the shader to compile in row-major form (you don't have to set the /Zpr compile option or #pragma pack(row-major) option, OGRE does this for you). Note that passing bones in float4x3 form is not supported by OGRE, but you don't need it given the above.@*@*
 
@@ -1928,6 +1982,8 @@ Note that if you use the float3x4 / matrix3x4 type in your shader, bound to an O
 This allows you to define symbols which can be used inside the HLSL shader code to alter the behaviour (through #ifdef or #if clauses). Definitions are separated by ';' or ',' and may optionally have a '=' operator within them to specify a definition value. Those without an '=' will implicitly have a definition of 1.
 @item column_major_matrices <true|false>
 The default for this option is 'true' so that OGRE passes matrices auto-bound matrices in a form where mul(m,v) works. Setting this option to false does 2 things - it transpose auto-bound 4x4 matrices and also sets the /Zpr (row-major) option on the shader compilation. This means you can still use mul(m,v), but the matrix layout is row-major instead. This is only useful if you need to use bone matrices (float3x4) in a shader since it saves a float4 constant for every bone involved.
+@item optimisation_level <opt>
+Set the optimisation level, which can be one of 'default', 'none', '0', '1', '2', or '3'. This corresponds to the /O parameter of fxc.exe, except that in 'default' mode, optimisation is disabled in debug mode and set to 1 in release mode (fxc.exe uses 1 all the time). Unsurprisingly the default value is 'default'. You may want to change this if you want to tweak the optimisation, for example if your shader gets so complex that it will not longer compile without some minimum level of optimisation.
 @end table
 
 @include glsl.inc
@@ -2098,6 +2154,7 @@ Parameters can be specified using one of 4 commands as shown below. The same syn
 @item @ref{param_indexed_auto}
 @item @ref{param_named}
 @item @ref{param_named_auto}
+@item @ref{shared_params_ref}
 @end itemize
 
 @anchor{param_indexed}
@@ -2186,6 +2243,8 @@ The transform matrix of a given texture unit, as it would usually be seen in the
 
 @item render_target_flipping
 The value use to adjust transformed y position if bypassed projection matrix transform. It's -1 if the render target requires texture flipping, +1 otherwise.
+@item vertex_winding
+Indicates what vertex winding mode the render state is in at this point; +1 for standard, -1 for inverted (e.g. when processing reflections).
 
 @item light_diffuse_colour
 The diffuse colour of a given light; this requires an index in the 'extra_params' field, and relates to the 'nth' closest light which could affect this object (ie 0 refers to the closest light - note that directional lights are always first in the list and always present). NB if there are no lights this close, then the parameter will be set to black.
@@ -2403,6 +2462,15 @@ Format: param_named_auto <name> <value_code> <extra_params>@*@*
 Example: param_named_auto worldViewProj WORLDVIEWPROJ_MATRIX@*@*
 
 The allowed value codes and the meaning of extra_params are detailed in @ref{param_indexed_auto}.
+
+@anchor{shared_params_ref}
+@subheading shared_params_ref
+
+This option allows you to reference shared parameter sets as defined in @ref{Declaring Shared Parameters}. @*@*
+Format: shared_params_ref <shared_set_name>@*@*
+Example: shared_params_ref mySharedParams@*@*
+
+The only required parameter is a name, which must be the name of an already defined shared parameter set. All named parameters which are present in the program that are also present in the shared parameter set will be linked, and the shared parameters used as if you had defined them locally. This is dependent on the definitions (type and array size) matching between the shared set and the program.@*@*
 
 @anchor{Shadows and Vertex Programs}
 @subheading Shadows and Vertex Programs

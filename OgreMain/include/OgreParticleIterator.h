@@ -4,7 +4,7 @@ This source file is part of OGRE
 	(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -34,18 +34,24 @@ Torus Knot Software Ltd.
 namespace Ogre {
 
 
-    /** Convenience class to make it easy to step through all particles in a ParticleSystem.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	/** Convenience class to make it easy to step through all particles in a ParticleSystem.
     */
     class _OgreExport ParticleIterator
     {
         friend class ParticleSystem;
     protected:
-        std::list<Particle*>::iterator mPos;
-        std::list<Particle*>::iterator mStart;
-        std::list<Particle*>::iterator mEnd;
+        list<Particle*>::type::iterator mPos;
+        list<Particle*>::type::iterator mStart;
+        list<Particle*>::type::iterator mEnd;
 
         /// Protected constructor, only available from ParticleSystem::getIterator
-        ParticleIterator(std::list<Particle*>::iterator start, std::list<Particle*>::iterator end);
+        ParticleIterator(list<Particle*>::type::iterator start, list<Particle*>::type::iterator end);
 
     public:
         // Returns true when at the end of the particle list
@@ -54,6 +60,8 @@ namespace Ogre {
         /** Returns a pointer to the next particle, and moves the iterator on by 1 element. */
         Particle* getNext(void);
     };
+	/** @} */
+	/** @} */
 }
 
 

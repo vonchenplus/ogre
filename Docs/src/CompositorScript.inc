@@ -86,6 +86,9 @@ Format: technique { }@*@*
 Techniques can have the following nested elements:
 @itemize @bullet
 @item @ref{compositor_texture,texture}
+@item @ref{compositor_texture_ref,texture_ref}
+@item @ref{compositor_scheme,scheme}
+@item @ref{compositor_logic,compositor_logic}
 @item @ref{Compositor Target Passes,target}
 @item @ref{Compositor Target Passes,target_output}
 @end itemize
@@ -96,7 +99,7 @@ Techniques can have the following nested elements:
 This declares a render texture for use in subsequent @ref{Compositor Target Passes,target passes}.
 
 @*@*
-Format: texture <Name> <Width> <Height> <Pixel Format> [<MRT Pixel Format2>] [<MRT Pixel FormatN>]@*@*
+Format: texture <Name> <Width> <Height> <Pixel Format> [<MRT Pixel Format2>] [<MRT Pixel FormatN>] [pooled] [gamma] [no_fsaa] [<scope>]@*@*
 
 Here is a description of the parameters:
 @table @asis
@@ -106,12 +109,62 @@ A name to give the render texture, which must be unique within this compositor. 
 The dimensions of the render texture. You can either specify a fixed width and height, or you can request that the texture is based on the physical dimensions of the viewport to which the compositor is attached. The options for the latter are 'target_width', 'target_height', 'target_width_scaled <factor>' and 'target_height_scaled <factor>' - where 'factor' is the amount by which you wish to multiply the size of the main target to derive the dimensions.
 @item Pixel Format
 The pixel format of the render texture. This affects how much memory it will take, what colour channels will be available, and what precision you will have within those channels. The available options are PF_A8R8G8B8, PF_R8G8B8A8, PF_R8G8B8, PF_FLOAT16_RGBA, PF_FLOAT16_RGB, PF_FLOAT16_R, PF_FLOAT32_RGBA, PF_FLOAT32_RGB, and PF_FLOAT32_R.
+@item pooled
+If present, this directive makes this texture 'pooled' among compositor instances, which can save some memory.
+@item gamma
+If present, this directive means that sRGB gamma correction will be enabled on writes to this texture. You should remember to include the opposite sRGB conversion when you read this texture back in another material, such as a quad. This option will automatically enabled if you use a render_scene pass on this texture and the viewport on which the compositor is based has sRGB write support enabled.
+@item no_fsaa
+If present, this directive disables the use of anti-aliasing on this texture. FSAA is only used if this texture is subject to a render_scene pass and FSAA was enabled on the original viewport on which this compositor is based; this option allows you to override it and disable the FSAA if you wish. 
+@item scope
+If present, this directive sets the scope for the texture for being accessed by other compositors using the @ref{compositor_texture_ref,texture_ref} directive. There are three options : 'local_scope' (which is also the default) means that only the compositor defining the texture can access it. 'chain_scope' means that the compositors after this compositor in the chain can reference its textures, and 'global_scope' means that the entire application can access the texture. This directive also affects the creation of the textures (global textures are created once and thus can't be used with the pooled directive, and can't rely on viewport size).
 @end table
 
 Example: texture rt0 512 512 PF_R8G8B8A8@*
 Example: texture rt1 target_width target_height PF_FLOAT32_RGB@*@*
 
 You can in fact repeat this element if you wish. If you do so, that means that this render texture becomes a Multiple Render Target (MRT), when the GPU writes to multiple textures at once. It is imperative that if you use MRT that the shaders that render to it render to ALL the targets. Not doing so can cause undefined results. It is also important to note that although you can use different pixel formats for each target in a MRT, each one should have the same total bit depth since most cards do not support independent bit depths. If you try to use this feature on cards that do not support the number of MRTs you've asked for, the technique will be skipped (so you ought to write a fallback technique).
+
+Example : texture mrt_output target_width target_height PF_FLOAT16_RGBA PF_FLOAT16_RGBA chain_scope
+
+@anchor{compositor_texture_ref}
+@subheading texture_ref
+
+This declares a reference of a texture from another compositor to be used in this compositor.
+
+@*@*
+Format: texture_ref <Local Name> <Reference Compositor> <Reference Texture Name>
+
+Here is a description of the parameters:
+@table @asis
+@item Local Name
+A name to give the referenced texture, which must be unique within this compositor. This name is used to reference the texture in @ref{Compositor Target Passes,target passes}, when the texture is rendered to, and in @ref{Compositor Passes,passes}, when the texture is used as input to a material rendering a fullscreen quad.
+@item Reference Compositor
+The name of the compositor that we are referencing a texture from
+@item Reference Texture Name
+The name of the texture in the compositor that we are referencing
+@end table
+
+Make sure that the texture being referenced is scoped accordingly (either chain or global scope) and placed accordingly during chain creation (if referencing a chain-scoped texture, the compositor must be present in the chain and placed before the compositor referencing it).
+
+Example : texture_ref GBuffer GBufferCompositor mrt_output
+
+@anchor{compositor_scheme}
+@subheading scheme
+
+This gives a compositor technique a scheme name, allowing you to manually switch between different techniques for this compositor when instantiated on a viewport by calling CompositorInstance::setScheme. 
+
+@*@*
+Format: material_scheme <Name> @*@*
+
+@anchor{compositor_logic}
+@subheading compositor_logic
+
+This connects between a compositor and code that it requires in order to function correctly. When an instance of this compositor will be created, the compositor logic will be notified and will have the chance to prepare the compositor's operation (for example, adding a listener).
+
+@*@*
+Format: compositor_logic <Name>
+
+Registration of compositor logics is done by name through CompositorManager::registerCompositorLogic.
 
 @node Compositor Target Passes
 @subsection Target Passes
@@ -190,7 +243,7 @@ Default: None@*@*
 @subsection Compositor Passes
 
 A pass is a single rendering action to be performed in a target pass. @*@*
-Format: 'pass' (render_quad | clear | stencil | render_scene) { }@*@*
+Format: 'pass' (render_quad | clear | stencil | render_scene | render_custom) [custom name] { }@*@*
 
 There are four types of pass:
 @table @asis
@@ -202,6 +255,8 @@ This kind of pass configures stencil operations for the subsequent passes. It ca
 This kind of pass performs a regular rendering of the scene. It will use the @ref{visibility_mask}, @ref{compositor_lod_bias,lod_bias}, and @ref{material_scheme} from the parent target pass.
 @item render_quad
 This kind of pass renders a quad over the entire render target, using a given material. You will undoubtedly want to pull in the results of other target passes into this operation to perform fullscreen effects.
+@item render_custom
+This kind of pass is just a callback to user code for the composition pass specified in the custom name (and registered via CompositorManager::registerCustomCompositionPass) and allows the user to create custom render operations for more advanced effects. This is the only pass type that requires the custom name parameter.
 @end table
 
 Here are the attributes you can use in a 'pass' section of a .compositor script:
@@ -219,6 +274,8 @@ Here are the attributes you can use in a 'pass' section of a .compositor script:
 @item
 @ref{last_render_queue}
 @item 
+@ref{compositor_pass_material_scheme,material_scheme}
+@item
 @ref{compositor_clear,clear}
 @item 
 @ref{compositor_stencil,stencil}
@@ -261,6 +318,13 @@ Default: first_render_queue 0@*@*
 For passes of type 'render_scene', this sets the last render queue id that is included in the render. Defaults to the value of RENDER_QUEUE_SKIES_LATE.@*@*
 Format: last_render_queue <id>@*@*
 Default: last_render_queue 95
+
+@anchor{compositor_pass_material_scheme}
+@subheading material_scheme
+If set, indicates the material scheme to use for this pass only. Useful for performing special-case rendering effects.@*@*
+This will overwrite the scheme if set at the target scope as well.@*@*
+Format: material_scheme <scheme name>@*@*
+Default: None@*@*
 
 @anchor{compositor_clear}
 @heading Clear Section

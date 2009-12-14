@@ -66,7 +66,7 @@ namespace Ogre {
 		// Dynamic textures?
 		bool                            mDynamicTextures;
 		/// Vector of pointers to subsurfaces
-		typedef std::vector<HardwarePixelBufferSharedPtr> SurfaceList;
+		typedef vector<HardwarePixelBufferSharedPtr>::type SurfaceList;
 		SurfaceList						mSurfaceList;
 
 		D3D10_SHADER_RESOURCE_VIEW_DESC mSRVDesc;
@@ -225,7 +225,7 @@ namespace Ogre {
 		ID3D10DepthStencilView * mDepthStencilView;
 	public:
 		D3D10RenderTexture(const String &name, D3D10HardwarePixelBuffer *buffer, D3D10Device & device );
-		~D3D10RenderTexture() {}
+		virtual ~D3D10RenderTexture();
 
 		void rebind(D3D10HardwarePixelBuffer *buffer);
 

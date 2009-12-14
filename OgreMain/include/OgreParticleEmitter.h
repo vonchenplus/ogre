@@ -4,7 +4,7 @@ This source file is part of OGRE
 	(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -41,7 +41,13 @@ Torus Knot Software Ltd.
 namespace Ogre {
 
 
-    /** Abstract class defining the interface to be implemented by particle emitters.
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup Effects
+	*  @{
+	*/
+	/** Abstract class defining the interface to be implemented by particle emitters.
     @remarks
         Particle emitters are the sources of particles in a particle system. 
         This class defines the ParticleEmitter interface, and provides a basic implementation 
@@ -485,7 +491,7 @@ namespace Ogre {
 		/** Sets the name of the emitter to be emitted*/
 		virtual void setEmittedEmitter(const String& emittedEmitter);
 
-		/** Return ´true´ if the emitter is emitted by another emitter */
+		/** Return true if the emitter is emitted by another emitter */
 		virtual bool isEmitted(void) const;
 
 		/** Set the indication (true/false) to indicate that the emitter is emitted by another emitter */
@@ -493,6 +499,8 @@ namespace Ogre {
 
 
     };
+	/** @} */
+	/** @} */
 
 }
 

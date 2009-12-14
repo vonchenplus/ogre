@@ -4,11 +4,11 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 
@@ -19,262 +19,17 @@ LGPL like the rest of the engine.
 #include "CompositorDemo_FrameListener.h"
 #include "Compositor.h"
 
-/*************************************************************************
-	                    HeatVisionListener Methods
-*************************************************************************/
-//---------------------------------------------------------------------------
-    HeatVisionListener::HeatVisionListener()
-    {
-		timer = new Ogre::Timer();
-        start = end = curr = 0.0f;
-    }
-//---------------------------------------------------------------------------
-    HeatVisionListener::~HeatVisionListener()
-    {
-       delete timer;
-    }
-//---------------------------------------------------------------------------
-    void HeatVisionListener::notifyMaterialSetup(Ogre::uint32 pass_id, Ogre::MaterialPtr &mat)
-    {
-        if(pass_id == 0xDEADBABE)
-        {
-            timer->reset();
-            fpParams =
-                mat->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
-        }
-    }
-//---------------------------------------------------------------------------
-    void HeatVisionListener::notifyMaterialRender(Ogre::uint32 pass_id, Ogre::MaterialPtr &mat)
-    {
-        if(pass_id == 0xDEADBABE)
-        {
-            // "random_fractions" parameter
-            fpParams->setNamedConstant("random_fractions", Ogre::Vector4(Ogre::Math::RangeRandom(0.0, 1.0), Ogre::Math::RangeRandom(0, 1.0), 0, 0));
 
-            // "depth_modulator" parameter
-            float inc = ((float)timer->getMilliseconds())/1000.0f;
-            if ( (fabs(curr-end) <= 0.001) ) {
-                // take a new value to reach
-                end = Ogre::Math::RangeRandom(0.95, 1.0);
-                start = curr;
-            } else {
-                if (curr > end) curr -= inc;
-                else curr += inc;
-            }
-            timer->reset();
-
-            fpParams->setNamedConstant("depth_modulator", Ogre::Vector4(curr, 0, 0, 0));
-        }
-    }
-//---------------------------------------------------------------------------
-
-	/*************************************************************************
-	HDRListener Methods
-	*************************************************************************/
-	//---------------------------------------------------------------------------
-	HDRListener::HDRListener()
-	{
-	}
-	//---------------------------------------------------------------------------
-	HDRListener::~HDRListener()
-	{
-	}
-	//---------------------------------------------------------------------------
-	void HDRListener::notifyViewportSize(int width, int height)
-	{
-		mVpWidth = width;
-		mVpHeight = height;
-	}
-	//---------------------------------------------------------------------------
-	void HDRListener::notifyCompositor(Ogre::CompositorInstance* instance)
-	{
-		// Get some RTT dimensions for later calculations
-		Ogre::CompositionTechnique::TextureDefinitionIterator defIter =
-			instance->getTechnique()->getTextureDefinitionIterator();
-		while (defIter.hasMoreElements())
-		{
-			Ogre::CompositionTechnique::TextureDefinition* def =
-				defIter.getNext();
-			if(def->name == "rt_bloom0")
-			{
-				mBloomSize = (int)def->width; // should be square
-				// Calculate gaussian texture offsets & weights
-				float deviation = 3.0f;
-				float texelSize = 1.0f / (float)mBloomSize;
-
-				// central sample, no offset
-				mBloomTexOffsetsHorz[0][0] = 0.0f;
-				mBloomTexOffsetsHorz[0][1] = 0.0f;
-				mBloomTexOffsetsVert[0][0] = 0.0f;
-				mBloomTexOffsetsVert[0][1] = 0.0f;
-				mBloomTexWeights[0][0] = mBloomTexWeights[0][1] =
-					mBloomTexWeights[0][2] = Ogre::Math::gaussianDistribution(0, 0, deviation);
-				mBloomTexWeights[0][3] = 1.0f;
-
-				// 'pre' samples
-				for(int i = 1; i < 8; ++i)
-				{
-					mBloomTexWeights[i][0] = mBloomTexWeights[i][1] =
-						mBloomTexWeights[i][2] = 1.25f * Ogre::Math::gaussianDistribution(i, 0, deviation);
-					mBloomTexWeights[i][3] = 1.0f;
-					mBloomTexOffsetsHorz[i][0] = i * texelSize;
-					mBloomTexOffsetsHorz[i][1] = 0.0f;
-					mBloomTexOffsetsVert[i][0] = 0.0f;
-					mBloomTexOffsetsVert[i][1] = i * texelSize;
-				}
-				// 'post' samples
-				for(int i = 8; i < 15; ++i)
-				{
-					mBloomTexWeights[i][0] = mBloomTexWeights[i][1] =
-						mBloomTexWeights[i][2] = mBloomTexWeights[i - 7][0];
-					mBloomTexWeights[i][3] = 1.0f;
-
-					mBloomTexOffsetsHorz[i][0] = -mBloomTexOffsetsHorz[i - 7][0];
-					mBloomTexOffsetsHorz[i][1] = 0.0f;
-					mBloomTexOffsetsVert[i][0] = 0.0f;
-					mBloomTexOffsetsVert[i][1] = -mBloomTexOffsetsVert[i - 7][1];
-				}
-
-			}
-		}
-	}
-	//---------------------------------------------------------------------------
-	void HDRListener::notifyMaterialSetup(Ogre::uint32 pass_id, Ogre::MaterialPtr &mat)
-	{
-		// Prepare the fragment params offsets
-		switch(pass_id)
-		{
-		//case 994: // rt_lum4
-		case 993: // rt_lum3
-		case 992: // rt_lum2
-		case 991: // rt_lum1
-		case 990: // rt_lum0
-			break;
-		case 800: // rt_brightpass
-			break;
-		case 701: // rt_bloom1
-			{
-				// horizontal bloom
-				mat->load();
-				Ogre::GpuProgramParametersSharedPtr fparams =
-					mat->getBestTechnique()->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
-				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsHorz[0], 15);
-				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
-
-				break;
-			}
-		case 700: // rt_bloom0
-			{
-				// vertical bloom
-				mat->load();
-				Ogre::GpuProgramParametersSharedPtr fparams =
-					mat->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
-				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsVert[0], 15);
-				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
-
-				break;
-			}
-		}
-	}
-	//---------------------------------------------------------------------------
-	void HDRListener::notifyMaterialRender(Ogre::uint32 pass_id, Ogre::MaterialPtr &mat)
-	{
-	}
-	//---------------------------------------------------------------------------
-
-
-	/*************************************************************************
-	GaussianListener Methods
-	*************************************************************************/
-	//---------------------------------------------------------------------------
-	GaussianListener::GaussianListener()
-	{
-	}
-	//---------------------------------------------------------------------------
-	GaussianListener::~GaussianListener()
-	{
-	}
-	//---------------------------------------------------------------------------
-	void GaussianListener::notifyViewportSize(int width, int height)
-	{
-		mVpWidth = width;
-		mVpHeight = height;
-		// Calculate gaussian texture offsets & weights
-		float deviation = 3.0f;
-		float texelSize = 1.0f / (float)std::min(mVpWidth, mVpHeight);
-
-		// central sample, no offset
-		mBloomTexOffsetsHorz[0][0] = 0.0f;
-		mBloomTexOffsetsHorz[0][1] = 0.0f;
-		mBloomTexOffsetsVert[0][0] = 0.0f;
-		mBloomTexOffsetsVert[0][1] = 0.0f;
-		mBloomTexWeights[0][0] = mBloomTexWeights[0][1] =
-			mBloomTexWeights[0][2] = Ogre::Math::gaussianDistribution(0, 0, deviation);
-		mBloomTexWeights[0][3] = 1.0f;
-
-		// 'pre' samples
-		for(int i = 1; i < 8; ++i)
-		{
-			mBloomTexWeights[i][0] = mBloomTexWeights[i][1] =
-				mBloomTexWeights[i][2] = Ogre::Math::gaussianDistribution(i, 0, deviation);
-			mBloomTexWeights[i][3] = 1.0f;
-			mBloomTexOffsetsHorz[i][0] = i * texelSize;
-			mBloomTexOffsetsHorz[i][1] = 0.0f;
-			mBloomTexOffsetsVert[i][0] = 0.0f;
-			mBloomTexOffsetsVert[i][1] = i * texelSize;
-		}
-		// 'post' samples
-		for(int i = 8; i < 15; ++i)
-		{
-			mBloomTexWeights[i][0] = mBloomTexWeights[i][1] =
-				mBloomTexWeights[i][2] = mBloomTexWeights[i - 7][0];
-			mBloomTexWeights[i][3] = 1.0f;
-
-			mBloomTexOffsetsHorz[i][0] = -mBloomTexOffsetsHorz[i - 7][0];
-			mBloomTexOffsetsHorz[i][1] = 0.0f;
-			mBloomTexOffsetsVert[i][0] = 0.0f;
-			mBloomTexOffsetsVert[i][1] = -mBloomTexOffsetsVert[i - 7][1];
-		}
-	}
-	//---------------------------------------------------------------------------
-	void GaussianListener::notifyMaterialSetup(Ogre::uint32 pass_id, Ogre::MaterialPtr &mat)
-	{
-		// Prepare the fragment params offsets
-		switch(pass_id)
-		{
-		case 701: // blur horz
-			{
-				// horizontal bloom
-				mat->load();
-				Ogre::GpuProgramParametersSharedPtr fparams =
-					mat->getBestTechnique()->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
-				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsHorz[0], 15);
-				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
-
-				break;
-			}
-		case 700: // blur vert
-			{
-				// vertical bloom
-				mat->load();
-				Ogre::GpuProgramParametersSharedPtr fparams =
-					mat->getTechnique(0)->getPass(0)->getFragmentProgramParameters();
-				const Ogre::String& progName = mat->getBestTechnique()->getPass(0)->getFragmentProgramName();
-				fparams->setNamedConstant("sampleOffsets", mBloomTexOffsetsVert[0], 15);
-				fparams->setNamedConstant("sampleWeights", mBloomTexWeights[0], 15);
-
-				break;
-			}
-		}
-	}
-	//---------------------------------------------------------------------------
-	void GaussianListener::notifyMaterialRender(Ogre::uint32 pass_id, Ogre::MaterialPtr &mat)
-	{
-	}
-	//---------------------------------------------------------------------------
+inline Ogre::String operator +(const Ogre::String& l,const CEGUI::String& o)
+{
+	return l+o.c_str();
+}
+/*
+inline CEGUI::String operator +(const CEGUI::String& l,const Ogre::String& o)
+{
+	return l+o.c_str();
+}
+*/
 
 /*************************************************************************
 	CompositorDemo_FrameListener methods that handle all input for this Compositor demo.
@@ -282,9 +37,6 @@ LGPL like the rest of the engine.
 
     CompositorDemo_FrameListener::CompositorDemo_FrameListener(CompositorDemo* main)
         : mMain(main)
-        , hvListener(0)
-		, hdrListener(0)
-		, gaussianListener(0)
         , mTranslateVector(Ogre::Vector3::ZERO)
         , mStatsOn(true)
         , mNumScreenShots(0)
@@ -375,9 +127,6 @@ LGPL like the rest of the engine.
 			mInputManager = 0;
 		}
 
-        delete hvListener;
-		delete hdrListener;
-		delete gaussianListener;
         delete mCompositorSelectorViewManager;
     }
 //--------------------------------------------------------------------------
@@ -468,7 +217,7 @@ LGPL like the rest of the engine.
 
         if (e.key == OIS::KC_SYSRQ )
         {
-			std::ostringstream ss;
+			Ogre::StringStream ss;
             ss << "screenshot_" << ++mNumScreenShots << ".png";
             mMain->getRenderWindow()->writeContentsToFile(ss.str());
             mDebugText = "Saved: " + ss.str();
@@ -536,7 +285,7 @@ LGPL like the rest of the engine.
             + " " + Ogre::StringConverter::toString(stats.worstFrameTime)+" ms");
 
         mGuiTris->setText(tris + Ogre::StringConverter::toString(stats.triangleCount));
-        mGuiDbg->setText(mDebugText);
+        mGuiDbg->setText(mDebugText.c_str());
         mAvgFrameTime = 1.0f/(stats.avgFPS + 1.0f);
         if (mAvgFrameTime > 0.1f) mAvgFrameTime = 0.1f;
 
@@ -714,10 +463,7 @@ LGPL like the rest of the engine.
     void CompositorDemo_FrameListener::registerCompositors(void)
     {
         Ogre::Viewport *vp = mMain->getRenderWindow()->getViewport(0);
-        hvListener = new HeatVisionListener();
-		hdrListener = new HDRListener();
-		gaussianListener = new GaussianListener();
-
+        
         mCompositorSelectorViewManager = new ItemSelectorViewManager("CompositorSelectorWin");
         // tell view manager to notify us when an item changes selection state
         mCompositorSelectorViewManager->setItemSelectorController(this);
@@ -733,6 +479,9 @@ LGPL like the rest of the engine.
             // Don't add base Ogre/Scene compositor to view
             if (compositorName == "Ogre/Scene")
                 continue;
+			// Don't add the deferred shading compositors, thats a different demo.
+			if (Ogre::StringUtil::startsWith(compositorName, "DeferredShading", false))
+				continue;
 
             mCompositorSelectorViewManager->addItemSelector(compositorName);
 			int addPosition = -1;
@@ -741,23 +490,13 @@ LGPL like the rest of the engine.
 				// HDR must be first in the chain
 				addPosition = 0;
 			}
-            Ogre::CompositorInstance *instance = Ogre::CompositorManager::getSingleton().addCompositor(vp, compositorName, addPosition);
-            Ogre::CompositorManager::getSingleton().setCompositorEnabled(vp, compositorName, false);
-            // special handling for Heat Vision which uses a listener
-            if(instance && (compositorName == "Heat Vision"))
-                instance->addListener(hvListener);
-			else if(instance && (compositorName == "HDR"))
+			try 
 			{
-				instance->addListener(hdrListener);
-				hdrListener->notifyViewportSize(vp->getActualWidth(), vp->getActualHeight());
-				hdrListener->notifyCompositor(instance);
-
+				Ogre::CompositorInstance *instance = Ogre::CompositorManager::getSingleton().addCompositor(vp, compositorName, addPosition);
+				Ogre::CompositorManager::getSingleton().setCompositorEnabled(vp, compositorName, false);
+			} catch (...) {
 			}
-			else if(instance && (compositorName == "Gaussian Blur"))
-			{
-				instance->addListener(gaussianListener);
-				gaussianListener->notifyViewportSize(vp->getActualWidth(), vp->getActualHeight());
-			}
+            
         }
     }
 	//---------------------------------------------------------------------
@@ -801,6 +540,7 @@ LGPL like the rest of the engine.
 			CEGUI::ImagesetManager::getSingleton().destroyImageset(*isIt);
 		}
 		mDebugRTTImageSets.clear();
+		Ogre::set<Ogre::String>::type uniqueTextureNames;
 		// Add an entry for each render texture for all active compositors
 		Ogre::Viewport* vp = mMain->getRenderWindow()->getViewport(0);
 		Ogre::CompositorChain* chain = Ogre::CompositorManager::getSingleton().getCompositorChain(vp);
@@ -819,22 +559,29 @@ LGPL like the rest of the engine.
 					// Get instance name of texture (NB only index 0 if MRTs for now)
 					const Ogre::String& instName = inst->getTextureInstanceName(texDef->name, 0);
 					// Create CEGUI texture from name of OGRE texture
-					CEGUI::Texture* tex = mMain->getGuiRenderer()->createTexture(instName);
+					CEGUI::Texture* tex = mMain->getGuiRenderer()->createTexture(instName.c_str());
 					// Create imageset
-					CEGUI::Imageset* imgSet =
-						CEGUI::ImagesetManager::getSingleton().createImageset(
-							instName, tex);
-					mDebugRTTImageSets.push_back(imgSet);
-					imgSet->defineImage((CEGUI::utf8*)"RttImage",
-						CEGUI::Point(0.0f, 0.0f),
-						CEGUI::Size(tex->getWidth(), tex->getHeight()),
-						CEGUI::Point(0.0f,0.0f));
+					// Note that if we use shared textures in compositor, the same texture name
+					// will occur more than once, so we have to cater for this
+					if (uniqueTextureNames.find(instName) == uniqueTextureNames.end())
+					{
+						CEGUI::Imageset* imgSet =
+							CEGUI::ImagesetManager::getSingleton().createImageset(
+								instName.c_str(), tex);
+						mDebugRTTImageSets.push_back(imgSet);
+						imgSet->defineImage((CEGUI::utf8*)"RttImage",
+							CEGUI::Point(0.0f, 0.0f),
+							CEGUI::Size(tex->getWidth(), tex->getHeight()),
+							CEGUI::Point(0.0f,0.0f));
 
 
-					CEGUI::ListboxTextItem *item = new CEGUI::ListboxTextItem(texDef->name, 0, imgSet);
-					item->setSelectionBrushImage("TaharezLook", "ListboxSelectionBrush");
-					item->setSelectionColours(CEGUI::colour(0,0,1));
-					mDebugRTTListbox->addItem(item);
+						CEGUI::ListboxTextItem *item = new CEGUI::ListboxTextItem(texDef->name.c_str(), 0, imgSet);
+						item->setSelectionBrushImage("TaharezLook", "ListboxSelectionBrush");
+						item->setSelectionColours(CEGUI::colour(0,0,1));
+						mDebugRTTListbox->addItem(item);
+
+						uniqueTextureNames.insert(instName);
+					}
 
 				}
 

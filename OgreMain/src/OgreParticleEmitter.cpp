@@ -4,7 +4,7 @@ This source file is part of OGRE
 	(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 This program is free software; you can redistribute it and/or modify it under 
@@ -608,7 +608,7 @@ namespace Ogre
     ParticleEmitterFactory::~ParticleEmitterFactory()
     {
         // Destroy all emitters
-        std::vector<ParticleEmitter*>::iterator i;
+        vector<ParticleEmitter*>::type::iterator i;
         for (i = mEmitters.begin(); i != mEmitters.end(); ++i)
         {
             OGRE_DELETE (*i);
@@ -620,7 +620,7 @@ namespace Ogre
     //-----------------------------------------------------------------------
     void ParticleEmitterFactory::destroyEmitter(ParticleEmitter* e)        
     {
-        std::vector<ParticleEmitter*>::iterator i;
+        vector<ParticleEmitter*>::type::iterator i;
         for (i = mEmitters.begin(); i != mEmitters.end(); ++i)
         {
             if ((*i) == e)

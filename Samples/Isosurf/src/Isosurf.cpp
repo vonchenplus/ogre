@@ -4,11 +4,11 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
-LGPL like the rest of the engine.
+same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 /*
@@ -21,51 +21,39 @@ Description: Demonstrates the use of the geometry shader to tessellate an
 -----------------------------------------------------------------------------
 */
 
-#include "ExampleApplication.h"
-
+#include "SdkSample.h"
+#include "SamplePlugin.h"
 #include "ProceduralTools.h"
 
-Entity* tetrahedra;
+using namespace Ogre;
+using namespace OgreBites;
 
-class TetraHedraShaderListener : public FrameListener
+SamplePlugin* sp;
+Sample* s;
+
+class _OgreSampleClassExport Sample_Isosurf : public SdkSample
 {
-	virtual bool frameStarted(const FrameEvent& evt) 
-	{ 
-		Real seconds = (Real)(Root::getSingleton().getTimer()->getMilliseconds()) / 1000.0;
-		Ogre::Pass* renderPass = tetrahedra->getSubEntity(0)->getMaterial()->getTechnique(0)->getPass(0);
-		if (renderPass->hasVertexProgram())
-		{
-			Ogre::Vector4 constParam = Ogre::Vector4(-0.5, 0.0, 0.0, 0.2);
-			renderPass->getVertexProgramParameters()->setNamedConstant("Metaballs[0]", constParam);
-
-			Ogre::Vector4 timeParam = Ogre::Vector4(
-				0.1 + Ogre::Math::Sin(seconds)*0.5, Ogre::Math::Cos(seconds)*0.5, 0.0, 0.1);
-			renderPass->getVertexProgramParameters()->setNamedConstant("Metaballs[1]", timeParam);
-		}
-		return true; 
-	}
-};
-
-
-class IsoSurfApplication : public ExampleApplication
-{
+	Entity* tetrahedra;
 public:
-    IsoSurfApplication() { 
+	
+    Sample_Isosurf() 
+	{ 
+		mInfo["Title"] = "Isosurf";
+		mInfo["Description"] = "A demo of procedural geometry manipulation using geometry shaders.";
+		mInfo["Thumbnail"] = "thumb_isosurf.png";
+		mInfo["Category"] = "Unsorted";
     }
 
-    ~IsoSurfApplication() {  }
-protected:
-
     // Just override the mandatory create scene method
-    void createScene(void)
+    void setupContent(void)
     {
         // Check capabilities
 		const RenderSystemCapabilities* caps = Root::getSingleton().getRenderSystem()->getCapabilities();
         if (!caps->hasCapability(RSC_GEOMETRY_PROGRAM))
         {
-			OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your card does not support geometry programs, so cannot "
-                "run this demo. Sorry!", 
-                "IsoSurfApplication::createScene");
+			OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your render system / hardware does not support geometry programs, "
+				"so cannot run this demo. Sorry!", 
+                "Sample_Isosurf::setupContent");
         }
 		
 		int maxOutputVertices = caps->getGeometryProgramNumOutputVertices();
@@ -85,45 +73,36 @@ protected:
 		Ogre::SceneNode* parentNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
 		parentNode->attachObject(tetrahedra);
 		parentNode->setScale(10,10,10);
-
-		mRoot->addFrameListener(new TetraHedraShaderListener);
     }
+
+	bool frameRenderingQueued(const FrameEvent& evt)
+	{
+		Real seconds = (Real)(Root::getSingleton().getTimer()->getMilliseconds()) / 1000.0;
+		Ogre::Pass* renderPass = tetrahedra->getSubEntity(0)->getMaterial()->getTechnique(0)->getPass(0);
+		if (renderPass->hasVertexProgram())
+		{
+			Ogre::Vector4 constParam = Ogre::Vector4(-0.5, 0.0, 0.0, 0.2);
+			renderPass->getVertexProgramParameters()->setNamedConstant("Metaballs[0]", constParam);
+
+			Ogre::Vector4 timeParam = Ogre::Vector4(
+				0.1 + Ogre::Math::Sin(seconds)*0.5, Ogre::Math::Cos(seconds)*0.5, 0.0, 0.1);
+			renderPass->getVertexProgramParameters()->setNamedConstant("Metaballs[1]", timeParam);
+		}
+		return SdkSample::frameRenderingQueued(evt); 
+	}
 };
 
-
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-#define WIN32_LEAN_AND_MEAN
-#include "windows.h"
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT )
-#else
-int main(int argc, char **argv)
-#endif
+extern "C" _OgreSampleExport void dllStartPlugin()
 {
-    // Create application object
-    IsoSurfApplication app;
-
-    try {
-        app.go();
-    } catch( Exception& e ) {
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-        MessageBox( NULL, e.getFullDescription().c_str(), "An exception has occured!", MB_OK | MB_ICONERROR | MB_TASKMODAL);
-#else
-        std::cerr << "An exception has occured: " << e.getFullDescription();
-#endif
-    }
-
-
-    return 0;
+	s = new Sample_Isosurf;
+	sp = OGRE_NEW SamplePlugin(s->getInfo()["Title"] + " Sample");
+	sp->addSample(s);
+	Root::getSingleton().installPlugin(sp);
 }
 
-#ifdef __cplusplus
+extern "C" _OgreSampleExport void dllStopPlugin()
+{
+	Root::getSingleton().uninstallPlugin(sp); 
+	OGRE_DELETE sp;
+	delete s;
 }
-#endif

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
  
-Copyright (c) 2000-2006 Torus Knot Software Ltd
+Copyright (c) 2000-2009 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
  
 This program is free software; you can redistribute it and/or modify it under
@@ -30,6 +30,7 @@ Torus Knot Software Ltd.
 #ifndef __OSXWindow_H__
 #define __OSXWindow_H__
 
+#include <Carbon/Carbon.h>
 #include "OgreRenderWindow.h"
 #include "OgreOSXContext.h"
 #include <OpenGL/OpenGL.h>
@@ -72,6 +73,9 @@ namespace Ogre
 		void destroyCGLFullscreen(void);
 		/** Update the full screen context */
 		void swapCGLBuffers(void);
+#if defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+        uint32 bitDepthFromDisplayMode(CGDisplayModeRef mode);
+#endif
 	};
 }
 
