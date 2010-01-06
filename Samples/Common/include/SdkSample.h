@@ -248,7 +248,7 @@ namespace OgreBites
 			else if (evt.key == OIS::KC_F3)
 			{
 				static bool usePerPixelLighting = true;					
-								
+												
 				// Grab the scheme render state.												
 				Ogre::RTShader::RenderState* schemRenderState = mShaderGenerator->getRenderState(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 
@@ -259,15 +259,15 @@ namespace OgreBites
 				{
 					Ogre::RTShader::SubRenderState* perPixelLightModel = mShaderGenerator->createSubRenderState(Ogre::RTShader::PerPixelLighting::Type);
 					
-					schemRenderState->addSubRenderState(perPixelLightModel);					
+					schemRenderState->addTemplateSubRenderState(perPixelLightModel);					
 				}
 
 				// Search the per pixel sub render state and remove it.
 				else
 				{
-					const Ogre::RTShader::SubRenderStateList& subRenderStateList = schemRenderState->getSubStateList();
-					Ogre::RTShader::SubRenderStateConstIterator it = subRenderStateList.begin();
-					Ogre::RTShader::SubRenderStateConstIterator itEnd = subRenderStateList.end();
+					const Ogre::RTShader::SubRenderStateList& subRenderStateList = schemRenderState->getTemplateSubRenderStateList();
+					Ogre::RTShader::SubRenderStateListConstIterator it = subRenderStateList.begin();
+					Ogre::RTShader::SubRenderStateListConstIterator itEnd = subRenderStateList.end();
 						
 					for (; it != itEnd; ++it)
 					{
@@ -276,7 +276,7 @@ namespace OgreBites
 						// This is the per pixel sub render state -> remove it.
 						if (curSubRenderState->getType() == Ogre::RTShader::PerPixelLighting::Type)
 						{
-							schemRenderState->removeSubRenderState(*it);
+							schemRenderState->removeTemplateSubRenderState(*it);
 							break;
 						}
 					}
