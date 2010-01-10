@@ -248,7 +248,7 @@ namespace OgreBites
 			else if (evt.key == OIS::KC_F3)
 			{
 				static bool usePerPixelLighting = true;					
-								
+												
 				// Grab the scheme render state.												
 				Ogre::RTShader::RenderState* schemRenderState = mShaderGenerator->getRenderState(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 
