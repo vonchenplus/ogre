@@ -56,26 +56,28 @@
 #  endif
 
 #  ifdef OGRE_BUILD_PLUGIN_BSP
-#    define OGRE_STATIC_BSPSceneManager
+#  define OGRE_STATIC_BSPSceneManager
 #  endif
 #  ifdef OGRE_BUILD_PLUGIN_PFX
-#    define OGRE_STATIC_ParticleFX
+#  define OGRE_STATIC_ParticleFX
 #  endif
 #  ifdef OGRE_BUILD_PLUGIN_CG
-#    define OGRE_STATIC_CgProgramManager
+#  define OGRE_STATIC_CgProgramManager
 #  endif
 
 #  ifdef OGRE_USE_PCZ
 #    ifdef OGRE_BUILD_PLUGIN_PCZ
-#      define OGRE_STATIC_PCZSceneManager
-#      define OGRE_STATIC_OctreeZone
+#    define OGRE_STATIC_PCZSceneManager
+#    define OGRE_STATIC_OctreeZone
 #    endif
 #  else
 #    ifdef OGRE_BUILD_PLUGIN_OCTREE
-#      define OGRE_STATIC_OctreeSceneManager
-#    endif
+#    define OGRE_STATIC_OctreeSceneManager
 #  endif
-
+#     endif
+// Comment out the previous line and uncomment these next two lines to try out the GL ES 2 RenderSystem
+//#     undef OGRE_STATIC_GLES
+//#     define OGRE_STATIC_GLES2 1
 #  include "OgreStaticPluginLoader.h"
 #endif
 
