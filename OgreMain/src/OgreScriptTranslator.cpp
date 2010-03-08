@@ -46,6 +46,7 @@ THE SOFTWARE.
 #include "OgreExternalTextureSourceManager.h"
 #include "OgreLodStrategyManager.h"
 #include "OgreDistanceLodStrategy.h"
+#include "OgreDepthBuffer.h"
 
 namespace Ogre{
 	
@@ -1990,6 +1991,21 @@ namespace Ogre{
 						uint32 val = 0;
 						if(getUInt(prop->values.front(), &val))
 							mPass->setStartLight(static_cast<unsigned short>(val));
+						else
+							compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+								prop->values.front()->getValue() + " is not a valid integer");
+					}
+					break;
+				case ID_LIGHT_MASK:
+					if(prop->values.empty())
+					{
+						compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+					}
+					else
+					{
+						uint32 val = 0;
+						if(getUInt(prop->values.front(), &val))
+							mPass->setLightMask(static_cast<unsigned short>(val));
 						else
 							compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
 								prop->values.front()->getValue() + " is not a valid integer");
@@ -5219,6 +5235,7 @@ namespace Ogre{
 						bool pooled = false;
 						bool hwGammaWrite = false;
 						bool fsaa = true;
+						uint16 depthBufferId = DepthBuffer::POOL_DEFAULT;
 						CompositionTechnique::TextureScope scope = CompositionTechnique::TS_LOCAL;
 						Ogre::PixelFormatList formats;
 
@@ -5248,6 +5265,7 @@ namespace Ogre{
 									bool *pSetFlag;
 									size_t *pSize;
 									float *pFactor;
+
 									if (atom->id == ID_TARGET_WIDTH_SCALED)
 									{
 										pSetFlag = &widthSet;
@@ -5297,6 +5315,25 @@ namespace Ogre{
 							case ID_NO_FSAA:
 								fsaa = false;
 								break;
+							case ID_DEPTH_POOL:
+								{
+									// advance to next to get the ID
+									i = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+									if(prop->values.end() == i || (*i)->type != ANT_ATOM)
+									{
+										compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+										return;
+									}
+									atom = (AtomAbstractNode*)(*i).get();
+									if (!StringConverter::isNumber(atom->value))
+									{
+										compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+										return;
+									}
+
+									depthBufferId = StringConverter::parseInt(atom->value);
+								}
+								break;
 							default:
 								if (StringConverter::isNumber(atom->value))
 								{
@@ -5345,8 +5382,9 @@ namespace Ogre{
 						def->widthFactor = widthFactor;
 						def->heightFactor = heightFactor;
 						def->formatList = formats;
-						def->hwGammaWrite = hwGammaWrite;
 						def->fsaa = fsaa;
+						def->hwGammaWrite = hwGammaWrite;
+						def->depthBufferId = depthBufferId;
 						def->pooled = pooled;
 						def->scope = scope;
 					}
