@@ -1,4 +1,5 @@
 #include "SamplePlugin.h"
+#include "OgreShaderSubRenderState.h"
 #include "ShaderSystem.h"
 #include "ShaderExReflectionMap.h"
 
@@ -301,6 +302,12 @@ void Sample_ShaderSystem::setupContent()
 	entity->setMaterial(matMainEnt);
 	childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
 	childNode->setPosition(0.0, 200.0, -200.0);
+	childNode->attachObject(entity);
+
+	entity = mSceneMgr->createEntity("LayeredBlendingMaterialEntity", MAIN_ENTITY_MESH);
+	entity->setMaterialName("RTSS/Example-LayeredBlending");
+	childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+	childNode->setPosition(300.0, 200.0, -200.0);
 	childNode->attachObject(entity);
 
 	// Create secondary entities that will be using custom RT Shader materials.
