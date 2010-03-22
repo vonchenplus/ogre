@@ -77,7 +77,6 @@ void FFPLighting::updateGpuProgramsParams(Renderable* rend, Pass* pass, const Au
 	if (mLightParamsList.size() == 0)
 		return;
 
-	SceneManager* sceneMgr = ShaderGenerator::getSingleton().getActiveSceneManager();
 	const Matrix4& matView = source->getViewMatrix();
 	Light::LightTypes curLightType = Light::LT_DIRECTIONAL; 
 	unsigned int curSearchLightIndex = 0;
@@ -761,7 +760,7 @@ const String& FFPLightingFactory::getType() const
 
 //-----------------------------------------------------------------------
 SubRenderState*	FFPLightingFactory::createInstance(ScriptCompiler* compiler, 
-												PropertyAbstractNode* prop, Pass* pass)
+												PropertyAbstractNode* prop, Pass* pass, SGScriptTranslator* translator)
 {
 	if (prop->name == "lighting_stage")
 	{
