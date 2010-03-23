@@ -2,6 +2,7 @@
 #define __ShaderSystem_H__
 
 #include "SdkSample.h"
+#include "OgreShaderExLayeredBlending.h"
 
 using namespace Ogre;
 using namespace OgreBites;
@@ -47,13 +48,7 @@ public:
 
 	void updateTargetObjInfo();
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
-	bool touchPressed(const OIS::MultiTouchEvent& evt);
-
-	bool touchReleased(const OIS::MultiTouchEvent& evt);
-
-	bool touchMoved(const OIS::MultiTouchEvent& evt);
-#else
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 	/** @see Sample::mousePressed. */
 	bool mousePressed(const OIS::MouseEvent& evt, OIS::MouseButtonID id);
 
@@ -138,6 +133,12 @@ protected:
 	/** Apply shadow type from the given shadow menu selected index. */
 	void applyShadowType(int menuIndex);
 
+	/** Change the current texture layer blend mode. */
+	void changeTextureLayerBlendMode();
+
+	/** Update layer blend caption. */
+	void updateLayerBlendingCaption( RTShader::LayeredBlending::BlendMode nextBlendMode );
+
 // Types.
 protected:
 	typedef vector<Entity*>::type	EntityList;
@@ -157,6 +158,8 @@ protected:
 	bool								mSpecularEnable;		// The current specular state.	
 	RTShader::SubRenderStateFactory*	mReflectionMapFactory;	// The custom reflection map shader extension factory.
 	RTShader::SubRenderState*			mReflectionMapSubRS;	// The reflection map sub render state.
+	RTShader::LayeredBlending*			mLayerBlendSubRS;		// The layer blending sub render state.
+	Label*								mLayerBlendLabel;		// The layer blending lable.
 	Slider*								mReflectionPowerSlider;	// The reflection power controller slider.
 	bool								mReflectionMapEnable;	// The current reflection map effect state.
 	SceneNode*							mPointLightNode;		// Point light scene node.
