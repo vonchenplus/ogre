@@ -98,8 +98,6 @@ void NormalMapLighting::updateGpuProgramsParams(Renderable* rend, Pass* pass, co
 	if (mLightParamsList.size() == 0)
 		return;
 
-	SceneManager* sceneMgr = ShaderGenerator::getSingleton().getActiveSceneManager();	
-	const Matrix4& matWorldInv	= source->getInverseWorldMatrix();	
 	Light::LightTypes curLightType = Light::LT_DIRECTIONAL; 
 	unsigned int curSearchLightIndex = 0;
 	const Matrix4& matWorld = source->getWorldMatrix();
@@ -1306,7 +1304,7 @@ const String& NormalMapLightingFactory::getType() const
 
 //-----------------------------------------------------------------------
 SubRenderState*	NormalMapLightingFactory::createInstance(ScriptCompiler* compiler, 
-														PropertyAbstractNode* prop, Pass* pass)
+														PropertyAbstractNode* prop, Pass* pass, SGScriptTranslator* translator)
 {
 	if (prop->name == "lighting_stage")
 	{

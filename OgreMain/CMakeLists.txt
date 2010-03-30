@@ -63,6 +63,7 @@ set (HEADER_FILES
   include/OgreCustomCompositionPass.h
   include/OgreDataStream.h
   include/OgreDefaultHardwareBufferManager.h
+  include/OgreDepthBuffer.h
   include/OgreDistanceLodStrategy.h
   include/OgreDynLib.h
   include/OgreDynLibManager.h
@@ -287,6 +288,7 @@ set (SOURCE_FILES
   src/OgreDataStream.cpp
   src/OgreDefaultHardwareBufferManager.cpp
   src/OgreDefaultSceneQueries.cpp
+  src/OgreDepthBuffer.cpp
   src/OgreDistanceLodStrategy.cpp
   src/OgreDynLib.cpp
   src/OgreDynLibManager.cpp
@@ -558,6 +560,20 @@ elseif (UNIX)
     list(APPEND PLATFORM_LIBS dl)
   endif ()
   set(PLATFORM_HEADER_INSTALL "GLX")
+elseif (SYMBIAN)
+  include_directories(include/symbian)
+  set(PLATFORM_HEADER_FILES
+    include/GLX/OgreTimerImp.h
+    include/symbian/OgreConfigDialogImp.h
+    include/symbian/OgreErrorDialogImp.h
+  )
+  set(PLATFORM_SOURCE_FILES
+    src/OgreSearchOps.cpp
+    src/GLX/OgreTimer.cpp
+    src/symbian/OgreConfigDialog.cpp
+    src/symbian/OgreErrorDialog.cpp
+  )
+  set(PLATFORM_HEADER_INSTALL "SYMBIAN")
 
 endif(WIN32)
 
