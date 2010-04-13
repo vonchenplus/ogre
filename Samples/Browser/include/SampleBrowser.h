@@ -50,25 +50,40 @@
 #include "Fresnel.h"
 #include "Grass.h"
 #include "Lighting.h"
-#include "OceanDemo.h"
 #include "ParticleFX.h"
 #if USE_RTSHADER_SYSTEM
 #include "ShaderSystem.h"
 #endif
-#include "Shadows.h"
-#include "SkeletalAnimation.h"
 #include "SkyBox.h"
 #include "SkyDome.h"
 #include "SkyPlane.h"
 #include "Smoke.h"
 #include "SphereMapping.h"
-#include "Terrain.h"
 #include "TextureFX.h"
 #include "Transparency.h"
+#if OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN
+#include "Shadows.h"
+#include "Terrain.h"
+#include "OceanDemo.h"
+#include "SkeletalAnimation.h"
+#endif
 #  if SAMPLES_INCLUDE_PLAYPEN
 #    include "PlayPen.h"
      PlayPenPlugin* playPenPlugin = 0;
 #  endif
+
+#ifdef USE_RTSHADER_SYSTEM
+#include "OgreRTShaderSystem.h"
+
+// Remove the comment below in order to make the RTSS use valid path for writing down the generated shaders.
+// If cache path is not set - all shaders are generated to system memory.
+    // For now, always write the shaders to disk on iPhone.  Makes debugging them easier.
+    #if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+        #define _RTSS_WRITE_SHADERS_TO_DISK
+    #else
+        //#define _RTSS_WRITE_SHADERS_TO_DISK
+    #endif
+#endif // USE_RTSHADER_SYSTEM
 
 typedef std::map<std::string, OgreBites::SdkSample *> PluginMap;
 
@@ -95,6 +110,75 @@ namespace OgreBites
 
 namespace OgreBites
 {
+#ifdef USE_RTSHADER_SYSTEM
+
+/** This class demonstrates basic usage of the RTShader system.
+It sub class the material manager listener class and when a target scheme callback
+is invoked with the shader generator scheme it tries to create an equivalent shader
+based technique based on the default technique of the given material.
+*/
+class ShaderGeneratorTechniqueResolverListener : public Ogre::MaterialManager::Listener
+{
+public:
+
+	ShaderGeneratorTechniqueResolverListener(Ogre::RTShader::ShaderGenerator* pShaderGenerator)
+	{
+		mShaderGenerator = pShaderGenerator;			
+	}
+
+	/** This is the hook point where shader based technique will be created.
+	It will be called whenever the material manager won't find appropriate technique
+	that satisfy the target scheme name. If the scheme name is out target RT Shader System
+	scheme name we will try to create shader generated technique for it. 
+	*/
+	virtual Ogre::Technique* handleSchemeNotFound(unsigned short schemeIndex, 
+		const Ogre::String& schemeName, Ogre::Material* originalMaterial, unsigned short lodIndex, 
+		const Ogre::Renderable* rend)
+	{	
+		Ogre::Technique* generatedTech = NULL;
+
+		// Case this is the default shader generator scheme.
+		if (schemeName == Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
+		{
+			bool techniqueCreated;
+
+			// Create shader generated technique for this material.
+			techniqueCreated = mShaderGenerator->createShaderBasedTechnique(
+				originalMaterial->getName(), 
+				Ogre::MaterialManager::DEFAULT_SCHEME_NAME, 
+				schemeName);	
+
+			// Case technique registration succeeded.
+			if (techniqueCreated)
+			{
+				// Force creating the shaders for the generated technique.
+				mShaderGenerator->validateMaterial(schemeName, originalMaterial->getName());
+				
+				// Grab the generated technique.
+				Ogre::Material::TechniqueIterator itTech = originalMaterial->getTechniqueIterator();
+
+				while (itTech.hasMoreElements())
+				{
+					Ogre::Technique* curTech = itTech.getNext();
+
+					if (curTech->getSchemeName() == schemeName)
+					{
+						generatedTech = curTech;
+						break;
+					}
+				}				
+			}
+		}
+
+		return generatedTech;
+	}
+
+protected:	
+	Ogre::RTShader::ShaderGenerator*	mShaderGenerator;			// The shader generator instance.		
+};
+#endif // USE_RTSHADER_SYSTEM
+
+
 	/*=============================================================================
 	| The OGRE Sample Browser. Features a menu accessible from all samples,
 	| dynamic configuration, resource reloading, node labelling, and more.
@@ -116,10 +200,30 @@ namespace OgreBites
 			mDescBox = 0;
 			mRendererMenu = 0;
 			mCarouselPlace = 0.0f;
+#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+			mNativeWindow = 0;
+			mNativeControl = 0;
+#endif
+
 #if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
 			mGestureView = 0;
 #endif
+#ifdef USE_RTSHADER_SYSTEM
+			mShaderGenerator	 = NULL;		
+			mMaterialMgrListener = NULL;
+#endif // USE_RTSHADER_SYSTEM
 		}
+
+		/*-----------------------------------------------------------------------------
+		| init data members needed only by Symbian
+		-----------------------------------------------------------------------------*/
+#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+		void initAppForSymbian( RWindow * nativeWindow, CCoeControl * nativeControl )
+		{
+			mNativeWindow = nativeWindow;
+			mNativeControl = nativeControl;
+		}
+#endif
 
 		/*-----------------------------------------------------------------------------
 		| Extends runSample to handle creation and destruction of dummy scene.
@@ -149,6 +253,7 @@ namespace OgreBites
 
 				try
 				{
+					s->setShaderGenerator(mShaderGenerator);
 					SampleContext::runSample(s);
 				}
 				catch (Ogre::Exception e)   // if failed to start, show error and fall back to menu
@@ -812,21 +917,23 @@ namespace OgreBites
             mPluginNameMap["Sample_Fresnel"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Fresnel();
             mPluginNameMap["Sample_Grass"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Grass();
             mPluginNameMap["Sample_Lighting"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_Lighting();
-            mPluginNameMap["Sample_Ocean"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Ocean();
             mPluginNameMap["Sample_ParticleFX"]         = (OgreBites::SdkSample *) OGRE_NEW Sample_ParticleFX();
-#if USE_RTSHADER_SYSTEM
+#   if USE_RTSHADER_SYSTEM
             mPluginNameMap["Sample_ShaderSystem"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_ShaderSystem();
-#endif
-            mPluginNameMap["Sample_Shadows"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Shadows();
-            mPluginNameMap["Sample_SkeletalAnimation"]  = (OgreBites::SdkSample *) OGRE_NEW Sample_SkeletalAnimation();
+#   endif // USE_RTSHADER_SYSTEM
             mPluginNameMap["Sample_SkyBox"]             = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyBox();
             mPluginNameMap["Sample_SkyDome"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyDome();
             mPluginNameMap["Sample_SkyPlane"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyPlane();
             mPluginNameMap["Sample_Smoke"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Smoke();
             mPluginNameMap["Sample_SphereMapping"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_SphereMapping();
-            mPluginNameMap["Sample_Terrain"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Terrain();
             mPluginNameMap["Sample_TextureFX"]          = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureFX();
             mPluginNameMap["Sample_Transparency"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_Transparency();
+#   if OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN
+            mPluginNameMap["Sample_Shadows"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Shadows();
+            mPluginNameMap["Sample_Terrain"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Terrain();
+            mPluginNameMap["Sample_Ocean"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Ocean();
+            mPluginNameMap["Sample_SkeletalAnimation"]  = (OgreBites::SdkSample *) OGRE_NEW Sample_SkeletalAnimation();
+#   endif
 #endif
             
 			createWindow();
@@ -840,6 +947,15 @@ namespace OgreBites
 			mTrayMgr->getTrayContainer(TL_NONE)->hide();
             
 			createDummyScene();
+
+#if USE_RTSHADER_SYSTEM
+            if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION) == false)
+            {
+                Ogre::RTShader::ShaderGenerator::getSingletonPtr()->addSceneManager(mRoot->getSceneManager("DummyScene"));
+                mWindow->getViewport(0)->setMaterialScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+            }
+#endif // USE_RTSHADER_SYSTEM
+
 			loadResources();
 
 			Sample* startupSample = loadSamples();
@@ -860,6 +976,14 @@ namespace OgreBites
 			// if this is our first time running, and there's a startup sample, run it
 			if (startupSample && mFirstRun) runSample(startupSample);
 		}
+
+		/*-----------------------------------------------------------------------------
+		| Notify the window size changed or it was moved
+		-----------------------------------------------------------------------------*/
+		virtual void windowMovedOrResized()
+		{
+			mWindow->windowMovedOrResized();
+		}
         
 	protected:
 
@@ -878,7 +1002,16 @@ namespace OgreBites
 		-----------------------------------------------------------------------------*/
 		virtual void createWindow()
 		{
-			mWindow = mRoot->initialise(true, "OGRE Sample Browser");
+#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+			mWindow = mRoot->initialise(mNativeWindow == NULL, "OGRE Sample Browser");
+			NameValuePairList miscParams;
+			miscParams["NativeWindow"] = StringConverter::toString((unsigned long)mNativeWindow);
+			miscParams["NativeControl"] = StringConverter::toString((unsigned long)mNativeControl);
+			mWindow = mRoot->createRenderWindow("OGRE Sample Browser Window", mNativeWindow->Size().iWidth, mNativeWindow->Size().iHeight, false, &miscParams);
+
+#else
+			mWindow = mRoot->initialise(true, "OGRE Sample Browser");			
+#endif
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
             mGestureView = [[SampleBrowserGestureView alloc] init];
@@ -908,7 +1041,49 @@ namespace OgreBites
 			mWindow->removeAllViewports();
 			Ogre::SceneManager* sm = mRoot->createSceneManager(Ogre::ST_GENERIC, "DummyScene");
 			Ogre::Camera* cam = sm->createCamera("DummyCamera");
-			mWindow->addViewport(cam);
+			Ogre::Viewport* newViewport = mWindow->addViewport(cam);
+#ifdef USE_RTSHADER_SYSTEM
+			// Initialize shader generator.
+			// Must be before resource loading in order to allow parsing extended material attributes.
+			bool success = initializeRTShaderSystem(sm);
+			if (!success) 
+			{
+				OGRE_EXCEPT(Ogre::Exception::ERR_FILE_NOT_FOUND, 
+					"Shader Generator Initialization failed - Core shader libs path not found", 
+					"Sample::_setup");
+			}
+			if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION) == false)
+			{
+				newViewport->setMaterialScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+				
+				// creates shaders for base material BaseWhite using the RTSS
+				Ogre::MaterialPtr baseWhite = Ogre::MaterialManager::getSingleton().getByName("BaseWhite", Ogre::ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);				
+				baseWhite->setLightingEnabled(false);
+				mShaderGenerator->createShaderBasedTechnique(
+					"BaseWhite", 
+					Ogre::MaterialManager::DEFAULT_SCHEME_NAME, 
+					Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);	
+			    mShaderGenerator->validateMaterial(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME, 
+					"BaseWhite");
+				baseWhite->getTechnique(0)->getPass(0)->setVertexProgram(
+				baseWhite->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
+				baseWhite->getTechnique(0)->getPass(0)->setFragmentProgram(
+				baseWhite->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
+
+				// creates shaders for base material BaseWhiteNoLighting using the RTSS
+				mShaderGenerator->createShaderBasedTechnique(
+					"BaseWhiteNoLighting", 
+					Ogre::MaterialManager::DEFAULT_SCHEME_NAME, 
+					Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);	
+			    mShaderGenerator->validateMaterial(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME, 
+					"BaseWhiteNoLighting");
+				Ogre::MaterialPtr baseWhiteNoLighting = Ogre::MaterialManager::getSingleton().getByName("BaseWhiteNoLighting", Ogre::ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
+				baseWhiteNoLighting->getTechnique(0)->getPass(0)->setVertexProgram(
+				baseWhiteNoLighting->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
+				baseWhiteNoLighting->getTechnique(0)->getPass(0)->setFragmentProgram(
+				baseWhiteNoLighting->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
+			}
+#endif // USE_RTSHADER_SYSTEM
 		}
 
 		/*-----------------------------------------------------------------------------
@@ -1243,6 +1418,12 @@ namespace OgreBites
 			SampleContext::shutdown();
 
 			unloadSamples();
+
+#ifdef USE_RTSHADER_SYSTEM
+			// Finalize the RT Shader System.
+			finalizeRTShaderSystem();
+#endif // USE_RTSHADER_SYSTEM
+
 		}
 
 		/*-----------------------------------------------------------------------------
@@ -1250,8 +1431,10 @@ namespace OgreBites
 		-----------------------------------------------------------------------------*/
 		virtual void destroyDummyScene()
 		{
+			Ogre::SceneManager*  dummyScene = mRoot->getSceneManager("DummyScene");
+			mShaderGenerator->removeSceneManager(dummyScene);
 			mWindow->removeAllViewports();
-			mRoot->destroySceneManager(mRoot->getSceneManager("DummyScene"));
+			mRoot->destroySceneManager(dummyScene);
 		}	
 
 		/*-----------------------------------------------------------------------------
@@ -1290,6 +1473,95 @@ namespace OgreBites
 			mHiddenOverlays.clear();
 		}
 
+#ifdef USE_RTSHADER_SYSTEM
+
+		/*-----------------------------------------------------------------------------
+		| Initialize the RT Shader system.	
+		-----------------------------------------------------------------------------*/
+		virtual bool initializeRTShaderSystem(Ogre::SceneManager* sceneMgr)
+		{			
+			if (Ogre::RTShader::ShaderGenerator::initialize())
+			{
+				mShaderGenerator = Ogre::RTShader::ShaderGenerator::getSingletonPtr();
+
+				mShaderGenerator->addSceneManager(sceneMgr);
+
+				// Setup core libraries and shader cache path.
+				Ogre::StringVector groupVector = Ogre::ResourceGroupManager::getSingleton().getResourceGroups();
+				Ogre::StringVector::iterator itGroup = groupVector.begin();
+				Ogre::StringVector::iterator itGroupEnd = groupVector.end();
+				Ogre::String shaderCoreLibsPath;
+				Ogre::String shaderCachePath;
+			
+				for (; itGroup != itGroupEnd; ++itGroup)
+				{
+					Ogre::ResourceGroupManager::LocationList resLocationsList = Ogre::ResourceGroupManager::getSingleton().getResourceLocationList(*itGroup);
+					Ogre::ResourceGroupManager::LocationList::iterator it = resLocationsList.begin();
+					Ogre::ResourceGroupManager::LocationList::iterator itEnd = resLocationsList.end();
+					bool coreLibsFound = false;
+
+					// Try to find the location of the core shader lib functions and use it
+					// as shader cache path as well - this will reduce the number of generated files
+					// when running from different directories.
+					for (; it != itEnd; ++it)
+					{
+						if ((*it)->archive->getName().find("RTShaderLib") != Ogre::String::npos)
+						{
+							shaderCoreLibsPath = (*it)->archive->getName() + "/";
+							shaderCachePath = shaderCoreLibsPath;
+							coreLibsFound = true;
+							break;
+						}
+					}
+					// Core libs path found in the current group.
+					if (coreLibsFound) 
+						break; 
+				}
+
+				// Core shader libs not found -> shader generating will fail.
+				if (shaderCoreLibsPath.empty())			
+					return false;			
+								
+#ifdef _RTSS_WRITE_SHADERS_TO_DISK
+				// Set shader cache path.
+#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+                shaderCachePath = Ogre::macCachePath();
+#endif
+				mShaderGenerator->setShaderCachePath(shaderCachePath);		
+#endif
+				// Create and register the material manager listener.
+				mMaterialMgrListener = new ShaderGeneratorTechniqueResolverListener(mShaderGenerator);				
+				Ogre::MaterialManager::getSingleton().addListener(mMaterialMgrListener);
+			}
+
+			return true;
+		}
+
+		/*-----------------------------------------------------------------------------
+		| Finalize the RT Shader system.	
+		-----------------------------------------------------------------------------*/
+		virtual void finalizeRTShaderSystem()
+		{
+			// Restore default scheme.
+			Ogre::MaterialManager::getSingleton().setActiveScheme(Ogre::MaterialManager::DEFAULT_SCHEME_NAME);
+
+			// Unregister the material manager listener.
+			if (mMaterialMgrListener != NULL)
+			{			
+				Ogre::MaterialManager::getSingleton().removeListener(mMaterialMgrListener);
+				delete mMaterialMgrListener;
+				mMaterialMgrListener = NULL;
+			}
+
+			// Finalize RTShader system.
+			if (mShaderGenerator != NULL)
+			{				
+				Ogre::RTShader::ShaderGenerator::finalize();
+				mShaderGenerator = NULL;
+			}
+		}
+#endif // USE_RTSHADER_SYSTEM
+
 		SdkTrayManager* mTrayMgr;                      // SDK tray interface
 #ifdef OGRE_STATIC_LIB
         PluginMap mPluginNameMap;                      // A structure to map plugin names to class types
@@ -1309,10 +1581,19 @@ namespace OgreBites
 		int mLastViewTitle;                            // last sample title viewed
 		int mLastViewCategory;                         // last sample category viewed
 		int mLastSampleIndex;                          // index of last sample running
+#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+		RWindow * mNativeWindow;
+		CCoeControl * mNativeControl;
+#endif
 #if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
     public:
         SampleBrowserGestureView *mGestureView;
 #endif
+#ifdef USE_RTSHADER_SYSTEM
+		Ogre::RTShader::ShaderGenerator*			mShaderGenerator;			// The Shader generator instance.
+		ShaderGeneratorTechniqueResolverListener*	mMaterialMgrListener;		// Shader generator material manager listener.	
+#endif // USE_RTSHADER_SYSTEM
+
 	};
 }
 
