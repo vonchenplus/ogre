@@ -32,9 +32,6 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 #include "OgreD3D11Device.h"
 #include "OgreD3D11Mappings.h"
-#include "OgreFixedFuncState.h"
-#include "OgreHlslFixedFuncEmuShaderGenerator.h"
-#include "OgreFixedFuncEmuShaderManager.h"
 
 namespace Ogre 
 {
@@ -109,12 +106,6 @@ namespace Ogre
         D3D11HLSLProgramFactory* mHLSLProgramFactory;
 
 		size_t mLastVertexSourceCount;
-
-		FixedFuncState mFixedFuncState;
-		FixedFuncPrograms::FixedFuncProgramsParameters mFixedFuncProgramsParameters;
-		Hlsl4FixedFuncEmuShaderGenerator mHlslFixedFuncEmuShaderGenerator;
-		FixedFuncEmuShaderManager	mFixedFuncEmuShaderManager;
-
 
 		/// Internal method for populating the capabilities structure
 		RenderSystemCapabilities* createRenderSystemCapabilities() const;
@@ -225,6 +216,17 @@ namespace Ogre
 
 		/// @copydoc RenderSystem::createMultiRenderTarget
 		virtual MultiRenderTarget * createMultiRenderTarget(const String & name);
+
+		virtual DepthBuffer* _createDepthBufferFor( RenderTarget *renderTarget );
+
+		/**
+		 * This function is meant to add Depth Buffers to the pool that aren't released when the DepthBuffer
+		 * is deleted. This is specially usefull to put the Depth Buffer created along with the window's
+		 * back buffer into the pool. All depth buffers introduced with this method go to POOL_DEFAULT
+		 */
+		DepthBuffer* _addManualDepthBuffer( ID3D11DepthStencilView *depthSurface,
+											uint32 width, uint32 height, uint32 fsaa, uint32 fsaaQuality );
+
 
 		const String& getName(void) const;
 		// Low-level overridden members
