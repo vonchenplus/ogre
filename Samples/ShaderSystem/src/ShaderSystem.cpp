@@ -1,4 +1,5 @@
 #include "SamplePlugin.h"
+#include "OgreShaderSubRenderState.h"
 #include "ShaderSystem.h"
 #include "ShaderExReflectionMap.h"
 
@@ -17,6 +18,8 @@ const String REFLECTIONMAP_POWER_SLIDER	= "ReflectionPowerSlider";
 const String MAIN_ENTITY_NAME			= "MainEntity";
 const String EXPORT_BUTTON_NAME			= "ExportMaterial";
 const String FLUSH_BUTTON_NAME			= "FlushShaderCache";
+const String LAYERBLEND_BUTTON_NAME		= "ChangeLayerBlendType";
+const String MODIFIER_VALUE_SLIDER  	= "ModifierValueSlider";
 const String SAMPLE_MATERIAL_GROUP		= "RTShaderSystemMaterialsGroup";
 const int MESH_ARRAY_SIZE = 2;
 const String MESH_ARRAY[MESH_ARRAY_SIZE] =
@@ -49,7 +52,8 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 
 
 //-----------------------------------------------------------------------
-Sample_ShaderSystem::Sample_ShaderSystem()
+Sample_ShaderSystem::Sample_ShaderSystem() :
+	mLayeredBlendingEntity(NULL)
 {
 	mInfo["Title"] = "Shader System";
 	mInfo["Description"] = "Demonstrate the capabilities of the RT Shader System component."
@@ -90,15 +94,15 @@ void Sample_ShaderSystem::checkBoxToggled(CheckBox* box)
 	}
 	else if (cbName == DIRECTIONAL_LIGHT_NAME)
 	{
-		setLightVisible(cbName, box->isChecked());		
+		updateLightState(cbName, box->isChecked());		
 	}
 	else if (cbName == POINT_LIGHT_NAME)
 	{
-		setLightVisible(cbName, box->isChecked());
+		updateLightState(cbName, box->isChecked());
 	}
 	else if (cbName == SPOT_LIGHT_NAME)
 	{
-		setLightVisible(cbName, box->isChecked());
+		updateLightState(cbName, box->isChecked());
 	}
 	else if (cbName == PER_PIXEL_FOG_BOX)
 	{
@@ -147,12 +151,19 @@ void Sample_ShaderSystem::buttonHit( OgreBites::Button* b )
 	{		
 		const String& materialName = mSceneMgr->getEntity(MAIN_ENTITY_NAME)->getSubEntity(0)->getMaterialName();
 		
-		exportRTShaderSystemMaterial(mRTShaderLibsPath + "materials/ShaderSystemExport.material", materialName);						
+		exportRTShaderSystemMaterial(mExportMaterialPath + "ShaderSystemExport.material", materialName);						
 	}
 	// Case the shader cache should be flushed.
 	else if (b->getName() == FLUSH_BUTTON_NAME)
 	{				
 		mShaderGenerator->flushShaderCache();
+	}
+
+	// Case the blend layer type modified.
+	else if (b->getName() == LAYERBLEND_BUTTON_NAME && mLayerBlendSubRS != NULL)
+	{	
+		changeTextureLayerBlendMode();
+		
 	}
 }
 
@@ -187,6 +198,15 @@ void Sample_ShaderSystem::sliderMoved(Slider* slider)
 			}
 		}
 	}	
+
+	if (slider->getName() == MODIFIER_VALUE_SLIDER)
+	{
+		if (mLayeredBlendingEntity != NULL)
+		{
+			Ogre::Real val = mModifierValueSlider->getValue();
+			mLayeredBlendingEntity->getSubEntity(0)->setCustomParameter(2, Vector4(val,val,val,0));
+		}
+	}
 }
 
 //-----------------------------------------------------------------------
@@ -230,12 +250,14 @@ void Sample_ShaderSystem::setupView()
 //-----------------------------------------------------------------------
 void Sample_ShaderSystem::setupContent()
 {
+	
 	// Setup default effects values.
 	mCurLightingModel 		= SSLM_PerVertexLighting;
 	mPerPixelFogEnable		= false;
 	mSpecularEnable   		= false;
 	mReflectionMapEnable	= false;
-	mReflectionMapSubRS  = NULL;
+	mReflectionMapSubRS		= NULL;
+	mLayerBlendSubRS		= NULL;
 
 	mRayQuery = mSceneMgr->createRayQuery(Ray());
 	mTargetObj = NULL;
@@ -294,7 +316,7 @@ void Sample_ShaderSystem::setupContent()
 	childNode->showBoundingBox(true);
 
 	// Create reflection entity that will show the exported material.
-	const String& mainExportedMaterial = mSceneMgr->getEntity(MAIN_ENTITY_NAME)->getSubEntity(0)->getMaterialName() + "_RTSS";
+	const String& mainExportedMaterial = mSceneMgr->getEntity(MAIN_ENTITY_NAME)->getSubEntity(0)->getMaterialName() + "_RTSS_Export";
 	MaterialPtr matMainEnt        = MaterialManager::getSingleton().getByName(mainExportedMaterial, SAMPLE_MATERIAL_GROUP);
 
 	entity = mSceneMgr->createEntity("ExportedMaterialEntity", MAIN_ENTITY_MESH);
@@ -303,14 +325,45 @@ void Sample_ShaderSystem::setupContent()
 	childNode->setPosition(0.0, 200.0, -200.0);
 	childNode->attachObject(entity);
 
-	// Create secondary entities that will be using custom RT Shader materials.
+	// Create texture layer blending demonstration entity.
+	mLayeredBlendingEntity = mSceneMgr->createEntity("LayeredBlendingMaterialEntity", MAIN_ENTITY_MESH);
+	mLayeredBlendingEntity->setMaterialName("RTSS/LayeredBlending");
+	mLayeredBlendingEntity->getSubEntity(0)->setCustomParameter(2, Vector4::ZERO);
+	childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+	childNode->setPosition(300.0, 200.0, -200.0);
+	childNode->attachObject(mLayeredBlendingEntity);
+
+	// Grab the render state of the material.
+	RTShader::RenderState* renderState = mShaderGenerator->getRenderState(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME, "RTSS/LayeredBlending", 0);
+
+	if (renderState != NULL)
+	{			
+		const SubRenderStateList& subRenderStateList = renderState->getTemplateSubRenderStateList();
+		SubRenderStateListConstIterator it = subRenderStateList.begin();
+		SubRenderStateListConstIterator itEnd = subRenderStateList.end();
+
+		// Search for the texture layer blend sub state.
+		for (; it != itEnd; ++it)
+		{
+			SubRenderState* curSubRenderState = *it;
+
+			if (curSubRenderState->getType() == LayeredBlending::Type)
+			{
+				mLayerBlendSubRS = static_cast<LayeredBlending*>(curSubRenderState);
+				break;
+			}
+		}
+	}
+
+
+	// Create per pixel lighting demonstration entity.
 	entity = mSceneMgr->createEntity("PerPixelEntity", "knot.mesh");
 	entity->setMaterialName("RTSS/PerPixel_SinglePass");
 	childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
 	childNode->setPosition(300.0, 100.0, -100.0);
 	childNode->attachObject(entity);
 
-	// Create secondary entities that will be using custom RT Shader materials.
+	// Create normal map lighting demonstration entity.
 	entity = mSceneMgr->createEntity("NormalMapEntity", "knot.mesh");
 	entity->setMaterialName("RTSS/NormalMapping_SinglePass");
 	childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
@@ -320,6 +373,11 @@ void Sample_ShaderSystem::setupContent()
 	createDirectionalLight();
 	createPointLight();
 	createSpotLight();
+
+	RenderState* schemRenderState = mShaderGenerator->getRenderState(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+
+	// Take responsibility for updating the light count manually.
+	schemRenderState->setLightCountAutoUpdate(false);
 	
 	setupUI();
 
@@ -348,8 +406,15 @@ void Sample_ShaderSystem::setupUI()
 	// Create language selection 
 	mLanguageMenu = mTrayMgr->createLongSelectMenu(TL_TOPLEFT, "LangMode", "Language", 220, 120, 10);	
 
-	// Use GLSL in case of OpenGL render system.
-	if (Ogre::Root::getSingletonPtr()->getRenderSystem()->getName().find("OpenGL") != String::npos)
+    // Use GLSL ES in case of OpenGL ES 2 render system.
+	if (Ogre::Root::getSingletonPtr()->getRenderSystem()->getName().find("OpenGL ES 2") != String::npos)
+	{
+		mLanguageMenu->addItem("glsles");
+		mShaderGenerator->setTargetLanguage("glsles");		
+	}
+    
+    // Use GLSL in case of OpenGL render system.
+    else if (Ogre::Root::getSingletonPtr()->getRenderSystem()->getName().find("OpenGL") != String::npos)
 	{
 		mLanguageMenu->addItem("glsl");
 		mShaderGenerator->setTargetLanguage("glsl");		
@@ -409,7 +474,8 @@ void Sample_ShaderSystem::setupUI()
 	// Allow reflection map only on PS3 and above since with all lights on + specular + bump we 
 	// exceed the instruction count limits of PS2.
 	if (GpuProgramManager::getSingleton().isSyntaxSupported("ps_3_0") ||
-		GpuProgramManager::getSingleton().isSyntaxSupported("fp30"))		
+        GpuProgramManager::getSingleton().isSyntaxSupported("glsles") ||
+		GpuProgramManager::getSingleton().isSyntaxSupported("fp30"))
 	{
 		mTrayMgr->createCheckBox(TL_BOTTOM, REFLECTIONMAP_BOX, "Reflection Map", 240)->setChecked(mReflectionMapEnable);
 		mReflectionPowerSlider = mTrayMgr->createThickSlider(TL_BOTTOM, REFLECTIONMAP_POWER_SLIDER, "Reflection Power", 240, 80, 0, 1, 100);
@@ -427,6 +493,16 @@ void Sample_ShaderSystem::setupUI()
 
 	mTrayMgr->createButton(TL_BOTTOM, EXPORT_BUTTON_NAME, "Export Material", 240);
 	
+#ifdef RTSHADER_SYSTEM_BUILD_EXT_SHADERS
+	mLayerBlendLabel = mTrayMgr->createLabel(TL_RIGHT, "Blend Type", "Blend Type", 240);
+	mTrayMgr->createButton(TL_RIGHT, LAYERBLEND_BUTTON_NAME, "Change Blend Type", 220);
+	mModifierValueSlider = mTrayMgr->createThickSlider(TL_RIGHT, MODIFIER_VALUE_SLIDER, "Modifier", 240, 80, 0, 1, 100);
+	mModifierValueSlider->setValue(0.0,false);	
+	// Update the caption.
+	updateLayerBlendingCaption(mLayerBlendSubRS->getBlendMode(1));
+
+#endif
+
 	mTrayMgr->showCursor();
 }
 
@@ -762,7 +838,7 @@ void Sample_ShaderSystem::createSpotLight()
 }
 
 //-----------------------------------------------------------------------
-void Sample_ShaderSystem::setLightVisible(const String& lightName, bool visible)
+void Sample_ShaderSystem::updateLightState(const String& lightName, bool visible)
 {
 	if (mSceneMgr->hasLight(lightName))
 	{		
@@ -804,7 +880,36 @@ void Sample_ShaderSystem::setLightVisible(const String& lightName, bool visible)
 		else
 		{
 			mSceneMgr->getLight(lightName)->setVisible(visible);
-		}		
+		}	
+
+		RenderState* schemRenderState = mShaderGenerator->getRenderState(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+		
+		int lightCount[3] = {0};
+
+		// Update point light count.
+		if (mSceneMgr->getLight(POINT_LIGHT_NAME)->isVisible())
+		{
+			lightCount[0] = 1;
+		}
+
+		// Update directional light count.
+		if (mSceneMgr->getLight(DIRECTIONAL_LIGHT_NAME)->isVisible())
+		{
+			lightCount[1] = 1;
+		}
+
+		// Update spot light count.
+		if (mSceneMgr->getLight(SPOT_LIGHT_NAME)->isVisible())
+		{
+			lightCount[2] = 1;
+		}
+
+		// Update the scheme light count.
+		schemRenderState->setLightCount(lightCount);
+		
+
+		// Invalidate the scheme in order to re-generate all shaders based technique related to this scheme.
+		mShaderGenerator->invalidateScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 	}
 }
 
@@ -937,7 +1042,7 @@ void Sample_ShaderSystem::exportRTShaderSystemMaterial(const String& fileName, c
 		matSer.addListener(matRTSSListener);
 
 		// Simply export the material.
-		matSer.exportMaterial(materialPtr, fileName, false, false, "", materialPtr->getName() + "_RTSS");
+		matSer.exportMaterial(materialPtr, fileName, false, false, "", materialPtr->getName() + "_RTSS_Export");
 	}
 }
 
@@ -945,7 +1050,8 @@ void Sample_ShaderSystem::exportRTShaderSystemMaterial(const String& fileName, c
 Ogre::StringVector Sample_ShaderSystem::getRequiredPlugins()
 {
 	StringVector names;
-	names.push_back("Cg Program Manager");
+    if (!GpuProgramManager::getSingleton().isSyntaxSupported("glsles"))
+        names.push_back("Cg Program Manager");
 	return names;
 }
 
@@ -964,6 +1070,11 @@ void Sample_ShaderSystem::testCapabilities( const RenderSystemCapabilities* caps
 		return;
 	}
 
+	// Check if GLSL ES shaders are supported - is so - then we are OK.
+	if (GpuProgramManager::getSingleton().isSyntaxSupported("glsles"))
+	{
+		return;
+	}
 
 	if (!GpuProgramManager::getSingleton().isSyntaxSupported("arbfp1") &&
 		!GpuProgramManager::getSingleton().isSyntaxSupported("ps_2_0"))
@@ -988,39 +1099,11 @@ void Sample_ShaderSystem::createPrivateResourceGroup()
 {
 	// Create the resource group of the RT Shader System Sample.
 	ResourceGroupManager& rgm = ResourceGroupManager::getSingleton();
-	Ogre::StringVector groupVector = Ogre::ResourceGroupManager::getSingleton().getResourceGroups();
-	Ogre::StringVector::iterator itGroup = groupVector.begin();
-	Ogre::StringVector::iterator itGroupEnd = groupVector.end();
-	Ogre::String shaderCoreLibsPath;
-	
 
-	for (; itGroup != itGroupEnd; ++itGroup)
-	{
-		Ogre::ResourceGroupManager::LocationList resLocationsList = Ogre::ResourceGroupManager::getSingleton().getResourceLocationList(*itGroup);
-		Ogre::ResourceGroupManager::LocationList::iterator it = resLocationsList.begin();
-		Ogre::ResourceGroupManager::LocationList::iterator itEnd = resLocationsList.end();
-		bool coreLibsFound = false;
-
-		// Find the location of the core shader libs
-		for (; it != itEnd; ++it)
-		{
-			if ((*it)->archive->getName().find("RTShaderLib") != Ogre::String::npos)
-			{
-				shaderCoreLibsPath = (*it)->archive->getName() + "/";	
-				coreLibsFound = true;
-				break;
-			}
-		}
-
-		// Core libs path found in the current group.
-		if (coreLibsFound) 
-			break; 
-	}
-
-	mRTShaderLibsPath = shaderCoreLibsPath;
+	mExportMaterialPath = "C:/";
 
 	rgm.createResourceGroup(SAMPLE_MATERIAL_GROUP, false);
-	rgm.addResourceLocation(shaderCoreLibsPath + "materials", "FileSystem", SAMPLE_MATERIAL_GROUP);		
+	rgm.addResourceLocation(mExportMaterialPath, "FileSystem", SAMPLE_MATERIAL_GROUP);		
 	rgm.initialiseResourceGroup(SAMPLE_MATERIAL_GROUP);
 	rgm.loadResourceGroup(SAMPLE_MATERIAL_GROUP, true);
 }
@@ -1030,8 +1113,12 @@ void Sample_ShaderSystem::unloadResources()
 {
 	destroyPrivateResourceGroup();
 
+	mShaderGenerator->removeAllShaderBasedTechniques("Panels");
+	mShaderGenerator->removeAllShaderBasedTechniques("Panels_RTSS_Export");
+
 	if (mReflectionMapFactory != NULL)
-	{			
+	{		
+		mShaderGenerator->removeSubRenderStateFactory(mReflectionMapFactory);
 		OGRE_DELETE mReflectionMapFactory;
 		mReflectionMapFactory = NULL;
 	}
@@ -1127,40 +1214,156 @@ void Sample_ShaderSystem::updateTargetObjInfo()
 	}
 }
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
 
 //-----------------------------------------------------------------------
-bool Sample_ShaderSystem::touchPressed( const OIS::MultiTouchEvent& evt )
+void Sample_ShaderSystem::changeTextureLayerBlendMode()
 {
-	if (mTrayMgr->injectMouseDown(evt)) 
-		return true;
-	if (evt.state.touchIsType(OIS::MT_Pressed)) 
-		mTrayMgr->hideCursor();  // hide the cursor if user left-clicks in the scene
-	return true;
+	LayeredBlending::BlendMode curBlendMode = mLayerBlendSubRS->getBlendMode(1);
+	LayeredBlending::BlendMode nextBlendMode;
+
+	// Update the next blend layer mode.
+	if (curBlendMode == LayeredBlending::LB_BlendLuminosity)
+	{
+		nextBlendMode = LayeredBlending::LB_FFPBlend;
+	}
+	else
+	{
+		nextBlendMode = (LayeredBlending::BlendMode)(curBlendMode + 1);
+	}
+
+	
+	mLayerBlendSubRS->setBlendMode(1, nextBlendMode);			
+	mShaderGenerator->invalidateMaterial(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME, "RTSS/LayeredBlending");
+
+	// Update the caption.
+	updateLayerBlendingCaption(nextBlendMode);
+
 }
 
 //-----------------------------------------------------------------------
-bool Sample_ShaderSystem::touchReleased( const OIS::MultiTouchEvent& evt )
+void Sample_ShaderSystem::updateLayerBlendingCaption( LayeredBlending::BlendMode nextBlendMode )
 {
-	if (mTrayMgr->injectMouseUp(evt)) 
-		return true;
-	if (evt.state.touchIsType(OIS::MT_Pressed)) 
-		mTrayMgr->showCursor();  // unhide the cursor if user lets go of LMB
-	return true;
+	switch (nextBlendMode)
+	{
+	case LayeredBlending::LB_FFPBlend:
+		mLayerBlendLabel->setCaption("FFP Blend");
+		break;
+
+	case LayeredBlending::LB_BlendNormal:
+		mLayerBlendLabel->setCaption("Normal");
+		break;
+
+	case LayeredBlending::LB_BlendLighten:	
+		mLayerBlendLabel->setCaption("Lighten");
+		break;
+
+	case LayeredBlending::LB_BlendDarken:
+		mLayerBlendLabel->setCaption("Darken");
+		break;
+
+	case LayeredBlending::LB_BlendMultiply:
+		mLayerBlendLabel->setCaption("Multiply");
+		break;
+
+	case LayeredBlending::LB_BlendAverage:
+		mLayerBlendLabel->setCaption("Average");
+		break;
+
+	case LayeredBlending::LB_BlendAdd:
+		mLayerBlendLabel->setCaption("Add");
+		break;
+
+	case LayeredBlending::LB_BlendSubtract:
+		mLayerBlendLabel->setCaption("Subtract");
+		break;
+
+	case LayeredBlending::LB_BlendDifference:
+		mLayerBlendLabel->setCaption("Difference");
+		break;
+
+	case LayeredBlending::LB_BlendNegation:
+		mLayerBlendLabel->setCaption("Negation");
+		break;
+
+	case LayeredBlending::LB_BlendExclusion:
+		mLayerBlendLabel->setCaption("Exclusion");
+		break;
+
+	case LayeredBlending::LB_BlendScreen:
+		mLayerBlendLabel->setCaption("Screen");
+		break;
+
+	case LayeredBlending::LB_BlendOverlay:
+		mLayerBlendLabel->setCaption("Overlay");
+		break;
+
+	case LayeredBlending::LB_BlendSoftLight:
+		mLayerBlendLabel->setCaption("SoftLight");
+		break;
+
+	case LayeredBlending::LB_BlendHardLight:
+		mLayerBlendLabel->setCaption("HardLight");
+		break;
+
+	case LayeredBlending::LB_BlendColorDodge:
+		mLayerBlendLabel->setCaption("ColorDodge");
+		break;
+
+	case LayeredBlending::LB_BlendColorBurn: 
+		mLayerBlendLabel->setCaption("ColorBurn");
+		break;
+
+	case LayeredBlending::LB_BlendLinearDodge:
+		mLayerBlendLabel->setCaption("LinearDodge");
+		break;
+
+	case LayeredBlending::LB_BlendLinearBurn:
+		mLayerBlendLabel->setCaption("LinearBurn");
+		break;
+
+	case LayeredBlending::LB_BlendLinearLight:
+		mLayerBlendLabel->setCaption("LinearLight");
+		break;
+
+	case LayeredBlending::LB_BlendVividLight:
+		mLayerBlendLabel->setCaption("VividLight");
+		break;
+
+	case LayeredBlending::LB_BlendPinLight:
+		mLayerBlendLabel->setCaption("PinLight");
+		break;
+
+	case LayeredBlending::LB_BlendHardMix:
+		mLayerBlendLabel->setCaption("HardMix");
+		break;
+
+	case LayeredBlending::LB_BlendReflect:
+		mLayerBlendLabel->setCaption("Reflect");
+		break;
+
+	case LayeredBlending::LB_BlendGlow:
+		mLayerBlendLabel->setCaption("Glow");
+		break;
+
+	case LayeredBlending::LB_BlendPhoenix:
+		mLayerBlendLabel->setCaption("Phoenix");
+		break;
+
+	case LayeredBlending::LB_BlendSaturation:
+		mLayerBlendLabel->setCaption("Saturation");
+		break;
+
+	case LayeredBlending::LB_BlendColor:
+		mLayerBlendLabel->setCaption("Color");
+		break;
+
+	case LayeredBlending::LB_BlendLuminosity:
+		mLayerBlendLabel->setCaption("Luminosity");
+		break;
+	}
 }
 
-//-----------------------------------------------------------------------
-bool Sample_ShaderSystem::touchMoved( const OIS::MultiTouchEvent& evt )
-{
-	// only rotate the camera if cursor is hidden
-	if (mTrayMgr->isCursorVisible()) 
-		mTrayMgr->injectMouseMove(evt);
-	else 
-		mCameraMan->injectMouseMove(evt);
-	return true;
-}
-
-#else
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 
 //-----------------------------------------------------------------------
 bool Sample_ShaderSystem::mousePressed( const OIS::MouseEvent& evt, OIS::MouseButtonID id )
@@ -1198,4 +1401,6 @@ bool Sample_ShaderSystem::mouseMoved( const OIS::MouseEvent& evt )
 
 	return true;
 }
+
+
 #endif

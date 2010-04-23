@@ -42,40 +42,40 @@
 #  ifdef OGRE_BUILD_RENDERSYSTEM_GLES
 #    define OGRE_STATIC_GLES
 #  endif
+#  ifdef OGRE_BUILD_RENDERSYSTEM_GLES2
+#undef OGRE_STATIC_GLES
+#    define OGRE_STATIC_GLES2
+#  endif
 #  if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 #    ifdef OGRE_BUILD_RENDERSYSTEM_D3D9
 #		define OGRE_STATIC_Direct3D9
 #    endif
-// dx10 will only work on vista, so be careful about statically linking
-#    ifdef OGRE_BUILD_RENDERSYSTEM_D3D10
-#      define OGRE_STATIC_Direct3D10
-#    endif
+// dx11 will only work on vista, so be careful about statically linking
 #    ifdef OGRE_BUILD_RENDERSYSTEM_D3D11
 #      define OGRE_STATIC_Direct3D11
 #    endif
 #  endif
 
 #  ifdef OGRE_BUILD_PLUGIN_BSP
-#    define OGRE_STATIC_BSPSceneManager
+#  define OGRE_STATIC_BSPSceneManager
 #  endif
 #  ifdef OGRE_BUILD_PLUGIN_PFX
-#    define OGRE_STATIC_ParticleFX
+#  define OGRE_STATIC_ParticleFX
 #  endif
 #  ifdef OGRE_BUILD_PLUGIN_CG
-#    define OGRE_STATIC_CgProgramManager
+#  define OGRE_STATIC_CgProgramManager
 #  endif
 
 #  ifdef OGRE_USE_PCZ
 #    ifdef OGRE_BUILD_PLUGIN_PCZ
-#      define OGRE_STATIC_PCZSceneManager
-#      define OGRE_STATIC_OctreeZone
+#    define OGRE_STATIC_PCZSceneManager
+#    define OGRE_STATIC_OctreeZone
 #    endif
 #  else
 #    ifdef OGRE_BUILD_PLUGIN_OCTREE
-#      define OGRE_STATIC_OctreeSceneManager
-#    endif
+#    define OGRE_STATIC_OctreeSceneManager
 #  endif
-
+#     endif
 #  include "OgreStaticPluginLoader.h"
 #endif
 
@@ -201,9 +201,9 @@ namespace OgreBites
 		}
 
 		/*-----------------------------------------------------------------------------
-		| This function encapsulates the entire lifetime of the context.
+		| This function initializes the render system and resources.
 		-----------------------------------------------------------------------------*/
-		virtual void go(Sample* initialSample = 0)
+		virtual void initApp( Sample* initialSample = 0 )
 		{
 #if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
             createRoot();
@@ -218,35 +218,63 @@ namespace OgreBites
             else if (initialSample) runSample(initialSample);
 
             mRoot->saveConfig();
+
+			Ogre::Root::getSingleton().getRenderSystem()->_initRenderTargets();
+
+			// Clear event times
+			Ogre::Root::getSingleton().clearEventTimes();
+
 #else
+			createRoot();
+			if (!oneTimeConfig()) return;
+
+			// if the context was reconfigured, set requested renderer
+			if (!mFirstRun) mRoot->setRenderSystem(mRoot->getRenderSystemByName(mNextRenderer));
+
+			setup();
+
+			// restore the last sample if there was one or, if not, start initial sample
+			if (!mFirstRun) recoverLastSample();
+			else if (initialSample) runSample(initialSample);
+#endif
+		}
+
+
+		/*-----------------------------------------------------------------------------
+		| This function closes down the application - saves the configuration then 
+		| shutdowns.
+		-----------------------------------------------------------------------------*/
+		virtual void closeApp()
+		{
+			mRoot->saveConfig();
+			shutdown();
+			if (mRoot) OGRE_DELETE mRoot;
+#ifdef OGRE_STATIC_LIB
+			mStaticPluginLoader.unload();
+#endif
+
+		}
+
+		/*-----------------------------------------------------------------------------
+		| This function encapsulates the entire lifetime of the context.
+		-----------------------------------------------------------------------------*/
+#if OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN
+		virtual void go(Sample* initialSample = 0)
+		{
 			while (!mLastRun)
 			{
 				mLastRun = true;  // assume this is our last run
 
-				createRoot();
-				if (!oneTimeConfig()) return;
-
-				// if the context was reconfigured, set requested renderer
-				if (!mFirstRun) mRoot->setRenderSystem(mRoot->getRenderSystemByName(mNextRenderer));
-
-				setup();
-
-				// restore the last sample if there was one or, if not, start initial sample
-				if (!mFirstRun) recoverLastSample();
-				else if (initialSample) runSample(initialSample);
+				initApp(initialSample);
 
 				mRoot->startRendering();    // start the render loop
 
-				mRoot->saveConfig();
-				shutdown();
-				if (mRoot) OGRE_DELETE mRoot;
-#ifdef OGRE_STATIC_LIB
-                mStaticPluginLoader.unload();
-#endif
+				closeApp();
+
 				mFirstRun = false;
 			}
-#endif
 		}
+#endif
         
 		virtual bool isCurrentSamplePaused()
 		{
@@ -472,7 +500,7 @@ namespace OgreBites
             #endif
 			mRoot = OGRE_NEW Ogre::Root(pluginsPath, mFSLayer->getWritablePath("ogre.cfg"), 
 				mFSLayer->getWritablePath("ogre.log"));
-
+            
 #ifdef OGRE_STATIC_LIB
             mStaticPluginLoader.load();
 #endif
