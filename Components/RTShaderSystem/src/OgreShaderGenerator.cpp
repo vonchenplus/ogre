@@ -36,10 +36,11 @@ THE SOFTWARE.
 #include "OgreShaderExPerPixelLighting.h"
 #include "OgreShaderExNormalMapLighting.h"
 #include "OgreShaderExIntegratedPSSM3.h"
+#include "OgreShaderExLayeredBlending.h"
+#include "OgreShaderExHardwareSkinning.h"
 #include "OgreShaderMaterialSerializerListener.h"
 #include "OgreShaderProgramWriterManager.h"
 #include "OgreHighLevelGpuProgramManager.h"
-
 
 namespace Ogre {
 
@@ -84,6 +85,7 @@ ShaderGenerator::ShaderGenerator()
 	mLightCount[1]				= 0;
 	mLightCount[2]				= 0;
 	mVSOutputCompactPolicy		= VSOCP_LOW;
+	mCreateShaderOverProgrammablePass = false;
 
 
 	mShaderLanguage = "";
@@ -97,6 +99,10 @@ ShaderGenerator::ShaderGenerator()
 	else if (hmgr.isLanguageSupported("glsl"))
 	{
 		mShaderLanguage	= "glsl";
+	}
+	else if (hmgr.isLanguageSupported("glsles"))
+	{
+		mShaderLanguage	= "glsles";
 	}
 	else if (hmgr.isLanguageSupported("hlsl"))
 	{
@@ -197,6 +203,13 @@ void ShaderGenerator::createSubRenderStateExFactories()
 	addSubRenderStateFactory(curFactory);
 	mSubRenderStateExFactories[curFactory->getType()] = (curFactory);
 
+	curFactory = OGRE_NEW LayeredBlendingFactory;	
+	addSubRenderStateFactory(curFactory);
+	mSubRenderStateExFactories[curFactory->getType()] = (curFactory);
+
+	curFactory = OGRE_NEW HardwareSkinningFactory;	
+	addSubRenderStateFactory(curFactory);
+	mSubRenderStateExFactories[curFactory->getType()] = (curFactory);
 #endif
 }
 
@@ -383,7 +396,7 @@ void ShaderGenerator::destroySubRenderState(SubRenderState* subRenderState)
 
 //-----------------------------------------------------------------------------
 SubRenderState*	ShaderGenerator::createSubRenderState(ScriptCompiler* compiler, 
-													  PropertyAbstractNode* prop, Pass* pass)
+													  PropertyAbstractNode* prop, Pass* pass, SGScriptTranslator* translator)
 {
 	OGRE_LOCK_AUTO_MUTEX
 
@@ -393,7 +406,29 @@ SubRenderState*	ShaderGenerator::createSubRenderState(ScriptCompiler* compiler,
 
 	while (it != itEnd)
 	{
-		subRenderState = it->second->createInstance(compiler, prop, pass);
+		subRenderState = it->second->createInstance(compiler, prop, pass, translator);
+		if (subRenderState != NULL)		
+			break;				
+		++it;
+	}	
+
+	return subRenderState;
+}
+
+
+//-----------------------------------------------------------------------------
+SubRenderState*	ShaderGenerator::createSubRenderState(ScriptCompiler* compiler, 
+													  PropertyAbstractNode* prop, TextureUnitState* texState, SGScriptTranslator* translator)
+{
+	OGRE_LOCK_AUTO_MUTEX
+
+	SubRenderStateFactoryIterator it = mSubRenderStateFactories.begin();
+	SubRenderStateFactoryIterator itEnd = mSubRenderStateFactories.end();
+	SubRenderState* subRenderState = NULL;
+
+	while (it != itEnd)
+	{
+		subRenderState = it->second->createInstance(compiler, prop, texState, translator);
 		if (subRenderState != NULL)		
 			break;				
 		++it;
@@ -517,10 +552,45 @@ void ShaderGenerator::setFragmentShaderProfiles(const String& fragmentShaderProf
 	mFragmentShaderProfilesList = StringUtil::split(fragmentShaderProfiles);
 }
 
+
+//-----------------------------------------------------------------------------
+bool ShaderGenerator::hasShaderBasedTechnique(const String& materialName, 
+												 const String& srcTechniqueSchemeName, 
+												 const String& dstTechniqueSchemeName) const
+{
+	OGRE_LOCK_AUTO_MUTEX
+
+	// Make sure material exists;
+	if (false == MaterialManager::getSingleton().resourceExists(materialName))
+		return false;
+
+	
+	SGMaterialConstIterator itMatEntry = mMaterialEntriesMap.find(materialName);
+	
+	// Check if technique already created.
+	if (itMatEntry != mMaterialEntriesMap.end())
+	{
+		const SGTechniqueList& techniqueEntires = itMatEntry->second->getTechniqueList();
+		SGTechniqueConstIterator itTechEntry = techniqueEntires.begin();
+
+		for (; itTechEntry != techniqueEntires.end(); ++itTechEntry)
+		{
+			// Check requested mapping already exists.
+			if ((*itTechEntry)->getSourceTechnique()->getSchemeName() == srcTechniqueSchemeName &&
+				(*itTechEntry)->getDestinationTechniqueSchemeName() == dstTechniqueSchemeName &&
+				(*itTechEntry)->getDestinationTechniqueSchemeName() == dstTechniqueSchemeName)
+			{
+				return true;
+			}			
+		}
+	}
+	return false;
+}
 //-----------------------------------------------------------------------------
 bool ShaderGenerator::createShaderBasedTechnique(const String& materialName, 
 												 const String& srcTechniqueSchemeName, 
-												 const String& dstTechniqueSchemeName)
+												 const String& dstTechniqueSchemeName,
+												 bool overProgrammable)
 {
 	OGRE_LOCK_AUTO_MUTEX
 
@@ -559,13 +629,15 @@ bool ShaderGenerator::createShaderBasedTechnique(const String& materialName,
 
 	// No technique created -> check if one can be created from the given source technique scheme.	
 	Technique* srcTechnique = NULL;
-
 	srcTechnique = findSourceTechnique(materialName, srcTechniqueSchemeName);
 
-
 	// No appropriate source technique found.
-	if (srcTechnique == NULL)
+	if ((srcTechnique == NULL) ||
+		((overProgrammable == false) && (isProgrammable(srcTechnique) == true)))
+	{
 		return false;
+	}
+
 
 	// Create shader based technique from the given source technique.	
 	SGMaterial* matEntry = NULL;
@@ -724,21 +796,29 @@ void ShaderGenerator::removeAllShaderBasedTechniques()
 
 		 if (curTechnique->getSchemeName() == srcTechniqueSchemeName)
 		 {
-			 for (unsigned short i=0; i < curTechnique->getNumPasses(); ++i)
-			 {
-				 Pass* curPass = curTechnique->getPass(i);
-
-				 if (curPass->isProgrammable() == true)
-				 {
-					 return NULL;
-				 }				
-			 }
 			 return curTechnique;				
 		 }		
 	 }
 
 	 return NULL;
  }
+
+ //-----------------------------------------------------------------------------
+ bool ShaderGenerator::isProgrammable(Technique* tech) const
+ {
+	 if (tech != NULL)
+	 {
+		 for (unsigned short i=0; i < tech->getNumPasses(); ++i)
+		 {
+			 if (tech->getPass(i)->isProgrammable() == true)
+			 {
+				 return true;
+			 }				
+		 }
+	 }
+	 return false;
+ }
+
 
 //-----------------------------------------------------------------------------
  void ShaderGenerator::notifyRenderSingleObject(Renderable* rend, 
@@ -928,15 +1008,14 @@ void ShaderGenerator::serializePassAttributes(MaterialSerializer* ser, SGPass* p
 	ser->beginSection(3);
 
 	// Grab the custom render state this pass uses.
-	RenderState* customenderState = passEntry->getCustomRenderState();
+	RenderState* customRenderState = passEntry->getCustomRenderState();
 
-	if (customenderState != NULL)
+	if (customRenderState != NULL)
 	{
 		// Write each of the sub-render states that composing the final render state.
-		const SubRenderStateList& subRenderStates = customenderState->getTemplateSubRenderStateList();
+		const SubRenderStateList& subRenderStates = customRenderState->getTemplateSubRenderStateList();
 		SubRenderStateListConstIterator it		= subRenderStates.begin();
 		SubRenderStateListConstIterator itEnd	= subRenderStates.end();
-
 
 		for (; it != itEnd; ++it)
 		{
@@ -946,7 +1025,6 @@ void ShaderGenerator::serializePassAttributes(MaterialSerializer* ser, SGPass* p
 			if (itFactory != mSubRenderStateFactories.end())
 			{
 				SubRenderStateFactory* curFactory = itFactory->second;
-
 				curFactory->writeInstance(ser, curSubRenderState, passEntry->getSrcPass(), passEntry->getDstPass());
 			}
 		}
@@ -954,6 +1032,51 @@ void ShaderGenerator::serializePassAttributes(MaterialSerializer* ser, SGPass* p
 	
 	// Write section end.
 	ser->endSection(3);		
+}
+
+
+
+//-----------------------------------------------------------------------------
+void ShaderGenerator::serializeTextureUnitStateAttributes(MaterialSerializer* ser, SGPass* passEntry, const TextureUnitState* srcTextureUnit)
+{
+	
+	// Write section header and begin it.
+	ser->writeAttribute(4, "rtshader_system");
+	ser->beginSection(4);
+
+	// Grab the custom render state this pass uses.
+	RenderState* customRenderState = passEntry->getCustomRenderState();
+			
+	if (customRenderState != NULL)
+	{
+		//retrive the destintion texture unit state
+		TextureUnitState* dstTextureUnit = NULL;
+		unsigned short texIndex = srcTextureUnit->getParent()->getTextureUnitStateIndex(srcTextureUnit);
+		if (texIndex < passEntry->getDstPass()->getNumTextureUnitStates())
+		{
+			dstTextureUnit = passEntry->getDstPass()->getTextureUnitState(texIndex);
+		}
+		
+		// Write each of the sub-render states that composing the final render state.
+		const SubRenderStateList& subRenderStates = customRenderState->getTemplateSubRenderStateList();
+		SubRenderStateListConstIterator it		= subRenderStates.begin();
+		SubRenderStateListConstIterator itEnd	= subRenderStates.end();
+
+		for (; it != itEnd; ++it)
+		{
+			SubRenderState* curSubRenderState = *it;
+			SubRenderStateFactoryIterator itFactory = mSubRenderStateFactories.find(curSubRenderState->getType());
+
+			if (itFactory != mSubRenderStateFactories.end())
+			{
+				SubRenderStateFactory* curFactory = itFactory->second;
+				curFactory->writeInstance(ser, curSubRenderState, srcTextureUnit, dstTextureUnit);
+			}
+		}
+	}
+	
+	// Write section end.
+	ser->endSection(4);		
 }
 
 //-----------------------------------------------------------------------------
@@ -1443,11 +1566,12 @@ void ShaderGenerator::SGScheme::validate()
 void ShaderGenerator::SGScheme::synchronizeWithLightSettings()
 {
 	SceneManager* sceneManager = ShaderGenerator::getSingleton().getActiveSceneManager();
+	RenderState* curRenderState = getRenderState();
 
-	if (sceneManager != NULL)
+	if (sceneManager != NULL && curRenderState->getLightCountAutoUpdate())
 	{
 		const LightList& lightList =  sceneManager->_getLightsAffectingFrustum();
-		RenderState* curRenderState = getRenderState();
+		
 		int sceneLightCount[3] = {0};
 		int currLightCount[3] = {0};
 
@@ -1455,11 +1579,8 @@ void ShaderGenerator::SGScheme::synchronizeWithLightSettings()
 		{
 			sceneLightCount[lightList[i]->getType()]++;
 		}
-
-		if (curRenderState->getLightCountAutoUpdate())
-		{
-			mRenderState->getLightCount(currLightCount);
-		}
+		
+		mRenderState->getLightCount(currLightCount);		
 
 		// Case light state has been changed -> invalidate this scheme.
 		if (currLightCount[0] != sceneLightCount[0] ||

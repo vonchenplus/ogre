@@ -100,6 +100,11 @@ namespace Ogre
 		terrain->_setCompositeMapRequired(mCompositeMapEnabled);
 	}
 	//---------------------------------------------------------------------
+	bool TerrainMaterialGeneratorA::SM2Profile::isVertexCompressionSupported() const
+	{
+		return true;
+	}
+	//---------------------------------------------------------------------
 	void TerrainMaterialGeneratorA::SM2Profile::setLayerNormalMappingEnabled(bool enabled)
 	{
 		if (enabled != mLayerNormalMappingEnabled)
@@ -317,6 +322,8 @@ namespace Ogre
 				mShaderGen = OGRE_NEW ShaderHelperHLSL();
 			else if (hmgr.isLanguageSupported("glsl"))
 				mShaderGen = OGRE_NEW ShaderHelperGLSL();
+			else if (hmgr.isLanguageSupported("glsles"))
+				mShaderGen = OGRE_NEW ShaderHelperGLSLES();
 			else
 			{
 				// todo
@@ -529,7 +536,15 @@ namespace Ogre
 			}
 		}
 
+		if (terrain->_getUseVertexCompression() && tt != RENDER_COMPOSITE_MAP)
+		{
+			Matrix4 posIndexToObjectSpace;
+			terrain->getPointTransform(&posIndexToObjectSpace);
+			params->setNamedConstant("posIndexToObjectSpace", posIndexToObjectSpace);
+		}
 
+		
+		
 	}
 	//---------------------------------------------------------------------
 	void TerrainMaterialGeneratorA::SM2Profile::ShaderHelper::defaultFpParams(
@@ -619,6 +634,12 @@ namespace Ogre
 				terrain->getLayerUVMultiplier(i * 4 + 3) 
 				);
 			params->setNamedConstant("uvMul" + StringConverter::toString(i), uvMul);
+		}
+		
+		if (terrain->_getUseVertexCompression() && tt != RENDER_COMPOSITE_MAP)
+		{
+			Real baseUVScale = 1.0f / (terrain->getSize() - 1);
+			params->setNamedConstant("baseUVScale", baseUVScale);
 		}
 
 	}
@@ -751,9 +772,21 @@ namespace Ogre
 		const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringUtil::StrStreamType& outStream)
 	{
 		outStream << 
-			"void main_vp(\n"
-			"float4 pos : POSITION,\n"
-			"float2 uv  : TEXCOORD0,\n";
+			"void main_vp(\n";
+		bool compression = terrain->_getUseVertexCompression() && tt != RENDER_COMPOSITE_MAP;
+		if (compression)
+		{
+			outStream << 
+				"float2 posIndex : POSITION,\n"
+				"float height  : TEXCOORD0,\n";
+		}
+		else
+		{
+			outStream <<
+				"float4 pos : POSITION,\n"
+				"float2 uv  : TEXCOORD0,\n";
+
+		}
 		if (tt != RENDER_COMPOSITE_MAP)
 			outStream << "float2 delta  : TEXCOORD1,\n"; // lodDelta, lodThreshold
 
@@ -762,6 +795,12 @@ namespace Ogre
 			"uniform float4x4 viewProjMatrix,\n"
 			"uniform float2   lodMorph,\n"; // morph amount, morph LOD target
 
+		if (compression)
+		{
+			outStream << 
+				"uniform float4x4   posIndexToObjectSpace,\n"
+				"uniform float    baseUVScale,\n";
+		}
 		// uv multipliers
 		uint maxLayers = prof->getMaxLayers(terrain);
 		uint numLayers = std::min(maxLayers, static_cast<uint>(terrain->getLayerCount()));
@@ -820,7 +859,15 @@ namespace Ogre
 
 		outStream <<
 			")\n"
-			"{\n"
+			"{\n";
+		if (compression)
+		{
+			outStream <<
+				"	float4 pos;\n"
+				"	pos = mul(posIndexToObjectSpace, float4(posIndex, height, 1));\n"
+				"   float2 uv = float2(posIndex.x * baseUVScale, 1.0 - (posIndex.y * baseUVScale));\n";
+		}
+		outStream <<
 			"	float4 worldPos = mul(worldMatrix, pos);\n"
 			"	oPosObj = pos;\n";
 
@@ -1651,6 +1698,63 @@ namespace Ogre
 		return ret;
 
 	}
+	//---------------------------------------------------------------------
+	//---------------------------------------------------------------------
+	HighLevelGpuProgramPtr
+	TerrainMaterialGeneratorA::SM2Profile::ShaderHelperGLSLES::createVertexProgram(
+		const SM2Profile* prof, const Terrain* terrain, TechniqueType tt)
+	{
+		HighLevelGpuProgramManager& mgr = HighLevelGpuProgramManager::getSingleton();
+		String progName = getVertexProgramName(prof, terrain, tt);
 
+		switch(tt)
+		{
+		case HIGH_LOD:
+			progName += "/hlod";
+			break;
+		case LOW_LOD:
+			progName += "/llod";
+			break;
+		case RENDER_COMPOSITE_MAP:
+			progName += "/comp";
+			break;
+		}
+
+		HighLevelGpuProgramPtr ret = mgr.getByName(progName);
+		if (ret.isNull())
+		{
+			ret = mgr.createProgram(progName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
+				"glsles", GPT_VERTEX_PROGRAM);
+		}
+		else
+		{
+			ret->unload();
+		}
+
+		return ret;
+
+	}
+	//---------------------------------------------------------------------
+	HighLevelGpuProgramPtr
+		TerrainMaterialGeneratorA::SM2Profile::ShaderHelperGLSLES::createFragmentProgram(
+			const SM2Profile* prof, const Terrain* terrain, TechniqueType tt)
+	{
+		HighLevelGpuProgramManager& mgr = HighLevelGpuProgramManager::getSingleton();
+		String progName = getFragmentProgramName(prof, terrain, tt);
+
+		HighLevelGpuProgramPtr ret = mgr.getByName(progName);
+		if (ret.isNull())
+		{
+			ret = mgr.createProgram(progName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
+				"glsles", GPT_FRAGMENT_PROGRAM);
+		}
+		else
+		{
+			ret->unload();
+		}
+
+		return ret;
+
+	}
 
 }

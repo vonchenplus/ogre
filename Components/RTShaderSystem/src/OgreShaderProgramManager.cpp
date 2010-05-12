@@ -36,10 +36,12 @@ THE SOFTWARE.
 #include "OgreShaderCGProgramWriter.h"
 #include "OgreShaderHLSLProgramWriter.h"
 #include "OgreShaderGLSLProgramWriter.h"
+#include "OgreShaderGLSLESProgramWriter.h"
 #include "OgreShaderProgramProcessor.h"
 #include "OgreShaderCGProgramProcessor.h"
 #include "OgreShaderHLSLProgramProcessor.h"
 #include "OgreShaderGLSLProgramProcessor.h"
+#include "OgreShaderGLSLESProgramProcessor.h"
 #include "OgreGpuProgramManager.h"
 
 namespace Ogre {
@@ -169,6 +171,7 @@ void ProgramManager::createDefaultProgramWriterFactories()
 	// Add standard shader writer factories 
 	mProgramWriterFactories.push_back(OGRE_NEW ShaderProgramWriterCGFactory());
 	mProgramWriterFactories.push_back(OGRE_NEW ShaderProgramWriterGLSLFactory());
+	mProgramWriterFactories.push_back(OGRE_NEW ShaderProgramWriterGLSLESFactory());
 	mProgramWriterFactories.push_back(OGRE_NEW ShaderProgramWriterHLSLFactory());
 	
 	for (unsigned int i=0; i < mProgramWriterFactories.size(); ++i)
@@ -194,6 +197,7 @@ void ProgramManager::createDefaultProgramProcessors()
 	// Add standard shader processors
 	mDefaultProgramProcessors.push_back(OGRE_NEW CGProgramProcessor);
 	mDefaultProgramProcessors.push_back(OGRE_NEW GLSLProgramProcessor);
+	mDefaultProgramProcessors.push_back(OGRE_NEW GLSLESProgramProcessor);
 	mDefaultProgramProcessors.push_back(OGRE_NEW HLSLProgramProcessor);
 
 	for (unsigned int i=0; i < mDefaultProgramProcessors.size(); ++i)
@@ -320,6 +324,9 @@ bool ProgramManager::createGpuPrograms(ProgramSet* programSet)
 
 	programSet->setGpuVertexProgram(vsGpuProgram);
 
+	//update flags
+	programSet->getGpuVertexProgram()->setSkeletalAnimationIncluded(
+		programSet->getCpuVertexProgram()->getSkeletalAnimationIncluded());
 
 	// Create the fragment shader program.
 	GpuProgramPtr psGpuProgram;
@@ -411,7 +418,8 @@ GpuProgramPtr ProgramManager::createGpuProgram(Program* shaderProgram,
 		// Case cache directory specified -> create program from file.
 		if (cachePath.empty() == false)
 		{
-			const String  programFileName = cachePath + programName + "." + language;	
+			const String  programFullName = programName + "." + language;
+			const String  programFileName = cachePath + programFullName;	
 			std::ifstream programFile;
 			bool		  writeFile = true;
 
@@ -442,7 +450,7 @@ GpuProgramPtr ProgramManager::createGpuProgram(Program* shaderProgram,
 				outFile.close();
 			}
 
-			pGpuProgram->setSourceFile(programFileName);
+			pGpuProgram->setSourceFile(programFullName);
 		}
 
 		// No cache directory specified -> create program from system memory.
