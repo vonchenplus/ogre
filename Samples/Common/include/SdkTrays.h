@@ -34,6 +34,10 @@
 #include "OgreTextAreaOverlayElement.h"
 #include <math.h>
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+#include "OgreStringSerialiser.h"
+#endif
+
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
 // TODO - remove this
 #   pragma warning (disable : 4244)
@@ -1694,7 +1698,7 @@ namespace OgreBites
 		/*-----------------------------------------------------------------------------
 		| Creates backdrop, cursor, and trays.
 		-----------------------------------------------------------------------------*/
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		SdkTrayManager(const Ogre::String& name, Ogre::RenderWindow* window, OIS::MultiTouch* mouse, SdkTrayListener* listener = 0) :
 #else
 		SdkTrayManager(const Ogre::String& name, Ogre::RenderWindow* window, OIS::Mouse* mouse, SdkTrayListener* listener = 0) :
@@ -1710,7 +1714,6 @@ namespace OgreBites
 			std::replace(nameBase.begin(), nameBase.end(), ' ', '_');
 
 			// create overlay layers for everything
-
 			mBackdropLayer = om.create(nameBase + "BackdropLayer");
 			mTraysLayer = om.create(nameBase + "WidgetsLayer");
 			mPriorityLayer = om.create(nameBase + "PriorityLayer");
@@ -1721,7 +1724,6 @@ namespace OgreBites
 			mCursorLayer->setZOrder(400);
 
 			// make backdrop and cursor overlay containers
-
 			mCursor = (Ogre::OverlayContainer*)om.createOverlayElementFromTemplate("SdkTrays/Cursor", "Panel", nameBase + "Cursor");
 			mCursorLayer->add2D(mCursor);
 			mBackdrop = (Ogre::OverlayContainer*)om.createOverlayElement("Panel", nameBase + "Backdrop");
@@ -1753,7 +1755,6 @@ namespace OgreBites
 			mTrays[9] = (Ogre::OverlayContainer*)om.createOverlayElement("Panel", nameBase + "NullTray");
 			mTrayWidgetAlign[9] = Ogre::GHA_LEFT;
 			mTraysLayer->add2D(mTrays[9]);
-
 			adjustTrays();
 			
 			showTrays();
@@ -1906,6 +1907,8 @@ namespace OgreBites
             std::vector<OIS::MultiTouchState> states = mMouse->getMultiTouchStates();
             if(states.size() > 0)
                 mCursor->setPosition(states[0].X.abs, states[0].Y.abs);
+#elif OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+			// TODO: handle cursor positioning
 #else
 			mCursor->setPosition(mMouse->getMouseState().X.abs, mMouse->getMouseState().Y.abs);
 #endif
@@ -2039,7 +2042,7 @@ namespace OgreBites
 				// add paddings and resize trays
 				mTrays[i]->setWidth(trayWidth + 2 * mWidgetPadding);
 				mTrays[i]->setHeight(trayHeight + mWidgetPadding);
-
+				
 				for (unsigned int i = 0; i < labelsAndSeps.size(); i++)
 				{
 					labelsAndSeps[i]->setWidth((int)trayWidth);
@@ -2255,6 +2258,7 @@ namespace OgreBites
 		-----------------------------------------------------------------------------*/
 		void showLogo(TrayLocation trayLoc, int place = -1)
 		{
+			Ogre::LogManager::getSingleton().logMessage("show logo");
 			if (!isLogoVisible()) mLogo = createDecorWidget(TL_NONE, mName + "/Logo", "SdkTrays/Logo");
 			moveWidgetToTray(mLogo, trayLoc, place);
 		}
@@ -2750,11 +2754,9 @@ namespace OgreBites
 
 			if (areFrameStatsVisible())
 			{
-				std::ostringstream oss;
-				Ogre::String s;
-
-				oss << "FPS: " << std::fixed << std::setprecision(1) << stats.lastFPS;
-				s = oss.str();
+				Ogre::String s("FPS: ");
+				s += Ogre::StringConverter::toString((int)stats.lastFPS);
+				
 				for (int i = s.length() - 5; i > 5; i -= 3) { s.insert(i, 1, ','); }
 				mFpsLabel->setCaption(s);
 
@@ -2762,21 +2764,15 @@ namespace OgreBites
 				{
 					Ogre::StringVector values;
 
-					oss.str("");
-					oss << std::fixed << std::setprecision(1) << stats.avgFPS;
-					Ogre::String s = oss.str();
+					s = Ogre::StringConverter::toString((int)stats.avgFPS);
 					for (int i = s.length() - 5; i > 0; i -= 3) { s.insert(i, 1, ','); }
 					values.push_back(s);
 
-					oss.str("");
-					oss << std::fixed << std::setprecision(1) << stats.bestFPS;
-					s = oss.str();
+					s = Ogre::StringConverter::toString((int)stats.bestFPS);
 					for (int i = s.length() - 5; i > 0; i -= 3) { s.insert(i, 1, ','); }
 					values.push_back(s);
 
-					oss.str("");
-					oss << std::fixed << std::setprecision(1) << stats.worstFPS;
-					s = oss.str();
+					s = Ogre::StringConverter::toString((int)stats.worstFPS);
 					for (int i = s.length() - 5; i > 0; i -= 3) { s.insert(i, 1, ','); }
 					values.push_back(s);
 
@@ -2799,19 +2795,25 @@ namespace OgreBites
 		{
 			mLoadInc = mGroupInitProportion / scriptCount;
 			mLoadBar->setCaption("Parsing...");
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 			mWindow->update();
+#endif
 		}
 
 		void scriptParseStarted(const Ogre::String& scriptName, bool& skipThisScript)
 		{
 			mLoadBar->setComment(scriptName);
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 			mWindow->update();
+#endif
 		}
 
 		void scriptParseEnded(const Ogre::String& scriptName, bool skipped)
 		{
 			mLoadBar->setProgress(mLoadBar->getProgress() + mLoadInc);
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 			mWindow->update();
+#endif
 		}
 
 		void resourceGroupScriptingEnded(const Ogre::String& groupName) {}
@@ -2820,31 +2822,41 @@ namespace OgreBites
 		{
 			mLoadInc = mGroupLoadProportion / resourceCount;
 			mLoadBar->setCaption("Loading...");
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 			mWindow->update();
+#endif
 		}
 
 		void resourceLoadStarted(const Ogre::ResourcePtr& resource)
 		{
 			mLoadBar->setComment(resource->getName());
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 			mWindow->update();
+#endif
 		}
 
 		void resourceLoadEnded()
 		{
 			mLoadBar->setProgress(mLoadBar->getProgress() + mLoadInc);
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 			mWindow->update();
+#endif
 		}
 
 		void worldGeometryStageStarted(const Ogre::String& description)
 		{
 			mLoadBar->setComment(description);
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 			mWindow->update();
+#endif
 		}
 
 		void worldGeometryStageEnded()
 		{
 			mLoadBar->setProgress(mLoadBar->getProgress() + mLoadInc);
+#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
 			mWindow->update();
+#endif
 		}
 
 		void resourceGroupLoadEnded(const Ogre::String& groupName) {}
@@ -2885,13 +2897,13 @@ namespace OgreBites
 		| Processes mouse button down events. Returns true if the event was
 		| consumed and should not be passed on to other handlers.
 		-----------------------------------------------------------------------------*/
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		bool injectMouseDown(const OIS::MultiTouchEvent& evt)
 #else
 		bool injectMouseDown(const OIS::MouseEvent& evt, OIS::MouseButtonID id)
 #endif
 		{
-#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM != OGRE_PLATFORM_IPHONE) && (OGRE_PLATFORM != OGRE_PLATFORM_ANDROID)
 			// only process left button when stuff is visible
 			if (!mCursorLayer->isVisible() || id != OIS::MB_Left) return false;
 #else
@@ -2968,13 +2980,13 @@ namespace OgreBites
 		| Processes mouse button up events. Returns true if the event was
 		| consumed and should not be passed on to other handlers.
 		-----------------------------------------------------------------------------*/
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		bool injectMouseUp(const OIS::MultiTouchEvent& evt)
 #else
 		bool injectMouseUp(const OIS::MouseEvent& evt, OIS::MouseButtonID id)
 #endif
 		{
-#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM != OGRE_PLATFORM_IPHONE) && (OGRE_PLATFORM != OGRE_PLATFORM_ANDROID)
 			// only process left button when stuff is visible
 			if (!mCursorLayer->isVisible() || id != OIS::MB_Left) return false;
 #else
@@ -3026,7 +3038,7 @@ namespace OgreBites
 		| Updates cursor position. Returns true if the event was
 		| consumed and should not be passed on to other handlers.
 		-----------------------------------------------------------------------------*/
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		bool injectMouseMove(const OIS::MultiTouchEvent& evt)
 #else
 		bool injectMouseMove(const OIS::MouseEvent& evt)
@@ -3103,7 +3115,7 @@ namespace OgreBites
 
 		Ogre::String mName;                   // name of this tray system
 		Ogre::RenderWindow* mWindow;          // render window
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		OIS::MultiTouch* mMouse;              // multitouch device
 #else
 		OIS::Mouse* mMouse;                   // mouse device

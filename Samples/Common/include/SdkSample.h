@@ -43,8 +43,7 @@ namespace OgreBites
 	=============================================================================*/
 	class SdkSample : public Sample, public SdkTrayListener
     {
-    public:
-
+	public:
 		SdkSample()
 		{
 			// so we don't have to worry about checking if these keys exist later
@@ -227,28 +226,28 @@ namespace OgreBites
 			// Toggle schemes.			
 			else if (evt.key == OIS::KC_F2)
 			{	
-				Ogre::Viewport* mainVP = mCamera->getViewport();
-				const Ogre::String& curMaterialScheme = mainVP->getMaterialScheme();
-
-				if (curMaterialScheme == Ogre::MaterialManager::DEFAULT_SCHEME_NAME)
-				{							
-					mainVP->setMaterialScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
-					mDetailsPanel->setParamValue(11, "On");
-				}
-				else if (curMaterialScheme == Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
+				if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION))
 				{
-					mainVP->setMaterialScheme(Ogre::MaterialManager::DEFAULT_SCHEME_NAME);
-					mDetailsPanel->setParamValue(11, "Off");
-				}														
+					Ogre::Viewport* mainVP = mCamera->getViewport();
+					const Ogre::String& curMaterialScheme = mainVP->getMaterialScheme();
+
+					if (curMaterialScheme == Ogre::MaterialManager::DEFAULT_SCHEME_NAME)
+					{							
+						mainVP->setMaterialScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+						mDetailsPanel->setParamValue(11, "On");
+					}
+					else if (curMaterialScheme == Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
+					{
+						mainVP->setMaterialScheme(Ogre::MaterialManager::DEFAULT_SCHEME_NAME);
+						mDetailsPanel->setParamValue(11, "Off");
+					}														
+				}
 			}			
-
-#ifdef RTSHADER_SYSTEM_BUILD_EXT_SHADERS
-
 			// Toggles per pixel per light model.
 			else if (evt.key == OIS::KC_F3)
 			{
 				static bool usePerPixelLighting = true;					
-								
+												
 				// Grab the scheme render state.												
 				Ogre::RTShader::RenderState* schemRenderState = mShaderGenerator->getRenderState(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 
@@ -293,7 +292,6 @@ namespace OgreBites
 					mDetailsPanel->setParamValue(12, "Vertex");
 				usePerPixelLighting = !usePerPixelLighting;				
 			}	
-#endif
 
 			// Switch vertex shader outputs compaction policy.
 			else if (evt.key == OIS::KC_F4)   
@@ -319,7 +317,7 @@ namespace OgreBites
 				// Invalidate the scheme in order to re-generate all shaders based technique related to this scheme.
 				mShaderGenerator->invalidateScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 			}	
-#endif
+#endif // USE_RTSHADER_SYSTEM
 
 			mCameraMan->injectKeyDown(evt);
 			return true;
@@ -336,7 +334,7 @@ namespace OgreBites
 		to filter out any interface-related mouse events before processing them in your scene.
 		If the tray manager handler returns true, the event was meant for the trays, not you. */
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		virtual bool touchMoved(const OIS::MultiTouchEvent& evt)
 #else
 		virtual bool mouseMoved(const OIS::MouseEvent& evt)
@@ -349,7 +347,7 @@ namespace OgreBites
 			return true;
 		}
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		virtual bool touchPressed(const OIS::MultiTouchEvent& evt)
 		{
 			if (mTrayMgr->injectMouseDown(evt)) return true;
@@ -381,7 +379,7 @@ namespace OgreBites
 		}
 #endif
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		virtual bool touchReleased(const OIS::MultiTouchEvent& evt)
 		{
 			if (mTrayMgr->injectMouseUp(evt)) return true;
@@ -416,14 +414,14 @@ namespace OgreBites
 		/*-----------------------------------------------------------------------------
 		| Extended to setup a default tray interface and camera controller.
 		-----------------------------------------------------------------------------*/
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 		virtual void _setup(Ogre::RenderWindow* window, OIS::MultiTouch* mouse, FileSystemLayer* fsLayer)
 #else
 		virtual void _setup(Ogre::RenderWindow* window, OIS::Keyboard* keyboard, OIS::Mouse* mouse, FileSystemLayer* fsLayer)
 #endif
 		{
 			mWindow = window;
-#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM != OGRE_PLATFORM_IPHONE) && (OGRE_PLATFORM != OGRE_PLATFORM_ANDROID)
 			mKeyboard = keyboard;
 #endif
 			mMouse = mouse;
@@ -434,18 +432,8 @@ namespace OgreBites
 			setupView();
 
 			mTrayMgr = new SdkTrayManager("SampleControls", window, mouse, this);  // create a tray interface
-			
-#ifdef USE_RTSHADER_SYSTEM
-			// Initialize shader generator.
-			// Must be before resource loading in order to allow parsing extended material attributes.
-			bool success = initializeRTShaderSystem(mSceneMgr);
-			if (!success) 
-			{
-				OGRE_EXCEPT(Ogre::Exception::ERR_FILE_NOT_FOUND, 
-					"Shader Generator Initialization failed - Core shader libs path not found", 
-					"SdkSample::_setup");
-			}														
-#endif
+
+			Ogre::LogManager::getSingleton().logMessage("Loading resources");
 			
 			loadResources();
 			mResourcesLoaded = true;
@@ -485,12 +473,21 @@ namespace OgreBites
 
 #ifdef USE_RTSHADER_SYSTEM
 			mDetailsPanel->setParamValue(11, "Off");
+
+            Ogre::Viewport* mainVP = mCamera->getViewport();
+            const Ogre::String& curMaterialScheme = mainVP->getMaterialScheme();
+            if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION) == false)
+            {
+                mainVP->setMaterialScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+                mDetailsPanel->setParamValue(11, "On");
+            }
 			mDetailsPanel->setParamValue(12, "Vertex");
 			mDetailsPanel->setParamValue(13, "Low");
 			mDetailsPanel->setParamValue(14, "0");
 			mDetailsPanel->setParamValue(15, "0");															
 #endif
 
+			Ogre::LogManager::getSingleton().logMessage("Setting up content");
 			setupContent();
 			mContentSetup = true;
 
@@ -501,7 +498,7 @@ namespace OgreBites
 		{
 			Sample::_shutdown();
 
-			if (mTrayMgr) delete mTrayMgr;
+            if (mTrayMgr) delete mTrayMgr;
 			if (mCameraMan) delete mCameraMan;
 
 			// restore settings we may have changed, so as not to affect other samples
