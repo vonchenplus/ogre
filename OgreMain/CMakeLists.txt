@@ -63,6 +63,8 @@ set (HEADER_FILES
   include/OgreCustomCompositionPass.h
   include/OgreDataStream.h
   include/OgreDefaultHardwareBufferManager.h
+  include/OgreDeflate.h
+  include/OgreDepthBuffer.h
   include/OgreDistanceLodStrategy.h
   include/OgreDynLib.h
   include/OgreDynLibManager.h
@@ -287,6 +289,8 @@ set (SOURCE_FILES
   src/OgreDataStream.cpp
   src/OgreDefaultHardwareBufferManager.cpp
   src/OgreDefaultSceneQueries.cpp
+  src/OgreDeflate.cpp
+  src/OgreDepthBuffer.cpp
   src/OgreDistanceLodStrategy.cpp
   src/OgreDynLib.cpp
   src/OgreDynLibManager.cpp
@@ -538,27 +542,59 @@ elseif (APPLE)
     set(PLATFORM_HEADER_INSTALL "OSX")
   endif ()
 elseif (UNIX)
-  include_directories(include/GLX ${X11_INCLUDE_DIR})
+  if (OGRE_BUILD_PLATFORM_TEGRA2)
+    include_directories("include/Tegra2")
+    set(PLATFORM_HEADER_FILES
+      include/Tegra2/OgreConfigDialogImp.h
+      include/Tegra2/OgreErrorDialogImp.h
+      include/Tegra2/OgreTimerImp.h
+    )
+    set(PLATFORM_SOURCE_FILES
+      src/Tegra2/OgreConfigDialog.cpp
+      src/Tegra2/OgreErrorDialog.cpp
+      src/Tegra2/OgreTimer.cpp
+      src/OgreSearchOps.cpp
+    )
+#    set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} pthread dl)
+    set(PLATFORM_LIBS pthread dl)
+    set(PLATFORM_HEADER_INSTALL "Tegra2")
+  else ()
+    include_directories(include/GLX ${X11_INCLUDE_DIR})
+    set(PLATFORM_HEADER_FILES
+      include/GLX/OgreConfigDialogImp.h
+      include/GLX/OgreErrorDialogImp.h
+      include/GLX/OgreTimerImp.h
+    )
+    set(PLATFORM_SOURCE_FILES
+      src/GLX/GLX_backdrop.h
+      src/GLX/OgreConfigDialog.cpp
+      src/GLX/OgreErrorDialog.cpp
+      src/GLX/OgreTimer.cpp
+      src/OgreSearchOps.cpp
+    )
+    set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} pthread dl)
+    set(PLATFORM_HEADER_INSTALL "GLX")
+    # some platforms require explicit linking to libdl, see if it's available
+    find_library(DL_LIBRARY NAMES dl dlsym)
+    mark_as_advanced(DL_LIBRARY)
+    if (DL_LIBRARY)
+      list(APPEND PLATFORM_LIBS dl)
+    endif ()
+  endif(OGRE_BUILD_PLATFORM_TEGRA2)
+elseif (SYMBIAN)
+  include_directories(include/symbian)
   set(PLATFORM_HEADER_FILES
-    include/GLX/OgreConfigDialogImp.h
-    include/GLX/OgreErrorDialogImp.h
     include/GLX/OgreTimerImp.h
+    include/symbian/OgreConfigDialogImp.h
+    include/symbian/OgreErrorDialogImp.h
   )
   set(PLATFORM_SOURCE_FILES
-    src/GLX/GLX_backdrop.h
-    src/GLX/OgreConfigDialog.cpp
-    src/GLX/OgreErrorDialog.cpp
-    src/GLX/OgreTimer.cpp
     src/OgreSearchOps.cpp
+    src/GLX/OgreTimer.cpp
+    src/symbian/OgreConfigDialog.cpp
+    src/symbian/OgreErrorDialog.cpp
   )
-  set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} pthread)
-  # some platforms require explicit linking to libdl, see if it's available
-  find_library(DL_LIBRARY NAMES dl dlsym)
-  mark_as_advanced(DL_LIBRARY)
-  if (DL_LIBRARY)
-    list(APPEND PLATFORM_LIBS dl)
-  endif ()
-  set(PLATFORM_HEADER_INSTALL "GLX")
+  set(PLATFORM_HEADER_INSTALL "SYMBIAN")
 
 endif(WIN32)
 
