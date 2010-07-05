@@ -354,9 +354,10 @@ namespace Ogre {
         @param skeletalAnimation Whether this vertex data is going to be
 			skeletally animated
 		@param vertexAnimation Whether this vertex data is going to be vertex animated
+		@param vertexAnimationNormals Whether vertex data animation is going to include normals animation
         */
         VertexDeclaration* getAutoOrganisedDeclaration(bool skeletalAnimation,
-			bool vertexAnimation);
+			bool vertexAnimation, bool vertexAnimationNormals);
 
         /** Gets the index of the highest source value referenced by this declaration. */
         unsigned short getMaxSource(void) const;
@@ -436,6 +437,11 @@ namespace Ogre {
 
 		/** Gets the vertex size defined by this declaration for a given source. */
         virtual size_t getVertexSize(unsigned short source);
+		
+		/** Return the index of the next free texture coordinate set which may be added
+			to this declaration.
+		*/
+		virtual unsigned short getNextFreeTextureCoordinate() const;
 
         /** Clones this declaration. 
 		@param mgr Optional HardwareBufferManager to use for creating the clone
