@@ -34,7 +34,7 @@ public:
 			mBrushPos = (Vector2(pt.x, -pt.y) / mPlaneSize + Vector2(0.5, 0.5)) * TEXTURE_SIZE;
 		}
 
-		Ogre::uint8 freezeAmount = 0;
+		uint8 freezeAmount = 0;
 		mTimeSinceLastFreeze += evt.timeSinceLastFrame;
 
 		// find out how much to freeze the plane based on time passed
@@ -51,7 +51,7 @@ public:
 
 		return SdkSample::frameRenderingQueued(evt);  // don't forget the parent class updates!
 	}
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
 	bool touchPressed(const OIS::MultiTouchEvent& evt)
 	{
 		if (mTrayMgr->injectMouseDown(evt)) return true;
@@ -136,14 +136,14 @@ protected:
 		mWiping = false;
 	}
 
-	void updateTexture(Ogre::uint8 freezeAmount)
+	void updateTexture(uint8 freezeAmount)
 	{
 		mTexBuf->lock(HardwareBuffer::HBL_NORMAL);
 
 		// get access to raw texel data
-		Ogre::uint8* data = (Ogre::uint8*)mTexBuf->getCurrentLock().data;
+		uint8* data = (uint8*)mTexBuf->getCurrentLock().data;
 
-		Ogre::uint8 temperature;
+		uint8 temperature;
 		Real sqrDistToBrush;
 
 		// go through every texel...
@@ -164,7 +164,7 @@ protected:
 					// wipe frost from under the cursor
 					sqrDistToBrush = Math::Sqr(x - mBrushPos.x) + Math::Sqr(y - mBrushPos.y);
 					if (sqrDistToBrush <= SQR_BRUSH_RADIUS)
-						*data = std::min<Ogre::uint8>(sqrDistToBrush / SQR_BRUSH_RADIUS * 0xff, *data);
+						*data = std::min<uint8>(sqrDistToBrush / SQR_BRUSH_RADIUS * 0xff, *data);
 				}
 
 				data++;
