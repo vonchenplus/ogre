@@ -32,9 +32,6 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 #include "OgreD3D11Device.h"
 #include "OgreD3D11Mappings.h"
-#include "OgreFixedFuncState.h"
-#include "OgreHlslFixedFuncEmuShaderGenerator.h"
-#include "OgreFixedFuncEmuShaderManager.h"
 
 namespace Ogre 
 {
@@ -55,7 +52,7 @@ namespace Ogre
 		{
 			DT_HARDWARE, // GPU based
 			DT_SOFTWARE, // microsoft original (slow) software driver
-			DT_WARP // microsoft new (faster) software driver
+			DT_WARP // microsoft new (faster) software driver - (Windows Advanced Rasterization Platform) - http://msdn.microsoft.com/en-us/library/dd285359.aspx
 
 		};
 
@@ -109,12 +106,6 @@ namespace Ogre
         D3D11HLSLProgramFactory* mHLSLProgramFactory;
 
 		size_t mLastVertexSourceCount;
-
-		FixedFuncState mFixedFuncState;
-		FixedFuncPrograms::FixedFuncProgramsParameters mFixedFuncProgramsParameters;
-		Hlsl4FixedFuncEmuShaderGenerator mHlslFixedFuncEmuShaderGenerator;
-		FixedFuncEmuShaderManager	mFixedFuncEmuShaderManager;
-
 
 		/// Internal method for populating the capabilities structure
 		RenderSystemCapabilities* createRenderSystemCapabilities() const;
@@ -226,6 +217,17 @@ namespace Ogre
 		/// @copydoc RenderSystem::createMultiRenderTarget
 		virtual MultiRenderTarget * createMultiRenderTarget(const String & name);
 
+		virtual DepthBuffer* _createDepthBufferFor( RenderTarget *renderTarget );
+
+		/**
+		 * This function is meant to add Depth Buffers to the pool that aren't released when the DepthBuffer
+		 * is deleted. This is specially usefull to put the Depth Buffer created along with the window's
+		 * back buffer into the pool. All depth buffers introduced with this method go to POOL_DEFAULT
+		 */
+		DepthBuffer* _addManualDepthBuffer( ID3D11DepthStencilView *depthSurface,
+											uint32 width, uint32 height, uint32 fsaa, uint32 fsaaQuality );
+
+
 		const String& getName(void) const;
 		// Low-level overridden members
 		void setConfigOption( const String &name, const String &value );
@@ -314,6 +316,11 @@ namespace Ogre
           RenderSystem
          */
         void bindGpuProgramPassIterationParameters(GpuProgramType gptype);
+        /** See
+          RenderSystem
+         */
+        const String& _getDefaultViewportMaterialScheme(void) const;
+
 
         void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
         void clearFrameBuffer(unsigned int buffers, 
