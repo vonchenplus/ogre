@@ -301,6 +301,11 @@ XmlOptions parseArgs(int numArgs, char **args)
         source = args[startIndex];
     if (numArgs > startIndex+1)
         dest = args[startIndex+1];
+    if (numArgs > startIndex+2) {
+        cout << "Too many command-line arguments supplied - abort. " << endl;
+        help();
+        exit(1);
+    }
 
     if (!source)
     {
@@ -452,6 +457,8 @@ void XMLToBinary(XmlOptions opts)
         xmlMeshSerializer->importMesh(opts.source, colourElementType, newMesh.getPointer());
 
         // Re-jig the buffers?
+		// Make sure animation types are up to date first
+		newMesh->_determineAnimationTypes();
         if (opts.reorganiseBuffers)
         {
             logMgr->logMessage("Reorganising vertex buffers to automatic layout..");
@@ -461,7 +468,7 @@ void XMLToBinary(XmlOptions opts)
                 // Automatic
                 VertexDeclaration* newDcl = 
                     newMesh->sharedVertexData->vertexDeclaration->getAutoOrganisedDeclaration(
-                        newMesh->hasSkeleton(), newMesh->hasVertexAnimation());
+                        newMesh->hasSkeleton(), newMesh->hasVertexAnimation(), newMesh->getSharedVertexDataAnimationIncludesNormals());
                 if (*newDcl != *(newMesh->sharedVertexData->vertexDeclaration))
                 {
                     // Usages don't matter here since we're onlly exporting
@@ -481,7 +488,7 @@ void XMLToBinary(XmlOptions opts)
                     // Automatic
                     VertexDeclaration* newDcl = 
                         sm->vertexData->vertexDeclaration->getAutoOrganisedDeclaration(
-                            newMesh->hasSkeleton(), newMesh->hasVertexAnimation());
+                            newMesh->hasSkeleton(), newMesh->hasVertexAnimation(), sm->getVertexAnimationIncludesNormals());
                     if (*newDcl != *(sm->vertexData->vertexDeclaration))
                     {
                         // Usages don't matter here since we're onlly exporting
@@ -536,6 +543,7 @@ void XMLToBinary(XmlOptions opts)
                     }
                     else
                     {
+                        std::cout << "Did not understand \"" << response << "\" please try again:" << std::endl;
                         response = "";
                     }
                 }// while response == ""
@@ -556,6 +564,11 @@ void XMLToBinary(XmlOptions opts)
                         genLod = true;
                         askLodDtls = true;
                     }
+                    else
+                    {
+                        std::cout << "Did not understand \"" << response << "\" please try again:" << std::endl;
+                        response = "";
+                    }
                 }
             }
         }
@@ -563,7 +576,7 @@ void XMLToBinary(XmlOptions opts)
         if (genLod)
         {
             unsigned short numLod;
-            ProgressiveMesh::VertexReductionQuota quota;
+            ProgressiveMesh::VertexReductionQuota quota = ProgressiveMesh::VRQ_PROPORTIONAL;
             Real reduction;
             Mesh::LodValueList valueList;
 
@@ -577,18 +590,25 @@ void XMLToBinary(XmlOptions opts)
 
                 cout << "\nWhat unit of reduction would you like to use:" <<
                     "\n(f)ixed or (p)roportional?";
-                cin >> response;
-				StringUtil::toLowerCase(response);
-                if (response == "f")
-                {
-                    quota = ProgressiveMesh::VRQ_CONSTANT;
-                    cout << "\nHow many vertices should be removed at each LOD?";
-                }
-                else
-                {
-                    quota = ProgressiveMesh::VRQ_PROPORTIONAL;
-                    cout << "\nWhat percentage of remaining vertices should be removed "
-                        "\at each LOD (e.g. 50)?";
+                response = "";
+                while (response == "") {
+                    cin >> response;
+                    StringUtil::toLowerCase(response);
+                    if (response == "f")
+                    {
+                        quota = ProgressiveMesh::VRQ_CONSTANT;
+                        cout << "\nHow many vertices should be removed at each LOD?";
+                    }
+                    else if (response == "p")
+                    {
+                        quota = ProgressiveMesh::VRQ_PROPORTIONAL;
+                        cout << "\nWhat percentage of remaining vertices should be removed "
+                            "\at each LOD (e.g. 50)?";
+                    }
+                    else {
+                            std::cout << "Did not understand \"" << response << "\" please try again:" << std::endl;
+                            response = "";
+                    }
                 }
                 cin >> reduction;
                 if (quota == ProgressiveMesh::VRQ_PROPORTIONAL)
@@ -651,6 +671,7 @@ void XMLToBinary(XmlOptions opts)
                 }
                 else
                 {
+                    std::cout << "Did not understand \"" << response << "\" please try again:" << std::endl;
                     response = "";
                 }
             }
@@ -671,6 +692,7 @@ void XMLToBinary(XmlOptions opts)
                 }
                 else
                 {
+                    std::cout << "Did not understand \"" << response << "\" please try again:" << std::endl;
                     response = "";
                 }
             }
@@ -688,12 +710,24 @@ void XMLToBinary(XmlOptions opts)
         if (opts.generateTangents)
         {
             unsigned short srcTex, destTex;
-            bool existing = newMesh->suggestTangentVectorBuildParams(opts.tangentSemantic, srcTex, destTex);
+            if (!opts.quietMode) 
+            {
+                std::cout << "Checking if we already have tangent vectors...." << std::endl;
+            }
+            bool existing;
+            try {
+                existing = newMesh->suggestTangentVectorBuildParams(opts.tangentSemantic, srcTex, destTex);
+            } catch (Exception &e) {
+                std::cerr << "WARNING: While checking for existing tangents: " << e.getFullDescription() << std::endl;
+                std::cerr << "NOTE: Tangents were NOT generated for this mesh!" << std::endl;
+                existing = false;
+                opts.generateTangents = false;
+            }
             if (existing)
             {
                 std::cout << "\nThis mesh appears to already have a set of 3D texture coordinates, " <<
                     "which would suggest tangent vectors have already been calculated. Do you really " <<
-                    "want to generate new tangent vectors (may duplicate)? (y/n)";
+                    "want to generate new tangent vectors (may duplicate)? (y/n): ";
                 while (response == "")
                 {
                     cin >> response;
@@ -708,6 +742,7 @@ void XMLToBinary(XmlOptions opts)
                     }
                     else
                     {
+                        std::cout << "Did not understand \"" << response << "\" please try again:" << std::endl;
                         response = "";
                     }
                 }
@@ -790,10 +825,17 @@ int main(int numargs, char** args)
 
 	try 
 	{
-		XmlOptions opts = parseArgs(numargs, args);
-
 		logMgr = new LogManager();
-		logMgr->createLog(opts.logFile, false, !opts.quietMode); 
+
+        // this log catches output from the parseArgs call and routes it to stdout only
+		logMgr->createLog("Temporary log", false, true, true); 
+
+		XmlOptions opts = parseArgs(numargs, args);
+        // use the log specified by the cmdline params
+        logMgr->setDefaultLog(logMgr->createLog(opts.logFile, false, !opts.quietMode)); 
+        // get rid of the temporary log as we use the new log now
+		logMgr->destroyLog("Temporary log");
+
 		rgm = new ResourceGroupManager();
 		mth = new Math();
         lodMgr = new LodStrategyManager();
@@ -830,7 +872,8 @@ int main(int numargs, char** args)
 	}
 	catch(Exception& e)
 	{
-		cout << "Exception caught: " << e.getDescription();
+		cerr << "FATAL ERROR: " << e.getDescription() << std::endl;
+		cerr << "ABORTING!" << std::endl;
 		retCode = 1;
 	}
 

@@ -172,8 +172,8 @@ endif (APPLE)
 if (OGRE_RTShaderSystem_FOUND)
 	add_definitions(-DUSE_RTSHADER_SYSTEM)
 	ogre_add_component_include_dir(RTShaderSystem)
-	# Link to RT Shader System if enabled.
-	set(OGRE_LIBRARIES ${OGRE_LIBRARIES} ${OGRE_RTShaderSystem_LIBRARIES})
+		# Link to RT Shader System if enabled.
+  		set(OGRE_LIBRARIES ${OGRE_LIBRARIES} ${OGRE_RTShaderSystem_LIBRARIES})
 endif()
 
 if (UNIX AND NOT APPLE)
@@ -228,10 +228,6 @@ if (OGRE_STATIC)
   if (OGRE_RenderSystem_GL_FOUND)
     include_directories(${OGRE_RenderSystem_GL_INCLUDE_DIRS})
     set(OGRE_PLUGIN_LIBRARIES ${OGRE_PLUGIN_LIBRARIES} ${OGRE_RenderSystem_GL_LIBRARIES})
-  endif ()
-  if (OGRE_RenderSystem_GLES_FOUND)
-    include_directories(${OGRE_RenderSystem_GLES_INCLUDE_DIRS})
-    set(OGRE_PLUGIN_LIBRARIES ${OGRE_PLUGIN_LIBRARIES} ${OGRE_RenderSystem_GLES_LIBRARIES})
   endif ()
 endif ()
 
