@@ -38,6 +38,7 @@ namespace Ogre {
 	D3D11HLSLProgram::CmdTarget D3D11HLSLProgram::msCmdTarget;
 	D3D11HLSLProgram::CmdPreprocessorDefines D3D11HLSLProgram::msCmdPreprocessorDefines;
 	D3D11HLSLProgram::CmdColumnMajorMatrices D3D11HLSLProgram::msCmdColumnMajorMatrices;
+	D3D11HLSLProgram::CmdEnableBackwardsCompatibility D3D11HLSLProgram::msCmdEnableBackwardsCompatibility;
 	//-----------------------------------------------------------------------
 	//-----------------------------------------------------------------------
 	void D3D11HLSLProgram::createConstantBuffer(const UINT ByteWidth)
@@ -209,7 +210,8 @@ namespace Ogre {
         else
             compileFlags |= D3D10_SHADER_PACK_MATRIX_ROW_MAJOR;
 
-		compileFlags|=D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY;
+		if (mEnableBackwardsCompatibility)
+			compileFlags |= D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY;
 
 		HRESULT hr = D3DX11CompileFromMemory(
 			mSource.c_str(),	// [in] Pointer to the shader in memory. 
@@ -303,6 +305,13 @@ namespace Ogre {
 
 				}
 
+				if (mShaderDesc.ConstantBuffers > 1)
+				{
+					OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+						"Multi constant buffers are not supported for now.",
+						"D3D11HLSLProgram::loadFromSource");
+				}
+
 				if (mShaderDesc.ConstantBuffers == 1)
 				{
 					mShaderReflectionConstantBuffer = mpIShaderReflection->GetConstantBufferByIndex(0);
@@ -324,7 +333,36 @@ namespace Ogre {
 						ShaderVarWithPosInBuf newVar;
 						newVar.var = shaderVerDesc;
 						newVar.wasInit = false;
-
+						newVar.name = shaderVerDesc.Name;
+						
+						// A hack for cg to get the "original name" of the var in the "auto comments"
+						// that cg adds to the hlsl 4 output. This is to solve the issue that
+						// in some cases cg changes the name of the var to a new name.
+						{
+							String varForSearch = String(" :  : ") + newVar.name;
+							size_t startPosOfVarOrgNameInSource = 0;
+							size_t endPosOfVarOrgNameInSource = mSource.find(varForSearch + " ");
+							if(endPosOfVarOrgNameInSource == -1)
+							{
+								endPosOfVarOrgNameInSource = mSource.find(varForSearch + "[");
+							}
+							if(endPosOfVarOrgNameInSource != -1)
+							{
+								// find space before var;
+								for (size_t i = endPosOfVarOrgNameInSource - 1 ; i > 0 ; i-- )
+								{
+									if (mSource[i] == ' ')
+									{
+										startPosOfVarOrgNameInSource = i + 1;
+										break;
+									}
+								}
+								if (startPosOfVarOrgNameInSource > 0)
+								{
+									newVar.name = mSource.substr(startPosOfVarOrgNameInSource, endPosOfVarOrgNameInSource - startPosOfVarOrgNameInSource);
+								}
+							}
+						}
 
 						mShaderVars.push_back(newVar);
 					}
@@ -374,7 +412,6 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
 	void D3D11HLSLProgram::buildConstantDefinitions() const
 	{
-
 		createParameterMappingStructures(true);
 
 		if (mShaderReflectionConstantBuffer)
@@ -397,12 +434,8 @@ namespace Ogre {
 					// Recursively descend through the structure levels
 					processParamElement( "", shaderVerDesc.Name, i, varRefType);
 
-
 				}
-
-
 			}
-
 		}
 	}
 	//-----------------------------------------------------------------------
@@ -601,7 +634,7 @@ namespace Ogre {
 		: HighLevelGpuProgram(creator, name, handle, group, isManual, loader)
 		, mpMicroCode(NULL), mErrorsInCompile(false), mConstantBuffer(NULL), mDevice(device), 
 		mpIShaderReflection(NULL), mShaderReflectionConstantBuffer(NULL), mpVertexShader(NULL)//, mpConstTable(NULL)
-		,mpPixelShader(NULL),mpGeometryShader(NULL),mColumnMajorMatrices(true), mInputVertexDeclaration(device)
+		,mpPixelShader(NULL),mpGeometryShader(NULL),mColumnMajorMatrices(true), mEnableBackwardsCompatibility(false), mInputVertexDeclaration(device)
 	{
 		if ("Hatch_ps_hlsl" == name)
 		{
@@ -627,6 +660,9 @@ namespace Ogre {
 			dict->addParameter(ParameterDef("column_major_matrices", 
 				"Whether matrix packing in column-major order.",
 				PT_BOOL),&msCmdColumnMajorMatrices);
+			dict->addParameter(ParameterDef("enable_backwards_compatibility", 
+				"enable backwards compatibility.",
+				PT_BOOL),&msCmdEnableBackwardsCompatibility);
 		}
 
 	}
@@ -724,6 +760,15 @@ namespace Ogre {
 	void D3D11HLSLProgram::CmdColumnMajorMatrices::doSet(void *target, const String& val)
 	{
 		static_cast<D3D11HLSLProgram*>(target)->setColumnMajorMatrices(StringConverter::parseBool(val));
+	}
+	//-----------------------------------------------------------------------
+	String D3D11HLSLProgram::CmdEnableBackwardsCompatibility::doGet(const void *target) const
+	{
+		return StringConverter::toString(static_cast<const D3D11HLSLProgram*>(target)->getEnableBackwardsCompatibility());
+	}
+	void D3D11HLSLProgram::CmdEnableBackwardsCompatibility::doSet(void *target, const String& val)
+	{
+		static_cast<D3D11HLSLProgram*>(target)->setEnableBackwardsCompatibility(StringConverter::parseBool(val));
 	}
 	//-----------------------------------------------------------------------
 	void D3D11HLSLProgram::CreateVertexShader()
@@ -831,12 +876,14 @@ namespace Ogre {
 			ShaderVarWithPosInBuf * iter = &mShaderVars[0];
 			for (size_t i = 0 ; i < mConstantBufferDesc.Variables ; i++, iter++)
 			{
-				String varName = iter->var.Name;
-				// hack for cg parameter
+				String  varName = iter->name;
+
+				// hack for cg parameter with strange prefix
 				if (varName.size() > 0 && varName[0] == '_')
 				{
 					varName.erase(0,1);
 				}
+
 				const GpuConstantDefinition& def = params->getConstantDefinition(varName);
 				// Since we are mapping with write discard, contents of the buffer are undefined.
 				// We must set every variable, even if it has not changed.
