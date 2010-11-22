@@ -287,7 +287,7 @@ namespace Ogre
 		void setVertexDeclaration(VertexDeclaration* decl);
 		void setVertexDeclaration(VertexDeclaration* decl, bool useGlobalInstancingVertexBufferIsAvailable);
 		void setVertexBufferBinding(VertexBufferBinding* binding);
-		void setVertexBufferBinding(VertexBufferBinding* binding, size_t numberOfInstances, bool useGlobalInstancingVertexBufferIsAvailable);
+		void setVertexBufferBinding(VertexBufferBinding* binding, size_t numberOfInstances, bool useGlobalInstancingVertexBufferIsAvailable, bool indexesUsed);
         void _render(const RenderOperation& op);
         /** See
           RenderSystem
@@ -345,6 +345,9 @@ namespace Ogre
 		unsigned int getDisplayMonitorCount() const;
 		
 	protected:	
+		///returns the sampler id for a given unit texture number
+		DWORD getSamplerId(size_t unit);
+
 		/// Notify when a device has been lost.
 		void notifyOnDeviceLost(D3D9Device* device);
 
