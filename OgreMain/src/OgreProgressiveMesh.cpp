@@ -1994,12 +1994,13 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void ProgressiveMesh::PMVertex::notifyRemoved(void)
     {
-		PMVertex::NeighborList::iterator nend = neighbor.end();
-		for (PMVertex::NeighborList::iterator n = neighbor.begin(); n != nend; ++n)
-		{
-			// Remove me from neighbor
-			(*n)->neighbor.erase(std::remove((*n)->neighbor.begin(), (*n)->neighbor.end(), this), (*n)->neighbor.end());
-		}
+        NeighborList::iterator i, iend;
+        iend = neighbor.end();
+        for (i = neighbor.begin(); i != iend; )
+        {
+            // Remove me from neighbor
+            (*(i++))->neighbor.erase(this);
+        }
         removed = true;
 		collapseTo = NULL;
         collapseCost = NEVER_COLLAPSE_COST;
@@ -2065,14 +2066,12 @@ namespace Ogre {
         if (i == neighbor.end())
             return; // Not in neighbor list anyway
 
-		if (n != this)
-		{
-			FaceList::iterator fend = face.end();
-			for (FaceList::iterator f = face.begin(); f != fend; ++f)
-			{
-				if((*f)->hasCommonVertex(n)) return; // Still a neighbor
-			}
-		}
+        FaceList::iterator f, fend;
+        fend = face.end();
+        for(f = face.begin(); f != fend; ++f) 
+        {
+            if((*f)->hasCommonVertex(n)) return; // Still a neighbor
+        }
 
 #if LOG_PROGRESSIVE_MESH_GENERATION 
 		ofdebug << "Vertex " << (unsigned int)n->index << " is no longer a neighbour of vertex " << (unsigned int)this->index <<
