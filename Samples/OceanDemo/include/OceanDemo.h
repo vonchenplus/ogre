@@ -186,7 +186,9 @@ void Sample_Ocean::setupContent(void)
     mCamera->lookAt(Ogre::Vector3(0,0,-300));
     mCamera->setNearClipDistance(1);
 
-	setDragLook(true);
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+    setDragLook(true);
+#endif
 }
 
 void Sample_Ocean::setupScene()

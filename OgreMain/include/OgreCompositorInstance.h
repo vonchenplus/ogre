@@ -158,13 +158,25 @@ namespace Ogre {
         typedef vector<TargetOperation>::type CompiledState;
         
         /** Set enabled flag. The compositor instance will only render if it is
-            enabled, otherwise it is pass-through.
+            enabled, otherwise it is pass-through. Resources are only created if
+			they weren't alive when enabling.
         */
         void setEnabled(bool value);
         
         /** Get enabled flag.
         */
-        bool getEnabled();
+		bool getEnabled() const { return mEnabled; }
+
+		/** Set alive/active flag. The compositor instance will create resources when alive,
+			and destroy them when inactive.
+			@remarks: Killing an instance means also disabling it: setAlive(false) implies
+			setEnabled(false)
+        */
+        void setAlive(bool value);
+
+        /** Get alive flag.
+        */
+		bool getAlive() const { return mAlive; }
 
 		/** Get the instance name for a local texture.
 		@note It is only valid to call this when local textures have been loaded, 
@@ -247,7 +259,6 @@ namespace Ogre {
 		*/
 		void notifyResized();
 
-
 		/** Get Chain that this instance is part of
         */
         CompositorChain *getChain();
@@ -284,6 +295,8 @@ namespace Ogre {
         CompositorChain *mChain;
         /// Is this instance enabled?
         bool mEnabled;
+		/// Is this instance allocating resources?
+        bool mAlive;
         /// Map from name->local texture
         typedef map<String,TexturePtr>::type LocalTextureMap;
         LocalTextureMap mLocalTextures;
@@ -349,7 +362,10 @@ namespace Ogre {
 		*/
 		void deriveTextureRenderTargetOptions(const String& texname, 
 			bool *hwGammaWrite, uint *fsaa, String* fsaaHint);
-        
+
+		/// Notify this instance that the primary viewport's camera has changed.
+		void notifyCameraChanged(Camera* camera);
+
         friend class CompositorChain;
     };
 	/** @} */

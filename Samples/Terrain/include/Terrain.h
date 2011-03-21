@@ -84,7 +84,7 @@ public:
 	{
 		Vector3 tsPos;
 		terrain->getTerrainPosition(centrepos, &tsPos);
-#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 		if (mKeyboard->isKeyDown(OIS::KC_EQUALS) || mKeyboard->isKeyDown(OIS::KC_ADD) ||
 				mKeyboard->isKeyDown(OIS::KC_MINUS) || mKeyboard->isKeyDown(OIS::KC_SUBTRACT))
 		{
@@ -281,7 +281,7 @@ public:
 
 	bool keyPressed (const OIS::KeyEvent &e)
 	{
-#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 		switch (e.key)
 		{
 		case OIS::KC_S:
@@ -308,6 +308,22 @@ public:
 				}
 			}
 			break;
+			/*
+		case OIS::KC_F7:
+			// change terrain size
+			if (mTerrainGroup->getTerrainSize() == 513)
+				mTerrainGroup->setTerrainSize(1025);
+			else
+				mTerrainGroup->setTerrainSize(513);
+			break;
+		case OIS::KC_F8:
+			// change terrain world size
+			if (mTerrainGroup->getTerrainWorldSize() == TERRAIN_WORLD_SIZE)
+				mTerrainGroup->setTerrainWorldSize(TERRAIN_WORLD_SIZE * 2);
+			else
+				mTerrainGroup->setTerrainWorldSize(TERRAIN_WORLD_SIZE);
+			break;
+			*/
 		default:
 			return SdkSample::keyPressed(e);
 		}

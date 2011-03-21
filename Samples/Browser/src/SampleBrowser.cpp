@@ -26,15 +26,9 @@
  -----------------------------------------------------------------------------
  */
 #include "OgrePlatform.h"
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN 
-#	ifdef __GCCE__
-#		include <staticlibinit_gcce.h>
-#	endif
-
-#	include <e32base.h> // for Symbian classes.
-#	include <coemain.h> // for CCoeEnv.
-
-#endif 
+#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+#include <coecntrl.h>
+#endif
 
 #include "SampleBrowser.h"
 
@@ -43,53 +37,19 @@
 #include "windows.h"
 #elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
 #include "SampleBrowser_OSX.h"
-#elif OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 #include "SampleBrowser_iOS.h"
 #endif
 
+#if OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN    
+
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 INT WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, INT)
-#elif OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN    
-int mainWithTrap();
-int main()
-{
-	int res = 0;
-    __UHEAP_MARK; 
- 
-	// Create the control environment.
-	CCoeEnv* environment = new (ELeave) CCoeEnv();    
-
-	TRAPD( err, environment->ConstructL( ETrue, 0 ) );
-
-	if( err != KErrNone )
-	{
-		printf( "Unable to create a CCoeEnv!\n" );
-		getchar();            
-	}
-    
-    TRAP( err, res = mainWithTrap());
-
-    // Close the stdout & stdin, else printf / getchar causes a memory leak.
-    fclose( stdout );
-    fclose( stdin );
-    
-	// Cleanup
-	CCoeEnv::Static()->DestroyEnvironment();
-	delete CCoeEnv::Static();
-       
-    __UHEAP_MARKEND;
-    
-    return res;
-}    
-
-int mainWithTrap()
-
 #else
-
 int main(int argc, char *argv[])
 #endif
 {
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 	NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 	int retVal = UIApplicationMain(argc, argv, @"UIApplication", @"AppDelegate");
 	[pool release];
@@ -118,13 +78,10 @@ int main(int argc, char *argv[])
 #else
 		std::cerr << "An exception has occurred: " << e.getFullDescription().c_str() << std::endl;
 #endif
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
-        getchar();
-#endif
-
 	}
 
 #endif
 	return 0;
 }
 
+#endif // OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN    

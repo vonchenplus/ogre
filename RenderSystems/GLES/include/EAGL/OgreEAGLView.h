@@ -32,10 +32,8 @@ THE SOFTWARE.
 #ifdef __OBJC__
 
 #import <UIKit/UIKit.h>
-#import <QuartzCore/QuartzCore.h>
 
 @interface EAGLView : UIView {
-    bool mInitialised;
 }
 
 @end

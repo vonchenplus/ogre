@@ -63,6 +63,8 @@ set (HEADER_FILES
   include/OgreCustomCompositionPass.h
   include/OgreDataStream.h
   include/OgreDefaultHardwareBufferManager.h
+  include/OgreDeflate.h
+  include/OgreDepthBuffer.h
   include/OgreDistanceLodStrategy.h
   include/OgreDynLib.h
   include/OgreDynLibManager.h
@@ -94,7 +96,14 @@ set (HEADER_FILES
   include/OgreHighLevelGpuProgramManager.h
   include/OgreImage.h
   include/OgreImageCodec.h
+  include/OgreInstanceBatch.h
+  include/OgreInstanceBatchHW.h
+  include/OgreInstanceBatchHW_VTF.h
+  include/OgreInstanceBatchShader.h
+  include/OgreInstanceBatchVTF.h
   include/OgreInstancedGeometry.h
+  include/OgreInstancedEntity.h
+  include/OgreInstanceManager.h
   include/OgreIteratorRange.h
   include/OgreIteratorWrapper.h
   include/OgreIteratorWrappers.h
@@ -287,6 +296,8 @@ set (SOURCE_FILES
   src/OgreDataStream.cpp
   src/OgreDefaultHardwareBufferManager.cpp
   src/OgreDefaultSceneQueries.cpp
+  src/OgreDeflate.cpp
+  src/OgreDepthBuffer.cpp
   src/OgreDistanceLodStrategy.cpp
   src/OgreDynLib.cpp
   src/OgreDynLibManager.cpp
@@ -312,7 +323,14 @@ set (SOURCE_FILES
   src/OgreHighLevelGpuProgramManager.cpp
   src/OgreImage.cpp
   src/OgreImageResampler.h
+  src/OgreInstanceBatch.cpp
+  src/OgreInstanceBatchHW.cpp
+  src/OgreInstanceBatchHW_VTF.cpp
+  src/OgreInstanceBatchShader.cpp
+  src/OgreInstanceBatchVTF.cpp
   src/OgreInstancedGeometry.cpp
+  src/OgreInstancedEntity.cpp
+  src/OgreInstanceManager.cpp
   src/OgreKeyFrame.cpp
   src/OgreLight.cpp
   src/OgreLodStrategy.cpp
@@ -488,7 +506,7 @@ if (WIN32)
   endif ()
 
 elseif (APPLE)
-  if (OGRE_BUILD_PLATFORM_IPHONE)
+  if (OGRE_BUILD_PLATFORM_APPLE_IOS)
     include_directories("include/iPhone")
     set(PLATFORM_HEADER_FILES
       include/iPhone/OgreConfigDialogImp.h
@@ -536,27 +554,59 @@ elseif (APPLE)
     set(PLATFORM_HEADER_INSTALL "OSX")
   endif ()
 elseif (UNIX)
-  include_directories(include/GLX ${X11_INCLUDE_DIR})
+  if (OGRE_BUILD_PLATFORM_TEGRA2)
+    include_directories("include/Tegra2")
+    set(PLATFORM_HEADER_FILES
+      include/Tegra2/OgreConfigDialogImp.h
+      include/Tegra2/OgreErrorDialogImp.h
+      include/Tegra2/OgreTimerImp.h
+    )
+    set(PLATFORM_SOURCE_FILES
+      src/Tegra2/OgreConfigDialog.cpp
+      src/Tegra2/OgreErrorDialog.cpp
+      src/Tegra2/OgreTimer.cpp
+      src/OgreSearchOps.cpp
+    )
+
+    set(PLATFORM_LIBS ${X11_LIBRARIES} pthread dl)
+    set(PLATFORM_HEADER_INSTALL "Tegra2")
+  else ()
+    include_directories(include/GLX ${X11_INCLUDE_DIR})
+    set(PLATFORM_HEADER_FILES
+      include/GLX/OgreConfigDialogImp.h
+      include/GLX/OgreErrorDialogImp.h
+      include/GLX/OgreTimerImp.h
+    )
+    set(PLATFORM_SOURCE_FILES
+      src/GLX/GLX_backdrop.h
+      src/GLX/OgreConfigDialog.cpp
+      src/GLX/OgreErrorDialog.cpp
+      src/GLX/OgreTimer.cpp
+      src/OgreSearchOps.cpp
+    )
+    set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} pthread)
+    set(PLATFORM_HEADER_INSTALL "GLX")
+    # some platforms require explicit linking to libdl, see if it's available
+    find_library(DL_LIBRARY NAMES dl dlsym)
+    mark_as_advanced(DL_LIBRARY)
+    if (DL_LIBRARY)
+      list(APPEND PLATFORM_LIBS dl)
+    endif ()
+  endif(OGRE_BUILD_PLATFORM_TEGRA2)
+elseif (SYMBIAN)
+  include_directories(include/symbian)
   set(PLATFORM_HEADER_FILES
-    include/GLX/OgreConfigDialogImp.h
-    include/GLX/OgreErrorDialogImp.h
     include/GLX/OgreTimerImp.h
+    include/symbian/OgreConfigDialogImp.h
+    include/symbian/OgreErrorDialogImp.h
   )
   set(PLATFORM_SOURCE_FILES
-    src/GLX/GLX_backdrop.h
-    src/GLX/OgreConfigDialog.cpp
-    src/GLX/OgreErrorDialog.cpp
-    src/GLX/OgreTimer.cpp
     src/OgreSearchOps.cpp
+    src/GLX/OgreTimer.cpp
+    src/symbian/OgreConfigDialog.cpp
+    src/symbian/OgreErrorDialog.cpp
   )
-  set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} pthread)
-  # some platforms require explicit linking to libdl, see if it's available
-  find_library(DL_LIBRARY NAMES dl dlsym)
-  mark_as_advanced(DL_LIBRARY)
-  if (DL_LIBRARY)
-    list(APPEND PLATFORM_LIBS dl)
-  endif ()
-  set(PLATFORM_HEADER_INSTALL "GLX")
+  set(PLATFORM_HEADER_INSTALL "SYMBIAN")
 
 endif(WIN32)
 
@@ -641,6 +691,9 @@ if (OGRE_CONFIG_ENABLE_ZIP)
   list(APPEND LIBRARIES "${ZLIB_LIBRARIES}")
 endif ()
 
+list(APPEND LIBRARIES "${GLSL_Optimizer_LIBRARIES}")
+list(APPEND LIBRARIES "${HLSL2GLSL_LIBRARIES}")
+
 set (TARGET_LINK_FLAGS "")
 
 # setup OgreMain target
@@ -656,7 +709,7 @@ else()
 endif()
 
 if (APPLE)
-  if (NOT OGRE_BUILD_PLATFORM_IPHONE)
+  if (NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
     set_target_properties(OgreMain PROPERTIES FRAMEWORK TRUE)
     # Set the INSTALL_PATH so that Frameworks can be local
     set_target_properties(OgreMain
