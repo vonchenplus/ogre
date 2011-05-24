@@ -27,8 +27,6 @@ THE SOFTWARE.
 
 #include "OgreEAGL2Window.h"
 
-#include "OgreEAGL2View.h"
-#include "OgreEAGL2ViewController.h"
 #include "OgreEAGL2Support.h"
 #include "OgreEAGLES2Context.h"
 
@@ -124,8 +122,8 @@ namespace Ogre {
         // Destroy and recreate the framebuffer with new dimensions 
         mContext->destroyFramebuffer();
         
-        mWidth = width * mContentScalingFactor;
-        mHeight = height * mContentScalingFactor;
+        mWidth = width;
+        mHeight = height;
         
         mContext->createFramebuffer();
 
@@ -217,6 +215,8 @@ namespace Ogre {
     
         OgreAssert(mView != nil, "EAGL2Window: Failed to create view");
         
+        mView.mWindowName = mName;
+
         OgreAssert([mView.layer isKindOfClass:[CAEAGLLayer class]], "EAGL2Window: View's Core Animation layer is not a CAEAGLLayer. This is a requirement for using OpenGL ES for drawing.");
         
         CAEAGLLayer *eaglLayer = (CAEAGLLayer *)mView.layer;
@@ -265,6 +265,8 @@ namespace Ogre {
 
         [mWindow addSubview:mViewController.view];
         
+        mViewController.mGLSupport = mGLSupport;
+        
         if(!mUsingExternalViewController)
             mWindow.rootViewController = mViewController;
         
@@ -301,8 +303,21 @@ namespace Ogre {
         
         mIsFullScreen = fullScreen;
         mName = name;
-        mWidth = width;
-        mHeight = height;
+        NSString *initialOrientation = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"UIInterfaceOrientation"];
+
+        if(mGLSupport->portraitIsSupported() && 
+           initialOrientation && 
+           ([initialOrientation isEqualToString:@"UIInterfaceOrientationPortrait"] || 
+            [initialOrientation isEqualToString:@"UIInterfaceOrientationPortraitUpsideDown" ]))
+        {
+            mWidth = width;
+            mHeight = height;
+        }
+        else
+        {
+            mWidth = height;
+            mHeight = width;
+        }
 
         if (miscParams)
         {

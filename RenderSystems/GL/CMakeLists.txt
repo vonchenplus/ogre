@@ -210,14 +210,16 @@ endif ()
 
 
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/GLSL/include
   ${CMAKE_CURRENT_SOURCE_DIR}/src/atifs/include
   ${CMAKE_CURRENT_SOURCE_DIR}/src/nvparse
   ${OPENGL_INCLUDE_DIR}
 )
 
-add_library(RenderSystem_GL ${OGRE_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES} ${GLSL_FILES} ${ATIFS_FILES} ${NVPARSE_FILES} ${PLATFORM_HEADERS} ${PLATFORM_SOURCES})
+ogre_add_library(RenderSystem_GL ${OGRE_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES} ${GLSL_FILES} ${ATIFS_FILES} ${NVPARSE_FILES} ${PLATFORM_HEADERS} ${PLATFORM_SOURCES})
 target_link_libraries(RenderSystem_GL OgreMain ${OPENGL_LIBRARIES} ${PLATFORM_LIBS})
 
 if (NOT OGRE_STATIC)

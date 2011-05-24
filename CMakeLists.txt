@@ -40,8 +40,8 @@ endif()
 if (OGRE_BUILD_PLATFORM_APPLE_IOS)
   # Force gcc <= 4.2 on iPhone
   include(CMakeForceCompiler)
-  CMAKE_FORCE_C_COMPILER(gcc-4.2 GNU)
-  CMAKE_FORCE_CXX_COMPILER(gcc-4.2 GNU)
+  CMAKE_FORCE_C_COMPILER(g++-4.2 GNU)
+  CMAKE_FORCE_CXX_COMPILER(g++-4.2 GNU)
 endif ()
 
 project(OGRE)
@@ -56,6 +56,7 @@ set(CMAKE_MODULE_PATH
 include(CMakeDependentOption)
 include(CheckCXXCompilerFlag)
 include(MacroLogFeature)
+include(OgreAddTargets)
 include(OgreConfigTargets)
 include(PreprocessorUtils)
 set(OGRE_TEMPLATES_DIR "${OGRE_SOURCE_DIR}/CMake/Templates")
@@ -113,6 +114,10 @@ if (MSVC)
 	# this flag is set...
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
+  endif ()
+  if (OGRE_UNITY_BUILD)
+    # object files can get large with Unity builds
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
   endif ()
 endif ()
 if (MINGW)
@@ -208,9 +213,9 @@ if (OGRE_BUILD_PLATFORM_APPLE_IOS)
   set(OGRE_STATIC TRUE CACHE BOOL "Forcing static build for iOS" FORCE)
   set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.yourcompany.\${PRODUCT_NAME:rfc1034identifier}")
 
-  #set(CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_BIT))
+  set(CMAKE_OSX_ARCHITECTURES $(ARCHS_STANDARD_32_BIT))
   # armv7 only
-  set(CMAKE_OSX_ARCHITECTURES $(ARCHS_UNIVERSAL_IPHONE_OS))
+  #set(CMAKE_OSX_ARCHITECTURES $(ARCHS_UNIVERSAL_IPHONE_OS))
 
   add_definitions(-fno-regmove)
   add_definitions(-falign-loops=16)
@@ -249,12 +254,12 @@ endif()
 # Customise what to build
 cmake_dependent_option(OGRE_STATIC "Static build" FALSE "NOT SYMBIAN" TRUE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_D3D9 "Build Direct3D9 RenderSystem" TRUE "WIN32;DirectX_FOUND" FALSE)
-cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_D3D10 "Build Direct3D10 RenderSystem [EXPERIMENTAL]" FALSE "WIN32;DirectX_D3D10_FOUND" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_D3D11 "Build Direct3D11 RenderSystem [EXPERIMENTAL]" FALSE "WIN32;DirectX_D3D11_FOUND" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GL "Build OpenGL RenderSystem" TRUE "OPENGL_FOUND;NOT OGRE_BUILD_PLATFORM_APPLE_IOS;NOT OGRE_BUILD_PLATFORM_TEGRA2;NOT SYMBIAN" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GLES "Build OpenGL ES 1.x RenderSystem" FALSE "OPENGLES_FOUND" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GLES2 "Build OpenGL ES 2.x RenderSystem" FALSE "OPENGLES2_FOUND" FALSE)
 cmake_dependent_option(OGRE_CG_SUPPORT_FOR_GLES2 "Enable Cg support to ES 2 render system" FALSE "OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
+cmake_dependent_option(OGRE_USE_GLES2_GLSL_OPTIMISER "Enable GLSL optimiser use in GLES 2 render system" TRUE "OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
 cmake_dependent_option(OGRE_BUILD_PLATFORM_APPLE_IOS "Build Ogre for iOS" FALSE "iPhoneSDK_FOUND;OPENGLES_FOUND;OPENGLES2_FOUND" FALSE)
 cmake_dependent_option(OGRE_BUILD_PLATFORM_TEGRA2 "Build Ogre for NVIDIA Tegra 2 with Linux" FALSE "OGRE_BUILD_PLATFORM_TEGRA2;OPENGLES2_FOUND" FALSE)
 option(OGRE_BUILD_PLUGIN_BSP "Build BSP SceneManager plugin" TRUE)
@@ -312,6 +317,12 @@ cmake_dependent_option(OGRE_FULL_RPATH "Build executables with the full required
 option(OGRE_PROFILING "Enable internal profiling support." FALSE)
 cmake_dependent_option(OGRE_CONFIG_STATIC_LINK_CRT "Statically link the MS CRT dlls (msvcrt)" FALSE "MSVC" FALSE)
 set(OGRE_LIB_DIRECTORY "lib${LIB_SUFFIX}" CACHE STRING "Install path for libraries, e.g. 'lib64' on some 64-bit Linux distros.")
+
+# Unity build options
+# A Unity build includes all sources files in just a few actual compilation units
+# to potentially speed up the compilation.
+option(OGRE_UNITY_BUILD "Enable unity build for Ogre." FALSE)
+set(OGRE_UNITY_FILES_PER_UNIT "50" CACHE STRING "Number of files per compilation unit in Unity build.")
 
 if (SYMBIAN)
 SET (CMAKE_SYMBIAN_UID_3 "0xA0007218" CACHE STRING 

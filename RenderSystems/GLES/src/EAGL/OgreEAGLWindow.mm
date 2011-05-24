@@ -27,8 +27,6 @@ THE SOFTWARE.
 
 #include "OgreEAGLWindow.h"
 
-#include "OgreEAGLView.h"
-#include "OgreEAGLViewController.h"
 #include "OgreEAGLSupport.h"
 #include "OgreEAGLESContext.h"
 
@@ -124,8 +122,8 @@ namespace Ogre {
         // Destroy and recreate the framebuffer with new dimensions 
         mContext->destroyFramebuffer();
 
-        mWidth = width * mContentScalingFactor;
-        mHeight = height * mContentScalingFactor;
+        mWidth = width;
+        mHeight = height;
 
         mContext->createFramebuffer();
 
@@ -155,11 +153,14 @@ namespace Ogre {
         RenderTarget::_beginUpdate();
 
 #if __IPHONE_4_0
-        if(mContext->mIsMultiSampleSupported && mContext->mNumSamples > 0)
+        if(mCurrentOSVersion >= 4.0)
         {
-            // Bind the FSAA buffer if we're doing multisampling
-            glBindFramebufferOES(GL_FRAMEBUFFER_OES, mContext->mFSAAFramebuffer);
-            GL_CHECK_ERROR
+            if(mContext->mIsMultiSampleSupported && mContext->mNumSamples > 0)
+            {
+                // Bind the FSAA buffer if we're doing multisampling
+                glBindFramebufferOES(GL_FRAMEBUFFER_OES, mContext->mFSAAFramebuffer);
+                GL_CHECK_ERROR
+            }
         }
 #endif
     }
@@ -214,6 +215,8 @@ namespace Ogre {
 
         OgreAssert(mView != nil, "EAGLWindow: Failed to create view");
 
+        mView.mWindowName = mName;
+
         OgreAssert([mView.layer isKindOfClass:[CAEAGLLayer class]], "EAGLWindow: View's Core Animation layer is not a CAEAGLLayer. This is a requirement for using OpenGL ES for drawing.");
         
         CAEAGLLayer *eaglLayer = (CAEAGLLayer *)mView.layer;
@@ -262,6 +265,8 @@ namespace Ogre {
 
         [mWindow addSubview:mViewController.view];
 
+        mViewController.mGLSupport = mGLSupport;
+
         if(!mUsingExternalViewController)
             mWindow.rootViewController = mViewController;
 
@@ -298,8 +303,21 @@ namespace Ogre {
         
         mIsFullScreen = fullScreen;
         mName = name;
-        mWidth = width;
-        mHeight = height;
+        NSString *initialOrientation = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"UIInterfaceOrientation"];
+
+        if(mGLSupport->portraitIsSupported() && 
+           initialOrientation && 
+           ([initialOrientation isEqualToString:@"UIInterfaceOrientationPortrait"] || 
+            [initialOrientation isEqualToString:@"UIInterfaceOrientationPortraitUpsideDown" ]))
+        {
+            mWidth = width;
+            mHeight = height;
+        }
+        else
+        {
+            mWidth = height;
+            mHeight = width;
+        }
 
         if (miscParams)
         {
@@ -415,6 +433,8 @@ namespace Ogre {
             GL_CHECK_ERROR
         }
 #endif
+        glBindFramebufferOES(GL_FRAMEBUFFER_OES, mContext->mViewFramebuffer);
+        GL_CHECK_ERROR
 
         glBindRenderbufferOES(GL_RENDERBUFFER_OES, mContext->mViewRenderbuffer);
         GL_CHECK_ERROR
