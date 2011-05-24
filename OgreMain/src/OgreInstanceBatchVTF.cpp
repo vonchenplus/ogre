@@ -245,7 +245,13 @@ namespace Ogre
 
 		while( itor != end )
 		{
-			pDest += (*itor)->getTransforms3x4( pDest );
+			const size_t floatsWritten = (*itor)->getTransforms3x4( pDest );
+
+			if( mManager->getCameraRelativeRendering() )
+				makeMatrixCameraRelative3x4( pDest, floatsWritten );
+
+			pDest += floatsWritten;
+
 			++itor;
 		}
 
@@ -266,7 +272,7 @@ namespace Ogre
 	{
 		InstanceBatch::_updateRenderQueue( queue );
 
-		if( m_boundsUpdated || m_dirtyAnimation )
+		if( m_boundsUpdated || m_dirtyAnimation || mManager->getCameraRelativeRendering() )
 			updateVertexTexture();
 
 		m_boundsUpdated = false;
@@ -476,7 +482,6 @@ namespace Ogre
 			{
 				const size_t instancesPerBatch = std::min( retVal, m_instancesPerBatch );
 				//Do the same as in createVertexTexture()
-				const size_t numBones = std::max<size_t>( 1, baseSubMesh->blendIndexToBoneIndexMap.size() );
 				const size_t numWorldMatrices = instancesPerBatch * numBones;
 
 				size_t texWidth  = std::min<size_t>( numWorldMatrices * 3, c_maxTexWidth );

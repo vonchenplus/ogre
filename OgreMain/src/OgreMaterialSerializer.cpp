@@ -3211,7 +3211,7 @@ namespace Ogre
             logParseError("Unexpected end of file.", mScriptContext);
         }
 
-		// Make sure we invalidate our context shared pointer (don't wanna hold on)
+		// Make sure we invalidate our context shared pointer (don't want to hold on)
 		mScriptContext.material.setNull();
 
     }
@@ -3623,7 +3623,7 @@ namespace Ogre
 			fireMaterialEvent(MSE_WRITE_BEGIN, skipWriting, pMat.get());
 
             // Write LOD information
-            Material::LodValueIterator valueIt = pMat->getLodValueIterator();
+            Material::LodValueIterator valueIt = pMat->getUserLodValueIterator();
             // Skip zero value
             if (valueIt.hasMoreElements())
                 valueIt.getNext();

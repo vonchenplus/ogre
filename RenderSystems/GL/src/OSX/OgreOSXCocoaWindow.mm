@@ -49,18 +49,6 @@ namespace Ogre {
 
         destroy();
 
-        if(mGLPixelFormat)
-        {
-            [mGLPixelFormat release];
-            mGLPixelFormat = nil;
-        }
-
-        if(mCGLContext)
-        {
-            OGRE_DELETE mCGLContext;
-            mCGLContext = NULL;
-        }
-        
         if(mWindow)
         {
             [mWindow release];
@@ -199,15 +187,13 @@ namespace Ogre {
             
             attribs[i++] = NSOpenGLPFAStencilSize;
             attribs[i++] = (NSOpenGLPixelFormatAttribute) 8;
-            
-            attribs[i++] = NSOpenGLPFAAccumSize;
-            attribs[i++] = (NSOpenGLPixelFormatAttribute) 0;
-            
+
             attribs[i++] = NSOpenGLPFADepthSize;
             attribs[i++] = (NSOpenGLPixelFormatAttribute) depth;
             
             if(fsaa_samples > 0)
             {
+                attribs[i++] = NSOpenGLPFAMultisample;
                 attribs[i++] = NSOpenGLPFASampleBuffers;
                 attribs[i++] = (NSOpenGLPixelFormatAttribute) 1;
                 
@@ -257,7 +243,10 @@ namespace Ogre {
                     mHeight = (int)b.size.height;
                 }
 
-                createWindowFromExternal(mView);
+                [mGLContext setView:mView];
+                
+                // Add our window to the window event listener class
+                WindowEventUtilities::_addRenderWindow(this);
             }
 
             [mGLContext makeCurrentContext];
@@ -288,6 +277,12 @@ namespace Ogre {
         {
             // Handle fullscreen destruction
 			destroyCGLFullscreen();
+
+            if(mCGLContext)
+            {
+                OGRE_DELETE mCGLContext;
+                mCGLContext = NULL;
+            }
         }
         else
         {
@@ -309,6 +304,13 @@ namespace Ogre {
             if(mWindow)
             {
                 [mWindow performClose:nil];
+
+                if(mGLPixelFormat)
+                {
+                    [mGLPixelFormat release];
+                    mGLPixelFormat = nil;
+                }
+
             }
 		}
 		
@@ -529,6 +531,9 @@ namespace Ogre {
         [mWindow makeFirstResponder:mView];
 
         [mGLContext setView:mView];
+
+        GLRenderSystem *rs = static_cast<GLRenderSystem*>(Root::getSingleton().getRenderSystem());
+        rs->clearFrameBuffer(FBT_COLOUR);
 
         // Show window
         if(mWindow)

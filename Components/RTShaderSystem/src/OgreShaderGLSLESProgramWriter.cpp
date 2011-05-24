@@ -47,7 +47,7 @@ namespace Ogre {
         String GLSLESProgramWriter::TargetLanguage =  "glsles";
 
         // Uniform comparer
-        struct CompareUniformByName : std::binary_function<UniformParameterPtr, String, bool>
+        struct CompareUniformByNameES : std::binary_function<UniformParameterPtr, String, bool>
         {
             bool operator()( const UniformParameterPtr& uniform, const String& name ) const 
             {
@@ -264,8 +264,8 @@ namespace Ogre {
                                     String::size_type lparen_pos = line.find('(', 0);
                                     if(lparen_pos != String::npos)
                                     {
-                                        StringVector tokens = StringUtil::split(line, "(");
-                                        paramTokens = StringUtil::split(tokens[1], ",");
+                                        StringVector lineTokens = StringUtil::split(line, "(");
+                                        paramTokens = StringUtil::split(lineTokens[1], ",");
                                     }
                                     else
                                     {
@@ -576,7 +576,7 @@ namespace Ogre {
                             // If its not a varying param check if a uniform is written
                             if(!isVarying)
                             {
-                                UniformParameterList::const_iterator itFound = std::find_if( parameterList.begin(), parameterList.end(), std::bind2nd( CompareUniformByName(), paramName ) );
+                                UniformParameterList::const_iterator itFound = std::find_if( parameterList.begin(), parameterList.end(), std::bind2nd( CompareUniformByNameES(), paramName ) );
                                 if(itFound != parameterList.end())
                                 {	
                                     // Declare the copy variable
@@ -901,6 +901,7 @@ namespace Ogre {
                 }
             }
 
+            endIt = forwardDecl.end();
             // Parse the source shader and write out only the needed functions
             for (FunctionVector::const_iterator it = forwardDecl.begin(); it != endIt; ++it)
             {

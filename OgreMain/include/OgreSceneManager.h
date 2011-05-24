@@ -794,6 +794,7 @@ namespace Ogre {
 
 		typedef vector<InstanceManager*>::type		InstanceManagerVec;
 		InstanceManagerVec mDirtyInstanceManagers;
+		InstanceManagerVec mDirtyInstanceMgrsTmp;
 
 		/** Updates all instance managaers with dirty instance batches. @See _addDirtyInstanceManager */
 		void updateDirtyInstanceManagers(void);
@@ -1889,7 +1890,7 @@ namespace Ogre {
 				bow If zero, the plane will be completely flat (like previous
 				versions.  If above zero, the plane will be curved, allowing
 				the sky to appear below camera level.  Curved sky planes are 
-				simular to skydomes, but are more compatable with fog.
+				simular to skydomes, but are more compatible with fog.
             @param xsegments, ysegments
                 Determines the number of segments the plane will have to it. This
                 is most important when you are bowing the plane, but may also be useful
@@ -1939,7 +1940,7 @@ namespace Ogre {
 				bow If zero, the plane will be completely flat (like previous
 				versions.  If above zero, the plane will be curved, allowing
 				the sky to appear below camera level.  Curved sky planes are 
-				simular to skydomes, but are more compatable with fog.
+				simular to skydomes, but are more compatible with fog.
             @param xsegments, ysegments
                 Determines the number of segments the plane will have to it. This
                 is most important when you are bowing the plane, but may also be useful
@@ -2070,7 +2071,7 @@ namespace Ogre {
                 backdrop with an overlayed curved cloud layer.
             @par
                 Sky domes work well with 2D repeating textures like clouds. You
-                can change the apparant 'curvature' of the sky depending on how
+                can change the apparent 'curvature' of the sky depending on how
                 your scene is viewed - lower curvatures are better for 'open'
                 scenes like landscapes, whilst higher curvatures are better for
                 say FPS levels where you don't see a lot of the sky at once and
@@ -2132,7 +2133,7 @@ namespace Ogre {
                 backdrop with an overlayed curved cloud layer.
             @par
                 Sky domes work well with 2D repeating textures like clouds. You
-                can change the apparant 'curvature' of the sky depending on how
+                can change the apparent 'curvature' of the sky depending on how
                 your scene is viewed - lower curvatures are better for 'open'
                 scenes like landscapes, whilst higher curvatures are better for
                 say FPS levels where you don't see a lot of the sky at once and
@@ -2662,7 +2663,7 @@ namespace Ogre {
             simple decal approach. The 2 stencil approaches differ in the amount of multipass work 
             that is required - the modulative approach simply 'darkens' areas in shadow after the 
             main render, which is the least expensive, whilst the additive approach has to perform 
-            a render per light and adds the cumulative effect, whcih is more expensive but more 
+            a render per light and adds the cumulative effect, which is more expensive but more 
             accurate. The texture based shadows both work in roughly the same way, the only difference is
             that the shadowmap approach is slightly more accurate, but requires a more recent
             graphics card.
@@ -2780,10 +2781,11 @@ namespace Ogre {
 			number of shadow textures setting
 		@param width, height The dimensions of the texture
 		@param format The pixel format of the texture
+        @param fsaa The level of multisampling to use. Ignored if the device does not support it.
 		@param depthBufferPoolId The pool # it should query the depth buffers from
 		*/
 		virtual void setShadowTextureConfig(size_t shadowIndex, unsigned short width, 
-			unsigned short height, PixelFormat format, uint16 depthBufferPoolId=1);
+			unsigned short height, PixelFormat format, unsigned short fsaa = 0, uint16 depthBufferPoolId=1);
 		/** Set the detailed configuration for a shadow texture.
 		@param shadowIndex The index of the texture to configure, must be < the
 			number of shadow textures setting
@@ -2807,6 +2809,14 @@ namespace Ogre {
 			complex form.
         */
         virtual void setShadowTexturePixelFormat(PixelFormat fmt);
+        /** Set the level of multisample AA of the textures used for texture-based shadows.
+        @remarks
+            By default, the level of multisample AA is zero.
+        @note This is the simple form, see setShadowTextureConfig for the more 
+            complex form.
+        */
+        virtual void setShadowTextureFSAA(unsigned short fsaa);
+
         /** Set the number of textures allocated for texture-based shadows.
         @remarks
             The default number of textures assigned to deal with texture based
@@ -2842,7 +2852,7 @@ namespace Ogre {
 			complex form.
         */
         virtual void setShadowTextureSettings(unsigned short size, unsigned short count, 
-			PixelFormat fmt = PF_X8R8G8B8, uint16 depthBufferPoolId=1);
+			PixelFormat fmt = PF_X8R8G8B8, unsigned short fsaa = 0, uint16 depthBufferPoolId=1);
 
 		/** Get a reference to the shadow texture currently in use at the given index.
 		@note
@@ -3158,7 +3168,7 @@ namespace Ogre {
 		@remarks
 			If you've already created an InstanceManager, you can call it's
 			getMaxOrBestNumInstancesPerBatch() function directly.
-			Another (not recomended) way to know if the technique is unsupported is by creating
+			Another (not recommended) way to know if the technique is unsupported is by creating
 			an InstanceManager and use createInstancedEntity, which will return null pointer.
 			The input parameter "numInstancesPerBatch" is a suggested value when using IM_VTFBESTFIT
 			flag (in that case it should be non-zero)

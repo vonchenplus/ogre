@@ -50,12 +50,13 @@ namespace Ogre {
 		GLSL ES supports multiple modular shader objects that can be attached to one program
 		object to form a single shader.  This is supported through the "attach" material script
 		command.  All the modules to be attached are listed on the same line as the attach command
-		seperated by white space.
+		separated by white space.
         
     */
     class _OgreGLES2Export GLSLESProgram : public HighLevelGpuProgram
     {
     public:
+#ifdef OGRE_USE_GLES2_GLSL_OPTIMISER
         /// Command object for running the GLSL optimiser 
         class CmdOptimisation : public ParamCommand
         {
@@ -63,7 +64,7 @@ namespace Ogre {
             String doGet(const void* target) const;
 			void doSet(void* target, const String& val);
         };
-
+#endif
 		/// Command object for setting macro defines
 		class CmdPreprocessorDefines : public ParamCommand
 		{
@@ -91,6 +92,7 @@ namespace Ogre {
 		/// Sets the preprocessor defines use to compile the program.
 		const String& getPreprocessorDefines(void) const { return mPreprocessorDefines; }
 
+#ifdef OGRE_USE_GLES2_GLSL_OPTIMISER
         /// Sets if the GLSL optimiser is enabled.
 		void setOptimiserEnabled(bool enabled) { mOptimiserEnabled = enabled; }
 		/// Gets if the GLSL optimiser is enabled.
@@ -100,6 +102,7 @@ namespace Ogre {
         void setIsOptimised(bool flag) { mIsOptimised = flag; }
         /// Gets if the GLSL source has been optimised successfully
         bool getIsOptimised(void) { return mIsOptimised; }
+#endif
 
         /// Overridden from GpuProgram
         const String& getLanguage(void) const;
@@ -111,7 +114,9 @@ namespace Ogre {
 
 	protected:
 		static CmdPreprocessorDefines msCmdPreprocessorDefines;
+#ifdef OGRE_USE_GLES2_GLSL_OPTIMISER
 		static CmdOptimisation msCmdOptimisation;
+#endif
 
         /** Internal load implementation, must be implemented by subclasses.
         */
@@ -146,7 +151,9 @@ namespace Ogre {
         bool mIsOptimised;
 		/// Preprocessor options
 		String mPreprocessorDefines;
+#ifdef OGRE_USE_GLES2_GLSL_OPTIMISER
         bool mOptimiserEnabled;
+#endif
     };
 }
 
