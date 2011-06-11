@@ -53,6 +53,10 @@ namespace Ogre {
         virtual ~GLRenderTexture();
         
         bool requiresTextureFlipping() const { return true; }
+
+        static const String CustomAttributeString_FBO;
+        static const String CustomAttributeString_TARGET;
+        static const String CustomAttributeString_GLCONTEXT;
     };
     
     /** Manager/factory for RenderTextures.
@@ -79,6 +83,12 @@ namespace Ogre {
             binding is used.
         */
         virtual void unbind(RenderTarget *target) = 0;
+
+		virtual void getBestDepthStencil(GLenum internalFormat, GLenum *depthFormat, GLenum *stencilFormat)
+		{
+			*depthFormat = GL_NONE;
+			*stencilFormat = GL_NONE;
+		}
 
 		/** Create a multi render target 
 		*/

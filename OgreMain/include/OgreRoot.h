@@ -96,6 +96,7 @@ namespace Ogre
         OverlayManager* mOverlayManager;
         FontManager* mFontManager;
         ArchiveFactory *mZipArchiveFactory;
+        ArchiveFactory *mEmbeddedZipArchiveFactory;
         ArchiveFactory *mFileSystemArchiveFactory;
 		ResourceGroupManager* mResourceGroupManager;
 		ResourceBackgroundQueue* mResourceBackgroundQueue;
@@ -141,6 +142,11 @@ namespace Ogre
 		bool mIsInitialised;
 
 		WorkQueue* mWorkQueue;
+
+		///Tells whether blend indices information needs to be passed to the GPU
+		bool mIsBlendIndicesGpuRedundant;
+		///Tells whether blend weights information needs to be passed to the GPU
+		bool mIsBlendWeightsGpuRedundant;
 
         /** Method reads a plugins configuration file and instantiates all
             plugins.
@@ -671,7 +677,7 @@ namespace Ogre
         */
         void destroyRenderTarget(const String &name);
 
-        /** Retrieves a pointer to the a named render window.
+        /** Retrieves a pointer to a named render target.
         */
         RenderTarget * getRenderTarget(const String &name);
 
@@ -1020,6 +1026,30 @@ namespace Ogre
 		*/
 		void setWorkQueue(WorkQueue* queue);
 			
+		/** Sets whether blend indices information needs to be passed to the GPU.
+			When entities use software animation they remove blend information such as
+			indices and weights from the vertex buffers sent to the graphic card. This function
+			can be used to limit which information is removed.
+		@param redundant Set to true to remove blend indices information.
+		*/
+		void setBlendIndicesGpuRedundant(bool redundant) {	mIsBlendIndicesGpuRedundant = redundant; }
+		/** Returns whether blend indices information needs to be passed to the GPU
+		see setBlendIndicesGpuRedundant() for more information
+		*/
+		bool isBlendIndicesGpuRedundant() const { return mIsBlendIndicesGpuRedundant; }
+
+		/** Sets whether blend weights information needs to be passed to the GPU.
+		When entities use software animation they remove blend information such as
+		indices and weights from the vertex buffers sent to the graphic card. This function
+		can be used to limit which information is removed.
+		@param redundant Set to true to remove blend weights information.
+		*/
+		void setBlendWeightsGpuRedundant(bool redundant) {	mIsBlendWeightsGpuRedundant = redundant; }
+		/** Returns whether blend weights information needs to be passed to the GPU
+		see setBlendWeightsGpuRedundant() for more information
+		*/
+		bool isBlendWeightsGpuRedundant() const { return mIsBlendWeightsGpuRedundant; }
+
     };
 	/** @} */
 	/** @} */

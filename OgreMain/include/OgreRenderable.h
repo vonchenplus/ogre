@@ -242,6 +242,24 @@ namespace Ogre {
             mCustomParameters[index] = value;
         }
 
+		/** Removes a custom value which is associated with this Renderable at the given index.
+        @param
+            @see setCustomParameter for full details.
+        */
+        void removeCustomParameter(size_t index)
+        {
+            mCustomParameters.erase(index);
+        }
+
+		/** Checks whether a custom value is associated with this Renderable at the given index.
+        @param
+            @see setCustomParameter for full details.
+        */
+        bool hasCustomParameter(size_t index) const
+        {
+            return mCustomParameters.find(index) != mCustomParameters.end();
+        }
+
         /** Gets the custom value associated with this Renderable at the given index.
         @param
             @see setCustomParameter for full details.

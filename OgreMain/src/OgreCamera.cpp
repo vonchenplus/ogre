@@ -39,7 +39,7 @@ THE SOFTWARE.
 #include "OgreRoot.h"
 #include "OgreRenderSystem.h"
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 #include "macUtils.h"
 #endif
 
@@ -553,6 +553,20 @@ namespace Ogre {
     {
         updateView();
         return mRealOrientation * Vector3::UNIT_X;
+    }
+    //-----------------------------------------------------------------------
+    void Camera::getWorldTransforms(Matrix4* mat) const 
+    {
+        updateView();
+
+        Vector3 scale(1.0, 1.0, 1.0);
+        if (mParentNode)
+          scale = mParentNode->_getDerivedScale();
+
+        mat->makeTransform(
+                mDerivedPosition,
+                scale,
+                mDerivedOrientation);
     }
     //-----------------------------------------------------------------------
     const String& Camera::getMovableType(void) const

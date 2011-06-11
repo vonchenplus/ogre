@@ -43,6 +43,7 @@ namespace Ogre {
         , mMatInitialised(false)
         , mBoneAssignmentsOutOfDate(false)
 		, mVertexAnimationType(VAT_NONE)
+		, mVertexAnimationIncludesNormals(false)
 		, mBuildEdgesEnabled(true)
     {
 		indexData = OGRE_NEW IndexData();
@@ -211,7 +212,7 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void SubMesh::removeLodLevels(void)
     {
-        ProgressiveMesh::LODFaceList::iterator lodi, lodend;
+        LODFaceList::iterator lodi, lodend;
 		lodend = mLodFaceList.end();
 		for (lodi = mLodFaceList.begin(); lodi != lodend; ++lodi)
 		{

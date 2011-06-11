@@ -37,6 +37,13 @@ same license as the rest of the engine.
 #include "GBufferSchemeHandler.h"
 #include "NullSchemeHandler.h"
 
+#include "SharedData.h"
+
+namespace Ogre
+{
+    template<> SharedData* Singleton<SharedData>::ms_Singleton = 0;
+}
+
 using namespace Ogre;
 
 const Ogre::uint8 DeferredShadingSystem::PRE_GBUFFER_RENDER_QUEUE = Ogre::RENDER_QUEUE_1;
@@ -49,10 +56,10 @@ DeferredShadingSystem::DeferredShadingSystem(
 {
 	sm->setShadowTechnique(SHADOWTYPE_TEXTURE_ADDITIVE);
 	sm->setShadowTextureCasterMaterial("DeferredShading/Shadows/Caster");
-	mSceneMgr->setShadowFarDistance(150);
-	mSceneMgr->setShadowTextureSize(512);
 	mSceneMgr->setShadowTextureCount(1);
-	mSceneMgr->setShadowTexturePixelFormat(PF_FLOAT16_R);
+	mSceneMgr->setShadowFarDistance(150);
+	//Use a value of "2" to use a different depth buffer pool and avoid sharing this with the Backbuffer's
+	mSceneMgr->setShadowTextureConfig( 0, 512, 512, PF_FLOAT16_R, 2 );
 	mSceneMgr->setShadowDirectionalLightExtrusionDistance(75);
 }
 
@@ -76,6 +83,17 @@ DeferredShadingSystem::~DeferredShadingSystem()
 	for(int i=0; i<DSM_COUNT; ++i)
 		chain->_removeInstance(mInstance[i]);
 	CompositorManager::getSingleton().removeCompositorChain(mViewport);
+
+	Ogre::CompositorManager& compMgr = Ogre::CompositorManager::getSingleton();
+	CompositorLogicMap::const_iterator itor = mCompositorLogics.begin();
+	CompositorLogicMap::const_iterator end  = mCompositorLogics.end();
+	while( itor != end )
+	{
+		compMgr.unregisterCompositorLogic( itor->first );
+		delete itor->second;
+		++itor;
+	}
+	mCompositorLogics.clear();
 }
 
 void DeferredShadingSystem::setMode(DSMode mode)
@@ -148,12 +166,14 @@ void DeferredShadingSystem::createResources(void)
 		MaterialManager::getSingleton().addListener(new GBufferSchemeHandler, "GBuffer");
 		MaterialManager::getSingleton().addListener(new NullSchemeHandler, "NoGBuffer");
 
-		compMan.registerCompositorLogic("SSAOLogic", new SSAOLogic);
 		compMan.registerCustomCompositionPass("DeferredLight", new DeferredLightCompositionPass);
+
 		firstTime = false;
 	}
-	
-	
+
+	mCompositorLogics["SSAOLogic"] = new SSAOLogic;
+	compMan.registerCompositorLogic("SSAOLogic", mCompositorLogics["SSAOLogic"]);
+
 	// Create the main GBuffer compositor
 	mGBufferInstance = compMan.addCompositor(mViewport, "DeferredShading/GBuffer");
 	

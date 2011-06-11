@@ -31,7 +31,7 @@
 
 #include "OgrePlatform.h"
 
-#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 #error This header is for use with iOS only
 #endif
 
@@ -62,7 +62,6 @@
 
 - (void)go;
 - (void)renderOneFrame:(id)sender;
-- (void)orientationChanged:(NSNotification *)notification;
 
 @property (retain) NSTimer *mTimer;
 @property (nonatomic) NSTimeInterval mLastFrameTime;
@@ -130,19 +129,12 @@
                                                  repeats:YES];
     }
 
-    // Register for orientation notifications
-    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(orientationChanged:)
-                                                 name:UIDeviceOrientationDidChangeNotification object:nil];
     [pool release];
 }
 
-- (void)applicationDidFinishLaunching:(UIApplication *)application
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-    // Hide the status bar
-    [[UIApplication sharedApplication] setStatusBarHidden:YES];
-
-    mDisplayLinkSupported = FALSE;
+    mDisplayLinkSupported = NO;
     mLastFrameTime = 1;
     mDisplayLink = nil;
     mTimer = nil;
@@ -153,16 +145,17 @@
     NSString *reqSysVer = @"3.1";
     NSString *currSysVer = [[UIDevice currentDevice] systemVersion];
     if ([currSysVer compare:reqSysVer options:NSNumericSearch] != NSOrderedAscending)
-        mDisplayLinkSupported = TRUE;
+        mDisplayLinkSupported = YES;
 #endif
     
     [self go];
+
+    return YES;
 }
 
 - (void)applicationWillTerminate:(UIApplication *)application
 {
     Ogre::Root::getSingleton().queueEndRendering();
-    [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
 
     if (mDisplayLinkSupported)
     {
@@ -184,24 +177,6 @@
 - (void)applicationWillResignActive:(UIApplication *)application
 {
     Ogre::Root::getSingleton().saveConfig();
-
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
-    [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
-}
-
-- (void)applicationDidBecomeActive:(UIApplication *)application
-{
-    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(orientationChanged:)
-                                                 name:UIDeviceOrientationDidChangeNotification object:nil];
-}
-
-- (void)orientationChanged:(NSNotification *)notification
-{
-    size_t v = 0;
-    Ogre::Root::getSingleton().getAutoCreatedWindow()->getCustomAttribute("VIEW", &v);
-
-    [(UIView *)v setNeedsLayout];
 }
 
 - (void)renderOneFrame:(id)sender

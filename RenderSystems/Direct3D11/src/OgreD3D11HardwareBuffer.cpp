@@ -35,7 +35,7 @@ namespace Ogre {
 	D3D11HardwareBuffer::D3D11HardwareBuffer(
 		BufferType btype, size_t sizeBytes,
 		HardwareBuffer::Usage usage, D3D11Device & device, 
-		bool useSystemMemory, bool useShadowBuffer)
+		bool useSystemMemory, bool useShadowBuffer, bool streamOut)
 		: HardwareBuffer(usage, useSystemMemory,  false /* TODO: useShadowBuffer*/),
 		mlpD3DBuffer(0),
 		mpTempStagingBuffer(0),
@@ -61,9 +61,13 @@ namespace Ogre {
 			mDesc.BindFlags = btype == VERTEX_BUFFER ? D3D11_BIND_VERTEX_BUFFER : D3D11_BIND_INDEX_BUFFER;
 
 		}
+		if (streamOut)
+		{
+			mDesc.BindFlags |= D3D10_BIND_STREAM_OUTPUT;
+		}
 
 		mDesc.MiscFlags = 0;
-		if (!useSystemMemory && (usage | HardwareBuffer::HBU_DYNAMIC))
+		if (!useSystemMemory && (usage & HardwareBuffer::HBU_DYNAMIC))
 		{
 			// We want to be able to map this buffer
 			mDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
@@ -98,6 +102,24 @@ namespace Ogre {
 		SAFE_DELETE(mpTempStagingBuffer); // should never be nonzero unless destroyed while locked
 
 	}
+   	void D3D11HardwareBuffer::reinterpretForStreamOutput(void)
+	{
+		SAFE_RELEASE(mlpD3DBuffer);
+		SAFE_DELETE(mpTempStagingBuffer); // should never be nonzero unless destroyed while locked
+
+		assert(mDesc.Usage!=D3D11_USAGE_STAGING);
+
+		mDesc.BindFlags |= D3D11_BIND_STREAM_OUTPUT;
+
+		HRESULT hr = mDevice->CreateBuffer( &mDesc, 0, &mlpD3DBuffer );
+		if (FAILED(hr) || mDevice.isError())
+		{
+			String msg = mDevice.getErrorDescription(hr);
+			OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+				"Cannot create D3D11 buffer: " + msg, 
+				"D3D11HardwareBuffer::reinterpretForStreamOutput");
+		}
+ 	}
 	//---------------------------------------------------------------------
 	void* D3D11HardwareBuffer::lockImpl(size_t offset, 
 		size_t length, LockOptions options)
@@ -200,7 +222,7 @@ namespace Ogre {
 			{
 				// create another buffer instance but use system memory
 				mpTempStagingBuffer = new D3D11HardwareBuffer(mBufferType, 
-					mSizeInBytes, mUsage, mDevice, true, false);
+					mSizeInBytes, mUsage, mDevice, true, false, false);
 			}
 
 			// schedule a copy to the staging

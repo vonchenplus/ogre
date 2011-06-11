@@ -216,9 +216,16 @@ protected:
 		mIsOpenGL = Root::getSingleton().getRenderSystem()->getName().find("GL") != String::npos;
 
 		// do this first so we generate edge lists
-        mSceneMgr->setShadowTechnique(SHADOWTYPE_STENCIL_ADDITIVE);
-		mCurrentShadowTechnique = SHADOWTYPE_STENCIL_ADDITIVE;
-
+		if (mRoot->getRenderSystem()->getCapabilities()->hasCapability(RSC_HWSTENCIL))
+        {
+            mSceneMgr->setShadowTechnique(SHADOWTYPE_STENCIL_ADDITIVE);
+            mCurrentShadowTechnique = SHADOWTYPE_STENCIL_ADDITIVE;
+        }
+        else
+        {
+            mSceneMgr->setShadowTechnique(SHADOWTYPE_TEXTURE_MODULATIVE);
+            mCurrentShadowTechnique = SHADOWTYPE_TEXTURE_MODULATIVE;
+        }
         // Set ambient light off
         mSceneMgr->setAmbientLight(ColourValue(0.0, 0.0, 0.0));
 
@@ -371,7 +378,9 @@ protected:
         //mSceneMgr->setShowDebugShadows(true);
 
 		setupGUI();
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 		setDragLook(true);
+#endif
     }
 
 	virtual void setupView()
