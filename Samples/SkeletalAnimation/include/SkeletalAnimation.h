@@ -2,6 +2,8 @@
 #define __SkeletalAnimation_H__
 
 #include "SdkSample.h"
+#include "OgreDualQuaternion.h"
+#include "OgreShaderExHardwareSkinning.h"
 
 using namespace Ogre;
 using namespace OgreBites;
@@ -9,6 +11,37 @@ using namespace OgreBites;
 class _OgreSampleClassExport Sample_SkeletalAnimation : public SdkSample
 {
 public:
+
+	//-----------------------------------------------------------------------
+void exportRTShaderSystemMaterial(const String& fileName, const String& materialName)
+{
+	// Grab material pointer.
+	MaterialPtr materialPtr = MaterialManager::getSingleton().getByName(materialName);
+
+	// Create shader based technique.
+	bool success = mShaderGenerator->createShaderBasedTechnique(materialName,
+		MaterialManager::DEFAULT_SCHEME_NAME,
+		RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+
+	// Case creation of shader based technique succeeded.
+	if (success)
+	{
+		// Force shader generation of the given material.
+		RTShader::ShaderGenerator::getSingleton().validateMaterial(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME, materialName);
+
+		// Grab the RTSS material serializer listener.
+		MaterialSerializer::Listener* matRTSSListener = RTShader::ShaderGenerator::getSingleton().getMaterialSerializerListener();
+		MaterialSerializer matSer;
+
+		// Add the custom RTSS listener to the serializer.
+		// It will make sure that every custom parameter needed by the RTSS
+		// will be added to the exported material script.
+		matSer.addListener(matRTSSListener);
+
+		// Simply export the material.
+		matSer.exportMaterial(materialPtr, fileName, false, false, "", materialPtr->getName() + "_RTSS_Export");
+	}
+}
 
 	Sample_SkeletalAnimation() : NUM_MODELS(6), ANIM_CHOP(8)
 #ifdef RTSHADER_SYSTEM_BUILD_EXT_SHADERS
@@ -62,17 +95,17 @@ protected:
 		if (mShaderGenerator->getTargetLanguage() != "glsles")
 		{
 			//Add the hardware skinning to the shader generator default render state
-			mSrsHardwareSkinning = mShaderGenerator->createSubRenderState(Ogre::RTShader::HardwareSkinning::Type);
-			Ogre::RTShader::RenderState* renderState = mShaderGenerator->getRenderState(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
-			renderState->addTemplateSubRenderState(mSrsHardwareSkinning);
+			//mSrsHardwareSkinning = mShaderGenerator->createSubRenderState(Ogre::RTShader::HardwareSkinning::Type);
+			//Ogre::RTShader::RenderState* renderState = mShaderGenerator->getRenderState(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+			//renderState->addTemplateSubRenderState(mSrsHardwareSkinning);
 			
-			Ogre::MaterialPtr pCast1 = Ogre::MaterialManager::getSingleton().getByName("Ogre/RTShader/shadow_caster_skinning_1weight");
-			Ogre::MaterialPtr pCast2 = Ogre::MaterialManager::getSingleton().getByName("Ogre/RTShader/shadow_caster_skinning_2weight");
-			Ogre::MaterialPtr pCast3 = Ogre::MaterialManager::getSingleton().getByName("Ogre/RTShader/shadow_caster_skinning_3weight");
-			Ogre::MaterialPtr pCast4 = Ogre::MaterialManager::getSingleton().getByName("Ogre/RTShader/shadow_caster_skinning_4weight");
+			Ogre::MaterialPtr pCast1 = Ogre::MaterialManager::getSingleton().getByName("Ogre/RTShader/shadow_caster_dq_skinning_1weight");
+			Ogre::MaterialPtr pCast2 = Ogre::MaterialManager::getSingleton().getByName("Ogre/RTShader/shadow_caster_dq_skinning_2weight");
+			Ogre::MaterialPtr pCast3 = Ogre::MaterialManager::getSingleton().getByName("Ogre/RTShader/shadow_caster_dq_skinning_3weight");
+			Ogre::MaterialPtr pCast4 = Ogre::MaterialManager::getSingleton().getByName("Ogre/RTShader/shadow_caster_dq_skinning_4weight");
 
 			Ogre::RTShader::HardwareSkinningFactory::getSingleton().setCustomShadowCasterMaterials(
-				pCast1, pCast2, pCast3, pCast4);
+				Ogre::RTShader::ST_DUAL_QUATERNION, pCast1, pCast2, pCast3, pCast4);
 		}
 #endif
 		// set shadow properties
@@ -82,7 +115,7 @@ protected:
 		mSceneMgr->setShadowTextureCount(2);
 
 		// add a little ambient lighting
-        mSceneMgr->setAmbientLight(ColourValue(0.5, 0.5, 0.5));
+		mSceneMgr->setAmbientLight(ColourValue(0.5, 0.5, 0.5));
 
 		SceneNode* lightsBbsNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
 		BillboardSet* bbs;
@@ -114,9 +147,6 @@ protected:
 		l->setDirection(dir);
         l->setDiffuseColour(0.0, 0.5, 0.0);		
 		bbs->createBillboard(l->getPosition())->setColour(l->getDiffuseColour());
-			
-	
-	
 
 		// create a floor mesh resource
 		MeshManager::getSingleton().createPlane("floor", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
@@ -144,8 +174,8 @@ protected:
 		Entity* ent = NULL;
 		AnimationState* as = NULL;
 
-        for (unsigned int i = 0; i < NUM_MODELS; i++)
-        {
+		for (unsigned int i = 0; i < NUM_MODELS; i++)
+		{
 			// create scene nodes for the models at regular angular intervals
 			sn = mSceneMgr->getRootSceneNode()->createChildSceneNode();
 			sn->yaw(Radian(Math::TWO_PI * (float)i / (float)NUM_MODELS));
@@ -153,7 +183,8 @@ protected:
 			mModelNodes.push_back(sn);
 
 			// create and attach a jaiqua entity
-            ent = mSceneMgr->createEntity("Jaiqua" + StringConverter::toString(i + 1), "jaiqua.mesh");
+			ent = mSceneMgr->createEntity("Jaiqua" + StringConverter::toString(i + 1), "jaiqua.mesh");
+			ent->setMaterialName("jaiquaDualQuatTest");
 			sn->attachObject(ent);
 #ifdef RTSHADER_SYSTEM_BUILD_EXT_SHADERS
 			//To make glsles work the program will need to be provided with proper
@@ -162,20 +193,20 @@ protected:
 			{
 				//In case the system uses the RTSS, the following line will ensure
 				//that the entity is using hardware animation in RTSS as well.
-				RTShader::HardwareSkinningFactory::getSingleton().prepareEntityForSkinning(ent);
+				//RTShader::HardwareSkinningFactory::getSingleton().prepareEntityForSkinning(ent);
 				//The following line is needed only because the Jaiqua model material has shaders and
 				//as such is not automatically reflected in the RTSS system
-				RTShader::ShaderGenerator::getSingleton().createShaderBasedTechnique(
-					ent->getSubEntity(0)->getMaterialName(),
-					Ogre::MaterialManager::DEFAULT_SCHEME_NAME, 
-					Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME,
-					true);
+				//RTShader::ShaderGenerator::getSingleton().createShaderBasedTechnique(
+				//	ent->getSubEntity(0)->getMaterialName(),
+				//	Ogre::MaterialManager::DEFAULT_SCHEME_NAME,
+				//	Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME,
+				//	true);
 			}
 #endif
 		
 			// enable the entity's sneaking animation at a random speed and loop it manually since translation is involved
 			as = ent->getAnimationState("Sneak");
-            as->setEnabled(true);
+			as->setEnabled(true);
 			as->setLoop(false);
 			mAnimSpeeds.push_back(Math::RangeRandom(0.5, 1.5));
 			mAnimStates.push_back(as);
@@ -186,9 +217,11 @@ protected:
 		names.push_back("Skinning");
 		String value = "Software";
 
+		exportRTShaderSystemMaterial("test.material", ent->getSubEntity(0)->getMaterialName());
+
 		// change the value if hardware skinning is enabled
         Pass* pass = ent->getSubEntity(0)->getMaterial()->getBestTechnique()->getPass(0);
-		if (pass->hasVertexProgram() && pass->getVertexProgram()->isSkeletalAnimationIncluded()) value = "Hardware";
+		if (pass && pass->hasVertexProgram() && pass->getVertexProgram()->isSkeletalAnimationIncluded()) value = "Hardware";
 
 		// create a params panel to display the skinning mode
 		mTrayMgr->createParamsPanel(TL_TOPLEFT, "Skinning", 150, names)->setParamValue(0, value);
