@@ -422,7 +422,7 @@ namespace Ogre
 		For animating in a vertex shader, morph animation is quite simple and 
 		just requires the 2 vertex buffers (one the original position buffer) 
 		of absolute position data, and an interpolation factor. Each track in 
-		a morph animation refrences a unique set of vertex data.
+		a morph animation references a unique set of vertex data.
 	@par
 		Pose animation is more complex. Like morph animation each track references
 		a single unique set of vertex data, but unlike morph animation, each 
@@ -491,6 +491,9 @@ namespace Ogre
 
 		/** Get the type of vertex animation we're performing. */
 		VertexAnimationType getAnimationType(void) const { return mAnimationType; }
+		
+		/** Whether the vertex animation (if present) includes normals */
+		bool getVertexAnimationIncludesNormals() const;
 
 		/** Creates a new morph KeyFrame and adds it to this animation at the given time index.
 		@remarks

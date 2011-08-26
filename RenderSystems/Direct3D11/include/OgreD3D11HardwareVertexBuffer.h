@@ -44,7 +44,7 @@ namespace Ogre {
 
 	public:
 		D3D11HardwareVertexBuffer(HardwareBufferManagerBase* mgr, size_t vertexSize, size_t numVertices, 
-			HardwareBuffer::Usage usage, D3D11Device & device, bool useSystemMem, bool useShadowBuffer);
+			HardwareBuffer::Usage usage, D3D11Device & device, bool useSystemMem, bool useShadowBuffer, bool streamOut);
 		~D3D11HardwareVertexBuffer();
 
 		// override all data-gathering methods
@@ -66,7 +66,7 @@ namespace Ogre {
 		/// Get the D3D-specific vertex buffer
 		ID3D11Buffer * getD3DVertexBuffer(void) const;
 
-
+        void reinterpretForStreamOutput(void);
 	};
 
 }

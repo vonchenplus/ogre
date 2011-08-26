@@ -29,14 +29,19 @@ THE SOFTWARE.
 #ifndef __EAGLView_H__
 #define __EAGLView_H__
 
+#include "OgreString.h"
+
+using namespace Ogre;
+
 #ifdef __OBJC__
 
 #import <UIKit/UIKit.h>
-#import <QuartzCore/QuartzCore.h>
 
 @interface EAGLView : UIView {
-    bool mInitialised;
+    String mWindowName;
 }
+
+@property (assign) String mWindowName;
 
 @end
 

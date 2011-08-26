@@ -17,7 +17,7 @@ Filename:    ParticleGS.cpp
 Description: Demonstrates the use of the geometry shader and render to vertex
 	buffer to create a particle system that is entirely calculated on the GPU.
 	Partial implementation of ParticlesGS example from Microsoft's DirectX 10
-	SDK : http://msdn.microsoft.com/en-us/library/bb205329(VS.85).aspx
+	SDK : http://msdn.microsoft.com/en-us/library/ee416421.aspx
 -----------------------------------------------------------------------------
 */
 
@@ -81,7 +81,7 @@ protected:
 		
 		//Apply the random texture
 		TexturePtr randomTexture = RandomTools::generateRandomVelocityTexture();
-		r2vbObject->getRenderToBufferMaterial()->getTechnique(0)->getPass(0)->
+		r2vbObject->getRenderToBufferMaterial()->getBestTechnique()->getPass(0)->
 			getTextureUnitState("RandomTexture")->setTextureName(
 			randomTexture->getName(), randomTexture->getTextureType());
 
@@ -164,12 +164,20 @@ protected:
 		//Set shader parameters
 		GpuProgramParametersSharedPtr geomParams = particleSystem->
 			getRenderToVertexBuffer()->getRenderToBufferMaterial()->
-			getTechnique(0)->getPass(0)->getGeometryProgramParameters();
-		geomParams->setNamedConstant("elapsedTime", evt.timeSinceLastFrame);
-		demoTime += evt.timeSinceLastFrame;
-		geomParams->setNamedConstant("globalTime", demoTime);
-		geomParams->setNamedConstant("frameGravity", GRAVITY_VECTOR * evt.timeSinceLastFrame);
-		
+			getBestTechnique()->getPass(0)->getGeometryProgramParameters();
+        if (geomParams->_findNamedConstantDefinition("elapsedTime"))
+        {
+            geomParams->setNamedConstant("elapsedTime", evt.timeSinceLastFrame);
+		}		
+        demoTime += evt.timeSinceLastFrame;
+		if (geomParams->_findNamedConstantDefinition("globalTime"))
+		{
+			geomParams->setNamedConstant("globalTime", demoTime);
+		}
+		if (geomParams->_findNamedConstantDefinition("frameGravity"))
+		{
+			geomParams->setNamedConstant("frameGravity", GRAVITY_VECTOR * evt.timeSinceLastFrame);
+		}		
 		return SdkSample::frameStarted(evt); 
 	}
 

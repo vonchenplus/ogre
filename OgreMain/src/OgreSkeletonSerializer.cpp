@@ -43,7 +43,7 @@ THE SOFTWARE.
 
 namespace Ogre {
     /// stream overhead = ID + size
-    const long STREAM_OVERHEAD_SIZE = sizeof(uint16) + sizeof(uint32);
+    const long SSTREAM_OVERHEAD_SIZE = sizeof(uint16) + sizeof(uint32);
     //---------------------------------------------------------------------
     SkeletonSerializer::SkeletonSerializer()
     {
@@ -55,19 +55,31 @@ namespace Ogre {
     SkeletonSerializer::~SkeletonSerializer()
     {
     }
+	//---------------------------------------------------------------------
+	void SkeletonSerializer::exportSkeleton(const Skeleton* pSkeleton, 
+		const String& filename, Endian endianMode)
+	{
+		std::fstream *f = OGRE_NEW_T(std::fstream, MEMCATEGORY_GENERAL)();
+		f->open(filename.c_str(), std::ios::binary | std::ios::out);
+		DataStreamPtr stream(OGRE_NEW FileStreamDataStream(f));
+
+		exportSkeleton(pSkeleton, stream, endianMode);
+
+		stream->close();
+	}
     //---------------------------------------------------------------------
     void SkeletonSerializer::exportSkeleton(const Skeleton* pSkeleton, 
-		const String& filename, Endian endianMode)
+		DataStreamPtr stream, Endian endianMode)
     {
 		// Decide on endian mode
 		determineEndianness(endianMode);
 
         String msg;
-        mpfFile = fopen(filename.c_str(), "wb");
-		if (!mpfFile)
+        mStream = stream;
+		if (!stream->isWriteable())
 		{
 			OGRE_EXCEPT(Exception::ERR_CANNOT_WRITE_TO_FILE,
-				"Unable to open file " + filename + " for writing",
+				"Unable to write to stream " + stream->getName(),
 				"SkeletonSerializer::exportSkeleton");
 		}
 
@@ -99,9 +111,7 @@ namespace Ogre {
 		{
 			const LinkedSkeletonAnimationSource& link = linkIt.getNext();
 			writeSkeletonAnimationLink(pSkeleton, link);
-		}
-
-        fclose(mpfFile);
+		}       
 
     }
     //---------------------------------------------------------------------
@@ -257,7 +267,7 @@ namespace Ogre {
     size_t SkeletonSerializer::calcBoneSize(const Skeleton* pSkel, 
         const Bone* pBone)
     {
-        size_t size = STREAM_OVERHEAD_SIZE;
+        size_t size = SSTREAM_OVERHEAD_SIZE;
 
         // handle
         size += sizeof(unsigned short);
@@ -280,7 +290,7 @@ namespace Ogre {
     size_t SkeletonSerializer::calcBoneSizeWithoutScale(const Skeleton* pSkel, 
         const Bone* pBone)
     {
-        size_t size = STREAM_OVERHEAD_SIZE;
+        size_t size = SSTREAM_OVERHEAD_SIZE;
 
         // handle
         size += sizeof(unsigned short);
@@ -296,7 +306,7 @@ namespace Ogre {
     //---------------------------------------------------------------------
     size_t SkeletonSerializer::calcBoneParentSize(const Skeleton* pSkel)
     {
-        size_t size = STREAM_OVERHEAD_SIZE;
+        size_t size = SSTREAM_OVERHEAD_SIZE;
 
         // handle
         size += sizeof(unsigned short);
@@ -310,7 +320,7 @@ namespace Ogre {
     size_t SkeletonSerializer::calcAnimationSize(const Skeleton* pSkel, 
         const Animation* pAnim)
     {
-        size_t size = STREAM_OVERHEAD_SIZE;
+        size_t size = SSTREAM_OVERHEAD_SIZE;
 
         // Name, including terminator
         size += pAnim->getName().length() + 1;
@@ -330,7 +340,7 @@ namespace Ogre {
     size_t SkeletonSerializer::calcAnimationTrackSize(const Skeleton* pSkel, 
         const NodeAnimationTrack* pTrack)
     {
-        size_t size = STREAM_OVERHEAD_SIZE;
+        size_t size = SSTREAM_OVERHEAD_SIZE;
 
         // unsigned short boneIndex     : Index of bone to apply to
         size += sizeof(unsigned short);
@@ -347,7 +357,7 @@ namespace Ogre {
     size_t SkeletonSerializer::calcKeyFrameSize(const Skeleton* pSkel, 
         const TransformKeyFrame* pKey)
     {
-        size_t size = STREAM_OVERHEAD_SIZE;
+        size_t size = SSTREAM_OVERHEAD_SIZE;
 
         // float time                    : The time position (seconds)
         size += sizeof(float);
@@ -367,7 +377,7 @@ namespace Ogre {
     size_t SkeletonSerializer::calcKeyFrameSizeWithoutScale(const Skeleton* pSkel, 
         const TransformKeyFrame* pKey)
     {
-        size_t size = STREAM_OVERHEAD_SIZE;
+        size_t size = SSTREAM_OVERHEAD_SIZE;
 
         // float time                    : The time position (seconds)
         size += sizeof(float);
@@ -455,7 +465,7 @@ namespace Ogre {
             if (!stream->eof())
             {
                 // Backpedal back to start of this stream if we've found a non-track
-                stream->skip(-STREAM_OVERHEAD_SIZE);
+                stream->skip(-SSTREAM_OVERHEAD_SIZE);
             }
 
         }
@@ -494,7 +504,7 @@ namespace Ogre {
             if (!stream->eof())
             {
                 // Backpedal back to start of this stream if we've found a non-keyframe
-                stream->skip(-STREAM_OVERHEAD_SIZE);
+                stream->skip(-SSTREAM_OVERHEAD_SIZE);
             }
 
         }
@@ -544,7 +554,7 @@ namespace Ogre {
 	size_t SkeletonSerializer::calcSkeletonAnimationLinkSize(const Skeleton* pSkel, 
 		const LinkedSkeletonAnimationSource& link)
 	{
-		size_t size = STREAM_OVERHEAD_SIZE;
+		size_t size = SSTREAM_OVERHEAD_SIZE;
 
 		// char* skeletonName
 		size += link.skeletonName.length() + 1;

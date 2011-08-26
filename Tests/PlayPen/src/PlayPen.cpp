@@ -40,6 +40,10 @@ PlayPenPlugin::PlayPenPlugin()
 	addSample(new PlayPen_testManualLOD());
 	addSample(new PlayPen_testManualLODFromFile());
 	addSample(new PlayPen_testFullScreenSwitch());
+	addSample(new PlayPen_testMorphAnimationWithNormals());
+	addSample(new PlayPen_testMorphAnimationWithoutNormals());
+	addSample(new PlayPen_testPoseAnimationWithNormals());
+	addSample(new PlayPen_testPoseAnimationWithoutNormals());
 }
 //---------------------------------------------------------------------
 PlayPenPlugin::~PlayPenPlugin()
@@ -66,6 +70,17 @@ void PlayPenBase::unloadResources()
 	ResourceGroupManager::getSingleton().clearResourceGroup(TRANSIENT_RESOURCE_GROUP);
 
 	SdkSample::unloadResources();
+}
+//---------------------------------------------------------------------
+bool PlayPenBase::frameStarted(const FrameEvent& evt)
+{
+	for (AnimationStateList::iterator animi = mAnimStateList.begin(); animi != mAnimStateList.end(); ++animi)
+	{
+		(*animi)->addTime(evt.timeSinceLastFrame);
+	}
+	
+	return true;
+	
 }
 
 
@@ -8880,9 +8895,9 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //        app.go();
 //	} catch( Ogre::Exception& e ) {
 //#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-//        MessageBox( NULL, e.getFullDescription().c_str(), "An exception has occured!", MB_OK | MB_ICONERROR | MB_TASKMODAL);
+//        MessageBox( NULL, e.getFullDescription().c_str(), "An exception has occurred!", MB_OK | MB_ICONERROR | MB_TASKMODAL);
 //#else
-//        std::cerr << "An exception has occured: " << e.getFullDescription();
+//        std::cerr << "An exception has occurred: " << e.getFullDescription();
 //#endif
 //    }
 //
@@ -8908,7 +8923,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //    try {
 //        app.go();
 //    } catch( Ogre::Exception& e ) {
-//        std::cerr << "An exception has occured: " <<
+//        std::cerr << "An exception has occurred: " <<
 //        e.getFullDescription().c_str() << std::endl;
 //    }
 //}

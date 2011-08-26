@@ -2,6 +2,7 @@
 #define __ShaderSystem_H__
 
 #include "SdkSample.h"
+#include "OgreShaderExLayeredBlending.h"
 
 using namespace Ogre;
 using namespace OgreBites;
@@ -18,11 +19,49 @@ enum ShaderSystemLightingModel
 	SSLM_NormalMapLightingObjectSpace,		
 };
 
+// a hack class to get infinite frustum - needed by instanced viewports demo
+// a better solution will be to check the frustums of all the viewports in a similer class
+class _OgreSampleClassExport InfiniteFrustum : public Frustum
+{
+public:
+	InfiniteFrustum() : Frustum()
+	{
+		mFrustumPlanes[FRUSTUM_PLANE_LEFT].normal = Vector3::NEGATIVE_UNIT_X;
+		mFrustumPlanes[FRUSTUM_PLANE_LEFT].d = 9999999999999999999.0f;
+		mFrustumPlanes[FRUSTUM_PLANE_RIGHT].normal = Vector3::UNIT_X;
+		mFrustumPlanes[FRUSTUM_PLANE_RIGHT].d = 9999999999999999999.0f;
+		mFrustumPlanes[FRUSTUM_PLANE_TOP].normal = Vector3::NEGATIVE_UNIT_Y;
+		mFrustumPlanes[FRUSTUM_PLANE_TOP].d = 9999999999999999999.0f;
+		mFrustumPlanes[FRUSTUM_PLANE_BOTTOM].normal = Vector3::UNIT_Y;
+		mFrustumPlanes[FRUSTUM_PLANE_BOTTOM].d = 9999999999999999999.0f;
+		mFrustumPlanes[FRUSTUM_PLANE_NEAR].normal = Vector3::NEGATIVE_UNIT_Z;
+		mFrustumPlanes[FRUSTUM_PLANE_NEAR].d = 9999999999999999999.0f;
+		mFrustumPlanes[FRUSTUM_PLANE_FAR].normal = Vector3::UNIT_Z;
+		mFrustumPlanes[FRUSTUM_PLANE_FAR].d = 9999999999999999999.0f;
+	}
+	virtual bool isVisible(const AxisAlignedBox& bound, FrustumPlane* culledBy = 0) const {return true;};
+	virtual bool isVisible(const Sphere& bound, FrustumPlane* culledBy = 0) const {return true;};
+	virtual bool isVisible(const Vector3& vert, FrustumPlane* culledBy = 0) const {return true;};
+	bool projectSphere(const Sphere& sphere, 
+		Real* left, Real* top, Real* right, Real* bottom) const {*left = *bottom = -1.0f; *right = *top = 1.0f; return true;};
+	Real getNearClipDistance(void) const {return 1.0;};
+	Real getFarClipDistance(void) const {return 9999999999999.0f;};
+	const Plane& getFrustumPlane( unsigned short plane ) const
+    {
+        return mFrustumPlanes[plane];
+    }
+
+};
+
+
 // Listener class for frame updates
 class _OgreSampleClassExport Sample_ShaderSystem : public SdkSample
 {
 public:
 	Sample_ShaderSystem();
+	~Sample_ShaderSystem();
+		
+	virtual void _shutdown();
 
 	/** @see Sample::checkBoxToggled. */
 	void checkBoxToggled(CheckBox* box);
@@ -47,13 +86,7 @@ public:
 
 	void updateTargetObjInfo();
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
-	bool touchPressed(const OIS::MultiTouchEvent& evt);
-
-	bool touchReleased(const OIS::MultiTouchEvent& evt);
-
-	bool touchMoved(const OIS::MultiTouchEvent& evt);
-#else
+#if (OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS) && (OGRE_PLATFORM != OGRE_PLATFORM_ANDROID)
 	/** @see Sample::mousePressed. */
 	bool mousePressed(const OIS::MouseEvent& evt, OIS::MouseButtonID id);
 
@@ -87,6 +120,9 @@ protected:
 	/** Set fog per pixel enable state. */
 	void setPerPixelFogEnable(bool enable);
 
+	/** Set instanced viewports enable state. */
+	void setInstancedViewportsEnable( bool enable );
+
 	/** Create directional light. */
 	void createDirectionalLight();
 
@@ -96,8 +132,15 @@ protected:
 	/** Create spot light. */
 	void createSpotLight();
 
+	/** Toggle adding of lots of models */
+	void updateAddLotsOfModels(bool addThem);
+    void addModelToScene(const String &  modelName);
+
+	/** Toggle instanced viewports */
+	void updateInstancedViewports(bool ebabled);
+
 	/** Toggle light visibility. */
-	void setLightVisible(const String& lightName, bool visible);
+	void updateLightState(const String& lightName, bool visible);
 
 	/** Update runtime generated shaders of the target entities in this demo. */
 	void updateSystemShaders();
@@ -129,6 +172,10 @@ protected:
 	/** @see Sample::unloadResources. */
 	void unloadResources();
 
+	void createInstancedViewports();
+	void destroyInstancedViewports();
+	void destroyInstancedViewportsFactory();
+
 	/** Destroy private resource group. */
 	void destroyPrivateResourceGroup();
 
@@ -138,7 +185,15 @@ protected:
 	/** Apply shadow type from the given shadow menu selected index. */
 	void applyShadowType(int menuIndex);
 
-// Types.
+	/** Change the current texture layer blend mode. */
+	void changeTextureLayerBlendMode();
+
+	/** Update layer blend caption. */
+	void updateLayerBlendingCaption( RTShader::LayeredBlending::BlendMode nextBlendMode );
+
+	ManualObject* createTextureAtlasObject();
+	void createMaterialForTexture( const String & texName, bool isTextureAtlasTexture );
+	// Types.
 protected:
 	typedef vector<Entity*>::type	EntityList;
 	typedef EntityList::iterator	EntityListIterator;
@@ -156,9 +211,23 @@ protected:
 	bool								mPerPixelFogEnable;		// When true the RTSS will do per pixel fog calculations.
 	bool								mSpecularEnable;		// The current specular state.	
 	RTShader::SubRenderStateFactory*	mReflectionMapFactory;	// The custom reflection map shader extension factory.
+	RTShader::SubRenderState*			mInstancedViewportsSubRenderState;// todo - doc
+	bool								mInstancedViewportsEnable;		// todo - doc
+	InfiniteFrustum 					mInfiniteFrustum;				// todo - doc
+	BillboardSet*						mBbsFlare;						// todo - doc
+	bool								mAddedLotsOfModels;		        // todo - doc
+    vector<Entity *>::type              mLotsOfModelsEntities;          // todo - doc       
+    vector<SceneNode *>::type           mLotsOfModelsNodes;             // todo - doc  
+    int                                 mNumberOfModelsAdded;           // todo - doc   
+    RTShader::SubRenderStateFactory *   mInstancedViewportsFactory;     // todo - doc
+
 	RTShader::SubRenderState*			mReflectionMapSubRS;	// The reflection map sub render state.
+	RTShader::LayeredBlending*			mLayerBlendSubRS;		// The layer blending sub render state.
+	Label*								mLayerBlendLabel;		// The layer blending label.
 	Slider*								mReflectionPowerSlider;	// The reflection power controller slider.
 	bool								mReflectionMapEnable;	// The current reflection map effect state.
+	Slider*								mModifierValueSlider;   // The value of the modifier for the layered blend controller slider.
+	Entity*								mLayeredBlendingEntity; // Entity used to show layered blending SRS
 	SceneNode*							mPointLightNode;		// Point light scene node.
 	SceneNode*							mDirectionalLightNode;	// Directional light scene node.		
 	RaySceneQuery*						mRayQuery;				// The ray scene query.
@@ -169,8 +238,9 @@ protected:
 	CheckBox*							mDirLightCheckBox;		// The directional light check box.
 	CheckBox*							mPointLightCheckBox;	// The point light check box.
 	CheckBox*							mSpotLightCheckBox;		// The spot light check box.
-	String								mRTShaderLibsPath;		// The path of the RTShader Libs.
-					
+	String								mExportMaterialPath;	// The path of the export material.
+	CheckBox*							mInstancedViewportsCheckBox; // The instanced viewports check box.
+	CheckBox*							mAddLotsOfModels; // The "add lots of models" check box.				
 };
 
 #endif
