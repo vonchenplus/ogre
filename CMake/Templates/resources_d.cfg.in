@@ -18,6 +18,8 @@ FileSystem=@OGRE_MEDIA_DIR_DBG@/DeferredShadingMedia
 FileSystem=@OGRE_MEDIA_DIR_DBG@/PCZAppMedia
 FileSystem=@OGRE_MEDIA_DIR_DBG@/RTShaderLib
 FileSystem=@OGRE_MEDIA_DIR_DBG@/RTShaderLib/materials
+FileSystem=@OGRE_MEDIA_DIR_DBG@/materials/scripts/SSAO
+FileSystem=@OGRE_MEDIA_DIR_DBG@/materials/textures/SSAO
 Zip=@OGRE_MEDIA_DIR_DBG@/packs/cubemap.zip
 Zip=@OGRE_MEDIA_DIR_DBG@/packs/cubemapsJS.zip
 Zip=@OGRE_MEDIA_DIR_DBG@/packs/dragon.zip
@@ -29,3 +31,7 @@ Zip=@OGRE_MEDIA_DIR_DBG@/packs/skybox.zip
 
 [General]
 FileSystem=@OGRE_MEDIA_DIR_DBG@
+
+# Materials for visual tests
+[Tests]
+FileSystem=@OGRE_MEDIA_DIR_REL@/../../Tests/Media

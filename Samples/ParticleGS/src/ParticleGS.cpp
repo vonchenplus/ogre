@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -17,7 +17,7 @@ Filename:    ParticleGS.cpp
 Description: Demonstrates the use of the geometry shader and render to vertex
 	buffer to create a particle system that is entirely calculated on the GPU.
 	Partial implementation of ParticlesGS example from Microsoft's DirectX 10
-	SDK : http://msdn.microsoft.com/en-us/library/bb205329(VS.85).aspx
+	SDK : http://msdn.microsoft.com/en-us/library/ee416421.aspx
 -----------------------------------------------------------------------------
 */
 
@@ -31,9 +31,7 @@ using namespace Ogre;
 using namespace OgreBites;
 
 //#define LOG_GENERATED_BUFFER
-Vector3 GRAVITY_VECTOR = Vector3(0, -9.8, 0);
-Real demoTime = 0;
-ProceduralManualObject* particleSystem;
+const Vector3 GRAVITY_VECTOR = Vector3(0, -9.8, 0);
 
 #ifdef LOG_GENERATED_BUFFER
 struct FireworkParticle 
@@ -50,19 +48,19 @@ class _OgreSampleClassExport Sample_ParticleGS : public SdkSample
 public:
     Sample_ParticleGS() 
 	{
-		mInfo["Title"] = "Particle Effects (GPU)";
-		mInfo["Description"] = "A demo of GPU-accelerated particle systems using geometry shaders and 'render to vertex buffer's.";
+		mInfo["Title"] = "Geometry Shader Particle System";
+		mInfo["Description"] = "A demo of particle systems using geometry shaders and render to vertex buffers.";
 		mInfo["Thumbnail"] = "thumb_particlegs.png";
 		mInfo["Category"] = "Effects";
     }
 
 protected:
 
-	ProceduralManualObject* createProceduralParticleSystem()
+	void createProceduralParticleSystem()
 	{
-		particleSystem = static_cast<ProceduralManualObject*>
+		mParticleSystem = static_cast<ProceduralManualObject*>
 			(mSceneMgr->createMovableObject("ParticleGSEntity", ProceduralManualObjectFactory::FACTORY_TYPE_NAME));
-		particleSystem->setMaterial("Ogre/ParticleGS/Display");
+		mParticleSystem->setMaterial("Ogre/ParticleGS/Display");
 
 		//Generate the geometry that will seed the particle system
 		ManualObject* particleSystemSeed = mSceneMgr->createManualObject("ParticleSeed");
@@ -81,7 +79,7 @@ protected:
 		
 		//Apply the random texture
 		TexturePtr randomTexture = RandomTools::generateRandomVelocityTexture();
-		r2vbObject->getRenderToBufferMaterial()->getTechnique(0)->getPass(0)->
+		r2vbObject->getRenderToBufferMaterial()->getBestTechnique()->getPass(0)->
 			getTextureUnitState("RandomTexture")->setTextureName(
 			randomTexture->getName(), randomTexture->getTextureType());
 
@@ -93,49 +91,44 @@ protected:
 		offset += vertexDecl->addElement(0, offset, VET_FLOAT3, VES_POSITION).getSize(); //Position
 		offset += vertexDecl->addElement(0, offset, VET_FLOAT1, VES_TEXTURE_COORDINATES, 0).getSize(); //Timer
 		offset += vertexDecl->addElement(0, offset, VET_FLOAT1, VES_TEXTURE_COORDINATES, 1).getSize(); //Type
-		offset += vertexDecl->addElement(0, offset, VET_FLOAT3, VES_TEXTURE_COORDINATES, 2).getSize(); //Velocity
+		vertexDecl->addElement(0, offset, VET_FLOAT3, VES_TEXTURE_COORDINATES, 2).getSize(); //Velocity
 		
 		//Bind the two together
-		particleSystem->setRenderToVertexBuffer(r2vbObject);
-		particleSystem->setManualObject(particleSystemSeed);
+		mParticleSystem->setRenderToVertexBuffer(r2vbObject);
+		mParticleSystem->setManualObject(particleSystemSeed);
 
 		//Set bounds
 		AxisAlignedBox aabb;
 		aabb.setMinimum(-100,-100,-100);
 		aabb.setMaximum(100,100,100);
-		particleSystem->setBoundingBox(aabb);
-		
-		return particleSystem;
+		mParticleSystem->setBoundingBox(aabb);
 	}
 
-    
-	void setupContent(void)
+    void testCapabilities(const RenderSystemCapabilities* caps)
     {
-        // Check capabilities
-		const RenderSystemCapabilities* caps = Root::getSingleton().getRenderSystem()->getCapabilities();
         if (!caps->hasCapability(RSC_GEOMETRY_PROGRAM))
         {
 			OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your render system / hardware does not support geometry programs, "
-				"so cannot run this demo. Sorry!", 
-                "Sample_ParticleGS::createScene");
+                        "so you cannot run this sample. Sorry!", 
+                        "Sample_ParticleGS::createScene");
         }
 		if (!caps->hasCapability(RSC_HWRENDER_TO_VERTEX_BUFFER))
         {
 			OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your render system / hardware does not support render to vertex buffers, "
-				"so cannot run this demo. Sorry!", 
-                "Sample_ParticleGS::createScene");
+                        "so you cannot run this sample. Sorry!", 
+                        "Sample_ParticleGS::createScene");
         }
+    }
+    
+	void setupContent(void)
+    {
+        demoTime = 0;
 
-		static bool firstTime = true;
-		if (firstTime)
-		{
-			Root::getSingleton().addMovableObjectFactory(new ProceduralManualObjectFactory);
-			firstTime = false;
-		}
-		ProceduralManualObject* ps = createProceduralParticleSystem();
+        mProceduralManualObjectFactory = new ProceduralManualObjectFactory;
+		createProceduralParticleSystem();
 
-		mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(ps);
-		//mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(particleSystem->getManualObject());
+		mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(mParticleSystem);
+		//mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(mParticleSystem->getManualObject());
 		mCamera->setPosition(0,35,-100);
 		mCamera->lookAt(0,35,0);
 		
@@ -159,17 +152,31 @@ protected:
 		mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(0,95,0))->attachObject(pPlaneEnt);
     }
 
+    void cleanupContent()
+    {
+        Root::getSingleton().removeMovableObjectFactory(mProceduralManualObjectFactory);
+        MeshManager::getSingleton().remove("Myplane");
+    }
+
 	bool frameStarted(const FrameEvent& evt) 
 	{ 
 		//Set shader parameters
-		GpuProgramParametersSharedPtr geomParams = particleSystem->
+		GpuProgramParametersSharedPtr geomParams = mParticleSystem->
 			getRenderToVertexBuffer()->getRenderToBufferMaterial()->
-			getTechnique(0)->getPass(0)->getGeometryProgramParameters();
-		geomParams->setNamedConstant("elapsedTime", evt.timeSinceLastFrame);
-		demoTime += evt.timeSinceLastFrame;
-		geomParams->setNamedConstant("globalTime", demoTime);
-		geomParams->setNamedConstant("frameGravity", GRAVITY_VECTOR * evt.timeSinceLastFrame);
-		
+			getBestTechnique()->getPass(0)->getGeometryProgramParameters();
+        if (geomParams->_findNamedConstantDefinition("elapsedTime"))
+        {
+            geomParams->setNamedConstant("elapsedTime", evt.timeSinceLastFrame);
+		}		
+        demoTime += evt.timeSinceLastFrame;
+		if (geomParams->_findNamedConstantDefinition("globalTime"))
+		{
+			geomParams->setNamedConstant("globalTime", demoTime);
+		}
+		if (geomParams->_findNamedConstantDefinition("frameGravity"))
+		{
+			geomParams->setNamedConstant("frameGravity", GRAVITY_VECTOR * evt.timeSinceLastFrame);
+		}		
 		return SdkSample::frameStarted(evt); 
 	}
 
@@ -180,7 +187,7 @@ protected:
 		LogManager::getSingleton().getDefaultLog()->stream() << 
 			"Particle system for frame " <<	Root::getSingleton().getNextFrameNumber();
 		RenderOperation renderOp;
-		particleSystem->getRenderToVertexBuffer()->getRenderOperation(renderOp);
+		mParticleSystem->getRenderToVertexBuffer()->getRenderOperation(renderOp);
 		const HardwareVertexBufferSharedPtr& vertexBuffer = 
 			renderOp.vertexData->vertexBufferBinding->getBuffer(0);
 		
@@ -203,6 +210,10 @@ protected:
 		return SdkSample::frameEnded(evt); 
 	}
 #endif
+    
+    Real demoTime;
+    ProceduralManualObject* mParticleSystem;
+    ProceduralManualObjectFactory *mProceduralManualObjectFactory;
 };
 
 #ifndef OGRE_STATIC_LIB

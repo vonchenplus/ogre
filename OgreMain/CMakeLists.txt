@@ -63,7 +63,10 @@ set (HEADER_FILES
   include/OgreCustomCompositionPass.h
   include/OgreDataStream.h
   include/OgreDefaultHardwareBufferManager.h
+  include/OgreDeflate.h
+  include/OgreDepthBuffer.h
   include/OgreDistanceLodStrategy.h
+  include/OgreDualQuaternion.h
   include/OgreDynLib.h
   include/OgreDynLibManager.h
   include/OgreEdgeListBuilder.h
@@ -94,7 +97,14 @@ set (HEADER_FILES
   include/OgreHighLevelGpuProgramManager.h
   include/OgreImage.h
   include/OgreImageCodec.h
+  include/OgreInstanceBatch.h
+  include/OgreInstanceBatchHW.h
+  include/OgreInstanceBatchHW_VTF.h
+  include/OgreInstanceBatchShader.h
+  include/OgreInstanceBatchVTF.h
   include/OgreInstancedGeometry.h
+  include/OgreInstancedEntity.h
+  include/OgreInstanceManager.h
   include/OgreIteratorRange.h
   include/OgreIteratorWrapper.h
   include/OgreIteratorWrappers.h
@@ -220,6 +230,7 @@ set (HEADER_FILES
   include/OgreSkeletonInstance.h
   include/OgreSkeletonManager.h
   include/OgreSkeletonSerializer.h
+  include/OgreSmallVector.h
   include/OgreSphere.h
   include/OgreSpotShadowFadePng.h
   include/OgreStableHeaders.h
@@ -287,7 +298,10 @@ set (SOURCE_FILES
   src/OgreDataStream.cpp
   src/OgreDefaultHardwareBufferManager.cpp
   src/OgreDefaultSceneQueries.cpp
+  src/OgreDeflate.cpp
+  src/OgreDepthBuffer.cpp
   src/OgreDistanceLodStrategy.cpp
+  src/OgreDualQuaternion.cpp
   src/OgreDynLib.cpp
   src/OgreDynLibManager.cpp
   src/OgreEdgeListBuilder.cpp
@@ -312,7 +326,14 @@ set (SOURCE_FILES
   src/OgreHighLevelGpuProgramManager.cpp
   src/OgreImage.cpp
   src/OgreImageResampler.h
+  src/OgreInstanceBatch.cpp
+  src/OgreInstanceBatchHW.cpp
+  src/OgreInstanceBatchHW_VTF.cpp
+  src/OgreInstanceBatchShader.cpp
+  src/OgreInstanceBatchVTF.cpp
   src/OgreInstancedGeometry.cpp
+  src/OgreInstancedEntity.cpp
+  src/OgreInstanceManager.cpp
   src/OgreKeyFrame.cpp
   src/OgreLight.cpp
   src/OgreLodStrategy.cpp
@@ -416,6 +437,7 @@ set (SOURCE_FILES
   src/OgreSkeletonInstance.cpp
   src/OgreSkeletonManager.cpp
   src/OgreSkeletonSerializer.cpp
+  src/OgreSmallVector.cpp
   src/OgreStaticGeometry.cpp
   src/OgreStreamSerialiser.cpp
   src/OgreString.cpp
@@ -444,7 +466,22 @@ set (SOURCE_FILES
 )
 
 # Add platform specific files
-if (WIN32)
+if (OGRE_BUILD_PLATFORM_NACL)
+  include_directories("include/NaCl")
+  set(PLATFORM_HEADER_FILES
+    include/NaCl/OgreConfigDialogImp.h
+    include/NaCl/OgreErrorDialogImp.h
+    include/NaCl/OgreTimerImp.h
+  )
+  set(PLATFORM_SOURCE_FILES
+    src/NaCl/OgreConfigDialog.cpp
+    src/NaCl/OgreErrorDialog.cpp
+    src/NaCl/OgreTimer.cpp
+    src/OgreSearchOps.cpp
+  )
+  set(PLATFORM_LIBS nosys)
+  set(PLATFORM_HEADER_INSTALL "NaCl")
+elseif (WIN32)
   include_directories("include/WIN32")
   set(PLATFORM_HEADER_FILES
     include/WIN32/OgreConfigDialogImp.h
@@ -457,7 +494,6 @@ if (WIN32)
     src/WIN32/OgreErrorDialog.cpp
     src/WIN32/OgreTimer.cpp
     src/WIN32/resource.h
-    src/WIN32/OgreWin32Resources.rc
     src/WIN32/winres.h
   )  
   set(RESOURCE_FILES
@@ -469,7 +505,8 @@ if (WIN32)
   set(PLATFORM_HEADER_INSTALL "WIN32")
  
   if (MINGW) 
-    # There's a bug in CMake which makes it ignore resource files with Mingw
+    # Older CMake versions do not know how to deal with resource files on MinGW.
+	# Newer ones do, but pass along invalid command options to windres.
     # This is a manual fix for the moment.
     get_filename_component(OGRE_MINGW_PATH ${CMAKE_CXX_COMPILER} PATH)
     #set(OGRE_MINGW_RC ${OGRE_MINGW_PATH}/windres.exe)
@@ -484,27 +521,29 @@ if (WIN32)
 	                           -i${CMAKE_CURRENT_SOURCE_DIR}/src/WIN32/OgreWin32Resources.rc
 							   -o${CMAKE_CURRENT_BINARY_DIR}/OgreWin32Resources.rc.obj
       DEPENDS ${RESOURCE_FILES})
-	list(APPEND PLATFORM_SOURCE_FILES ${CMAKE_CURRENT_BINARY_DIR}/OgreWin32Resources.rc.obj)		
+	list(APPEND PLATFORM_SOURCE_FILES ${CMAKE_CURRENT_BINARY_DIR}/OgreWin32Resources.rc.obj)
+  else ()
+    list(APPEND PLATFORM_SOURCE_FILES src/WIN32/OgreWin32Resources.rc)
   endif ()
 
 elseif (APPLE)
-  if (OGRE_BUILD_PLATFORM_IPHONE)
-    include_directories("include/iPhone")
+  if (OGRE_BUILD_PLATFORM_APPLE_IOS)
+    include_directories("include/iOS")
     set(PLATFORM_HEADER_FILES
-      include/iPhone/OgreConfigDialogImp.h
-      include/iPhone/OgreErrorDialogImp.h
-      include/iPhone/OgreTimerImp.h
-      include/iPhone/macUtils.h
+      include/iOS/OgreConfigDialogImp.h
+      include/iOS/OgreErrorDialogImp.h
+      include/iOS/OgreTimerImp.h
+      include/iOS/macUtils.h
     )
     set(PLATFORM_SOURCE_FILES
-      src/iPhone/OgreConfigDialog.cpp
-      src/iPhone/OgreErrorDialog.cpp
-      src/iPhone/OgreTimer.cpp
-      src/iPhone/macUtils.mm
+      src/iOS/OgreConfigDialog.cpp
+      src/iOS/OgreErrorDialog.cpp
+      src/iOS/OgreTimer.cpp
+      src/iOS/macUtils.mm
       src/OgreSearchOps.cpp
     )
     set(PLATFORM_LIBS "")
-    set(PLATFORM_HEADER_INSTALL "iPhone")
+    set(PLATFORM_HEADER_INSTALL "iOS")
   else ()
     include_directories("include/OSX")
     set(PLATFORM_HEADER_FILES
@@ -550,15 +589,29 @@ elseif (UNIX)
     src/OgreSearchOps.cpp
   )
   set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} pthread)
+  set(PLATFORM_HEADER_INSTALL "GLX")
   # some platforms require explicit linking to libdl, see if it's available
   find_library(DL_LIBRARY NAMES dl dlsym)
   mark_as_advanced(DL_LIBRARY)
   if (DL_LIBRARY)
     list(APPEND PLATFORM_LIBS dl)
   endif ()
-  set(PLATFORM_HEADER_INSTALL "GLX")
+elseif (SYMBIAN)
+  include_directories(include/symbian)
+  set(PLATFORM_HEADER_FILES
+    include/GLX/OgreTimerImp.h
+    include/symbian/OgreConfigDialogImp.h
+    include/symbian/OgreErrorDialogImp.h
+  )
+  set(PLATFORM_SOURCE_FILES
+    src/OgreSearchOps.cpp
+    src/GLX/OgreTimer.cpp
+    src/symbian/OgreConfigDialog.cpp
+    src/symbian/OgreErrorDialog.cpp
+  )
+  set(PLATFORM_HEADER_INSTALL "SYMBIAN")
 
-endif(WIN32)
+endif()
 
 
 # Configure threading files
@@ -641,10 +694,19 @@ if (OGRE_CONFIG_ENABLE_ZIP)
   list(APPEND LIBRARIES "${ZLIB_LIBRARIES}")
 endif ()
 
+if (OGRE_CONFIG_ENABLE_GLES2_GLSL_OPTIMISER)
+  list(APPEND LIBRARIES "${GLSL_Optimizer_LIBRARIES}")
+endif ()
+
+if (OGRE_CONFIG_ENABLE_GLES2_CG_SUPPORT)
+  list(APPEND LIBRARIES "${HLSL2GLSL_LIBRARIES}")
+endif ()
+
 set (TARGET_LINK_FLAGS "")
 
 # setup OgreMain target
-add_library(OgreMain ${OGRE_LIB_TYPE} ${PREC_HEADER} ${HEADER_FILES} ${SOURCE_FILES} ${PLATFORM_HEADER_FILES} ${PLATFORM_SOURCE_FILES} ${THREAD_HEADER_FILES} ${THREAD_SOURCE_FILES})
+# exclude OgreAlignedAllocator.cpp from unity builds; causes problems on Linux
+ogre_add_library(OgreMain ${OGRE_LIB_TYPE} ${PREC_HEADER} ${HEADER_FILES} ${SOURCE_FILES} ${PLATFORM_HEADER_FILES} ${PLATFORM_SOURCE_FILES} ${THREAD_HEADER_FILES} ${THREAD_SOURCE_FILES} SEPARATE "src/OgreAlignedAllocator.cpp")
 # In visual studio 2010 - 64 bit we get this error: "LINK : fatal error LNK1210: exceeded internal ILK size limit; link with /INCREMENTAL:NO"
 if(WIN32 AND MSVC10 AND CMAKE_CL_64)
   set_target_properties(OgreMain PROPERTIES 
@@ -656,7 +718,9 @@ else()
 endif()
 
 if (APPLE)
-  if (NOT OGRE_BUILD_PLATFORM_IPHONE)
+  if (OGRE_BUILD_PLATFORM_APPLE_IOS)
+    set_target_properties(OgreMain PROPERTIES INSTALL_NAME_DIR "OGRE")
+  else ()
     set_target_properties(OgreMain PROPERTIES FRAMEWORK TRUE)
     # Set the INSTALL_PATH so that Frameworks can be local
     set_target_properties(OgreMain
@@ -671,16 +735,10 @@ if (APPLE)
     set_target_properties(OgreMain PROPERTIES XCODE_ATTRIBUTE_GCC_UNROLL_LOOPS "YES")
     add_custom_command(TARGET OgreMain POST_BUILD
       COMMAND mkdir ARGS -p ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/Threading
-	  COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp ARGS -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_SOURCE_DIR}/OgreMain/include/Threading/* ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/Threading/
+	  COMMAND ditto ${OGRE_SOURCE_DIR}/OgreMain/include/Threading/* ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/Threading/
       COMMAND mkdir ARGS -p ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/OSX
-      COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp ARGS -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_SOURCE_DIR}/OgreMain/include/OSX/*.h ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/OSX/	
+      COMMAND ditto ${OGRE_SOURCE_DIR}/OgreMain/include/OSX/*.h ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/OSX/	
 	)
-  else ()
-    set_target_properties(OgreMain PROPERTIES INSTALL_NAME_DIR "OGRE")
-    set_target_properties(OgreMain PROPERTIES XCODE_ATTRIBUTE_GCC_THUMB_SUPPORT "NO")
-    set_target_properties(OgreMain PROPERTIES XCODE_ATTRIBUTE_GCC_UNROLL_LOOPS "YES")
-    set_target_properties(OgreMain PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer")
-    set_target_properties(OgreMain PROPERTIES XCODE_ATTRIBUTE_GCC_PRECOMPILE_PREFIX_HEADER "YES")
   endif ()
 
   # Framework is called 'Ogre'

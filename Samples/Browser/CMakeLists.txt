@@ -10,10 +10,12 @@
 # Configure Browser demo build
 
 set(SOURCE_FILES src/SampleBrowser.cpp)
-if (WIN32)
+if (OGRE_BUILD_PLATFORM_NACL)
+  list(APPEND SOURCE_FILES src/FileSystemLayerImpl_NaCl.cpp)
+elseif (WIN32)
   list(APPEND SOURCE_FILES src/FileSystemLayerImpl_WIN32.cpp)
-elseif (OGRE_BUILD_PLATFORM_IPHONE)
-  list(APPEND SOURCE_FILES src/FileSystemLayerImpl_iPhone.mm)
+elseif (OGRE_BUILD_PLATFORM_APPLE_IOS)
+  list(APPEND SOURCE_FILES src/FileSystemLayerImpl_iOS.mm)
 elseif (APPLE)
   list(APPEND SOURCE_FILES src/FileSystemLayerImpl_OSX.cpp)
 elseif (UNIX)
@@ -55,18 +57,18 @@ if (SYMBIAN)
 
 endif (SYMBIAN)
 
-if (OGRE_BUILD_PLATFORM_IPHONE)
+if (OGRE_BUILD_PLATFORM_APPLE_IOS)
   set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/SampleBrowser.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
 
   if(OGRE_BUILD_RENDERSYSTEM_GLES AND NOT OGRE_BUILD_RENDERSYSTEM_GLES2)
     list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_BSP Sample_Compositor Sample_CelShading Sample_CubeMapping Sample_Dot3Bump Sample_Fresnel Sample_Instancing Sample_Lighting Sample_ShaderSystem Sample_Terrain Sample_VolumeTex Sample_Water)
   endif()
 
-  if(NOT OGRE_BUILD_COMPONENT_TERRAIN)
+  if(NOT OGRE_BUILD_COMPONENT_TERRAIN AND NOT OGRE_SDK_BUILD)
     list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_Terrain)
   endif()
 
-  if(NOT OGRE_BUILD_COMPONENT_RTSHADERSYSTEM)
+  if(NOT OGRE_BUILD_COMPONENT_RTSHADERSYSTEM AND NOT OGRE_SDK_BUILD)
     list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_ShaderSystem)
   endif()
 
@@ -85,19 +87,16 @@ set (HEADER_FILES
 	${OGRE_SOURCE_DIR}/Samples/Common/include/FileSystemLayer.h
 )
 
-if (APPLE AND NOT OGRE_BUILD_PLATFORM_IPHONE)
-
-  set(HEADER_FILES ${HEADER_FILES}
-    include/SampleBrowser_OSX.h
-  )
-endif (APPLE AND NOT OGRE_BUILD_PLATFORM_IPHONE)
-
-if (APPLE AND OGRE_BUILD_PLATFORM_IPHONE)
-
+if (APPLE AND OGRE_BUILD_PLATFORM_APPLE_IOS)
   set(HEADER_FILES ${HEADER_FILES}
     include/SampleBrowser_iOS.h
   )
-endif (APPLE AND OGRE_BUILD_PLATFORM_IPHONE)
+else ()
+  set(HEADER_FILES ${HEADER_FILES}
+    include/SampleBrowser_OSX.h
+	${OGRE_SOURCE_DIR}/Samples/Common/misc/SampleBrowser_OSX.icns
+  )
+endif (APPLE AND OGRE_BUILD_PLATFORM_APPLE_IOS)
 
 if (OGRE_STATIC)
   # Find all samples headers, and copy them to a single include folder
@@ -122,7 +121,7 @@ if (OGRE_BUILD_TESTS)
 	add_definitions(-DSAMPLES_INCLUDE_PLAYPEN)
 	include_directories(${OGRE_SOURCE_DIR}/Tests/PlayPen/include)
 endif()
-add_executable(SampleBrowser WIN32 ${HEADER_FILES} ${SOURCE_FILES} ${RESOURCE_FILES})
+ogre_add_executable(SampleBrowser WIN32 ${HEADER_FILES} ${SOURCE_FILES} ${RESOURCE_FILES})
 
 target_link_libraries(SampleBrowser ${OGRE_LIBRARIES} ${OGRE_PLUGIN_LIBRARIES} ${OIS_LIBRARIES} ${SAMPLE_LIBRARIES})
 
@@ -160,41 +159,41 @@ if (APPLE)
 
 	# On OS X, create .app bundle
 	set_property(TARGET SampleBrowser PROPERTY MACOSX_BUNDLE TRUE)
+	set_property(TARGET SampleBrowser PROPERTY MACOSX_BUNDLE_ICON_FILE SampleBrowser_OSX.icns)
 	set_property(TARGET SampleBrowser PROPERTY MACOSX_BUNDLE_INFO_PLIST ${OGRE_SOURCE_DIR}/Samples/Common/misc/Info.plist)
+	set(MACOSX_BUNDLE_GUI_IDENTIFIER "org.ogre3d.\${PRODUCT_NAME:rfc1034identifier}")
 
-  if (OGRE_BUILD_PLATFORM_IPHONE)
-	set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.yourcompany.\${PRODUCT_NAME:rfc1034identifier}")
-    set (OGRE_SAMPLE_CONTENTS_PATH ${OGRE_BINARY_DIR}/bin/$(CONFIGURATION)/SampleBrowser.app)
+  if (OGRE_BUILD_PLATFORM_APPLE_IOS)
+    set(OGRE_SAMPLE_CONTENTS_PATH ${OGRE_BINARY_DIR}/bin/$(CONFIGURATION)/SampleBrowser.app)
     add_custom_command(TARGET SampleBrowser POST_BUILD
-      COMMAND cp ARGS ${OGRE_BINARY_DIR}/bin/*.cfg ${OGRE_SAMPLE_CONTENTS_PATH}/
-      COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_SOURCE_DIR}/Samples/Common/misc/*.png ${OGRE_SAMPLE_CONTENTS_PATH}/
-      COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_BINARY_DIR}/bin/*.cfg ${OGRE_SAMPLE_CONTENTS_PATH}/
+      COMMAND ditto ${OGRE_SOURCE_DIR}/Samples/Common/misc/*.png ${OGRE_SAMPLE_CONTENTS_PATH}/
+      COMMAND ditto ${OGRE_BINARY_DIR}/bin/*.cfg ${OGRE_SAMPLE_CONTENTS_PATH}/
     )
     if(OGRE_SDK_BUILD)
 	    add_custom_command(TARGET SampleBrowser POST_BUILD
           COMMAND mkdir ARGS -p ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/
-	      COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_BINARY_DIR}/Media ${OGRE_SAMPLE_CONTENTS_PATH}/
-	      COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/lib*.a ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/
+	      COMMAND ditto ${OGRE_BINARY_DIR}/Media ${OGRE_SAMPLE_CONTENTS_PATH}/Media
 	    )
-	elseif(OGRE_INSTALL_SAMPLES_SOURCE)
-        add_custom_command(TARGET SampleBrowser POST_BUILD
-      	  COMMAND mkdir ARGS -p ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/
-	      COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_SOURCE_DIR}/Samples/Media ${OGRE_SAMPLE_CONTENTS_PATH}/
-	      COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/lib*.a ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/
-        )
     else()
         add_custom_command(TARGET SampleBrowser POST_BUILD
           COMMAND mkdir ARGS -p ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/
-          COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${OGRE_SOURCE_DIR}/Samples/Media ${OGRE_SAMPLE_CONTENTS_PATH}/
+          COMMAND ditto ${OGRE_SOURCE_DIR}/Samples/Media ${OGRE_SAMPLE_CONTENTS_PATH}/Media
         )
     endif(OGRE_SDK_BUILD)
   else()
+
+    include_directories(
+        ${OGRE_SOURCE_DIR}/RenderSystems/GL/include
+        ${OGRE_SOURCE_DIR}/RenderSystems/GL/include/OSX
+        )
+
+	target_link_libraries(SampleBrowser ${OPENGL_LIBRARIES} ${CoreVideo_LIBRARIES})
 
     # Add the path where the Ogre framework was found, if it has been found somewhere
     if(NOT ${OGRE_FRAMEWORK_PATH} STREQUAL "" AND OGRE_SDK_BUILD)
       set_target_properties(SampleBrowser PROPERTIES
         COMPILE_FLAGS "-F${OGRE_FRAMEWORK_PATH}"
-        LINK_FLAGS "-F${OGRE_FRAMEWORK_PATH} -framework IOKit -framework Cocoa -framework Carbon"
+        LINK_FLAGS "-F${OGRE_FRAMEWORK_PATH} -framework IOKit -framework Cocoa -framework Carbon -framework OpenGL -framework CoreVideo"
       )
     endif()
 	# also, symlink frameworks so .app is standalone
@@ -214,7 +213,7 @@ if (APPLE)
 		COMMAND mkdir ARGS -p ${OGRE_SAMPLE_CONTENTS_PATH}/Frameworks
 		COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/${OGRE_BUILT_FRAMEWORK}Ogre.framework 
 		${OGRE_SAMPLE_CONTENTS_PATH}/Frameworks/
-		COMMAND ln ARGS -s -f ${OGRE_SOURCE_DIR}/Dependencies/Cg.framework 
+		COMMAND ln ARGS -s -f ${OGRE_SOURCE_DIR}/Dependencies/lib/Cg.framework 
 		${OGRE_SAMPLE_CONTENTS_PATH}/Frameworks/
 		)
 	# now cfg files
@@ -228,6 +227,8 @@ if (APPLE)
 		${OGRE_SAMPLE_CONTENTS_PATH}/Resources/
 		COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/bin/quakemap.cfg 
 		${OGRE_SAMPLE_CONTENTS_PATH}/Resources/
+        COMMAND ditto 
+		${OGRE_SOURCE_DIR}/Samples/Common/misc/SampleBrowser_OSX.icns ${OGRE_SAMPLE_CONTENTS_PATH}/Resources
 		)
 
 	# now plugins
@@ -312,7 +313,7 @@ if (APPLE)
 		COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/PlayPen.dylib 
 		${OGRE_SAMPLE_CONTENTS_PATH}/Plugins/
 		)
-	ENDIF()
+	endif()
   endif()
 endif (APPLE)
 

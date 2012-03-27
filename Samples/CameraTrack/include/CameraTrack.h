@@ -46,7 +46,7 @@ protected:
         // create a camera node and attach camera to it
         SceneNode* camNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         camNode->attachObject(mCamera);
-
+		
 		// set up a 10 second animation for our camera, using spline interpolation for nice curves
         Animation* anim = mSceneMgr->createAnimation("CameraTrack", 10);
         anim->setInterpolationMode(Animation::IM_SPLINE);
@@ -64,11 +64,6 @@ protected:
         // create a new animation state to track this
         mAnimState = mSceneMgr->createAnimationState("CameraTrack");
         mAnimState->setEnabled(true);
-	}
-
-	void cleanupContent()
-	{
-		MeshManager::getSingleton().remove("floor");
 	}
 
 	AnimationState* mAnimState;

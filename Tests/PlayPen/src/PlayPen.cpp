@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2010 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,10 @@ PlayPenPlugin::PlayPenPlugin()
 	addSample(new PlayPen_testManualLOD());
 	addSample(new PlayPen_testManualLODFromFile());
 	addSample(new PlayPen_testFullScreenSwitch());
+	addSample(new PlayPen_testMorphAnimationWithNormals());
+	addSample(new PlayPen_testMorphAnimationWithoutNormals());
+	addSample(new PlayPen_testPoseAnimationWithNormals());
+	addSample(new PlayPen_testPoseAnimationWithoutNormals());
 }
 //---------------------------------------------------------------------
 PlayPenPlugin::~PlayPenPlugin()
@@ -66,6 +70,17 @@ void PlayPenBase::unloadResources()
 	ResourceGroupManager::getSingleton().clearResourceGroup(TRANSIENT_RESOURCE_GROUP);
 
 	SdkSample::unloadResources();
+}
+//---------------------------------------------------------------------
+bool PlayPenBase::frameStarted(const FrameEvent& evt)
+{
+	for (AnimationStateList::iterator animi = mAnimStateList.begin(); animi != mAnimStateList.end(); ++animi)
+	{
+		(*animi)->addTime(evt.timeSinceLastFrame);
+	}
+	
+	return true;
+	
 }
 
 
@@ -142,7 +157,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //Animation* mAnim = 0;
 //vector<AnimationState*>::type mAnimStateList;
 //AnimationState* mAnimState = 0;
-//Overlay* mpOverlay;
+//Overlay* mOverlay;
 //Entity* pPlaneEnt;
 //Camera* testCam = 0;
 //SceneNode* camPlaneNode[6];
@@ -321,8 +336,8 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //
 //		}
 //
-//        // Neither Terrain nor keyboard input works on iPhone
-//#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+//        // Neither Terrain nor keyboard input works on iOS
+//#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 //		if (mTerrain)
 //		{
 //			if (mKeyboard->isKeyDown(OIS::KC_PERIOD))
@@ -436,7 +451,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //            timeUntilNextToggle -= evt.timeSinceLastFrame;
 //
 //		static bool mWireframe = false;
-//#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+//#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 //		if (mKeyboard->isKeyDown(OIS::KC_G) && timeUntilNextToggle <= 0)
 //        {
 //			mWireframe = !mWireframe;
@@ -504,7 +519,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //			(*animi)->addTime(evt.timeSinceLastFrame);
 //		}
 //
-//#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+//#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 //        if (mKeyboard->isKeyDown(OIS::KC_R) && timeUntilNextToggle <= 0)
 //        {
 //            rotate = !rotate;
@@ -602,7 +617,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //        }
 //        */
 //
-//#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+//#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 //		if (mKeyboard->isKeyDown(OIS::KC_SPACE))
 //		{
 //			if (testremoveNode)
@@ -8619,7 +8634,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //		String pluginsPath = mResourcePath + "plugins.cfg";
 //		// only use plugins.cfg if not static
 //#ifdef OGRE_STATIC_LIB
-//    #if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+//    #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 //        Ogre::String workDir = Ogre::StringUtil::BLANK;
 //        workDir = Ogre::macBundlePath() + "/";
 //
@@ -8864,7 +8879,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //int main(int argc, char **argv)
 //#endif
 //{
-//#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+//#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 //    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 //    int retVal = UIApplicationMain(argc, argv, @"UIApplication", @"AppDelegate");
 //    [pool release];
@@ -8880,9 +8895,9 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //        app.go();
 //	} catch( Ogre::Exception& e ) {
 //#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-//        MessageBox( NULL, e.getFullDescription().c_str(), "An exception has occured!", MB_OK | MB_ICONERROR | MB_TASKMODAL);
+//        MessageBox( NULL, e.getFullDescription().c_str(), "An exception has occurred!", MB_OK | MB_ICONERROR | MB_TASKMODAL);
 //#else
-//        std::cerr << "An exception has occured: " << e.getFullDescription();
+//        std::cerr << "An exception has occurred: " << e.getFullDescription();
 //#endif
 //    }
 //
@@ -8890,7 +8905,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //#endif
 //}
 //
-//#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+//#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 //#   ifdef __OBJC__
 //@interface AppDelegate : NSObject <UIApplicationDelegate>
 //{
@@ -8908,7 +8923,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 //    try {
 //        app.go();
 //    } catch( Ogre::Exception& e ) {
-//        std::cerr << "An exception has occured: " <<
+//        std::cerr << "An exception has occurred: " <<
 //        e.getFullDescription().c_str() << std::endl;
 //    }
 //}

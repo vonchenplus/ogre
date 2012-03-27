@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -34,6 +34,7 @@ Sample* s;
 class _OgreSampleClassExport Sample_Isosurf : public SdkSample
 {
 	Entity* tetrahedra;
+    MeshPtr mTetrahedraMesh;
 public:
 	
     Sample_Isosurf() 
@@ -44,35 +45,39 @@ public:
 		mInfo["Category"] = "Geometry";
     }
 
-    // Just override the mandatory create scene method
-    void setupContent(void)
+    void testCapabilities(const RenderSystemCapabilities* caps)
     {
-        // Check capabilities
-		const RenderSystemCapabilities* caps = Root::getSingleton().getRenderSystem()->getCapabilities();
         if (!caps->hasCapability(RSC_GEOMETRY_PROGRAM))
         {
 			OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your render system / hardware does not support geometry programs, "
-				"so cannot run this demo. Sorry!", 
-                "Sample_Isosurf::setupContent");
+                        "so you cannot run this sample. Sorry!", 
+                        "Sample_Isosurf::testCapabilities");
         }
-		
-		int maxOutputVertices = caps->getGeometryProgramNumOutputVertices();
-		Ogre::LogManager::getSingleton().getDefaultLog()->stream() << 
-			"Num output vertices per geometry shader run : " << maxOutputVertices;
 
-		
+		Ogre::LogManager::getSingleton().getDefaultLog()->stream() << 
+            "Num output vertices per geometry shader run : " << caps->getGeometryProgramNumOutputVertices();
+    }
+
+    // Just override the mandatory create scene method
+    void setupContent(void)
+    {
 		mCamera->setPosition(0, 0, -40);
         mCamera->lookAt(0,0,0);
 		mCamera->setNearClipDistance(0.1);
 		mCamera->setFarClipDistance(100);
 
-		MeshPtr tetrahedraMesh = ProceduralTools::generateTetrahedra();
+		mTetrahedraMesh = ProceduralTools::generateTetrahedra();
 		//Create tetrahedra and add it to the root scene node
-		tetrahedra = mSceneMgr->createEntity("TetrahedraEntity", tetrahedraMesh->getName());
+		tetrahedra = mSceneMgr->createEntity("TetrahedraEntity", mTetrahedraMesh->getName());
 		//tetraHedra->setDebugDisplayEnabled(true);
 		Ogre::SceneNode* parentNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
 		parentNode->attachObject(tetrahedra);
 		parentNode->setScale(10,10,10);
+    }
+
+    void cleanupContent()
+    {
+        MeshManager::getSingleton().remove(mTetrahedraMesh->getName());
     }
 
 	bool frameRenderingQueued(const FrameEvent& evt)

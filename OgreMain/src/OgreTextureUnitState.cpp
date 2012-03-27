@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -235,6 +235,47 @@ namespace Ogre {
 
     }
 	//-----------------------------------------------------------------------
+	void TextureUnitState::setTexture( const TexturePtr& texPtr)
+	{
+		if (texPtr.isNull())
+		{
+			OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND,
+				"Texture Pointer is empty.",
+				"TextureUnitState::setTexture");
+		}
+
+		setContentType(CONTENT_NAMED);
+		mTextureLoadFailed = false;
+
+		if (texPtr->getTextureType() == TEX_TYPE_CUBE_MAP)
+		{
+			// delegate to cubic texture implementation
+			setCubicTexture(&texPtr, true);
+		}
+		else
+		{
+			mFrames.resize(1);
+			mFramePtrs.resize(1);
+			mFrames[0] = texPtr->getName();
+			mFramePtrs[0] = texPtr;
+			// defer load until used, so don't grab pointer yet
+			mCurrentFrame = 0;
+			mCubic = false;
+			mTextureType = texPtr->getTextureType();
+
+			// Load immediately ?
+			if (isLoaded())
+			{
+				_load(); // reload
+			}
+			// Tell parent to recalculate hash
+			if( Pass::getHashFunction() == Pass::getBuiltinHashFunction( Pass::MIN_TEXTURE_CHANGE ) )
+			{
+				mParent->_dirtyHash();
+			}
+		}
+	}
+	//-----------------------------------------------------------------------
 	void TextureUnitState::setBindingType(TextureUnitState::BindingType bt)
 	{
 		mBindingType = bt;
@@ -318,6 +359,27 @@ namespace Ogre {
         mParent->_notifyNeedsRecompile();
     }
     //-----------------------------------------------------------------------
+	void TextureUnitState::setCubicTexture( const TexturePtr* const texPtrs, bool forUVW )
+    {
+		setContentType(CONTENT_NAMED);
+		mTextureLoadFailed = false;
+		mFrames.resize(forUVW ? 1 : 6);
+		// resize pointers, but don't populate until asked for
+		mFramePtrs.resize(forUVW ? 1 : 6);
+		mAnimDuration = 0;
+		mCurrentFrame = 0;
+		mCubic = true;
+		mTextureType = forUVW ? TEX_TYPE_CUBE_MAP : TEX_TYPE_2D;
+
+		for (unsigned int i = 0; i < mFrames.size(); ++i)
+		{
+			mFrames[i] = texPtrs[i]->getName();
+			mFramePtrs[i] = texPtrs[i];
+		}
+		// Tell parent we need recompiling, will cause reload too
+		mParent->_notifyNeedsRecompile();
+    }
+    //-----------------------------------------------------------------------
     bool TextureUnitState::isCubic(void) const
     {
         return mCubic;
@@ -356,7 +418,7 @@ namespace Ogre {
         }
         else // raise exception for frameNumber out of bounds
         {
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "frameNumber paramter value exceeds number of stored frames.",
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "frameNumber parameter value exceeds number of stored frames.",
                 "TextureUnitState::setFrameTextureName");
         }
     }
@@ -404,7 +466,7 @@ namespace Ogre {
         }
         else
         {
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "frameNumber paramter value exceeds number of stored frames.",
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "frameNumber parameter value exceeds number of stored frames.",
                 "TextureUnitState::deleteFrameTextureName");
         }
     }
@@ -504,7 +566,7 @@ namespace Ogre {
         }
         else
         {
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "frameNumber paramter value exceeds number of stored frames.",
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "frameNumber parameter value exceeds number of stored frames.",
                 "TextureUnitState::setCurrentFrame");
         }
 
@@ -524,7 +586,7 @@ namespace Ogre {
     {
         if (frameNumber >= mFrames.size())
         {
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "frameNumber paramter value exceeds number of stored frames.",
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "frameNumber parameter value exceeds number of stored frames.",
                 "TextureUnitState::getFrameTextureName");
         }
 

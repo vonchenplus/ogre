@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@ namespace Ogre
         mIsFullScreen = false;
         mContext = NULL;
         mColourDepth = 32;
+        mVSync = false;
     }
 
     //-------------------------------------------------------------------------------------------------//
@@ -62,48 +63,46 @@ namespace Ogre
         size_t fsaa_samples = 0;
         int left = 0;
         int top = 0;
+        bool vsync = false;
+        bool hidden = false;
         int depth = 32;
 
         if( miscParams )
         {
             NameValuePairList::const_iterator opt(NULL);
-            
+            NameValuePairList::const_iterator end = miscParams->end();
+
             // Full screen anti aliasing
-            opt = miscParams->find( "FSAA" );
-            if( opt != miscParams->end() )
+            if((opt = miscParams->find("FSAA")) != end) 
                 fsaa_samples = StringConverter::parseUnsignedInt( opt->second );
 
-            opt = miscParams->find( "left" );
-            if( opt != miscParams->end() )
+            if((opt = miscParams->find("left")) != end) 
                 left = StringConverter::parseUnsignedInt( opt->second );
 
-            opt = miscParams->find( "top" );
-            if( opt != miscParams->end() )
+            if((opt = miscParams->find("top")) != end) 
                 top = StringConverter::parseUnsignedInt( opt->second );
 
-            opt = miscParams->find( "title" );
-            if( opt != miscParams->end() )
+            if((opt = miscParams->find("title")) != end) 
                 title = opt->second;
 
-            opt = miscParams->find( "depthBuffer" );
-            if( opt != miscParams->end() )
+            if((opt = miscParams->find("vsync")) != end) 
+                vsync = StringConverter::parseBool(opt->second);
+
+            if((opt = miscParams->find("hidden")) != end) 
+                hidden = StringConverter::parseBool(opt->second);
+
+            if((opt = miscParams->find("gamma")) != end) 
+				mHwGamma = StringConverter::parseBool(opt->second);
+
+            if((opt = miscParams->find("depthBuffer")) != end) 
                 hasDepthBuffer = StringConverter::parseBool( opt->second );
             
-            opt = miscParams->find( "colourDepth" );
-            if( opt != miscParams->end() )
+            if((opt = miscParams->find("colourDepth")) != end) 
                 depth = StringConverter::parseUnsignedInt( opt->second );
 
-            opt = miscParams->find( "Full Screen" );
-            if( opt != miscParams->end() )
+            if((opt = miscParams->find("Full Screen")) != end) 
                 fullScreen = StringConverter::parseBool( opt->second );
         }
-        
-        mName = name;
-        mWidth = width;
-        mHeight = height;
-        mColourDepth = depth;
-        mFSAA = fsaa_samples;
-        mIsFullScreen = fullScreen;
 
         if(fullScreen)
         {
@@ -140,7 +139,18 @@ namespace Ogre
                 mContext = mCarbonContext;
             }
         }
-        
+
+        // Apply vsync settings. call setVSyncInterval first to avoid 
+		// setting vsync more than once.
+        setVSyncEnabled(vsync);
+        setHidden(hidden);
+
+        mName = name;
+        mWidth = width;
+        mHeight = height;
+        mColourDepth = depth;
+        mFSAA = fsaa_samples;
+        mIsFullScreen = fullScreen;
         mActive = true;
         mClosed = false;
         mCreated = true;
@@ -227,6 +237,7 @@ namespace Ogre
             // Set the title of our window
             CFStringRef titleRef = CFStringCreateWithCString( kCFAllocatorDefault, title.c_str(), kCFStringEncodingASCII );
             SetWindowTitleWithCFString( mWindow, titleRef );
+            CFRelease(titleRef);
             mWindowTitle = title;
             
             // Center our window on the screen
@@ -266,9 +277,12 @@ namespace Ogre
         HIViewGetBounds(mView, &viewBounds);
 
         // Display and select our window
-        ShowWindow(mWindow);
-        SelectWindow(mWindow);
-        
+        if(!mHidden && mVisible)
+        {
+            ShowWindow(mWindow);
+            SelectWindow(mWindow);
+        }
+
         // Add our window to the window event listener class
         WindowEventUtilities::_addRenderWindow(this);
     }
@@ -276,7 +290,7 @@ namespace Ogre
     void OSXCarbonWindow::createWindowFromExternal(HIViewRef viewRef)
     {
         // TODO: The Control is going to report the incorrect location with a
-        // Metalic / Textured window.  The default windows work just fine.
+        // Metallic / Textured window.  The default windows work just fine.
         
         // First get the HIViewRef / ControlRef
         mView = viewRef;
@@ -367,7 +381,52 @@ namespace Ogre
     {
         return mClosed;
     }
+
+    //-------------------------------------------------------------------------------------------------//
+    void OSXCarbonWindow::setHidden(bool hidden)
+    {
+        mHidden = hidden;
+        if (!mIsExternal)
+        {
+            if (hidden)
+                HideWindow(mWindow);
+            else
+                ShowWindow(mWindow);
+        }
+    }
+
+    //-------------------------------------------------------------------------------------------------//
+	void OSXCarbonWindow::setVSyncEnabled(bool vsync)
+	{
+        mVSync = vsync;
+        mContext->setCurrent();
+
+        CGLContextObj share = NULL;
+        aglGetCGLContext(mAGLContext, (void**)&share);
+
+        GLint vsyncInterval = mVSync ? 1 : 0;
+        aglSetInteger(mAGLContext, AGL_SWAP_INTERVAL, &vsyncInterval);
+
+        mContext->endCurrent();
     
+        if(!mIsFullScreen)
+        {
+            if(mAGLContext != aglGetCurrentContext())
+                aglSetCurrentContext(mAGLContext);
+        }
+        else
+        {
+            if(share != CGLGetCurrentContext())
+                CGLSetCurrentContext(share);
+        }
+	}
+
+    //-------------------------------------------------------------------------------------------------//
+	bool OSXCarbonWindow::isVSyncEnabled() const
+	{
+        return mVSync;
+	}
+
     //-------------------------------------------------------------------------------------------------//
     void OSXCarbonWindow::reposition(int left, int top)
     {

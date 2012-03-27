@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -140,7 +140,9 @@ Sample_Ocean::Sample_Ocean()
 *************************************************************************/
 void Sample_Ocean::cleanupContent()
 {
-	// get rid of the shared pointers before shutting down ogre or exceptions occure
+    MeshManager::getSingleton().remove("OceanSurface");
+
+	// get rid of the shared pointers before shutting down ogre or exceptions occur
     mActiveFragmentProgram.setNull();
     mActiveFragmentParameters.setNull();
     mActiveVertexProgram.setNull();
@@ -186,7 +188,9 @@ void Sample_Ocean::setupContent(void)
     mCamera->lookAt(Ogre::Vector3(0,0,-300));
     mCamera->setNearClipDistance(1);
 
-	setDragLook(true);
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+    setDragLook(true);
+#endif
 }
 
 void Sample_Ocean::setupScene()
@@ -379,7 +383,7 @@ void Sample_Ocean::changePage(int pageNum /* = -1 : toggle */)
 											mActiveVertexParameters : mActiveFragmentParameters;
 									if(!activeParameters.isNull())
 									{
-										// use param name to get index : use appropiate paramters ptr
+										// use param name to get index : use appropriate paramters ptr
 										const Ogre::GpuConstantDefinition& def = 
 											activeParameters->getConstantDefinition(ActiveShaderDef.ParamName);
 										ActiveShaderDef.PhysicalIndex = def.physicalIndex;

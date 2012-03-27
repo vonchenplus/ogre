@@ -41,9 +41,17 @@ set (HEADER_FILES
   include/OgreShaderCGProgramWriter.h
   include/OgreShaderGLSLProgramProcessor.h
   include/OgreShaderGLSLProgramWriter.h
+  include/OgreShaderGLSLESProgramProcessor.h
+  include/OgreShaderGLSLESProgramWriter.h
   include/OgreShaderProgramWriterManager.h
   include/OgreShaderHLSLProgramProcessor.h
   include/OgreShaderHLSLProgramWriter.h
+  include/OgreShaderExLayeredBlending.h
+  include/OgreShaderExHardwareSkinning.h
+  include/OgreShaderExDualQuaternionSkinning.h
+  include/OgreShaderExLinearSkinning.h
+  include/OgreShaderExHardwareSkinningTechnique.h
+  include/OgreShaderExTextureAtlasSampler.h
 )
 
 set (SOURCE_FILES
@@ -73,20 +81,29 @@ set (SOURCE_FILES
   src/OgreShaderCGProgramWriter.cpp
   src/OgreShaderGLSLProgramProcessor.cpp
   src/OgreShaderGLSLProgramWriter.cpp
+  src/OgreShaderGLSLESProgramProcessor.cpp
+  src/OgreShaderGLSLESProgramWriter.cpp
   src/OgreShaderProgramWriterManager.cpp
   src/OgreShaderHLSLProgramProcessor.cpp
   src/OgreShaderHLSLProgramWriter.cpp
+  src/OgreShaderExLayeredBlending.cpp
+  src/OgreShaderExHardwareSkinning.cpp
+  src/OgreShaderExHardwareSkinningTechnique.cpp
+  src/OgreShaderExDualQuaternionSkinning.cpp
+  src/OgreShaderExLinearSkinning.cpp
+  src/OgreShaderExTextureAtlasSampler.cpp
 )
+
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_library(OgreRTShaderSystem ${OGRE_COMP_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES})
+ogre_add_library(OgreRTShaderSystem ${OGRE_COMP_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES})
 set_target_properties(OgreRTShaderSystem PROPERTIES VERSION ${OGRE_SOVERSION})
 target_link_libraries(OgreRTShaderSystem OgreMain)
 
 ogre_config_component(OgreRTShaderSystem)
 
-if (APPLE AND NOT OGRE_BUILD_PLATFORM_IPHONE)
+if (APPLE AND NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
     # Set the INSTALL_PATH so that Components can be installed in the application package
     set_target_properties(OgreRTShaderSystem
        PROPERTIES BUILD_WITH_INSTALL_RPATH 1
@@ -95,7 +112,7 @@ if (APPLE AND NOT OGRE_BUILD_PLATFORM_IPHONE)
 
 	# Copy headers into the main Ogre framework
 	add_custom_command(TARGET OgreRTShaderSystem POST_BUILD
-	  COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp ARGS -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/
+	  COMMAND ditto ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/
 	)
 endif()
 

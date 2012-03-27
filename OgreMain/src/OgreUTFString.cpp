@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -729,37 +729,37 @@ namespace Ogre {
 	const std::string& UTFString::asUTF8() const
 	{
 		_load_buffer_UTF8();
-		return *m_buffer.mStrBuffer;
+		return *mBuffer.mStrBuffer;
 	}
 
 	const char* UTFString::asUTF8_c_str() const
 	{
 		_load_buffer_UTF8();
-		return m_buffer.mStrBuffer->c_str();
+		return mBuffer.mStrBuffer->c_str();
 	}
 
 	const UTFString::utf32string& UTFString::asUTF32() const
 	{
 		_load_buffer_UTF32();
-		return *m_buffer.mUTF32StrBuffer;
+		return *mBuffer.mUTF32StrBuffer;
 	}
 
 	const UTFString::unicode_char* UTFString::asUTF32_c_str() const
 	{
 		_load_buffer_UTF32();
-		return m_buffer.mUTF32StrBuffer->c_str();
+		return mBuffer.mUTF32StrBuffer->c_str();
 	}
 
 	const std::wstring& UTFString::asWStr() const
 	{
 		_load_buffer_WStr();
-		return *m_buffer.mWStrBuffer;
+		return *mBuffer.mWStrBuffer;
 	}
 
 	const wchar_t* UTFString::asWStr_c_str() const
 	{
 		_load_buffer_WStr();
-		return m_buffer.mWStrBuffer->c_str();
+		return mBuffer.mWStrBuffer->c_str();
 	}
 
 	UTFString::code_point& UTFString::at( size_type loc )
@@ -966,7 +966,7 @@ namespace Ogre {
 		// This is a 3 step process, converting each byte in the UTF-8 stream to UTF-32,
 		// then converting it to UTF-16, then finally appending the data buffer
 
-		unicode_char uc;          // temporary Unicode character buffer
+		unicode_char uc = 0;      // temporary Unicode character buffer
 		unsigned char utf8buf[7]; // temporary UTF-8 buffer
 		utf8buf[6] = 0;
 		size_t utf8len;           // UTF-8 length
@@ -1926,75 +1926,75 @@ namespace Ogre {
 
 	void UTFString::_init()
 	{
-		m_buffer.mVoidBuffer = 0;
-		m_bufferType = bt_none;
-		m_bufferSize = 0;
+		mBuffer.mVoidBuffer = 0;
+		mBufferType = bt_none;
+		mBufferSize = 0;
 	}
 
 	void UTFString::_cleanBuffer() const
 	{
-		if ( m_buffer.mVoidBuffer != 0 ) {
-			switch ( m_bufferType ) {
+		if ( mBuffer.mVoidBuffer != 0 ) {
+			switch ( mBufferType ) {
 				case bt_string:
-					delete m_buffer.mStrBuffer;
+					delete mBuffer.mStrBuffer;
 					break;
 				case bt_wstring:
-					delete m_buffer.mWStrBuffer;
+					delete mBuffer.mWStrBuffer;
 					break;
 				case bt_utf32string:
-					delete m_buffer.mUTF32StrBuffer;
+					delete mBuffer.mUTF32StrBuffer;
 					break;
 				case bt_none: // under the worse of circumstances, this is all we can do, and hope it works out
 				default:
-					//delete m_buffer.mVoidBuffer;
+					//delete mBuffer.mVoidBuffer;
 					// delete void* is undefined, don't do that
 					assert("This should never happen - mVoidBuffer should never contain something if we "
 						"don't know the type");
 					break;
 			}
-			m_buffer.mVoidBuffer = 0;
-			m_bufferSize = 0;
-			m_bufferType = bt_none;
+			mBuffer.mVoidBuffer = 0;
+			mBufferSize = 0;
+			mBufferType = bt_none;
 		}
 	}
 
 	void UTFString::_getBufferStr() const
 	{
-		if ( m_bufferType != bt_string ) {
+		if ( mBufferType != bt_string ) {
 			_cleanBuffer();
-			m_buffer.mStrBuffer = new std::string();
-			m_bufferType = bt_string;
+			mBuffer.mStrBuffer = new std::string();
+			mBufferType = bt_string;
 		}
-		m_buffer.mStrBuffer->clear();
+		mBuffer.mStrBuffer->clear();
 	}
 
 	void UTFString::_getBufferWStr() const
 	{
-		if ( m_bufferType != bt_wstring ) {
+		if ( mBufferType != bt_wstring ) {
 			_cleanBuffer();
-			m_buffer.mWStrBuffer = new std::wstring();
-			m_bufferType = bt_wstring;
+			mBuffer.mWStrBuffer = new std::wstring();
+			mBufferType = bt_wstring;
 		}
-		m_buffer.mWStrBuffer->clear();
+		mBuffer.mWStrBuffer->clear();
 	}
 
 	void UTFString::_getBufferUTF32Str() const
 	{
-		if ( m_bufferType != bt_utf32string ) {
+		if ( mBufferType != bt_utf32string ) {
 			_cleanBuffer();
-			m_buffer.mUTF32StrBuffer = new utf32string();
-			m_bufferType = bt_utf32string;
+			mBuffer.mUTF32StrBuffer = new utf32string();
+			mBufferType = bt_utf32string;
 		}
-		m_buffer.mUTF32StrBuffer->clear();
+		mBuffer.mUTF32StrBuffer->clear();
 	}
 
 	void UTFString::_load_buffer_UTF8() const
 	{
 		_getBufferStr();
-		std::string& buffer = ( *m_buffer.mStrBuffer );
+		std::string& buffer = ( *mBuffer.mStrBuffer );
 		buffer.reserve( length() );
 
-		unsigned char utf8buf[6];
+		unsigned char utf8buf[6] = "";
 		char* charbuf = ( char* )utf8buf;
 		unicode_char c;
 		size_t len;
@@ -2012,7 +2012,7 @@ namespace Ogre {
 	void UTFString::_load_buffer_WStr() const
 	{
 		_getBufferWStr();
-		std::wstring& buffer = ( *m_buffer.mWStrBuffer );
+		std::wstring& buffer = ( *mBuffer.mWStrBuffer );
 		buffer.reserve( length() ); // may over reserve, but should be close enough
 #ifdef WCHAR_UTF16 // wchar_t matches UTF-16
 		const_iterator i, ie = end();
@@ -2032,7 +2032,7 @@ namespace Ogre {
 	void UTFString::_load_buffer_UTF32() const
 	{
 		_getBufferUTF32Str();
-		utf32string& buffer = ( *m_buffer.mUTF32StrBuffer );
+		utf32string& buffer = ( *mBuffer.mUTF32StrBuffer );
 		buffer.reserve( length() ); // may over reserve, but should be close enough
 
 		unicode_char c;

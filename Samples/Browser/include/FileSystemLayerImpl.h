@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2011 Torus Knot Software Ltd
+ Copyright (c) 2000-2012 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ namespace OgreBites
 
 		const Ogre::String getConfigFilePath(Ogre::String filename) const
 		{
-#if OGRE_DEBUG_MODE == 1
+#if OGRE_DEBUG_MODE == 1 && (OGRE_PLATFORM != OGRE_PLATFORM_APPLE && OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS)
 			// add _d suffix to config files
 			Ogre::String::size_type pos = filename.rfind('.');
 			if (pos != Ogre::String::npos)
@@ -82,6 +82,17 @@ namespace OgreBites
 		{
 			return mHomePath + filename;
 		}
+		
+		void setConfigPaths(const Ogre::StringVector &paths){
+			mConfigPaths = paths;
+		}
+		
+		void setHomePath(const Ogre::String &path){
+			mHomePath = path;
+		}
+
+		/** Create a directory */
+		bool createDirectory(const Ogre::String& name);
 
 	private:
 		Ogre::StringVector mConfigPaths;
@@ -94,8 +105,7 @@ namespace OgreBites
 		void prepareUserHome(const Ogre::String& subdir);
 
 		/** Test if the given file exists. */
-		const bool fileExists(const Ogre::String& path) const;
-
+		bool fileExists(const Ogre::String& path) const;
 	};
 }
 

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -23,7 +23,7 @@ namespace Ogre
 	//-----------------------------------------------------------------------------
 	void ProceduralManualObject::_updateRenderQueue(RenderQueue* queue)
 	{
-		mR2vbObject->update(m_pParentSceneManager);
+		mR2vbObject->update(mParentSceneManager);
 		queue->addRenderable(this);
 	}
 	//-----------------------------------------------------------------------------
@@ -35,7 +35,7 @@ namespace Ogre
 	void ProceduralManualObject::setManualObject(Ogre::ManualObject *manualObject)
 	{
 		mManualObject = manualObject;
-		m_pParentSceneManager = manualObject->_getManager();
+		mParentSceneManager = manualObject->_getManager();
 		if (!mR2vbObject.isNull())
 		{
 			mR2vbObject->setSourceRenderable(manualObject->getSection(0));
