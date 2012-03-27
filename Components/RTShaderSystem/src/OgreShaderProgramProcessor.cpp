@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -243,6 +243,7 @@ void ProgramProcessor::buildTexcoordTable(const ShaderParameterList& paramList, 
 				break;
             case GCT_SAMPLER1D:
             case GCT_SAMPLER2D:
+            case GCT_SAMPLER2DARRAY:
             case GCT_SAMPLER3D:
             case GCT_SAMPLERCUBE:
             case GCT_SAMPLER1DSHADOW:
@@ -294,7 +295,7 @@ void ProgramProcessor::mergeParametersByPredefinedCombinations(ShaderParameterLi
 		buildMergeCombinations();
 	}
 
-	// Create the full used merged params - means FLOAT4 params that all of thier components are used.
+	// Create the full used merged params - means FLOAT4 params that all of their components are used.
 	for (unsigned int i=0; i < mParamMergeCombinations.size(); ++i)
 	{
 		const MergeCombination& curCombination = mParamMergeCombinations[i];
@@ -651,7 +652,7 @@ void ProgramProcessor::generateLocalSplitParameters(Function* func, GpuProgramTy
 					
 					curFuncInvocation->pushOperand(itFind->second, Operand::OPS_IN, curMergeParameter.getSourceParameterMask(p));
 					curFuncInvocation->pushOperand(curMergeParameter.getDestinationParameter(Operand::OPS_OUT, i), Operand::OPS_OUT, curMergeParameter.getDestinationParameterMask(p));		
-					func->addAtomInstace(curFuncInvocation);		
+					func->addAtomInstance(curFuncInvocation);		
 				}
 				else if (progType == GPT_FRAGMENT_PROGRAM)
 				{
@@ -659,7 +660,7 @@ void ProgramProcessor::generateLocalSplitParameters(Function* func, GpuProgramTy
 					
 					curFuncInvocation->pushOperand(curMergeParameter.getDestinationParameter(Operand::OPS_IN, i), Operand::OPS_IN, curMergeParameter.getDestinationParameterMask(p));		
 					curFuncInvocation->pushOperand(itFind->second, Operand::OPS_OUT, curMergeParameter.getSourceParameterMask(p));
-					func->addAtomInstace(curFuncInvocation);		
+					func->addAtomInstance(curFuncInvocation);		
 				}
 			}
 		}

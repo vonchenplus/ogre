@@ -21,7 +21,8 @@ public:
 	StringVector getRequiredPlugins()
 	{
 		StringVector names;
-		names.push_back("Cg Program Manager");
+        if (!GpuProgramManager::getSingleton().isSyntaxSupported("glsles"))
+            names.push_back("Cg Program Manager");
 		return names;
 	}
 
@@ -34,8 +35,10 @@ public:
         }
 
         if (!GpuProgramManager::getSingleton().isSyntaxSupported("arbfp1") &&
+            !GpuProgramManager::getSingleton().isSyntaxSupported("ps_4_0") &&
             !GpuProgramManager::getSingleton().isSyntaxSupported("ps_2_0") &&
-			!GpuProgramManager::getSingleton().isSyntaxSupported("ps_1_4"))
+			!GpuProgramManager::getSingleton().isSyntaxSupported("ps_1_4") &&
+            !GpuProgramManager::getSingleton().isSyntaxSupported("glsles"))
         {
 			OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your graphics card does not support advanced fragment"
 				" programs, so you cannot run this sample. Sorry!", "FresnelSample::testCapabilities");
@@ -144,6 +147,13 @@ protected:
         mSceneMgr->getRootSceneNode()->attachObject(mWater);
 	}
 
+    void windowUpdate()
+    {
+#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
+        mWindow->update();
+#endif
+    }
+
 	void setupProps()
 	{
         Entity* ent;
@@ -153,21 +163,21 @@ protected:
 		mTrayMgr->showBackdrop("SdkTrays/Shade");
 
 		pb->setComment("Upper Bath");
-		mWindow->update();
+		windowUpdate();
         ent = mSceneMgr->createEntity("UpperBath", "RomanBathUpper.mesh" );
 		mSceneMgr->getRootSceneNode()->attachObject(ent);        
         mSurfaceEnts.push_back(ent);
 		pb->setProgress(0.4);
 
 		pb->setComment("Columns");
-		mWindow->update();
+		windowUpdate();
         ent = mSceneMgr->createEntity("Columns", "columns.mesh");
 		mSceneMgr->getRootSceneNode()->attachObject(ent);        
         mSurfaceEnts.push_back(ent);
 		pb->setProgress(0.5);
 
 		pb->setComment("Ogre Head");
-		mWindow->update();
+		windowUpdate();
 		ent = mSceneMgr->createEntity("Head", "ogrehead.mesh");
 		ent->setMaterialName("RomanBath/OgreStone");
         mSurfaceEnts.push_back(ent);
@@ -179,12 +189,12 @@ protected:
         headNode->attachObject(ent);
 
 		pb->setComment("Lower Bath");
-		mWindow->update();
+		windowUpdate();
 		ent = mSceneMgr->createEntity("LowerBath", "RomanBathLower.mesh");
         mSceneMgr->getRootSceneNode()->attachObject(ent);
         mSubmergedEnts.push_back(ent);
 		pb->setProgress(1);
-		mWindow->update();
+		windowUpdate();
 
 		mTrayMgr->destroyWidget(pb);
 		mTrayMgr->hideBackdrop();

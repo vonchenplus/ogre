@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2011 Torus Knot Software Ltd
+ Copyright (c) 2000-2012 Torus Knot Software Ltd
  Also see acknowledgements in Readme.html
  
  You may use this sample code for anything you like, it is not covered by the
@@ -86,17 +86,11 @@ protected:
 		double mStartTime = mTimer->getMicroseconds()/1000000.0f; //convert into seconds
 		double mCurTime =  mStartTime;
 		double mStopTime = mLastTime + mBurnAmount;
-		double mCPUUsage;
 
 		while( mCurTime < mStopTime )
 		{
 			mCurTime = mTimer->getMicroseconds()/1000000.0f; //convert into seconds
 		}
-
-		if( mCurTime - mLastTime > 0.00001f )
-			mCPUUsage = (mCurTime - mStartTime) / (mCurTime - mLastTime) * 100.0f;
-		else
-			mCPUUsage = FLT_MAX;
 
 		mLastTime = mTimer->getMicroseconds()/1000000.0f; //convert into seconds
 	}
@@ -203,8 +197,7 @@ protected:
 		renderInstance.resize(mNumRendered);
 
 		//Load a mesh to read data from.	
-		InstancedGeometry* batch = new InstancedGeometry(mSceneMgr, 
-			meshes[mSelectedMesh] + "s" );
+		InstancedGeometry* batch = mSceneMgr->createInstancedGeometry(meshes[mSelectedMesh] + "s" );
 		batch->setCastShadows(true);
 
 		batch->setBatchInstanceDimensions (Vector3(1000000, 1000000, 1000000));
@@ -295,7 +288,7 @@ protected:
 	//-----------------------------------------------------------------------
 	void destroyInstanceGeom()
 	{
-		delete renderInstance[0];
+        mSceneMgr->destroyAllInstancedGeometry();
 		renderInstance.clear();
 	}
 	//-----------------------------------------------------------------------
@@ -306,8 +299,7 @@ protected:
 		renderStatic.reserve (mNumRendered);
 		renderStatic.resize (mNumRendered);
 
-		StaticGeometry* geom = new StaticGeometry (mSceneMgr, 
-			meshes[mSelectedMesh] + "s");
+		StaticGeometry* geom = mSceneMgr->createStaticGeometry(meshes[mSelectedMesh] + "s");
 
 		geom->setRegionDimensions (Vector3(1000000, 1000000, 1000000));
 		size_t k = 0;
@@ -330,9 +322,7 @@ protected:
 	//-----------------------------------------------------------------------
 	void destroyStaticGeom()
 	{
-
-		delete renderStatic[0];
-
+        mSceneMgr->destroyAllStaticGeometry();
 		renderStatic.clear();
 	}
 	//-----------------------------------------------------------------------
@@ -396,7 +386,9 @@ protected:
 
 		mCamera->setPosition(500,500, 1500);
 		mCamera->lookAt(0,0,0);
-		setDragLook(true);
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+        setDragLook(true);
+#endif
 
 		   Plane plane;
         plane.normal = Vector3::UNIT_Y;
@@ -457,6 +449,9 @@ protected:
 
 	void cleanupContent()
 	{
+        mSceneMgr->destroyAllInstancedGeometry();
+        mSceneMgr->destroyAllStaticGeometry();
+        MeshManager::getSingleton().remove("Myplane");
 		destroyCurrentGeomOpt();
 		delete mTimer;
 	}

@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -66,6 +66,7 @@ void GLSLProgramWriter::initializeStringMaps()
 	mGpuConstTypeMap[GCT_FLOAT4] = "vec4";
 	mGpuConstTypeMap[GCT_SAMPLER1D] = "sampler1D";
 	mGpuConstTypeMap[GCT_SAMPLER2D] = "sampler2D";
+	mGpuConstTypeMap[GCT_SAMPLER2DARRAY] = "sampler2DArray";
 	mGpuConstTypeMap[GCT_SAMPLER3D] = "sampler3D";
 	mGpuConstTypeMap[GCT_SAMPLERCUBE] = "samplerCube";
 	mGpuConstTypeMap[GCT_MATRIX_2X2] = "mat2";
@@ -85,8 +86,8 @@ void GLSLProgramWriter::initializeStringMaps()
 	// Custom vertex attributes defined http://www.ogre3d.org/docs/manual/manual_21.html
 	mContentToPerVertexAttributes[Parameter::SPC_POSITION_OBJECT_SPACE] = "vertex";
 	mContentToPerVertexAttributes[Parameter::SPC_NORMAL_OBJECT_SPACE] = "normal";
-	mContentToPerVertexAttributes[Parameter::SPC_TANGENT] = "tangent";
-	mContentToPerVertexAttributes[Parameter::SPC_BINORMAL] = "binormal";
+	mContentToPerVertexAttributes[Parameter::SPC_TANGENT_OBJECT_SPACE] = "tangent";
+	mContentToPerVertexAttributes[Parameter::SPC_BINORMAL_OBJECT_SPACE] = "binormal";
 
 	mContentToPerVertexAttributes[Parameter::SPC_TEXTURE_COORDINATE0] = "uv0";
 	mContentToPerVertexAttributes[Parameter::SPC_TEXTURE_COORDINATE1] = "uv1";
@@ -148,6 +149,10 @@ void GLSLProgramWriter::writeSourceCode(std::ostream& os, Program* program)
 		os << mGpuConstTypeMap[pUniformParam->getType()];
 		os << "\t";	
 		os << pUniformParam->getName();
+		if (pUniformParam->isArray() == true)
+		{
+			os << "[" << pUniformParam->getSize() << "]";	
+		}
 		os << ";" << std::endl;		
 	}
 	os << std::endl;			
@@ -201,6 +206,8 @@ void GLSLProgramWriter::writeSourceCode(std::ostream& os, Program* program)
 
 			// Write function name			
 			localOs << "\t" << pFuncInvoc->getFunctionName() << "(";
+
+			ushort curIndLevel = 0;
 
 			for (; itOperand != itOperandEnd; )
 			{
@@ -316,9 +323,44 @@ void GLSLProgramWriter::writeSourceCode(std::ostream& os, Program* program)
 				++itOperand;
 
 				// Prepare for the next operand
+				ushort opIndLevel = 0;
 				if (itOperand != itOperandEnd)
 				{
-					localOs << ", ";
+					opIndLevel = itOperand->getIndirectionLevel();
+				}
+
+				if (curIndLevel != 0)
+				{
+					localOs << ")";
+				}
+
+				if (curIndLevel < opIndLevel)
+				{
+					while (curIndLevel < opIndLevel)
+					{
+						++curIndLevel;
+						localOs << "[";
+					}
+				}
+				else //if (curIndLevel >= opIndLevel)
+				{
+					while (curIndLevel > opIndLevel)
+					{
+						--curIndLevel;
+						localOs << "]";
+					}
+					if (opIndLevel != 0)
+					{
+						localOs << "][";
+					}
+					else if (itOperand != itOperandEnd)
+					{
+						localOs << ", ";
+					}
+				}
+				if (curIndLevel != 0)
+				{
+					localOs << "int(";
 				}
 			}
 
@@ -415,6 +457,11 @@ void GLSLProgramWriter::writeForwardDeclarations(std::ostream& os, Program* prog
 				funcDecl += mGpuConstTypeMap[gpuType];
 
 				++itOperator;
+				//move over all operators with indirection
+				while ((itOperator != itOperatorEnd) && (itOperator->getIndirectionLevel() != 0)) 
+				{
+					++itOperator;
+				}
 
 				// Prepare for the next operand
 				if (itOperator != itOperatorEnd)
@@ -564,6 +611,10 @@ void GLSLProgramWriter::writeOutParameters(std::ostream& os, Function* function,
 				os << mGpuConstTypeMap[pParam->getType()];
 				os << "\t";
 				os << pParam->getName();
+				if (pParam->isArray() == true)
+				{
+					os << "[" << pParam->getSize() << "]";	
+				}
 				os << ";" << std::endl;	
 			}
 		}
@@ -582,6 +633,10 @@ void GLSLProgramWriter::writeLocalParameter(std::ostream& os, ParameterPtr param
 	os << mGpuConstTypeMap[parameter->getType()];
 	os << "\t";	
 	os << parameter->getName();		
+	if (parameter->isArray() == true)
+	{
+		os << "[" << parameter->getSize() << "]";	
+	}
 }
 //-----------------------------------------------------------------------
 }

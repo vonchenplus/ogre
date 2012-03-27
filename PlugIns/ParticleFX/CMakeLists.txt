@@ -70,7 +70,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_definitions(-D_USRDLL)
 
-add_library(Plugin_ParticleFX ${OGRE_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES})
+ogre_add_library(Plugin_ParticleFX ${OGRE_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(Plugin_ParticleFX OgreMain)
 if (NOT OGRE_STATIC)
   set_target_properties(Plugin_ParticleFX PROPERTIES
@@ -78,7 +78,7 @@ if (NOT OGRE_STATIC)
   ) 
 endif ()
 
-if (APPLE AND NOT OGRE_BUILD_PLATFORM_IPHONE)
+if (APPLE AND NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
     # Set the INSTALL_PATH so that Plugins can be installed in the application package
     set_target_properties(Plugin_ParticleFX
        PROPERTIES BUILD_WITH_INSTALL_RPATH 1
@@ -87,7 +87,7 @@ if (APPLE AND NOT OGRE_BUILD_PLATFORM_IPHONE)
 
 	# Copy headers into the main Ogre framework
 	add_custom_command(TARGET Plugin_ParticleFX POST_BUILD
-	  COMMAND /Developer/Library/PrivateFrameworks/DevToolsCore.framework/Resources/pbxcp ARGS -exclude .DS_Store -exclude .hg -exclude 'CMakeLists.txt' -resolve-src-symlinks ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/
+	  COMMAND ditto ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${OGRE_BINARY_DIR}/lib/$(CONFIGURATION)/Ogre.framework/Headers/
 	)
 endif()
 

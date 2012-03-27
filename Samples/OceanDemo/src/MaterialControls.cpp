@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -19,6 +19,9 @@ same license as the rest of the engine.
 #include "OgreConfigFile.h"
 #include "OgreResourceGroupManager.h"
 #include "OgreException.h"
+#include "OgreMaterial.h"
+#include "OgreTechnique.h"
+#include "OgreMaterialManager.h"
 
 /********************************************************************************
             MaterialControls Methods
@@ -83,6 +86,14 @@ void loadMaterialControlsFile(MaterialControlsContainer& controlsContainer, cons
             if (!secName.empty() && settings)
             {
                 materialName = cf.getSetting("material", secName);
+				
+				Ogre::MaterialPtr curMat = Ogre::MaterialManager::getSingleton().getByName(materialName);
+				curMat->load();
+				Ogre::Technique * curTec = curMat->getBestTechnique();
+				if (!curTec || !curTec->isSupported())
+				{
+					continue;
+				}
 
                 MaterialControls newMaaterialControls(secName, materialName);
                 controlsContainer.push_back(newMaaterialControls);

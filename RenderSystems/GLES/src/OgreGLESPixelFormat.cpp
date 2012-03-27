@@ -5,7 +5,7 @@ This source file is part of OGRE
 For the latest info, see http://www.ogre3d.org
 
 Copyright (c) 2008 Renato Araujo Oliveira Filho <renatox@gmail.com>
-Copyright (c) 2000-2011 Torus Knot Software Ltd
+Copyright (c) 2000-2012 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -286,8 +286,8 @@ namespace Ogre  {
                     case GL_UNSIGNED_SHORT_4_4_4_4:
                         return PF_A4R4G4B4;
                     default:
-#if (OGRE_PLATFORM == OGRE_PLATFORM_IPHONE)
-                        // seems that in iPhone we need this value to get the right color
+#if (OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS)
+                        // seems that in iOS we need this value to get the right color
                         return PF_A8R8G8B8;
 #else
                         return PF_X8B8G8R8;

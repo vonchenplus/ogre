@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2011 Torus Knot Software Ltd
+ Copyright (c) 2000-2012 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -26,70 +26,33 @@
  -----------------------------------------------------------------------------
  */
 #include "OgrePlatform.h"
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN 
-#	ifdef __GCCE__
-#		include <staticlibinit_gcce.h>
-#	endif
-
-#	include <e32base.h> // for Symbian classes.
-#	include <coemain.h> // for CCoeEnv.
-
-#endif 
+#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+#include <coecntrl.h>
+#endif
 
 #include "SampleBrowser.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 #define WIN32_LEAN_AND_MEAN
 #include "windows.h"
+#include "OgreString.h"
 #elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
 #include "SampleBrowser_OSX.h"
-#elif OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 #include "SampleBrowser_iOS.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_NACL
+#include "SampleBrowser_NaCl.h"
 #endif
 
+#if OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN  && OGRE_PLATFORM != OGRE_PLATFORM_NACL
+
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-INT WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, INT)
-#elif OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN    
-int mainWithTrap();
-int main()
-{
-	int res = 0;
-    __UHEAP_MARK; 
- 
-	// Create the control environment.
-	CCoeEnv* environment = new (ELeave) CCoeEnv();    
-
-	TRAPD( err, environment->ConstructL( ETrue, 0 ) );
-
-	if( err != KErrNone )
-	{
-		printf( "Unable to create a CCoeEnv!\n" );
-		getchar();            
-	}
-    
-    TRAP( err, res = mainWithTrap());
-
-    // Close the stdout & stdin, else printf / getchar causes a memory leak.
-    fclose( stdout );
-    fclose( stdin );
-    
-	// Cleanup
-	CCoeEnv::Static()->DestroyEnvironment();
-	delete CCoeEnv::Static();
-       
-    __UHEAP_MARKEND;
-    
-    return res;
-}    
-
-int mainWithTrap()
-
+INT WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR cmdLine, INT)
 #else
-
 int main(int argc, char *argv[])
 #endif
 {
-#if OGRE_PLATFORM == OGRE_PLATFORM_IPHONE
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 	NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 	int retVal = UIApplicationMain(argc, argv, @"UIApplication", @"AppDelegate");
 	[pool release];
@@ -108,7 +71,16 @@ int main(int argc, char *argv[])
 
 	try
 	{
-		OgreBites::SampleBrowser sb;
+        bool nograb = false;
+#if OGRE_PLATFORM != OGRE_PLATFORM_WIN32
+        if (argc >= 2 && Ogre::String(argv[1]) == "nograb")
+            nograb = true;
+#else
+        // somewhat hacky, but much simpler than other solutions
+        if (Ogre::String(cmdLine).find("nograb") != Ogre::String::npos)
+            nograb = true;
+#endif
+		OgreBites::SampleBrowser sb (nograb);
 		sb.go();
 	}
 	catch (Ogre::Exception& e)
@@ -118,13 +90,10 @@ int main(int argc, char *argv[])
 #else
 		std::cerr << "An exception has occurred: " << e.getFullDescription().c_str() << std::endl;
 #endif
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
-        getchar();
-#endif
-
 	}
 
 #endif
 	return 0;
 }
 
+#endif // OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN    

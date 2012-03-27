@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2011 Torus Knot Software Ltd
+ Copyright (c) 2000-2012 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -31,23 +31,17 @@
 
 #include "OgrePlatform.h"
 
-#if OGRE_PLATFORM != OGRE_PLATFORM_IPHONE
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
 #error This header is for use with iOS only
 #endif
 
 #import <UIKit/UIKit.h> 
 #import <QuartzCore/QuartzCore.h>
 
-// To use CADisplayLink for smoother animation on iPhone comment out
-// the following line or define it to 1.  Use with caution, it can
-// sometimes cause input lag.
-#define USE_CADISPLAYLINK 1
-
 #ifdef __OBJC__
 
 @interface AppDelegate : NSObject <UIApplicationDelegate>
 {
-    NSTimer *mTimer;
     OgreBites::SampleBrowser sb;
 
     // Use of the CADisplayLink class is the preferred method for controlling your animation timing.
@@ -57,21 +51,17 @@
     id mDisplayLink;
     NSDate* mDate;
     NSTimeInterval mLastFrameTime;
-    BOOL mDisplayLinkSupported;
 }
 
 - (void)go;
 - (void)renderOneFrame:(id)sender;
-- (void)orientationChanged:(NSNotification *)notification;
 
-@property (retain) NSTimer *mTimer;
 @property (nonatomic) NSTimeInterval mLastFrameTime;
 
 @end
 
 @implementation AppDelegate
 
-@synthesize mTimer;
 @dynamic mLastFrameTime;
 
 - (NSTimeInterval)mLastFrameTime
@@ -109,118 +99,60 @@
         e.getFullDescription().c_str() << std::endl;
     }
 
-    if (mDisplayLinkSupported)
-    {
-        // CADisplayLink is API new to iPhone SDK 3.1. Compiling against earlier versions will result in a warning, but can be dismissed
-        // if the system version runtime check for CADisplayLink exists in -initWithCoder:. The runtime check ensures this code will
-        // not be called in system versions earlier than 3.1.
-        mDate = [[NSDate alloc] init];
-        mLastFrameTime = -[mDate timeIntervalSinceNow];
-        
-        mDisplayLink = [NSClassFromString(@"CADisplayLink") displayLinkWithTarget:self selector:@selector(renderOneFrame:)];
-        [mDisplayLink setFrameInterval:mLastFrameTime];
-        [mDisplayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    }
-    else
-    {
-        mTimer = [NSTimer scheduledTimerWithTimeInterval:(NSTimeInterval)(1.0f / 60.0f) * mLastFrameTime
-                                                  target:self
-                                                selector:@selector(renderOneFrame:)
-                                                userInfo:nil
-                                                 repeats:YES];
-    }
+    // CADisplayLink is API new to iPhone SDK 3.1. Compiling against earlier versions will result in a warning, but can be dismissed
+    // if the system version runtime check for CADisplayLink exists in -initWithCoder:. The runtime check ensures this code will
+    // not be called in system versions earlier than 3.1.
+    mDate = [[NSDate alloc] init];
+    mLastFrameTime = -[mDate timeIntervalSinceNow];
+    
+    mDisplayLink = [NSClassFromString(@"CADisplayLink") displayLinkWithTarget:self selector:@selector(renderOneFrame:)];
+    [mDisplayLink setFrameInterval:mLastFrameTime];
+    [mDisplayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 
-    // Register for orientation notifications
-    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(orientationChanged:)
-                                                 name:UIDeviceOrientationDidChangeNotification object:nil];
     [pool release];
 }
 
-- (void)applicationDidFinishLaunching:(UIApplication *)application
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-    // Hide the status bar
-    [[UIApplication sharedApplication] setStatusBarHidden:YES];
-
-    mDisplayLinkSupported = FALSE;
     mLastFrameTime = 1;
     mDisplayLink = nil;
-    mTimer = nil;
 
-    // A system version of 3.1 or greater is required to use CADisplayLink. The NSTimer
-    // class is used as fallback when it isn't available.
-#if USE_CADISPLAYLINK
-    NSString *reqSysVer = @"3.1";
-    NSString *currSysVer = [[UIDevice currentDevice] systemVersion];
-    if ([currSysVer compare:reqSysVer options:NSNumericSearch] != NSOrderedAscending)
-        mDisplayLinkSupported = TRUE;
-#endif
-    
     [self go];
+
+    return YES;
 }
 
 - (void)applicationWillTerminate:(UIApplication *)application
 {
     Ogre::Root::getSingleton().queueEndRendering();
-    [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
 
-    if (mDisplayLinkSupported)
-    {
-        [mDate release];
-        mDate = nil;
-        
-        [mDisplayLink invalidate];
-        mDisplayLink = nil;
-    }
-    else
-    {
-        [mTimer invalidate];
-        mTimer = nil;
-    }
+    [mDate release];
+    mDate = nil;
     
+    [mDisplayLink invalidate];
+    mDisplayLink = nil;
+
     sb.shutdown();
 }
 
 - (void)applicationWillResignActive:(UIApplication *)application
 {
     Ogre::Root::getSingleton().saveConfig();
-
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
-    [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
-}
-
-- (void)applicationDidBecomeActive:(UIApplication *)application
-{
-    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(orientationChanged:)
-                                                 name:UIDeviceOrientationDidChangeNotification object:nil];
-}
-
-- (void)orientationChanged:(NSNotification *)notification
-{
-    size_t v = 0;
-    Ogre::Root::getSingleton().getAutoCreatedWindow()->getCustomAttribute("VIEW", &v);
-
-    [(UIView *)v setNeedsLayout];
 }
 
 - (void)renderOneFrame:(id)sender
 {
     [sb.mGestureView becomeFirstResponder];
 
-    if (mDisplayLinkSupported)
-    {
-        // NSTimerInterval is a simple typedef for double
-        NSTimeInterval currentFrameTime = -[mDate timeIntervalSinceNow];
-        NSTimeInterval differenceInSeconds = currentFrameTime - mLastFrameTime;
-        mLastFrameTime = currentFrameTime;
+    // NSTimeInterval is a simple typedef for double
+    NSTimeInterval currentFrameTime = -[mDate timeIntervalSinceNow];
+    NSTimeInterval differenceInSeconds = currentFrameTime - mLastFrameTime;
+    mLastFrameTime = currentFrameTime;
 
-        Root::getSingleton().renderOneFrame((Real)differenceInSeconds);
-    }
-    else
+    dispatch_async(dispatch_get_main_queue(), ^(void)
     {
-        Root::getSingleton().renderOneFrame((Real)[mTimer timeInterval]);
-    }
+        Root::getSingleton().renderOneFrame((Real)differenceInSeconds);
+    });
 }
 
 @end
