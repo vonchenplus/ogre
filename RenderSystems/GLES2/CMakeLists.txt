@@ -31,6 +31,7 @@ set(HEADER_FILES
   include/OgreGLES2Support.h
   include/OgreGLES2Texture.h
   include/OgreGLES2TextureManager.h
+  include/OgreGLES2VertexDeclaration.h
   include/OgreGLES2Context.h
 )
 
@@ -56,6 +57,7 @@ set(SOURCE_FILES
   src/OgreGLES2Support.cpp
   src/OgreGLES2Texture.cpp
   src/OgreGLES2TextureManager.cpp
+  src/OgreGLES2VertexDeclaration.cpp
 )
 
 set(GLSLES_FILES
