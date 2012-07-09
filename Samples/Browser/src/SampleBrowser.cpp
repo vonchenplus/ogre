@@ -26,9 +26,6 @@
  -----------------------------------------------------------------------------
  */
 #include "OgrePlatform.h"
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
-#include <coecntrl.h>
-#endif
 
 #include "SampleBrowser.h"
 
@@ -59,7 +56,7 @@ Ogre::StaticPluginLoader* OgreAndroidBridge::mStaticPluginLoader = NULL;
 
 #endif
 
-#if OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN  && OGRE_PLATFORM != OGRE_PLATFORM_NACL
+#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 INT WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR cmdLine, INT)
@@ -103,8 +100,8 @@ int main(int argc, char *argv[])
         if (Ogre::String(cmdLine).find("nograb") != Ogre::String::npos)
             nograb = true;
 #endif
-		OgreBites::SampleBrowser sb (nograb);
-		sb.go();
+		OgreBites::SampleBrowser brows (nograb);
+		brows.go();
 	}
 	catch (Ogre::Exception& e)
 	{
@@ -118,4 +115,4 @@ int main(int argc, char *argv[])
 #endif
 }
 
-#endif // OGRE_PLATFORM != OGRE_PLATFORM_SYMBIAN    
+#endif    

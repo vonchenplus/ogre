@@ -36,10 +36,9 @@ namespace Ogre {
 #define OGRE_PLATFORM_WIN32 1
 #define OGRE_PLATFORM_LINUX 2
 #define OGRE_PLATFORM_APPLE 3
-#define OGRE_PLATFORM_SYMBIAN 4
-#define OGRE_PLATFORM_APPLE_IOS 5
-#define OGRE_PLATFORM_ANDROID 6
-#define OGRE_PLATFORM_NACL 7
+#define OGRE_PLATFORM_APPLE_IOS 4
+#define OGRE_PLATFORM_ANDROID 5
+#define OGRE_PLATFORM_NACL 6
 
 #define OGRE_COMPILER_MSVC 1
 #define OGRE_COMPILER_GNUC 2
@@ -100,9 +99,7 @@ namespace Ogre {
 
 /* Finds the current platform */
 
-#if defined( __SYMBIAN32__ ) 
-#   define OGRE_PLATFORM OGRE_PLATFORM_SYMBIAN
-#elif defined( __WIN32__ ) || defined( _WIN32 )
+#if defined( __WIN32__ ) || defined( _WIN32 )
 #   define OGRE_PLATFORM OGRE_PLATFORM_WIN32
 #elif defined( __APPLE_CC__)
     // Device                                                     Simulator
@@ -202,8 +199,9 @@ namespace Ogre {
 #endif // OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 
 //----------------------------------------------------------------------------
-// Symbian Settings
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
+// Android Settings
+/*
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
 #   define _OgreExport 
 #	define OGRE_UNICODE_SUPPORT 1
 #   define OGRE_DEBUG_MODE 0
@@ -221,9 +219,9 @@ namespace Ogre {
 #       define OGRE_DEBUG_MODE 0
 #   endif
 #endif
-
+*/
 //----------------------------------------------------------------------------
-// Linux/Apple/iOs/Android/Symbian/NaCl Settings
+// Linux/Apple/iOs/Android/NaCl Settings
 #if OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || \
     OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_NACL
 

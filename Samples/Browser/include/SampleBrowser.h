@@ -210,10 +210,6 @@ protected:
 			mDescBox = 0;
 			mRendererMenu = 0;
 			mCarouselPlace = 0.0f;
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
-			mNativeWindow = 0;
-			mNativeControl = 0;
-#endif
 #if OGRE_PLATFORM == OGRE_PLATFORM_NACL
             mNaClInstance = 0;
             mNaClSwapCallback = 0;
@@ -231,16 +227,6 @@ protected:
 #endif // USE_RTSHADER_SYSTEM
 		}
 
-		/*-----------------------------------------------------------------------------
-		| init data members needed only by Symbian
-		-----------------------------------------------------------------------------*/
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
-		void initAppForSymbian( RWindow * nativeWindow, CCoeControl * nativeControl )
-		{
-			mNativeWindow = nativeWindow;
-			mNativeControl = nativeControl;
-		}
-#endif
 		/*-----------------------------------------------------------------------------
 		| init data members needed only by NaCl
 		-----------------------------------------------------------------------------*/
@@ -1121,19 +1107,13 @@ protected:
 		-----------------------------------------------------------------------------*/
 		virtual Ogre::RenderWindow* createWindow()
 		{
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN || OGRE_PLATFORM == OGRE_PLATFORM_NACL
+#if OGRE_PLATFORM == OGRE_PLATFORM_NACL
 			Ogre::RenderWindow* res = mRoot->initialise(false, "OGRE Sample Browser");
 			Ogre::NameValuePairList miscParams;
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
-			miscParams["NativeWindow"] = Ogre::StringConverter::toString((unsigned long)mNativeWindow);
-			miscParams["NativeControl"] = Ogre::StringConverter::toString((unsigned long)mNativeControl);
-            res = mRoot->createRenderWindow("OGRE Sample Browser Window", mNativeWindow->Size().iWidth, mNativeWindow->Size().iHeight, false, &miscParams);
-#elif OGRE_PLATFORM == OGRE_PLATFORM_NACL
             miscParams["pp::Instance"] = Ogre::StringConverter::toString((unsigned long)mNaClInstance);
             miscParams["SwapCallback"] = Ogre::StringConverter::toString((unsigned long)mNaClSwapCallback);
             // create 1x1 window - we will resize later
             res = mRoot->createRenderWindow("OGRE Sample Browser Window", mInitWidth, mInitHeight, false, &miscParams);
-#endif
 
 #elif OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
 			return NULL;
@@ -1304,7 +1284,7 @@ protected:
 				if (info["Title"] == startupSampleTitle) startupSample = *j;   // we found the startup sample
 			}
 #  else
-#    if OGRE_DEBUG_MODE
+#    if OGRE_DEBUG_MODE && !(OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS)
 			sampleList.push_back("PlayPen_d");
 #    else
 			sampleList.push_back("PlayPen");
@@ -1765,10 +1745,6 @@ protected:
 		int mLastViewTitle;                            // last sample title viewed
 		int mLastViewCategory;                         // last sample category viewed
 		int mLastSampleIndex;                          // index of last sample running
-#if OGRE_PLATFORM == OGRE_PLATFORM_SYMBIAN
-		RWindow * mNativeWindow;
-		CCoeControl * mNativeControl;
-#endif
 #if OGRE_PLATFORM == OGRE_PLATFORM_NACL
         pp::Instance* mNaClInstance;
         pp::CompletionCallback* mNaClSwapCallback;
