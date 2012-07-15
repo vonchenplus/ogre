@@ -27,41 +27,11 @@ endif ()
 # Get the list of configured samples
 get_property(OGRE_SAMPLES_LIST GLOBAL PROPERTY "OGRE_SAMPLES_LIST")
 
-if (SYMBIAN)
-  set(SOURCE_FILES ${SOURCE_FILES}
-  Symbian/src/OgreSamplesBrowserApp.cpp
-  Symbian/src/OgreSamplesBrowserAppUi.cpp
-  Symbian/src/OgreSamplesBrowserContainer.cpp
-  Symbian/src/OgreSamplesBrowserDocument.cpp       
-  )
-
-  set(HEADER_FILES ${HEADER_FILES}
-  Symbian/inc/OgreSamplesBrowser.hrh
-  Symbian/inc/OgreSamplesBrowser.rls
-  Symbian/inc/OgreSamplesBrowserApp.h
-  Symbian/inc/OgreSamplesBrowserAppUi.h
-  Symbian/inc/OgreSamplesBrowserContainer.h
-  Symbian/inc/OgreSamplesBrowserDocument.h
-  )
-
-  set(RESOURCE_FILES ${RESOURCE_FILES}
-  Symbian/data/OgreSamplesBrowser.rss
-  Symbian/data/OgreSamplesBrowser_reg.rss
-  Symbian/group/icons_scalable_dc.mk
-  )
-
-
-  include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/Symbian/inc
-  )
-
-endif (SYMBIAN)
-
 if (OGRE_BUILD_PLATFORM_APPLE_IOS)
   set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/SampleBrowser.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
 
   if(OGRE_BUILD_RENDERSYSTEM_GLES AND NOT OGRE_BUILD_RENDERSYSTEM_GLES2)
-    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_BSP Sample_Compositor Sample_CelShading Sample_CubeMapping Sample_Dot3Bump Sample_Fresnel Sample_Instancing Sample_Lighting Sample_ShaderSystem Sample_ShaderSystemMultiLight Sample_Terrain Sample_VolumeTex Sample_Water)
+    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_BSP Sample_Compositor Sample_CelShading Sample_CubeMapping Sample_Dot3Bump Sample_Fresnel Sample_Instancing Sample_Lighting Sample_ShaderSystem Sample_ShaderSystemTexturedFog Sample_ShaderSystemMultiLight Sample_Terrain Sample_VolumeTex Sample_Water)
   endif()
 
   if(NOT OGRE_BUILD_COMPONENT_TERRAIN AND NOT OGRE_SDK_BUILD)
@@ -71,6 +41,7 @@ if (OGRE_BUILD_PLATFORM_APPLE_IOS)
   if(NOT OGRE_BUILD_COMPONENT_RTSHADERSYSTEM AND NOT OGRE_SDK_BUILD)
     list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_ShaderSystem)
     list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_ShaderSystemMultiLight)
+    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_ShaderSystemTexturedFog)
   endif()
 
 endif ()
@@ -163,6 +134,7 @@ if (APPLE)
 	set_property(TARGET SampleBrowser PROPERTY MACOSX_BUNDLE_ICON_FILE SampleBrowser_OSX.icns)
 	set_property(TARGET SampleBrowser PROPERTY MACOSX_BUNDLE_INFO_PLIST ${OGRE_SOURCE_DIR}/Samples/Common/misc/Info.plist)
 	set(MACOSX_BUNDLE_GUI_IDENTIFIER "org.ogre3d.\${PRODUCT_NAME:rfc1034identifier}")
+    set_target_properties(SampleBrowser PROPERTIES XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO")
 
   if (OGRE_BUILD_PLATFORM_APPLE_IOS)
     set(OGRE_SAMPLE_CONTENTS_PATH ${OGRE_BINARY_DIR}/bin/$(CONFIGURATION)/SampleBrowser.app)
