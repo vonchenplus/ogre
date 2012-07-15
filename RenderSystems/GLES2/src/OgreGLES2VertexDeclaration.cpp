@@ -25,21 +25,53 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#include "OgreErrorDialog.h"
 
-#include <iostream>
+#include "OgreGLES2VertexDeclaration.h"
+#include "OgreLogManager.h"
+#include "OgreStringConverter.h"
 
 namespace Ogre {
 
+	//-----------------------------------------------------------------------
+	GLES2VertexDeclaration::GLES2VertexDeclaration()
+        :
+        mVAO(0),
+        mIsInitialised(false)
+	{
+#if GL_OES_vertex_array_object
+        glGenVertexArraysOES(1, &mVAO);
+//        LogManager::getSingleton().logMessage("Created VAO " + StringConverter::toString(mVAO));
 
-//---------------------------------------------------------------------------//
-ErrorDialog::ErrorDialog ()
-{
+        GL_CHECK_ERROR
+
+        if (!mVAO)
+        {
+            OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
+                    "Cannot create GL ES Vertex Array Object",
+                    "GLES2VertexDeclaration::GLES2VertexDeclaration");
+        }
+#endif
+	}
+
+	//-----------------------------------------------------------------------
+	GLES2VertexDeclaration::~GLES2VertexDeclaration()
+	{
+#if GL_OES_vertex_array_object
+//        LogManager::getSingleton().logMessage("Deleting VAO " + StringConverter::toString(mVAO));
+        glDeleteVertexArraysOES(1, &mVAO);
+        GL_CHECK_ERROR
+#endif
+	}
+
+	//-----------------------------------------------------------------------
+    void GLES2VertexDeclaration::bind(void)
+    {
+#if GL_OES_vertex_array_object
+//        LogManager::getSingleton().logMessage("Binding VAO " + StringConverter::toString(mVAO));
+        glBindVertexArrayOES(mVAO);
+        GL_CHECK_ERROR
+#endif
+    }
 }
 
-//---------------------------------------------------------------------------//
-void ErrorDialog::display (const String& errorMessage, String logName)
-{
-}
 
-}

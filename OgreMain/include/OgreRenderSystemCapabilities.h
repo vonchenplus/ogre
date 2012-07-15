@@ -178,7 +178,9 @@ namespace Ogre
 		/// Support for point parameters EXT implementation
 		RSC_POINT_EXTENDED_PARAMETERS_EXT = OGRE_CAPS_VALUE(CAPS_CATEGORY_GL, 8),
 		/// Support for Separate Shader Objects
-		RSC_SEPARATE_SHADER_OBJECTS = OGRE_CAPS_VALUE(CAPS_CATEGORY_GL, 9)
+		RSC_SEPARATE_SHADER_OBJECTS = OGRE_CAPS_VALUE(CAPS_CATEGORY_GL, 9),
+        /// Support for Vertex Array Objects (VAOs)
+        RSC_VAO              = OGRE_CAPS_VALUE(CAPS_CATEGORY_GL, 10)
 	};
 
 	/// DriverVersion is used by RenderSystemCapabilities and both GL and D3D9
@@ -453,7 +455,7 @@ namespace Ogre
 
 		/** Returns true if capability is render system specific
 		*/
-		bool isCapabilityRenderSystemSpecific(const Capabilities c)
+		bool isCapabilityRenderSystemSpecific(const Capabilities c) const
 		{
 			int cat = c >> OGRE_CAPS_BITSHIFT;
 			if(cat == CAPS_CATEGORY_GL || cat == CAPS_CATEGORY_D3D9)
