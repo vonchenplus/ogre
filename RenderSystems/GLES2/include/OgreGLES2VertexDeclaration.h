@@ -1,7 +1,7 @@
 /*
 -----------------------------------------------------------------------------
 This source file is part of OGRE
-    (Object-oriented Graphics Rendering Engine)
+(Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
 Copyright (c) 2000-2012 Torus Knot Software Ltd
@@ -25,21 +25,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-/*
- * ==============================================================================
- *  Name        : ogresamplesbrowser.rls
- *  Part of     : OgreSamplesBrowser
- *
- * ==============================================================================
- */
+#ifndef __GLES2VERTEXDECLARATION_H__
+#define __GLES2VERTEXDECLARATION_H__
 
-// LOCALISATION STRINGS
+#include "OgreGLES2Prerequisites.h"
+#include "OgreHardwareVertexBuffer.h"
 
-rls_string STRING_r_appl_option_item "<App spesific menu item>"
+namespace Ogre { 
 
-// Caption strings for app
-rls_string STRING_r_app_caption_string "OgreSamplesBrowser"
+	/** Specialisation of VertexDeclaration for OpenGL ES 2 Vertex Array Object usage */
+	class GLES2VertexDeclaration : public VertexDeclaration
+	{
+	protected:
+        /// OpenGL id for the vertex array object
+        GLuint mVAO;
+        bool mIsInitialised;
 
-rls_string STRING_r_app_short_caption_string "OgreSamplesBrowser"
+	public:
+		GLES2VertexDeclaration();
+		~GLES2VertexDeclaration();
+        void bind(void);
+        bool isInitialised(void) { return mIsInitialised; }
+        void setInitialised(bool flag) { mIsInitialised = flag; }
+	};
 
-// End of File
+}
+
+#endif
