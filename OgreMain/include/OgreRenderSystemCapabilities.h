@@ -178,7 +178,9 @@ namespace Ogre
 		/// Support for point parameters EXT implementation
 		RSC_POINT_EXTENDED_PARAMETERS_EXT = OGRE_CAPS_VALUE(CAPS_CATEGORY_GL, 8),
 		/// Support for Separate Shader Objects
-		RSC_SEPARATE_SHADER_OBJECTS = OGRE_CAPS_VALUE(CAPS_CATEGORY_GL, 9)
+		RSC_SEPARATE_SHADER_OBJECTS = OGRE_CAPS_VALUE(CAPS_CATEGORY_GL, 9),
+        /// Support for Vertex Array Objects (VAOs)
+        RSC_VAO              = OGRE_CAPS_VALUE(CAPS_CATEGORY_GL, 10)
 	};
 
 	/// DriverVersion is used by RenderSystemCapabilities and both GL and D3D9
@@ -224,7 +226,7 @@ namespace Ogre
 	{
 		GPU_UNKNOWN = 0,
 		GPU_NVIDIA = 1,
-		GPU_ATI = 2, 
+		GPU_AMD = 2,
 		GPU_INTEL = 3,
 		GPU_S3 = 4,
 		GPU_MATROX = 5,
@@ -235,9 +237,11 @@ namespace Ogre
         GPU_NOKIA = 10,
 		GPU_MS_SOFTWARE = 11, // Microsoft software device
 		GPU_MS_WARP = 12, // Microsoft WARP (Windows Advanced Rasterization Platform) software device - http://msdn.microsoft.com/en-us/library/dd285359.aspx
+        GPU_ARM = 13, // For the Mali chipsets
+        GPU_QUALCOMM = 14,
 
 		/// placeholder
-		GPU_VENDOR_COUNT = 13
+		GPU_VENDOR_COUNT = 15
 	};
 
 	/** singleton class for storing the capabilities of the graphics card. 
