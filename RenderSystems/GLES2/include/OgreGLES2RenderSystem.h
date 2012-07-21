@@ -46,7 +46,10 @@ namespace Ogre {
 #endif
     class GLSLESGpuProgram;
     class HardwareBufferManager;
-
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+    class AndroidResourceManager;
+#endif
+    
     /**
       Implementation of GL ES 2.x as a rendering system.
      */
@@ -407,7 +410,11 @@ namespace Ogre {
             /** See
              RenderSystem
              */
-            void setVertexDeclaration(VertexDeclaration* decl) {}
+            void setVertexDeclaration(VertexDeclaration* decl);
+            /** See
+             RenderSystem
+             */
+            void setVertexDeclaration(VertexDeclaration* decl, VertexBufferBinding* binding);
             /** See
              RenderSystem
              */
@@ -492,6 +499,16 @@ namespace Ogre {
 
             void _bindGLBuffer(GLenum target, GLuint buffer);
             void _deleteGLBuffer(GLenum target, GLuint buffer);
+        
+            void _destroyDepthBuffer(RenderWindow* pRenderWnd);
+        
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+            void resetRenderer(RenderWindow* pRenderWnd);
+        
+            static AndroidResourceManager* getResourceManager();
+    private:
+            static AndroidResourceManager* mResourceManager;
+#endif
     };
 }
 
