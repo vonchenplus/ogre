@@ -38,6 +38,10 @@ THE SOFTWARE.
 #include "OgreLodStrategyManager.h"
 #include "OgreWorkQueue.h"
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+#include "Android/OgreAndroidLogListener.h"
+#endif
+
 #include <exception>
 
 namespace Ogre
@@ -95,9 +99,15 @@ namespace Ogre
         OverlayElementFactory* mTextAreaFactory;
         OverlayManager* mOverlayManager;
         FontManager* mFontManager;
+        
         ArchiveFactory *mZipArchiveFactory;
         ArchiveFactory *mEmbeddedZipArchiveFactory;
         ArchiveFactory *mFileSystemArchiveFactory;
+        
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+        AndroidLogListener* mAndroidLogger;
+#endif
+        
 		ResourceGroupManager* mResourceGroupManager;
 		ResourceBackgroundQueue* mResourceBackgroundQueue;
 		ShadowTextureManager* mShadowTextureManager;
@@ -908,7 +918,6 @@ namespace Ogre
 		/** Destroy all RenderQueueInvocationSequences. 
 		@remarks
 			You must ensure that no Viewports are using custom sequences.
-		@param name The name to identify the sequence
 		*/
 		void destroyAllRenderQueueInvocationSequences(void);
 
