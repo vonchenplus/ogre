@@ -31,7 +31,7 @@ if (OGRE_BUILD_PLATFORM_APPLE_IOS)
   set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/SampleBrowser.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
 
   if(OGRE_BUILD_RENDERSYSTEM_GLES AND NOT OGRE_BUILD_RENDERSYSTEM_GLES2)
-    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_BSP Sample_Compositor Sample_CelShading Sample_CubeMapping Sample_Dot3Bump Sample_Fresnel Sample_Instancing Sample_Lighting Sample_ShaderSystem Sample_Terrain Sample_VolumeTex Sample_Water)
+    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_BSP Sample_Compositor Sample_CelShading Sample_CubeMapping Sample_Dot3Bump Sample_Fresnel Sample_Instancing Sample_Lighting Sample_ShaderSystem Sample_ShaderSystemTexturedFog Sample_ShaderSystemMultiLight Sample_Terrain Sample_VolumeTex Sample_Water)
   endif()
 
   if(NOT OGRE_BUILD_COMPONENT_TERRAIN AND NOT OGRE_SDK_BUILD)
@@ -40,22 +40,10 @@ if (OGRE_BUILD_PLATFORM_APPLE_IOS)
 
   if(NOT OGRE_BUILD_COMPONENT_RTSHADERSYSTEM AND NOT OGRE_SDK_BUILD)
     list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_ShaderSystem)
+    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_ShaderSystemMultiLight)
+    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_ShaderSystemTexturedFog)
   endif()
-
 endif ()
-
-set (HEADER_FILES
-	include/SampleBrowser.h
-	include/FileSystemLayerImpl.h
-	${OGRE_SOURCE_DIR}/Samples/Common/include/Sample.h
-	${OGRE_SOURCE_DIR}/Samples/Common/include/SampleContext.h
-	${OGRE_SOURCE_DIR}/Samples/Common/include/SamplePlugin.h
-	${OGRE_SOURCE_DIR}/Samples/Common/include/SdkCameraMan.h
-	${OGRE_SOURCE_DIR}/Samples/Common/include/SdkSample.h
-	${OGRE_SOURCE_DIR}/Samples/Common/include/SdkTrays.h
-	${OGRE_SOURCE_DIR}/Samples/Common/include/OgreStaticPluginLoader.h
-	${OGRE_SOURCE_DIR}/Samples/Common/include/FileSystemLayer.h
-)
 
 if (APPLE AND OGRE_BUILD_PLATFORM_APPLE_IOS)
   set(HEADER_FILES ${HEADER_FILES}
@@ -67,6 +55,10 @@ else ()
 	${OGRE_SOURCE_DIR}/Samples/Common/misc/SampleBrowser_OSX.icns
   )
 endif (APPLE AND OGRE_BUILD_PLATFORM_APPLE_IOS)
+
+if(ANDROID)
+  set(HEADER_FILES ${HEADER_FILES} include/SampleBrowser_Android.h)
+endif(ANDROID)
 
 if (OGRE_STATIC)
   # Find all samples headers, and copy them to a single include folder
@@ -84,7 +76,7 @@ if (OGRE_STATIC)
 	ogre_add_component_include_dir(Paging)
 	ogre_add_component_include_dir(Terrain)
 else()
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)  
 endif()
 
 if (OGRE_BUILD_TESTS)
@@ -299,5 +291,5 @@ if (OGRE_INSTALL_SAMPLES)
 			DESTINATION bin${OGRE_RELWDBG_PATH} CONFIGURATIONS RelWithDebInfo
 			)
 	endif ()
-endif ()
+endif ()	
 

@@ -109,6 +109,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	typedef map<String, GpuProgramPtr>::type			GpuProgramsMap;
+    typedef map<String, String>::type			        ProgramSourceToNameMap;
 	typedef GpuProgramsMap::iterator					GpuProgramsMapIterator;
 	typedef GpuProgramsMap::const_iterator				GpuProgramsMapConstIterator;
 
@@ -162,7 +163,7 @@ protected:
 	@param programWriter The program writer instance.
 	@param language The target shader language.
 	@param profiles The profiles string for program compilation.
-	@param profiles The profiles string for program compilation as string list.
+	@param profilesList The profiles string for program compilation as string list.
 	@param cachePath The output path to write the program into.
 	*/
 	GpuProgramPtr createGpuProgram(Program* shaderProgram, 
@@ -226,6 +227,8 @@ protected:
 	GpuProgramsMap mFragmentShaderMap;
 	// The default program processors.
 	ProgramProcessorList mDefaultProgramProcessors;
+    // map the source code of the shaders to a name for them
+    ProgramSourceToNameMap mProgramSourceToNameMap;
 
 private:
 	friend class ProgramSet;

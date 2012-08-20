@@ -39,9 +39,6 @@ namespace Ogre
 	public:
 		/** Constructor.
 		@param instance The application instance
-		@param driver The root driver
-		@param deviceIfSwapChain The existing D3D device to create an additional swap chain from, if this is not
-			the first window.
 		*/
 		D3D9RenderWindow					(HINSTANCE instance);
 		~D3D9RenderWindow					();
@@ -65,6 +62,7 @@ namespace Ogre
 		void 				resize				(unsigned int width, unsigned int height);
 		void 				swapBuffers			( bool waitForVSync = true );
 		HWND 				getWindowHandle		() const { return mHWnd; }				
+		HMONITOR			getDeviceMonitorHandle() const;
 		IDirect3DDevice9*	getD3D9Device		();
 		D3D9Device*			getDevice			();
 		void				setDevice			(D3D9Device* device);
@@ -86,7 +84,7 @@ namespace Ogre
 		/// @copydoc RenderTarget::_beginUpdate
 		void _beginUpdate();
 	
-		/// @copydoc RenderTarget::_updateViewport
+		/// @copydoc RenderTarget::_updateViewport(Viewport* viewport, bool updateStatistics)
 		void _updateViewport(Viewport* viewport, bool updateStatistics = true);
 
 		/// @copydoc RenderTarget::_endUpdate
@@ -113,6 +111,15 @@ namespace Ogre
 		void adjustWindow(unsigned int clientWidth, unsigned int clientHeight, 
 			unsigned int* winWidth, unsigned int* winHeight);
 
+		/** Forces to use a specific device assigned to a specified monitor for the current render window
+		@param monitorHandle A handle to a monitor that the device represents. NULL to regain
+			automatic choosing behavior of device.
+		@return true if device was successfully changed.
+		*/
+		bool _setForcedDeviceMonitor(HMONITOR monitorHandle);
+
+		/** Returns the monitor from which the render window is forced to use the device from. NULL device is chosen automatically. */
+		HMONITOR _getForcedDeviceMonitor() const { return mForcedDeviceMonitor; }
 	protected:
 		/** Update the window rect. */ 
 		void updateWindowRect();
@@ -139,6 +146,7 @@ namespace Ogre
 		DWORD						mFullscreenWinStyle;	// Fullscreen mode window style flags.		 
 		unsigned int				mDesiredWidth;			// Desired width after resizing
 		unsigned int				mDesiredHeight;			// Desired height after resizing
+		HMONITOR					mForcedDeviceMonitor;   // If specified contains the monitor on which the device should be created
 	};
 }
 #endif

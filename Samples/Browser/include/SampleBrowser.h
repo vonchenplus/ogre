@@ -25,7 +25,6 @@
  THE SOFTWARE.
  -----------------------------------------------------------------------------
  */
-
 #ifndef __SampleBrowser_H__
 #define __SampleBrowser_H__
 
@@ -42,23 +41,24 @@
 #include "ShaderSystem.h"
 #endif
 #include "BSP.h"
-#include "BezierPatch.h"
-#include "CameraTrack.h"
 #include "CelShading.h"
-#include "CharacterSample.h"
 #include "Compositor.h"
 #include "CubeMapping.h"
 #include "DeferredShadingDemo.h"
 #include "Dot3Bump.h"
-#include "DualQuaternion.h"
+#include "Fresnel.h"
+#include "OceanDemo.h"
+#include "Terrain.h"
+#include "Water.h"
+#include "BezierPatch.h"
+#include "CameraTrack.h"
+#include "CharacterSample.h"
 #include "DynTex.h"
 #include "FacialAnimation.h"
-#include "Fresnel.h"
 #include "Grass.h"
 #include "Instancing.h"
-#include "Lighting.h"
 #include "NewInstancing.h"
-#include "OceanDemo.h"
+#include "Lighting.h"
 #include "ParticleFX.h"
 #include "Shadows.h"
 #include "SkeletalAnimation.h"
@@ -68,16 +68,12 @@
 #include "Smoke.h"
 #include "SphereMapping.h"
 #include "SSAO.h"
-#include "Terrain.h"
 #include "TextureFX.h"
 #include "TextureArray.h"
 #include "Transparency.h"
-#include "Water.h"
 #  if SAMPLES_INCLUDE_PLAYPEN
 #    include "PlayPen.h"
-#    include "PlayPenTestPlugin.h"
      PlayPenPlugin* playPenPlugin = 0;
-     PlaypenTestPlugin* playPenTestPlugin = 0;
 #  endif
 
 #ifdef USE_RTSHADER_SYSTEM
@@ -86,11 +82,9 @@
 // Remove the comment below in order to make the RTSS use valid path for writing down the generated shaders.
 // If cache path is not set - all shaders are generated to system memory.
 //#define _RTSS_WRITE_SHADERS_TO_DISK
-#endif // USE_RTSHADER_SYSTEM
-
+#   endif // USE_RTSHADER_SYSTEM
 typedef std::map<std::string, OgreBites::SdkSample *> PluginMap;
-
-#endif
+#endif // OGRE_STATIC_LIB
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 #   ifdef __OBJC__
@@ -187,10 +181,10 @@ protected:
 	| dynamic configuration, resource reloading, node labelling, and more.
 	=============================================================================*/
 	class SampleBrowser : public SampleContext, public SdkTrayListener
-	{
+	{        
 	public:
 
-		SampleBrowser(bool nograb = false) : SampleContext()
+		SampleBrowser(bool nograb = false, int startSampleIndex = -1) : SampleContext()
 		{
             mIsShuttingDown = false;
             mNoGrabInput = nograb;
@@ -198,6 +192,7 @@ protected:
 			mLastViewCategory = 0;
 			mLastViewTitle = 0;
 			mLastSampleIndex = -1;
+            mStartSampleIndex = startSampleIndex;
 			mCategoryMenu = 0;
 			mSampleMenu = 0;
 			mSampleSlider = 0;
@@ -223,6 +218,23 @@ protected:
 		}
 
 		/*-----------------------------------------------------------------------------
+		| init data members needed only by WinRT
+		-----------------------------------------------------------------------------*/
+#if OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+		void initAppForWinRT( Windows::UI::Core::CoreWindow^ nativeWindow, InputContext inputContext)
+		{
+			mNativeWindow = nativeWindow;
+			mNativeControl = nullptr;
+			mInputContext = inputContext;
+		}
+		void initAppForWinRT( Windows::UI::Xaml::Shapes::Rectangle ^ nativeControl, InputContext inputContext)
+		{
+			mNativeWindow = nullptr;
+			mNativeControl = nativeControl;
+			mInputContext = inputContext;
+		}
+#endif
+		/*-----------------------------------------------------------------------------
 		| init data members needed only by NaCl
 		-----------------------------------------------------------------------------*/
 #if OGRE_PLATFORM == OGRE_PLATFORM_NACL
@@ -246,13 +258,34 @@ protected:
 		| init pre-created window for android
 		-----------------------------------------------------------------------------*/
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-		void initAppForAndroid(Ogre::RenderWindow *window, OIS::MultiTouch *mouse, OIS::Keyboard *keyboard)
+		void initAppForAndroid(Ogre::RenderWindow *window, struct android_app* app, OIS::MultiTouch *mouse, OIS::Keyboard *keyboard)
 		{
 			mWindow = window;
-			mMouse = mouse;
-			mKeyboard = keyboard;
+			mInputContext.mMultiTouch = mouse;
+			mInputContext.mKeyboard = keyboard;
+            
+            if(app != NULL)
+            {
+                mAssetMgr = app->activity->assetManager;
+                Ogre::ArchiveManager::getSingleton().addArchiveFactory( new Ogre::APKFileSystemArchiveFactory(app->activity->assetManager) );
+                Ogre::ArchiveManager::getSingleton().addArchiveFactory( new Ogre::APKZipArchiveFactory(app->activity->assetManager) );
+            }
 		}
 #endif
+
+        virtual void loadStartUpSample()
+        {
+            if (mStartSampleIndex != -1)
+            {
+                runSampleByIndex(mStartSampleIndex);
+                mStartSampleIndex = -1;
+            }
+        }
+
+        virtual void runSampleByIndex(int idx)
+        {
+            runSample(Ogre::any_cast<Sample*>(mThumbs[idx]->getUserAny()));
+        }
 
 		/*-----------------------------------------------------------------------------
 		| Extends runSample to handle creation and destruction of dummy scene.
@@ -653,11 +686,7 @@ protected:
 		{
 			if (mTrayMgr->isDialogVisible()) return true;  // ignore keypresses when dialog is showing
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID // TODO: remove this once the BACK event in android is handled
-			if (evt.key == OIS::KC_BACK || evt.key == OIS::KC_COMMA)
-#else
 			if (evt.key == OIS::KC_ESCAPE)
-#endif
 			{
 				if (mTitleLabel->getTrayLocation() != TL_NONE)
 				{
@@ -963,7 +992,9 @@ protected:
          -----------------------------------------------------------------------------*/
 		virtual void setup()
 		{
-			mWindow = createWindow();
+            if(mWindow == NULL)
+                mWindow = createWindow();
+            
 			setupInput(mNoGrabInput);
 			locateResources();
 
@@ -981,45 +1012,65 @@ protected:
             mPluginNameMap["Sample_DynTex"]             = (OgreBites::SdkSample *) OGRE_NEW Sample_DynTex();
             mPluginNameMap["Sample_FacialAnimation"]    = (OgreBites::SdkSample *) OGRE_NEW Sample_FacialAnimation();
             mPluginNameMap["Sample_Grass"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Grass();
+#   if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
  			mPluginNameMap["Sample_Instancing"]			= (OgreBites::SdkSample *) OGRE_NEW Sample_Instancing();
-            mPluginNameMap["Sample_Lighting"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_Lighting();
-			mPluginNameMap["Sample_NewInstancing"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_NewInstancing();
-            mPluginNameMap["Sample_ParticleFX"]         = (OgreBites::SdkSample *) OGRE_NEW Sample_ParticleFX();
+            mPluginNameMap["Sample_NewInstancing"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_NewInstancing();
+            mPluginNameMap["Sample_TextureArray"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureArray();
+#   endif
             mPluginNameMap["Sample_Shadows"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Shadows();
+            mPluginNameMap["Sample_Lighting"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_Lighting();
+            mPluginNameMap["Sample_ParticleFX"]         = (OgreBites::SdkSample *) OGRE_NEW Sample_ParticleFX();
             mPluginNameMap["Sample_SkeletalAnimation"]  = (OgreBites::SdkSample *) OGRE_NEW Sample_SkeletalAnimation();
             mPluginNameMap["Sample_SkyBox"]             = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyBox();
             mPluginNameMap["Sample_SkyDome"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyDome();
             mPluginNameMap["Sample_SkyPlane"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyPlane();
             mPluginNameMap["Sample_Smoke"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Smoke();
             mPluginNameMap["Sample_SphereMapping"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_SphereMapping();
+			mPluginNameMap["Sample_Tesselation"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_Tesselation();
             mPluginNameMap["Sample_TextureFX"]          = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureFX();
-            mPluginNameMap["Sample_TextureArray"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureArray();
             mPluginNameMap["Sample_Transparency"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_Transparency();
 
 #ifdef USE_RTSHADER_SYSTEM
             if(hasProgrammableGPU)
             {
+#   ifdef OGRE_BUILD_PLUGIN_BSP
 				mPluginNameMap["Sample_BSP"]                = (OgreBites::SdkSample *) OGRE_NEW Sample_BSP();
+#   endif
                 mPluginNameMap["Sample_CelShading"]         = (OgreBites::SdkSample *) OGRE_NEW Sample_CelShading();
                 mPluginNameMap["Sample_Compositor"]         = (OgreBites::SdkSample *) OGRE_NEW Sample_Compositor();
                 mPluginNameMap["Sample_CubeMapping"]        = (OgreBites::SdkSample *) OGRE_NEW Sample_CubeMapping();
+#   if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
                 mPluginNameMap["Sample_DeferredShading"]    = (OgreBites::SdkSample *) OGRE_NEW Sample_DeferredShading();
+				mPluginNameMap["Sample_SSAO"]               = (OgreBites::SdkSample *) OGRE_NEW Sample_SSAO();
+                mPluginNameMap["Sample_ShaderSystem"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_ShaderSystem();
+                mPluginNameMap["Sample_Ocean"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Ocean();
+                mPluginNameMap["Sample_Water"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Water();
+#       ifdef OGRE_BUILD_COMPONENT_TERRAIN
+                 mPluginNameMap["Sample_Terrain"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Terrain();
+#       endif
+#   endif
                 mPluginNameMap["Sample_Dot3Bump"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_Dot3Bump();
                 mPluginNameMap["Sample_Fresnel"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Fresnel();
-				mPluginNameMap["Sample_Ocean"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Ocean();
-				mPluginNameMap["Sample_Water"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Water();
-				mPluginNameMap["Sample_ShaderSystem"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_ShaderSystem();
-				mPluginNameMap["Sample_SSAO"]               = (OgreBites::SdkSample *) OGRE_NEW Sample_SSAO();
-                mPluginNameMap["Sample_Terrain"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Terrain();
             }
 #endif
 #endif
 
 			Ogre::ResourceGroupManager::getSingleton().initialiseResourceGroup("Essential");
-			mTrayMgr = new SdkTrayManager("BrowserControls", mWindow, mMouse, this);
+			mTrayMgr = new SdkTrayManager("BrowserControls", mWindow, mInputContext, this);
 			mTrayMgr->showBackdrop("SdkTrays/Bands");
 			mTrayMgr->getTrayContainer(TL_NONE)->hide();
+
+#ifdef	ENABLE_SHADERS_CACHE
+            Ogre::GpuProgramManager::getSingleton().setSaveMicrocodesToCache(true);
             
+            FILE * inFile = fopen("cache.bin", "rb");
+            if (inFile)
+            {
+                Ogre::DataStreamPtr istream(new Ogre::FileHandleDataStream("cache.bin", inFile, Ogre::DataStream::READ));
+                Ogre::GpuProgramManager::getSingleton().loadMicrocodeCache(istream);
+            }
+#endif
+
 			createDummyScene();
 
 #ifdef USE_RTSHADER_SYSTEM
@@ -1028,18 +1079,6 @@ protected:
                 Ogre::RTShader::ShaderGenerator::getSingletonPtr()->addSceneManager(mRoot->getSceneManager("DummyScene"));
             }
 #endif // USE_RTSHADER_SYSTEM
-
-
-#ifdef	ENABLE_SHADERS_CACHE
-            FILE * inFile = fopen("cache.bin", "rb");
-            if (inFile)
-            {
-            	Ogre::GpuProgramManager::getSingleton().setSaveMicrocodesToCache(true);
-            	Ogre::DataStreamPtr istream(new Ogre::FileHandleDataStream("cache.bin", inFile, Ogre::DataStream::READ));
-            	Ogre::GpuProgramManager::getSingleton().loadMicrocodeCache(istream);
-            }
-#endif
-
 
 			loadResources();
 
@@ -1070,7 +1109,16 @@ protected:
 		-----------------------------------------------------------------------------*/
 		virtual void windowMovedOrResized()
 		{
-			mWindow->windowMovedOrResized();
+#if OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+			if(mNativeControl)
+			{
+				// in WinRT.Xaml case Ogre::RenderWindow is actually brush
+				// applied to native control and we need resize this brush manually
+				mWindow->resize(mNativeControl->ActualWidth, mNativeControl->ActualHeight);
+			}
+#endif
+			mWindow->windowMovedOrResized();	// notify window
+			windowResized(mWindow);				// notify window event listeners
 		}
         
 	protected:
@@ -1096,13 +1144,31 @@ protected:
             miscParams["pp::Instance"] = Ogre::StringConverter::toString((unsigned long)mNaClInstance);
             miscParams["SwapCallback"] = Ogre::StringConverter::toString((unsigned long)mNaClSwapCallback);
             // create 1x1 window - we will resize later
-            res = mRoot->createRenderWindow("OGRE Sample Browser Window", mInitWidth, mInitHeight, false, &miscParams);
+            return mRoot->createRenderWindow("OGRE Sample Browser Window", mInitWidth, mInitHeight, false, &miscParams);
+
+#elif OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+			Ogre::RenderWindow* res = mRoot->initialise(false, "OGRE Sample Browser");
+			Ogre::NameValuePairList miscParams;
+			if(mNativeWindow)
+			{
+				miscParams["externalWindowHandle"] = Ogre::StringConverter::toString((unsigned long)reinterpret_cast<void*>(mNativeWindow));
+				res = mRoot->createRenderWindow("OGRE Sample Browser Window", mNativeWindow->Bounds.Width, mNativeWindow->Bounds.Height, false, &miscParams);
+			}
+			else if(mNativeControl)
+			{
+				miscParams["windowType"] = "SurfaceImageSource";
+				res = mRoot->createRenderWindow("OGRE Sample Browser Window", mNativeControl->ActualWidth, mNativeControl->ActualHeight, false, &miscParams);
+				void* pUnk = NULL;
+				res->getCustomAttribute("ImageBrush", &pUnk);
+				mNativeControl->Fill = reinterpret_cast<Windows::UI::Xaml::Media::ImageBrush^>(pUnk);
+			}
+			return res;
 
 #elif OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-			// TODO: what to do here...
+			return NULL;
 #else
 			Ogre::RenderWindow* res = mRoot->initialise(true, "OGRE Sample Browser");
-#endif
+
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
             mGestureView = [[SampleBrowserGestureView alloc] init];
@@ -1112,6 +1178,7 @@ protected:
 #endif
 			
 			return res;
+#endif
         }
 
 		/*-----------------------------------------------------------------------------
@@ -1162,10 +1229,13 @@ protected:
 					Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);	
 			    mShaderGenerator->validateMaterial(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME, 
 					"BaseWhite");
-				baseWhite->getTechnique(0)->getPass(0)->setVertexProgram(
-				baseWhite->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
-				baseWhite->getTechnique(0)->getPass(0)->setFragmentProgram(
-				baseWhite->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
+                if(baseWhite->getNumTechniques() > 1)
+                {
+				    baseWhite->getTechnique(0)->getPass(0)->setVertexProgram(
+				    baseWhite->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
+				    baseWhite->getTechnique(0)->getPass(0)->setFragmentProgram(
+				    baseWhite->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
+                }
 
 				// creates shaders for base material BaseWhiteNoLighting using the RTSS
 				mShaderGenerator->createShaderBasedTechnique(
@@ -1175,10 +1245,13 @@ protected:
 			    mShaderGenerator->validateMaterial(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME, 
 					"BaseWhiteNoLighting");
 				Ogre::MaterialPtr baseWhiteNoLighting = Ogre::MaterialManager::getSingleton().getByName("BaseWhiteNoLighting", Ogre::ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
-				baseWhiteNoLighting->getTechnique(0)->getPass(0)->setVertexProgram(
-				baseWhiteNoLighting->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
-				baseWhiteNoLighting->getTechnique(0)->getPass(0)->setFragmentProgram(
-				baseWhiteNoLighting->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
+                if(baseWhite->getNumTechniques() > 1)
+                {
+				    baseWhiteNoLighting->getTechnique(0)->getPass(0)->setVertexProgram(
+				    baseWhiteNoLighting->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
+				    baseWhiteNoLighting->getTechnique(0)->getPass(0)->setFragmentProgram(
+				    baseWhiteNoLighting->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
+                }
 			}
 #endif // USE_RTSHADER_SYSTEM
 		}
@@ -1192,30 +1265,7 @@ protected:
 
 			Ogre::StringVector unloadedSamplePlugins;
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-			Ogre::String startupSampleTitle = "";
-			Ogre::String sampleDir = "";
-			Ogre::StringVector sampleList;
-			//sampleList.push_back("Sample_BezierPatch");
-			sampleList.push_back("Sample_CameraTrack");
-			sampleList.push_back("Sample_CelShading");
-			sampleList.push_back("Sample_Character");     
-			//sampleList.push_back("Sample_CubeMapping");    
-			//sampleList.push_back("Sample_Dot3Bump");
-			//sampleList.push_back("Sample_DynTex");      
-			//sampleList.push_back("Sample_FacialAnimation");
-			//sampleList.push_back("Sample_Fresnel");
-			//sampleList.push_back("Sample_Grass");
-			//sampleList.push_back("Sample_ParticleFX");
-#   ifdef USE_RTSHADER_SYSTEM
-			//sampleList.push_back("Sample_ShaderSystem");
-#	endif
-			//sampleList.push_back("Sample_Lighting");       
-			//sampleList.push_back("Sample_SkyBox"); 
-			//sampleList.push_back("Sample_SkyDome"); 
-			//sampleList.push_back("Sample_SkyPlane"); 
-			//sampleList.push_back("Sample_Smoke");      		
-#elif OGRE_PLATFORM == OGRE_PLATFORM_NACL
+#if OGRE_PLATFORM == OGRE_PLATFORM_NACL
             Ogre::String startupSampleTitle = "";
             Ogre::String sampleDir = "";
             Ogre::StringVector sampleList;
@@ -1238,11 +1288,16 @@ protected:
             sampleList.push_back("Sample_SkyPlane"); 
             sampleList.push_back("Sample_Smoke");
             sampleList.push_back("Sample_Water");
+			sampleList.push_back("Sample_Tesselation");
             sampleList.push_back("Sample_Transparency");
             sampleList.push_back("Sample_TextureFX");
 #else
 			Ogre::ConfigFile cfg;
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+            cfg.load(openAPKFile("samples.cfg"));
+#else
 			cfg.load(mFSLayer->getConfigFilePath("samples.cfg"));
+#endif
 
 			Ogre::String sampleDir = cfg.getSetting("SampleFolder");        // Mac OS X just uses Resources/ directory
 			Ogre::StringVector sampleList = cfg.getMultiSetting("SamplePlugin");
@@ -1256,7 +1311,7 @@ protected:
 			char lastChar = sampleDir[sampleDir.length() - 1];
 			if (lastChar != '/' && lastChar != '\\')
 			{
-				#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+				#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 				sampleDir += "\\";
 				#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX
 				sampleDir += "/";
@@ -1599,6 +1654,7 @@ protected:
 			mHiddenOverlays.clear();
 			mThumbs.clear();
 			mCarouselPlace = 0;
+            mWindow = 0;
 
 			SampleContext::shutdown();
 
@@ -1773,6 +1829,11 @@ protected:
 		int mLastViewTitle;                            // last sample title viewed
 		int mLastViewCategory;                         // last sample category viewed
 		int mLastSampleIndex;                          // index of last sample running
+		int mStartSampleIndex;                         // directly starts the sample with the given index
+#if OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+		Windows::UI::Core::CoreWindow^ mNativeWindow;
+		Windows::UI::Xaml::Shapes::Rectangle^ mNativeControl;
+#endif
 #if OGRE_PLATFORM == OGRE_PLATFORM_NACL
         pp::Instance* mNaClInstance;
         pp::CompletionCallback* mNaClSwapCallback;

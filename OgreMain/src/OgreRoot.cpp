@@ -95,7 +95,10 @@ THE SOFTWARE.
 #endif
 #if OGRE_NO_PVRTC_CODEC == 0
 #  include "OgrePVRTCCodec.h"
-#endif     
+#endif
+#if OGRE_NO_ETC1_CODEC == 0
+#  include "OgreETC1Codec.h"
+#endif
 
 namespace Ogre {
     //-----------------------------------------------------------------------
@@ -127,6 +130,7 @@ namespace Ogre {
 	  , mIsInitialised(false)
 	  , mIsBlendIndicesGpuRedundant(true)
 	  , mIsBlendWeightsGpuRedundant(true)
+	  , mQueuedEnd(false)
     {
         // superclass will do singleton checking
         String msg;
@@ -146,6 +150,11 @@ namespace Ogre {
 			mLogManager = OGRE_NEW LogManager();
 			mLogManager->createLog(logFileName, true, true);
 		}
+        
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+        mAndroidLogger = OGRE_NEW AndroidLogListener();
+        mLogManager->getDefaultLog()->addListener(mAndroidLogger);
+#endif
 
         // Dynamic library manager
         mDynLibManager = OGRE_NEW DynLibManager();
@@ -223,14 +232,17 @@ namespace Ogre {
         mProfiler = OGRE_NEW Profiler();
 		Profiler::getSingleton().setTimer(mTimer);
 #endif
+
+
         mFileSystemArchiveFactory = OGRE_NEW FileSystemArchiveFactory();
-        ArchiveManager::getSingleton().addArchiveFactory( mFileSystemArchiveFactory );
-#if OGRE_NO_ZIP_ARCHIVE == 0
+        ArchiveManager::getSingleton().addArchiveFactory( mFileSystemArchiveFactory );        
+#   if OGRE_NO_ZIP_ARCHIVE == 0
         mZipArchiveFactory = OGRE_NEW ZipArchiveFactory();
         ArchiveManager::getSingleton().addArchiveFactory( mZipArchiveFactory );
         mEmbeddedZipArchiveFactory = OGRE_NEW EmbeddedZipArchiveFactory();
         ArchiveManager::getSingleton().addArchiveFactory( mEmbeddedZipArchiveFactory );
-#endif
+#   endif
+        
 #if OGRE_NO_DDS_CODEC == 0
 		// Register image codecs
 		DDSCodec::startup();
@@ -242,7 +254,11 @@ namespace Ogre {
 #if OGRE_NO_PVRTC_CODEC == 0
         PVRTCCodec::startup();
 #endif
+#if OGRE_NO_ETC1_CODEC == 0
+        ETC1Codec::startup();
+#endif
 
+        
         mHighLevelGpuProgramManager = OGRE_NEW HighLevelGpuProgramManager();
 
 		mExternalTextureSourceManager = OGRE_NEW ExternalTextureSourceManager();
@@ -302,6 +318,9 @@ namespace Ogre {
 #if OGRE_NO_PVRTC_CODEC == 0
 		PVRTCCodec::shutdown();
 #endif
+#if OGRE_NO_ETC1_CODEC == 0
+        ETC1Codec::shutdown();
+#endif
 #if OGRE_PROFILING
         OGRE_DELETE mProfiler;
 #endif
@@ -309,11 +328,13 @@ namespace Ogre {
         OGRE_DELETE mFontManager;
 		OGRE_DELETE mLodStrategyManager;
         OGRE_DELETE mArchiveManager;
-#if OGRE_NO_ZIP_ARCHIVE == 0
+        
+#   if OGRE_NO_ZIP_ARCHIVE == 0
         OGRE_DELETE mZipArchiveFactory;
         OGRE_DELETE mEmbeddedZipArchiveFactory;
-#endif
+#   endif
         OGRE_DELETE mFileSystemArchiveFactory;
+        
         OGRE_DELETE mSkeletonManager;
         OGRE_DELETE mMeshManager;
         OGRE_DELETE mParticleManager;
@@ -345,6 +366,12 @@ namespace Ogre {
 		OGRE_DELETE mTimer;
 
         OGRE_DELETE mDynLibManager;
+        
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+        mLogManager->getDefaultLog()->removeListener(mAndroidLogger);
+        OGRE_DELETE mAndroidLogger;
+#endif
+        
         OGRE_DELETE mLogManager;
 
 		OGRE_DELETE mCompilerManager;
@@ -942,9 +969,14 @@ namespace Ogre {
         return Real(times.back() - times.front()) / ((times.size()-1) * 1000);
     }
     //-----------------------------------------------------------------------
-    void Root::queueEndRendering(void)
+    void Root::queueEndRendering(bool state /* = true */)
     {
-	    mQueuedEnd = true;
+	    mQueuedEnd = state;
+    }
+    //-----------------------------------------------------------------------
+    bool Root::endRenderingQueued(void)
+    {
+	    return mQueuedEnd;
     }
     //-----------------------------------------------------------------------
     void Root::startRendering(void)
@@ -1043,7 +1075,7 @@ namespace Ogre {
 
         if (!pluginDir.empty() && *pluginDir.rbegin() != '/' && *pluginDir.rbegin() != '\\')
         {
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
             pluginDir += "\\";
 #elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX
             pluginDir += "/";

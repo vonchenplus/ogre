@@ -44,14 +44,22 @@ namespace Ogre {
     {
         // unregister with group manager
         ResourceGroupManager::getSingleton()._unregisterResourceManager(mResourceType);
-		// Delete warning texture
-		glDeleteTextures(1, &mWarningTextureID);
+
+        // Delete warning texture
+        if (mWarningTextureID != 0)
+        {
+            glDeleteTextures(1, &mWarningTextureID);
+        }
     }
     //-----------------------------------------------------------------------------
     Resource* GLTextureManager::createImpl(const String& name, ResourceHandle handle, 
         const String& group, bool isManual, ManualResourceLoader* loader, 
         const NameValuePairList* createParams)
     {
+        if (mWarningTextureID == 0)
+        {
+            createWarningTexture();
+        }
         return new GLTexture(this, name, handle, group, isManual, loader, mGLSupport);
     }
 
