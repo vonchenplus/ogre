@@ -46,14 +46,17 @@ bool TriplanarTexturing::resolveParameters(ProgramSet* programSet)
     
     // Resolve pixel shader output diffuse color.
     mPSInDiffuse = vsMain->resolveInputParameter(Parameter::SPS_COLOR, 0, Parameter::SPC_COLOR_DIFFUSE, GCT_FLOAT4);
-
+   
     // Resolve input vertex shader normal.
     mVSInNormal = vsMain->resolveInputParameter(Parameter::SPS_NORMAL, 0, Parameter::SPC_NORMAL_OBJECT_SPACE, GCT_FLOAT3);
 
     // Resolve output vertex shader normal.
     mVSOutNormal = vsMain->resolveOutputParameter(Parameter::SPS_TEXTURE_COORDINATES, -1, Parameter::SPC_NORMAL_VIEW_SPACE, GCT_FLOAT3);
 
-    // Resolve input pixel shader normal.
+	// Resolve pixel shader output diffuse color.
+	mPSInDiffuse = psMain->resolveInputParameter(Parameter::SPS_COLOR, 0, Parameter::SPC_COLOR_DIFFUSE, GCT_FLOAT4);
+
+	// Resolve input pixel shader normal.
     mPSInNormal = psMain->resolveInputParameter(Parameter::SPS_TEXTURE_COORDINATES, 
         mVSOutNormal->getIndex(), 
         mVSOutNormal->getContent(),
@@ -169,8 +172,9 @@ bool TriplanarTexturing::preAddToRenderState(const RenderState* renderState, Pas
 void TriplanarTexturing::copyFrom(const SubRenderState& rhs)
 {
     const TriplanarTexturing& rhsTP = static_cast<const TriplanarTexturing&>(rhs);
+    
     mPSOutDiffuse = rhsTP.mPSOutDiffuse;
-    mPSInDiffuse = rhsTP.mPSInDiffuse;
+    mVSInDiffuse = rhsTP.mVSInDiffuse;
 
     mVSInPosition = rhsTP.mVSInPosition;
     mVSOutPosition = rhsTP.mVSOutPosition;
@@ -189,7 +193,6 @@ void TriplanarTexturing::copyFrom(const SubRenderState& rhs)
 
     mPSTPParams = rhsTP.mPSTPParams;
     mParameters = rhsTP.mParameters;
-
     mTextureNameFromX = rhsTP.mTextureNameFromX;
     mTextureNameFromY = rhsTP.mTextureNameFromY;
     mTextureNameFromZ = rhsTP.mTextureNameFromZ;
