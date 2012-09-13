@@ -92,6 +92,13 @@ namespace Ogre {
             unloadHighLevel();
         }
     }
+    //---------------------------------------------------------------------------
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+    void GLSLESProgram::notifyOnContextLost()
+    {
+        unloadHighLevelImpl();
+    }
+#endif
     //-----------------------------------------------------------------------
 	void GLSLESProgram::loadFromSource(void)
 	{
@@ -267,6 +274,10 @@ namespace Ogre {
                 glDeleteProgram(mGLProgramHandle);
                 GL_CHECK_ERROR;
             }
+            
+            mGLShaderHandle = 0;
+            mGLProgramHandle = 0;
+            mCompiled = 0;
 		}
 	}
 

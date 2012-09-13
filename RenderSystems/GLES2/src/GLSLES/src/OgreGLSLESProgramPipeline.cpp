@@ -383,6 +383,7 @@ namespace Ogre
                         case GCT_MATRIX_4X3:
                         case GCT_SAMPLER2DARRAY:
                         case GCT_UNKNOWN:
+                        case GCT_SUBROUTINE:
                             break;
                             
 					} // End switch

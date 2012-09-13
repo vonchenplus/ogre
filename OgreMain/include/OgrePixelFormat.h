@@ -153,8 +153,10 @@ namespace Ogre {
         PF_R8 = 42,
         /// 16-bit pixel format, 8 bits red, 8 bits green.
         PF_RG8 = 43,
+        /// ETC1 (Ericsson Texture Compression)
+        PF_ETC1_RGB8 = 44,
 		// Number of pixel formats currently defined
-        PF_COUNT = 44
+        PF_COUNT = 45
     };
 	typedef vector<PixelFormat>::type PixelFormatList;
 
@@ -491,10 +493,10 @@ namespace Ogre {
          	just a copy is done.
          	@param	src			Pointer to source region
          	@param	srcFormat	Pixel format of source region
-         	@param   dst			Pointer to destination region
+         	@param  dst			Pointer to destination region
          	@param	dstFormat	Pixel format of destination region
          */
-        static void bulkPixelConversion(void *src, PixelFormat srcFormat, void *dest, PixelFormat dstFormat, unsigned int count);
+        static void bulkPixelConversion(void *src, PixelFormat srcFormat, void *dst, PixelFormat dstFormat, unsigned int count);
 
       	/** Convert pixels from one format to another. No dithering or filtering is being done. Converting
           	from RGB to luminance takes the R channel. 
