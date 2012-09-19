@@ -29,7 +29,7 @@
 #  Plugin_OctreeSceneManager, Plugin_OctreeZone,
 #  Plugin_ParticleFX, Plugin_PCZSceneManager,
 #  RenderSystem_GL, RenderSystem_Direct3D9,
-#  Paging, Terrain
+#  Paging, Terrain, Volume, Overlay
 #
 # For each of these components, the following variables are defined:
 #
@@ -128,7 +128,7 @@ else()
 endif ()
 
 # redo search if any of the environmental hints changed
-set(OGRE_COMPONENTS Paging Terrain 
+set(OGRE_COMPONENTS Paging Terrain Volume Overlay 
   Plugin_BSPSceneManager Plugin_CgProgramManager Plugin_OctreeSceneManager
   Plugin_OctreeZone Plugin_PCZSceneManager Plugin_ParticleFX
   RenderSystem_Direct3D11 RenderSystem_Direct3D9 RenderSystem_GL RenderSystem_GLES RenderSystem_GLES2)
@@ -242,7 +242,7 @@ if (OGRE_STATIC)
   find_package(OpenGLES2 QUIET)
   find_package(ZLIB QUIET)
   find_package(ZZip QUIET)
-  if (UNIX AND NOT APPLE)
+  if (UNIX AND NOT APPLE AND NOT ANDROID)
     find_package(X11 QUIET)
     find_library(XAW_LIBRARY NAMES Xaw Xaw7 PATHS ${DEP_LIB_SEARCH_DIR} ${X11_LIB_SEARCH_PATH})
     if (NOT XAW_LIBRARY OR NOT X11_Xt_FOUND)
@@ -266,7 +266,7 @@ if (OGRE_STATIC)
 
   set(OGRE_LIBRARIES ${OGRE_LIBRARIES} ${ZZip_LIBRARIES} ${ZLIB_LIBRARIES} ${FreeImage_LIBRARIES} ${FREETYPE_LIBRARIES} )
 
-  if (APPLE AND NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
+  if (APPLE AND NOT OGRE_BUILD_PLATFORM_APPLE_IOS AND NOT ANDROID)
     set(OGRE_LIBRARIES ${OGRE_LIBRARIES} ${X11_LIBRARIES} ${X11_Xt_LIBRARIES} ${XAW_LIBRARY} ${X11_Xrandr_LIB} ${Carbon_LIBRARIES} ${Cocoa_LIBRARIES})
   endif()
   
@@ -279,7 +279,7 @@ if (OGRE_STATIC)
   if (NOT FREETYPE_FOUND)
     set(OGRE_DEPS_FOUND FALSE)
   endif ()
-  if (UNIX AND NOT APPLE)
+  if (UNIX AND NOT APPLE AND NOT ANDROID)
 	if (NOT X11_FOUND)
       set(OGRE_DEPS_FOUND FALSE)
 	endif ()
@@ -384,6 +384,10 @@ ogre_find_component(Terrain OgreTerrain.h)
 ogre_find_component(Property OgreProperty.h)
 # look for RTShaderSystem component
 ogre_find_component(RTShaderSystem OgreRTShaderSystem.h)
+# look for Volume component
+ogre_find_component(Volume OgreVolume.h)
+# look for Overlay component
+ogre_find_component(Overlay OgreOverlaySystem.h)
 
 
 #########################################################

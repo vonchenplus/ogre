@@ -15,7 +15,6 @@ PROJECT(OgreMain)
 
 include(PrecompiledHeader)
 
-
 # define header and source files for the library
 set (HEADER_FILES
   include/asm_math.h
@@ -39,7 +38,6 @@ set (HEADER_FILES
   include/OgreBitwise.h
   include/OgreBlendMode.h
   include/OgreBone.h
-  include/OgreBorderPanelOverlayElement.h
   ${OGRE_BINARY_DIR}/include/OgreBuildSettings.h
   include/OgreCamera.h
   include/OgreCodec.h
@@ -77,8 +75,6 @@ set (HEADER_FILES
   include/OgreExternalTextureSourceManager.h
   include/OgreFactoryObj.h
   include/OgreFileSystem.h
-  include/OgreFont.h
-  include/OgreFontManager.h
   include/OgreFrameListener.h
   include/OgreFrustum.h
   include/OgreGpuProgram.h
@@ -90,9 +86,8 @@ set (HEADER_FILES
   include/OgreHardwareIndexBuffer.h
   include/OgreHardwareOcclusionQuery.h
   include/OgreHardwarePixelBuffer.h
+  include/OgreHardwareUniformBuffer.h
   include/OgreHardwareVertexBuffer.h
-  include/OgreHeaderPrefix.h
-  include/OgreHeaderSuffix.h
   include/OgreHighLevelGpuProgram.h
   include/OgreHighLevelGpuProgramManager.h
   include/OgreImage.h
@@ -139,13 +134,6 @@ set (HEADER_FILES
   include/OgreNode.h
   include/OgreNumerics.h
   include/OgreOptimisedUtil.h
-  include/OgreOverlay.h
-  include/OgreOverlayContainer.h
-  include/OgreOverlayElement.h
-  include/OgreOverlayElementCommands.h
-  include/OgreOverlayElementFactory.h
-  include/OgreOverlayManager.h
-  include/OgrePanelOverlayElement.h
   include/OgreParticle.h
   include/OgreParticleAffector.h
   include/OgreParticleAffectorFactory.h
@@ -247,7 +235,6 @@ set (HEADER_FILES
   include/OgreTagPoint.h
   include/OgreTangentSpaceCalc.h
   include/OgreTechnique.h
-  include/OgreTextAreaOverlayElement.h
   include/OgreTexture.h
   include/OgreTextureManager.h
   include/OgreTextureUnitState.h
@@ -280,7 +267,6 @@ set (SOURCE_FILES
   src/OgreBillboardParticleRenderer.cpp
   src/OgreBillboardSet.cpp
   src/OgreBone.cpp
-  src/OgreBorderPanelOverlayElement.cpp
   src/OgreCamera.cpp
   src/OgreCodec.cpp
   src/OgreColourValue.cpp
@@ -310,8 +296,6 @@ set (SOURCE_FILES
   src/OgreExternalTextureSource.cpp
   src/OgreExternalTextureSourceManager.cpp
   src/OgreFileSystem.cpp
-  src/OgreFont.cpp
-  src/OgreFontManager.cpp
   src/OgreFrustum.cpp
   src/OgreGpuProgram.cpp
   src/OgreGpuProgramManager.cpp
@@ -321,6 +305,7 @@ set (SOURCE_FILES
   src/OgreHardwareIndexBuffer.cpp
   src/OgreHardwareOcclusionQuery.cpp
   src/OgreHardwarePixelBuffer.cpp
+  src/OgreHardwareUniformBuffer.cpp
   src/OgreHardwareVertexBuffer.cpp
   src/OgreHighLevelGpuProgram.cpp
   src/OgreHighLevelGpuProgramManager.cpp
@@ -365,13 +350,6 @@ set (SOURCE_FILES
 #  src/OgreOptimisedUtilNEON.cpp
   src/OgreOptimisedUtilSSE.cpp
 #  src/OgreOptimisedUtilVFP.cpp
-  src/OgreOverlay.cpp
-  src/OgreOverlayContainer.cpp
-  src/OgreOverlayElement.cpp
-  src/OgreOverlayElementCommands.cpp
-  src/OgreOverlayElementFactory.cpp
-  src/OgreOverlayManager.cpp
-  src/OgrePanelOverlayElement.cpp
   src/OgreParticle.cpp
   src/OgreParticleEmitter.cpp
   src/OgreParticleEmitterCommands.cpp
@@ -448,7 +426,6 @@ set (SOURCE_FILES
   src/OgreTagPoint.cpp
   src/OgreTangentSpaceCalc.cpp
   src/OgreTechnique.cpp
-  src/OgreTextAreaOverlayElement.cpp
   src/OgreTexture.cpp
   src/OgreTextureManager.cpp
   src/OgreTextureUnitState.cpp
@@ -482,6 +459,20 @@ if (OGRE_BUILD_PLATFORM_NACL)
   set(PLATFORM_LIBS nosys)
   set(PLATFORM_HEADER_INSTALL "NaCl")
 elseif (WIN32)
+  if (OGRE_BUILD_PLATFORM_WINRT)
+    include_directories("include/WIN32")
+    set(PLATFORM_HEADER_FILES
+      include/WIN32/OgreConfigDialogImpWinRT.h
+      include/WIN32/OgreErrorDialogImpWinRT.h
+      include/WIN32/OgreTimerImp.h
+    )
+    set(PLATFORM_SOURCE_FILES
+      src/WIN32/OgreConfigDialogWinRT.cpp
+      src/WIN32/OgreErrorDialogWinRT.cpp
+      src/WIN32/OgreTimer.cpp
+    )  
+    set(PLATFORM_HEADER_INSTALL "WIN32")
+  else ()
   include_directories("include/WIN32")
   set(PLATFORM_HEADER_FILES
     include/WIN32/OgreConfigDialogImp.h
@@ -524,6 +515,7 @@ elseif (WIN32)
 	list(APPEND PLATFORM_SOURCE_FILES ${CMAKE_CURRENT_BINARY_DIR}/OgreWin32Resources.rc.obj)
   else ()
     list(APPEND PLATFORM_SOURCE_FILES src/WIN32/OgreWin32Resources.rc)
+  endif ()
   endif ()
 
 elseif (APPLE)
@@ -574,6 +566,24 @@ elseif (APPLE)
     set(PLATFORM_LIBS ${Carbon_LIBRARY_FWK} ${Cocoa_LIBRARY_FWK})
     set(PLATFORM_HEADER_INSTALL "OSX")
   endif ()
+elseif(ANDROID)
+  set(PLATFORM_HEADER_FILES
+    include/Android/OgreConfigDialogImp.h
+    include/Android/OgreErrorDialogImp.h
+    include/Android/OgreTimerImp.h
+    include/Android/OgreAndroidLogListener.h
+    include/Android/OgreAPKFileSystemArchive.h
+  )
+  set(PLATFORM_SOURCE_FILES
+    src/Android/OgreConfigDialog.cpp
+    src/Android/OgreErrorDialog.cpp
+    src/Android/OgreTimer.cpp
+    src/OgreSearchOps.cpp
+    src/Android/OgreAndroidLogListener.cpp
+    src/Android/OgreAPKFileSystemArchive.cpp
+  )
+
+  set(PLATFORM_HEADER_INSTALL "Android")
 elseif (UNIX)
   include_directories(include/GLX ${X11_INCLUDE_DIR})
   set(PLATFORM_HEADER_FILES
@@ -648,7 +658,6 @@ add_definitions(-DOGRE_NONCLIENT_BUILD -DFREEIMAGE_LIB -D_MT -D_USRDLL)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/nedmalloc)
 
 set(LIBRARIES
-  ${FREETYPE_LIBRARIES}
   ${PLATFORM_LIBS}
 )
 
@@ -672,9 +681,21 @@ if (OGRE_CONFIG_ENABLE_PVRTC)
   list(APPEND SOURCE_FILES src/OgrePVRTCCodec.cpp)
 endif ()
 
+if (OGRE_CONFIG_ENABLE_ETC1)
+  list(APPEND HEADER_FILES include/OgreETC1Codec.h)
+  list(APPEND SOURCE_FILES src/OgreETC1Codec.cpp)
+endif ()
+
 if (OGRE_CONFIG_ENABLE_ZIP)
   list(APPEND HEADER_FILES include/OgreZip.h)
   list(APPEND SOURCE_FILES src/OgreZip.cpp)
+
+  if(ANDROID)
+    ADD_DEFINITIONS(-DZZIP_OMIT_CONFIG_H)
+    list(APPEND PLATFORM_HEADER_FILES include/Android/OgreAPKZipArchive.h)
+    list(APPEND PLATFORM_SOURCE_FILES src/Android/OgreAPKZipArchive.cpp)
+  endif()
+
   list(APPEND LIBRARIES "${ZZip_LIBRARIES}")
   list(APPEND LIBRARIES "${ZLIB_LIBRARIES}")
 endif ()
