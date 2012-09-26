@@ -92,6 +92,9 @@ namespace Ogre {
 
     };
 
+    /** Locking helper. */    
+    typedef HardwareBufferLockGuard<HardwareVertexBufferSharedPtr> HardwareVertexBufferLockGuard;
+
     /// Vertex element semantics, used to identify the meaning of vertex buffer contents
 	enum VertexElementSemantic {
 		/// Position, 3 reals per vertex
@@ -567,7 +570,7 @@ namespace Ogre {
         */
         virtual void closeGaps(BindingIndexMap& bindingIndexMap);
 
-        /// returns true if has an element that is instance data
+        /// Returns true if has an element that is instance data
         virtual bool getHasInstanceData() const;
 
 
