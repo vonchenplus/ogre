@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreHardwareIndexBuffer.h"
 #include "OgreHardwareUniformBuffer.h"
 #include "OgreRenderToVertexBuffer.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
     /** \addtogroup Core
@@ -121,11 +122,9 @@ namespace Ogre {
         typedef set<HardwareVertexBuffer*>::type VertexBufferList;
         typedef set<HardwareIndexBuffer*>::type IndexBufferList;
 		typedef set<HardwareUniformBuffer*>::type UniformBufferList;
-		//typedef HashMap<std::string, HardwareUniformBuffer*> SharedUniformBufferMap;
         VertexBufferList mVertexBuffers;
         IndexBufferList mIndexBuffers;
 		UniformBufferList mUniformBuffers;
-		//SharedUniformBufferMap mSharedUniformBuffers;
 
 
         typedef set<VertexDeclaration*>::type VertexDeclarationList;
@@ -577,6 +576,8 @@ namespace Ogre {
     /** @} */
     /** @} */
 } // namespace Ogre
+
+#include "OgreHeaderSuffix.h"
 
 #endif // __HardwareBufferManager__
 

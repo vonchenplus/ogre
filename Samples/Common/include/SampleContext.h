@@ -31,6 +31,7 @@
 #include "OgreLogManager.h"
 #include "OgrePlugin.h"
 #include "FileSystemLayerImpl.h"
+#include "OgreOverlaySystem.h"
 
 // Static plugins declaration section
 // Note that every entry in here adds an extra header / library dependency
@@ -122,6 +123,7 @@ namespace OgreBites
 			mRoot = 0;
 			mWindow = 0;
 			mCurrentSample = 0;
+			mOverlaySystem = 0;
 			mSamplePaused = false;
 			mFirstRun = true;
 			mLastRun = false;
@@ -149,6 +151,12 @@ namespace OgreBites
 		-----------------------------------------------------------------------------*/
 		virtual void runSample(Sample* s)
 		{
+#if OGRE_PROFILING
+            Ogre::Profiler* prof = Ogre::Profiler::getSingletonPtr();
+            if (prof)
+                prof->setEnabled(false);
+#endif
+
 			if (mCurrentSample)
 			{
 				mCurrentSample->_shutdown();    // quit current sample
@@ -195,8 +203,12 @@ namespace OgreBites
 				// test system capabilities against sample requirements
 				s->testCapabilities(mRoot->getRenderSystem()->getCapabilities());
 
-				s->_setup(mWindow, mInputContext, mFSLayer);   // start new sample
+				s->_setup(mWindow, mInputContext, mFSLayer, mOverlaySystem);   // start new sample
 			}
+#if OGRE_PROFILING
+            if (prof)
+                prof->setEnabled(true);
+#endif
 
 			mCurrentSample = s;
 		}
@@ -270,12 +282,15 @@ namespace OgreBites
 #else
 			mRoot->saveConfig();
 			shutdown();
-			if (mRoot) OGRE_DELETE mRoot;
+			if (mRoot)
+			{
+				OGRE_DELETE mOverlaySystem;
+				OGRE_DELETE mRoot;
+			}
 #ifdef OGRE_STATIC_LIB
 			mStaticPluginLoader.unload();
 #endif
 #endif
-
 		}
 
 		/*-----------------------------------------------------------------------------
@@ -593,7 +608,7 @@ namespace OgreBites
             mStaticPluginLoader.load();
 #   endif
 #endif
-
+			mOverlaySystem = OGRE_NEW Ogre::OverlaySystem();
 		}
 
 		/*-----------------------------------------------------------------------------
@@ -874,6 +889,7 @@ namespace OgreBites
 		Ogre::Root* mRoot;              // OGRE root
 		OIS::InputManager* mInputMgr;   // OIS input manager
 		InputContext mInputContext;		// all OIS devices are here
+		Ogre::OverlaySystem* mOverlaySystem;  // Overlay system
 #ifdef OGRE_STATIC_LIB
         Ogre::StaticPluginLoader mStaticPluginLoader;
 #endif

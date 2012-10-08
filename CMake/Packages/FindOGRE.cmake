@@ -29,7 +29,7 @@
 #  Plugin_OctreeSceneManager, Plugin_OctreeZone,
 #  Plugin_ParticleFX, Plugin_PCZSceneManager,
 #  RenderSystem_GL, RenderSystem_Direct3D9,
-#  Paging, Terrain
+#  Paging, Terrain, Volume, Overlay
 #
 # For each of these components, the following variables are defined:
 #
@@ -128,7 +128,7 @@ else()
 endif ()
 
 # redo search if any of the environmental hints changed
-set(OGRE_COMPONENTS Paging Terrain 
+set(OGRE_COMPONENTS Paging Terrain Volume Overlay 
   Plugin_BSPSceneManager Plugin_CgProgramManager Plugin_OctreeSceneManager
   Plugin_OctreeZone Plugin_PCZSceneManager Plugin_ParticleFX
   RenderSystem_Direct3D11 RenderSystem_Direct3D9 RenderSystem_GL RenderSystem_GLES RenderSystem_GLES2)
@@ -257,12 +257,6 @@ if (OGRE_STATIC)
       set(OGRE_DEPS_FOUND FALSE)
     endif ()
   endif ()
-  if (APPLE AND OGRE_BUILD_PLATFORM_APPLE_IOS)
-    find_package(iOSSDK QUIET)
-    if (NOT iOSSDK_FOUND)
-      set(OGRE_DEPS_FOUND FALSE)
-    endif ()
-  endif ()
 
   set(OGRE_LIBRARIES ${OGRE_LIBRARIES} ${ZZip_LIBRARIES} ${ZLIB_LIBRARIES} ${FreeImage_LIBRARIES} ${FREETYPE_LIBRARIES} )
 
@@ -384,6 +378,10 @@ ogre_find_component(Terrain OgreTerrain.h)
 ogre_find_component(Property OgreProperty.h)
 # look for RTShaderSystem component
 ogre_find_component(RTShaderSystem OgreRTShaderSystem.h)
+# look for Volume component
+ogre_find_component(Volume OgreVolume.h)
+# look for Overlay component
+ogre_find_component(Overlay OgreOverlaySystem.h)
 
 
 #########################################################
