@@ -46,6 +46,7 @@ THE SOFTWARE.
 #include "OgreGpuProgram.h"
 #include "OgrePlane.h"
 #include "OgreIteratorWrappers.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre
 {
@@ -212,6 +213,12 @@ namespace Ogre
 		*/
 		virtual RenderWindow* _initialise(bool autoCreateWindow, const String& windowTitle = "OGRE Render Window");
 
+		/*
+		Returns whether under the current render system buffers marked as TU_STATIC can be locked for update
+		@remarks
+		Needed in the implementation of DirectX9 with DirectX9Ex driver
+		*/
+		virtual bool isStaticBufferLockable() const { return true; }
 
 		/** Query the real capabilities of the GPU and driver in the RenderSystem*/
 		virtual RenderSystemCapabilities* createRenderSystemCapabilities() const = 0;
@@ -796,6 +803,20 @@ namespace Ogre
 		*/
 		virtual void _setTextureUnitFiltering(size_t unit, FilterType ftype, FilterOptions filter) = 0;
 
+		/** Sets wether the compare func is enabled or not for this texture unit 
+		@param unit The texture unit to set the filtering options for
+		@param compare The state (enabled/disabled)
+		*/
+		virtual void _setTextureUnitCompareEnabled(size_t unit, bool compare) = 0;
+
+
+		/** Sets the compare function to use for a given texture unit
+		@param unit The texture unit to set the filtering options for
+		@param function The comparison function
+		*/
+		virtual void _setTextureUnitCompareFunction(size_t unit, CompareFunction function) = 0;
+
+
 		/** Sets the maximal anisotropy for the specified texture unit.*/
 		virtual void _setTextureLayerAnisotropy(size_t unit, unsigned int maxAnisotropy) = 0;
 
@@ -851,7 +872,7 @@ namespace Ogre
 		/** Sets the global alpha rejection approach for future renders.
 		By default images are rendered regardless of texture alpha. This method lets you change that.
 		@param func The comparison function which must pass for a pixel to be written.
-		@param val The value to compare each pixels alpha value to (0-255)
+		@param value The value to compare each pixels alpha value to (0-255)
 		@param alphaToCoverage Whether to enable alpha to coverage, if supported
 		*/
 		virtual void _setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage) = 0;
@@ -911,7 +932,7 @@ namespace Ogre
 		rendering operations. This viewport is aware of it's own
 		camera and render target. Must be implemented by subclass.
 
-		@param target Pointer to the appropriate viewport.
+		@param vp Pointer to the appropriate viewport.
 		*/
 		virtual void _setViewport(Viewport *vp) = 0;
 		/** Get the current active viewport for rendering. */
@@ -1470,10 +1491,21 @@ namespace Ogre
         */
         virtual void markProfileEvent( const String &event ) = 0;
 
+		/** Determines if the system has anisotropic mip map filter support
+		*/
+		virtual bool hasAnisotropicMipMapFilter() const = 0;
+
+		/** Gets a custom (maybe platform-specific) attribute.
+        @remarks This is a nasty way of satisfying any API's need to see platform-specific details.
+        @param name The name of the attribute.
+        @param pData Pointer to memory of the right kind of structure to receive the info.
+        */
+		virtual void getCustomAttribute(const String& name, void* pData);
+
 	protected:
 
 		/** DepthBuffers to be attached to render targets */
-		DepthBufferMap mDepthBufferPool;
+		DepthBufferMap	mDepthBufferPool;
 
 		/** The render targets. */
 		RenderTargetMap mRenderTargets;
@@ -1486,6 +1518,9 @@ namespace Ogre
 		GpuProgramParametersSharedPtr mActiveVertexGpuProgramParameters;
 		GpuProgramParametersSharedPtr mActiveGeometryGpuProgramParameters;
 		GpuProgramParametersSharedPtr mActiveFragmentGpuProgramParameters;
+		GpuProgramParametersSharedPtr mActiveTesselationHullGpuProgramParameters;
+		GpuProgramParametersSharedPtr mActiveTesselationDomainGpuProgramParameters;
+		GpuProgramParametersSharedPtr mActiveComputeGpuProgramParameters;
 
 		// Texture manager
 		// A concrete class of this will be created and
@@ -1556,6 +1591,9 @@ namespace Ogre
 		bool mVertexProgramBound;
 		bool mGeometryProgramBound;
 		bool mFragmentProgramBound;
+		bool mTesselationHullProgramBound;
+		bool mTesselationDomainProgramBound;
+		bool mComputeProgramBound;
 
 		// Recording user clip planes
 		PlaneList mClipPlanes;
@@ -1585,5 +1623,7 @@ namespace Ogre
 	/** @} */
 	/** @} */
 }
+
+#include "OgreHeaderSuffix.h"
 
 #endif

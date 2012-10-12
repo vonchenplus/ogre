@@ -43,6 +43,10 @@ namespace Ogre {
             char* mScratchBufferPool;
             OGRE_MUTEX(mScratchMutex)
             size_t mMapBufferThreshold;
+            /// Internal method for creates a new vertex declaration, may be overridden by certain rendering APIs
+            VertexDeclaration* createVertexDeclarationImpl(void);
+            /// Internal method for destroys a vertex declaration, may be overridden by certain rendering APIs
+            void destroyVertexDeclarationImpl(VertexDeclaration* decl);
 
         public:
             GLES2HardwareBufferManagerBase();
@@ -79,6 +83,9 @@ namespace Ogre {
             */
             size_t getGLMapBufferThreshold() const;
             void setGLMapBufferThreshold( const size_t value );
+            HardwareUniformBufferSharedPtr 
+                createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name = "");
+
     };
 
 	/// GLES2HardwareBufferManagerBase as a Singleton
@@ -131,7 +138,6 @@ namespace Ogre {
 		{
 			static_cast<GLES2HardwareBufferManagerBase*>(mImpl)->setGLMapBufferThreshold(value);
 		}
-
 	};
 
 }

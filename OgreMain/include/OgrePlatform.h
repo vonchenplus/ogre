@@ -39,6 +39,7 @@ namespace Ogre {
 #define OGRE_PLATFORM_APPLE_IOS 4
 #define OGRE_PLATFORM_ANDROID 5
 #define OGRE_PLATFORM_NACL 6
+#define OGRE_PLATFORM_WINRT 7
 
 #define OGRE_COMPILER_MSVC 1
 #define OGRE_COMPILER_GNUC 2
@@ -98,9 +99,21 @@ namespace Ogre {
 #endif
 
 /* Finds the current platform */
-
 #if defined( __WIN32__ ) || defined( _WIN32 )
-#   define OGRE_PLATFORM OGRE_PLATFORM_WIN32
+#	define _CRT_SECURE_NO_WARNINGS
+#	define _SCL_SECURE_NO_WARNINGS
+#	if defined(WINAPI_FAMILY)
+#		include <winapifamily.h>
+#		if WINAPI_FAMILY == WINAPI_FAMILY_APP
+#			define OGRE_PLATFORM OGRE_PLATFORM_WINRT
+#		else
+#			define OGRE_PLATFORM OGRE_PLATFORM_WIN32
+#		endif
+#	else
+#		define OGRE_PLATFORM OGRE_PLATFORM_WIN32
+#	endif
+#elif defined(__FLASHCC__)
+#	define OGRE_PLATFORM OGRE_PLATFORM_FLASHCC
 #elif defined( __APPLE_CC__)
     // Device                                                     Simulator
     // Both requiring OS version 4.0 or greater
@@ -145,7 +158,7 @@ namespace Ogre {
 
 //----------------------------------------------------------------------------
 // Windows Settings
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 
 // If we're not including this from a client build, specify that the stuff
 // should get exported. Otherwise, import it.
@@ -196,34 +209,12 @@ namespace Ogre {
 #  define OGRE_UNICODE_SUPPORT 1
 #endif
 
-#endif // OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#endif // OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 
-//----------------------------------------------------------------------------
-// Android Settings
-/*
-#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-#   define _OgreExport 
-#	define OGRE_UNICODE_SUPPORT 1
-#   define OGRE_DEBUG_MODE 0
-#   define _OgrePrivate
-#	  define CLOCKS_PER_SEC  1000
-//  pragma def were found here: http://www.inf.pucrs.br/~eduardob/disciplinas/SistEmbarcados/Mobile/Nokia/Tools/Carbide_vs/WINSCW/Help/PDF/C_Compilers_Reference_3.2.pdf
-#	  pragma warn_unusedarg off
-#	  pragma warn_emptydecl off
-#	  pragma warn_possunwant off
-// A quick define to overcome different names for the same function
-#   define stricmp strcasecmp
-#   ifdef DEBUG
-#       define OGRE_DEBUG_MODE 1
-#   else
-#       define OGRE_DEBUG_MODE 0
-#   endif
-#endif
-*/
 //----------------------------------------------------------------------------
 // Linux/Apple/iOs/Android/NaCl Settings
 #if OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || \
-    OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_NACL
+    OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_NACL || OGRE_PLATFORM == OGRE_PLATFORM_FLASHCC
 
 // Enable GCC symbol visibility
 #   if defined( OGRE_GCC_VISIBILITY )
@@ -258,6 +249,37 @@ namespace Ogre {
 #endif
 
 //----------------------------------------------------------------------------
+// Android Settings
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+#   ifdef OGRE_UNICODE_SUPPORT
+#       undef OGRE_UNICODE_SUPPORT
+#   endif
+#	define OGRE_UNICODE_SUPPORT 0
+#	define CLOCKS_PER_SEC  1000
+    // A quick define to overcome different names for the same function
+#   define stricmp strcasecmp
+#   ifdef DEBUG
+#       define OGRE_DEBUG_MODE 1
+#   else
+#       define OGRE_DEBUG_MODE 0
+#   endif
+#endif
+    
+//----------------------------------------------------------------------------
+// FlashCC Settings
+#if OGRE_PLATFORM == OGRE_PLATFORM_FLASHCC
+#   ifdef OGRE_UNICODE_SUPPORT
+#       undef OGRE_UNICODE_SUPPORT
+#   endif
+#	define OGRE_UNICODE_SUPPORT 0
+#   ifdef DEBUG
+#       define OGRE_DEBUG_MODE 1
+#   else
+#       define OGRE_DEBUG_MODE 0
+#   endif
+#endif
+
+//----------------------------------------------------------------------------
 // Endian Settings
 // check for BIG_ENDIAN config flag, set OGRE_ENDIAN correctly
 #ifdef OGRE_CONFIG_BIG_ENDIAN
@@ -281,8 +303,6 @@ typedef char int8;
 	typedef unsigned long long uint64;
 	typedef long long int64;
 #endif
-
-
 }
 
 #endif

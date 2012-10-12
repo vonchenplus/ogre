@@ -38,13 +38,14 @@ THE SOFTWARE.
 #if OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_APPLE || \
     OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || \
     OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || \
-    OGRE_PLATFORM == OGRE_PLATFORM_NACL
+    OGRE_PLATFORM == OGRE_PLATFORM_NACL || \
+    OGRE_PLATFORM == OGRE_PLATFORM_FLASHCC
 #   include "OgreSearchOps.h"
 #   include <sys/param.h>
 #   define MAX_PATH MAXPATHLEN
 #endif
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 #  define WIN32_LEAN_AND_MEAN
 #  if !defined(NOMINMAX) && defined(_MSC_VER)
 #	define NOMINMAX // required to stop windows.h messing up std::min
@@ -66,7 +67,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     bool FileSystemArchive::isCaseSensitive(void) const
     {
-        #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+        #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
             return false;
         #else
             return true;
@@ -81,7 +82,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     static bool is_absolute_path(const char* path)
     {
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
         if (isalpha(uchar(path[0])) && path[1] == ':')
             return true;
 #endif
@@ -379,7 +380,7 @@ namespace Ogre {
         if (ret && is_absolute_path(filename.c_str()))
 		{
 			// only valid if full path starts with our base
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 			// case insensitive on windows
 			String lowerCaseName = mName;
 			StringUtil::toLowerCase(lowerCaseName);

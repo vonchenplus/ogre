@@ -43,8 +43,6 @@ THE SOFTWARE.
 #include "OgreAnimation.h"
 #include "OgreAnimationTrack.h"
 #include "OgreRenderQueueSortingGrouping.h"
-#include "OgreOverlay.h"
-#include "OgreOverlayManager.h"
 #include "OgreStringConverter.h"
 #include "OgreRenderQueueListener.h"
 #include "OgreRenderObjectListener.h"
@@ -463,9 +461,7 @@ void SceneManager::_populateLightList(const Vector3& position, Real radius,
         else
         {
             // only add in-range lights
-            Real range = lt->getAttenuationRange();
-            Real maxDist = range + radius;
-            if (lt->tempSquareDist <= Math::Sqr(maxDist))
+			if (lt->isInLightRange(Sphere(position,radius)))
             {
                 destList.push_back(lt);
             }
@@ -990,6 +986,36 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 			}
 			// Set fixed-function vertex parameters
 		}
+		if (pass->hasTesselationHullProgram())
+		{
+			bindGpuProgram(pass->getTesselationHullProgram()->_getBindingDelegate());
+			// bind parameters later
+		}
+		else
+		{
+			// Unbind program?
+			if (mDestRenderSystem->isGpuProgramBound(GPT_HULL_PROGRAM))
+			{
+				mDestRenderSystem->unbindGpuProgram(GPT_HULL_PROGRAM);
+			}
+			// Set fixed-function tesselation control parameters
+		}
+
+		if (pass->hasTesselationDomainProgram())
+		{
+			bindGpuProgram(pass->getTesselationDomainProgram()->_getBindingDelegate());
+			// bind parameters later
+		}
+		else
+		{
+			// Unbind program?
+			if (mDestRenderSystem->isGpuProgramBound(GPT_DOMAIN_PROGRAM))
+			{
+				mDestRenderSystem->unbindGpuProgram(GPT_DOMAIN_PROGRAM);
+			}
+			// Set fixed-function tesselation evaluation parameters
+		}
+
 
 		if (passSurfaceAndLightParams)
 		{
@@ -1480,11 +1506,6 @@ void SceneManager::_renderScene(Camera* camera, Viewport* vp, bool includeOverla
 			firePostFindVisibleObjects(vp);
 
 			mAutoParamDataSource->setMainCamBoundsInfo(&(camVisObjIt->second));
-		}
-		// Add overlays, if viewport deems it
-		if (vp->getOverlaysEnabled() && mIlluminationStage != IRS_RENDER_TO_TEXTURE)
-		{
-			OverlayManager::getSingleton()._queueOverlaysForRendering(camera, getRenderQueue(), vp);
 		}
 		// Queue skies, if viewport seems it
 		if (vp->getSkiesEnabled() && mFindVisibleObjects && mIlluminationStage != IRS_RENDER_TO_TEXTURE)
@@ -7218,6 +7239,18 @@ void SceneManager::updateGpuProgramParameters(const Pass* pass)
 		{
 			mDestRenderSystem->bindGpuProgramParameters(GPT_FRAGMENT_PROGRAM, 
 				pass->getFragmentProgramParameters(), mGpuParamsDirty);
+		}
+
+		if (pass->hasTesselationHullProgram())
+		{
+			mDestRenderSystem->bindGpuProgramParameters(GPT_HULL_PROGRAM, 
+				pass->getTesselationHullProgramParameters(), mGpuParamsDirty);
+		}
+
+		if (pass->hasTesselationHullProgram())
+		{
+			mDestRenderSystem->bindGpuProgramParameters(GPT_DOMAIN_PROGRAM, 
+				pass->getTesselationDomainProgramParameters(), mGpuParamsDirty);
 		}
 
 		mGpuParamsDirty = 0;
