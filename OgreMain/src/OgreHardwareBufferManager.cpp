@@ -71,6 +71,7 @@ namespace Ogre {
         // unnecessary work, and we'll destroy everything here.
 		mVertexBuffers.clear();
 		mIndexBuffers.clear();
+		mUniformBuffers.clear();
 
         // Destroy everything
         destroyAllDeclarations();
@@ -411,6 +412,10 @@ namespace Ogre {
 		{
 			mIndexBuffers.erase(i);
 		}
+	}
+	//-----------------------------------------------------------------------
+	void HardwareBufferManagerBase::_notifyUniformBufferDestroyed(HardwareUniformBuffer* buf)
+	{
 	}
     //-----------------------------------------------------------------------
     HardwareVertexBufferSharedPtr 
