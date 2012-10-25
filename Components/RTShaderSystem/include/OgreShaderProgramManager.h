@@ -156,13 +156,20 @@ protected:
 	@param programSet The program set container.
 	*/
 	bool createGpuPrograms(ProgramSet* programSet);
+		
+	/** 
+	Generates a unique guid value from a string
+	@param programString string to generate a hash value for
+	@return A string representing a 128 bit hash value of the original string
+	*/
+	String generateGUID(const String& programString);
 
 	/** Create GPU program based on the give CPU program.
 	@param shaderProgram The CPU program instance.
 	@param programWriter The program writer instance.
 	@param language The target shader language.
 	@param profiles The profiles string for program compilation.
-	@param profiles The profiles string for program compilation as string list.
+	@param profilesList The profiles string for program compilation as string list.
 	@param cachePath The output path to write the program into.
 	*/
 	GpuProgramPtr createGpuProgram(Program* shaderProgram, 

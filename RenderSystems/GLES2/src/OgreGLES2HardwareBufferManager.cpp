@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include "OgreGLES2HardwareBufferManager.h"
 #include "OgreGLES2HardwareVertexBuffer.h"
 #include "OgreGLES2HardwareIndexBuffer.h"
+#include "OgreGLES2VertexDeclaration.h"
 
 namespace Ogre {
     //-----------------------------------------------------------------------
@@ -107,6 +108,16 @@ namespace Ogre {
 		return RenderToVertexBufferSharedPtr();
 	}
 
+	VertexDeclaration* GLES2HardwareBufferManagerBase::createVertexDeclarationImpl(void)
+	{
+		return OGRE_NEW GLES2VertexDeclaration();
+	}
+
+    void GLES2HardwareBufferManagerBase::destroyVertexDeclarationImpl(VertexDeclaration* decl)
+	{
+        if(decl)
+            OGRE_DELETE decl;
+	}
 
     GLenum GLES2HardwareBufferManagerBase::getGLUsage(unsigned int usage)
     {
@@ -258,4 +269,12 @@ namespace Ogre {
 	{
 		mMapBufferThreshold = value;
 	}
+    //---------------------------------------------------------------------
+    Ogre::HardwareUniformBufferSharedPtr GLES2HardwareBufferManagerBase::createUniformBuffer( size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name /*= ""*/ )
+    {
+        OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+            "GLES2 does not support render to vertex buffer objects", 
+            "GLES2HardwareBufferManagerBase::createUniformBuffer");
+    }
+
 }

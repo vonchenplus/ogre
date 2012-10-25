@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include "OgreTerrainMaterialGenerator.h"
 #include "OgreTerrainLayerBlendMap.h"
 #include "OgreWorkQueue.h"
+#include "OgreTerrainLodManager.h"
 
 namespace Ogre
 {
@@ -262,6 +263,8 @@ namespace Ogre
 		public WorkQueue::RequestHandler, public WorkQueue::ResponseHandler, public TerrainAlloc
 	{
 	public:
+		friend class TerrainLodManager;
+
 		/** Constructor.
 		@param sm The SceneManager to use.
 		*/
@@ -271,6 +274,7 @@ namespace Ogre
 		static const uint32 TERRAIN_CHUNK_ID;
 		static const uint16 TERRAIN_CHUNK_VERSION;
 		static const uint16 TERRAIN_MAX_BATCH_SIZE;
+		static const uint64 TERRAIN_GENERATE_MATERIAL_INTERVAL_MS;
 
 		static const uint32 TERRAINLAYERDECLARATION_CHUNK_ID;
 		static const uint16 TERRAINLAYERDECLARATION_CHUNK_VERSION;
@@ -282,6 +286,8 @@ namespace Ogre
 		static const uint16 TERRAINLAYERINSTANCE_CHUNK_VERSION;
 		static const uint32 TERRAINDERIVEDDATA_CHUNK_ID;
 		static const uint16 TERRAINDERIVEDDATA_CHUNK_VERSION;
+		static const uint32 TERRAINGENERALINFO_CHUNK_ID;
+		static const uint16 TERRAINGENERALINFO_CHUNK_VERSION;
 
 		static const size_t LOD_MORPH_CUSTOM_PARAM;
 
@@ -567,7 +573,7 @@ namespace Ogre
 		{
 		public:
 			DefaultGpuBufferAllocator();
-			~DefaultGpuBufferAllocator();
+			virtual ~DefaultGpuBufferAllocator();
 			void allocateVertexBuffers(Terrain* forTerrain, size_t numVertices, HardwareVertexBufferSharedPtr& destPos, HardwareVertexBufferSharedPtr& destDelta);
 			void freeVertexBuffers(const HardwareVertexBufferSharedPtr& posbuf, const HardwareVertexBufferSharedPtr& deltabuf);
 			HardwareIndexBufferSharedPtr getSharedIndexBuffer(uint16 batchSize, 
@@ -724,8 +730,10 @@ namespace Ogre
 		/** Load the terrain based on the data already populated via prepare methods. 
 		@remarks
 			This method must be called in the main render thread. 
+		@param lodLevel Load the specified LOD level
+		@param synchronous Load type
 		*/
-		void load();
+		void load(int lodLevel = 0, bool synchronous = true);
 
 		/** Return whether the terrain is loaded. 
 		@remarks
@@ -1043,8 +1051,8 @@ namespace Ogre
 		const String& getLayerTextureName(uint8 layerIndex, uint8 samplerIndex) const;
 		/** Set the name of the texture bound to a given index within a given layer.
 		See the LayerDeclaration for a list of sampelrs within a layer.
-		@param index The layer index.
-		@param size The world size of the texture before repeating
+		@param layerIndex The layer index.
+    	@param samplerIndex The sampler index within a layer
 		@param textureName The name of the texture to use
 		*/
 		void setLayerTextureName(uint8 layerIndex, uint8 samplerIndex, const String& textureName);
@@ -1266,7 +1274,7 @@ namespace Ogre
 		it safe to perform in a background thread. This call promotes those
 		calculations to the runtime values, and must be called in the main thread.
 		@param rect Rectangle describing the area to finalise 
-		@param normalsBox Pointer to a PixelBox full of normals
+		@param lightmapBox Pointer to a PixelBox full of normals
 		*/
 		void finaliseLightmap(const Rect& rect, PixelBox* lightmapBox);
 
@@ -1514,9 +1522,11 @@ namespace Ogre
 		bool canHandleResponse(const WorkQueue::Response* res, const WorkQueue* srcQ);
 		/// WorkQueue::ResponseHandler override
 		void handleResponse(const WorkQueue::Response* res, const WorkQueue* srcQ);
+		/// Handler for GenerateMaterial
+		void handleGenerateMaterialResponse(const WorkQueue::Response* res, const WorkQueue* srcQ);
 
 		static const uint16 WORKQUEUE_DERIVED_DATA_REQUEST;
-
+		static const uint16 WORKQUEUE_GENERATE_MATERIAL_REQUEST;
 
 		/// Utility method, get the first LOD Level at which this vertex is no longer included
 		uint16 getLODLevelWhenVertexEliminated(long x, long y);
@@ -1617,6 +1627,19 @@ namespace Ogre
 		/// Utility method to read a layer instance list from a stream
 		static bool readLayerInstanceList(StreamSerialiser& ser, size_t numSamplers, Terrain::LayerInstanceList& targetlst);
 	protected:
+		/** Gets the data size at a given LOD level.
+		*/
+		uint getGeoDataSizeAtLod(uint16 lodLevel);
+        /** Get the real lod level
+         @para lodLevel LOD level which can be negative.
+         @note After mapping, [-mNumLodLevels, -1] equals to [0,mNumLodLevels-1]
+         So you can reference the lowest LOD with -1
+         */
+        inline int getPositiveLodLevel( int lodLevel )
+        {
+        	return (lodLevel>=0) ? lodLevel : mNumLodLevels+lodLevel;
+        }
+		void freeLodData();
 
 		void freeCPUResources();
 		void freeGPUResources();
@@ -1717,6 +1740,9 @@ namespace Ogre
 		bool mDerivedDataUpdateInProgress;
 		uint8 mDerivedUpdatePendingMask; // if another update is requested while one is already running
 
+		bool mGenerateMaterialInProgress;
+		/// Don't release Height/DeltaData when preparing
+		mutable bool mPrepareInProgress;
 		/// A data holder for communicating with the background derived data update
 		struct DerivedDataRequest
 		{
@@ -1745,6 +1771,21 @@ namespace Ogre
 			PixelBox* normalMapBox;
 			PixelBox* lightMapBox;
 			_OgreTerrainExport friend std::ostream& operator<<(std::ostream& o, const DerivedDataResponse& r)
+			{ return o; }		
+		};
+
+		enum GenerateMaterialStage{
+			GEN_MATERIAL,
+			GEN_COMPOSITE_MAP_MATERIAL
+		};
+		/// A data holder for communicating with the background GetMaterial
+		struct GenerateMaterialRequest
+		{
+			Terrain* terrain;
+			unsigned long startTime;
+			GenerateMaterialStage stage;
+			bool synchronous;
+			_OgreTerrainExport friend std::ostream& operator<<(std::ostream& o, const GenerateMaterialRequest& r)
 			{ return o; }		
 		};
 
@@ -1814,6 +1855,21 @@ namespace Ogre
 		size_t getPositionBufVertexSize() const;
 		size_t getDeltaBufVertexSize() const;
 
+		TerrainLodManager* mLodManager;
+
+	public:
+		/** Increase Terrain's LOD level by 1
+		  @param synchronous Run synchronously
+		  */
+		void increaseLodLevel(bool synchronous = false);
+		/** Removes highest LOD level loaded
+		  @remarks If there is LOD level load in progress it's load is canceled instead of removal of already loaded one.
+		  */
+		void decreaseLodLevel();
+
+		int getHighestLodPrepared() { return (mLodManager) ? mLodManager->getHighestLodPrepared() : -1; };
+		int getHighestLodLoaded() { return (mLodManager) ? mLodManager->getHighestLodLoaded() : -1; };
+		int getTargetLodLevel() { return (mLodManager) ? mLodManager->getTargetLodLevel() : -1; };
 	};
 
 

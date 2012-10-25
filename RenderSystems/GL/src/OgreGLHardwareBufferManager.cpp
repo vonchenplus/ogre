@@ -67,7 +67,7 @@ namespace Ogre {
 		// Win32 machines with ATI GPU are having issues glMapBuffer, looks like buffer corruption
 		// disable for now until we figure out where the problem lies			
 #	if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-		if (Root::getSingleton().getRenderSystem()->getCapabilities()->getVendor() == GPU_ATI) 
+		if (Root::getSingleton().getRenderSystem()->getCapabilities()->getVendor() == GPU_AMD)
 		{
 			mMapBufferThreshold = 0xffffffffUL  /* maximum unsigned long value */;
 		}
@@ -114,6 +114,14 @@ namespace Ogre {
 	{
         return RenderToVertexBufferSharedPtr(new GLRenderToVertexBuffer);
     }
+	//---------------------------------------------------------------------
+	HardwareUniformBufferSharedPtr 
+		GLHardwareBufferManagerBase::createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name)
+	{
+		OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+				"Uniform buffer not supported in OpenGL RenderSystem.",
+				"GLHardwareBufferManagerBase::createUniformBuffer");
+	}
     //---------------------------------------------------------------------
     GLenum GLHardwareBufferManagerBase::getGLUsage(unsigned int usage)
     {
