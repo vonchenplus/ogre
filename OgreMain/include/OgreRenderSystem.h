@@ -46,6 +46,7 @@ THE SOFTWARE.
 #include "OgreGpuProgram.h"
 #include "OgrePlane.h"
 #include "OgreIteratorWrappers.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre
 {
@@ -203,10 +204,8 @@ namespace Ogre
 		automatically, based on settings chosen so far. This saves
 		an extra call to _createRenderWindow
 		for the main render window.
-		@par
-		If an application has more specific window requirements,
-		however (e.g. a level design app), it should specify false
-		for this parameter and do it manually.
+		@param
+		windowTitle Sets the app window title
 		@return
 		A pointer to the automatically created window, if requested, otherwise null.
 		*/
@@ -1474,6 +1473,22 @@ namespace Ogre
 		*/
 		virtual unsigned int getDisplayMonitorCount() const = 0;
 
+        /**
+        * This marks the beginning of an event for GPU profiling.
+        */
+        virtual void beginProfileEvent( const String &eventName ) = 0;
+
+        /**
+        * Ends the currently active GPU profiling event.
+        */
+        virtual void endProfileEvent( void ) = 0;
+
+        /**
+        * Marks an instantaneous event for graphics profilers.  
+        * This is equivalent to calling @see beginProfileEvent and @see endProfileEvent back to back.
+        */
+        virtual void markProfileEvent( const String &event ) = 0;
+
 		/** Determines if the system has anisotropic mip map filter support
 		*/
 		virtual bool hasAnisotropicMipMapFilter() const = 0;
@@ -1606,5 +1621,7 @@ namespace Ogre
 	/** @} */
 	/** @} */
 }
+
+#include "OgreHeaderSuffix.h"
 
 #endif

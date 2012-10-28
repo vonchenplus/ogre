@@ -50,12 +50,17 @@
 #       ifdef USE_RTSHADER_SYSTEM
 #           include "ShaderSystem.h"
 #       endif
+#		include "DualQuaternion.h"
 #       include "DeferredShadingDemo.h"
 #       include "Instancing.h"
 #       include "NewInstancing.h"
 #       include "TextureArray.h"
 #       include "SSAO.h"
 #       include "OceanDemo.h"
+#		ifdef OGRE_BUILD_COMPONENT_VOLUME
+#			include "VolumeCSG.h"
+#			include "VolumeTerrain.h"
+#		endif
 #       ifdef OGRE_BUILD_COMPONENT_TERRAIN
 #           include "Terrain.h"
 #       endif
@@ -85,8 +90,10 @@
 #   include "TextureFX.h"
 #   include "Transparency.h"
 #   if SAMPLES_INCLUDE_PLAYPEN
-#       include "PlayPen.h"
-        PlayPenPlugin* playPenPlugin = 0;
+#    include "PlayPen.h"
+#    include "PlayPenTestPlugin.h"
+     PlayPenPlugin* playPenPlugin = 0;
+     PlaypenTestPlugin* playPenTestPlugin = 0;
 #   endif
 #   ifdef USE_RTSHADER_SYSTEM
 #       include "OgreRTShaderSystem.h"
@@ -192,7 +199,7 @@ protected:
 	| dynamic configuration, resource reloading, node labelling, and more.
 	=============================================================================*/
 	class SampleBrowser : public SampleContext, public SdkTrayListener
-	{        
+	{
 	public:
 
 		SampleBrowser(bool nograb = false, int startSampleIndex = -1) : SampleContext()
@@ -556,7 +563,11 @@ protected:
 
 				mRoot->saveConfig();
 				shutdown();
-				if (mRoot) OGRE_DELETE mRoot;
+				if (mRoot)
+				{
+					OGRE_DELETE mOverlaySystem;
+					OGRE_DELETE mRoot;
+				}
 #endif
             }
 		}
@@ -1023,9 +1034,15 @@ protected:
             mPluginNameMap["Sample_FacialAnimation"]    = (OgreBites::SdkSample *) OGRE_NEW Sample_FacialAnimation();
             mPluginNameMap["Sample_Grass"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Grass();
 #   if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
+			mPluginNameMap["Sample_DualQuaternion"]     = (OgreBites::SdkSample *) OGRE_NEW Sample_DualQuaternion();
  			mPluginNameMap["Sample_Instancing"]			= (OgreBites::SdkSample *) OGRE_NEW Sample_Instancing();
             mPluginNameMap["Sample_NewInstancing"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_NewInstancing();
             mPluginNameMap["Sample_TextureArray"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureArray();
+			mPluginNameMap["Sample_Tesselation"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_Tesselation();
+#		ifdef OGRE_BUILD_COMPONENT_VOLUME
+            mPluginNameMap["Sample_VolumeCSG"]          = (OgreBites::SdkSample *) OGRE_NEW Sample_VolumeCSG();
+            mPluginNameMap["Sample_VolumeTerrain"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_VolumeTerrain();
+#		endif
 #   endif
             mPluginNameMap["Sample_Shadows"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Shadows();
             mPluginNameMap["Sample_Lighting"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_Lighting();
@@ -1036,11 +1053,8 @@ protected:
             mPluginNameMap["Sample_SkyPlane"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyPlane();
             mPluginNameMap["Sample_Smoke"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Smoke();
             mPluginNameMap["Sample_SphereMapping"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_SphereMapping();
-			mPluginNameMap["Sample_Tesselation"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_Tesselation();
             mPluginNameMap["Sample_TextureFX"]          = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureFX();
             mPluginNameMap["Sample_Transparency"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_Transparency();
-            mPluginNameMap["Sample_VolumeCSG"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_VolumeTerrain();
-            mPluginNameMap["Sample_VolumeTerrain"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_VolumeTerrain();
 
 #ifdef USE_RTSHADER_SYSTEM
             if(hasProgrammableGPU)
@@ -1058,7 +1072,8 @@ protected:
                 mPluginNameMap["Sample_Ocean"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Ocean();
                 mPluginNameMap["Sample_Water"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Water();
 #       ifdef OGRE_BUILD_COMPONENT_TERRAIN
-                 mPluginNameMap["Sample_Terrain"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Terrain();
+                mPluginNameMap["Sample_Terrain"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Terrain();
+                mPluginNameMap["Sample_EndlessWorld"]        = (OgreBites::SdkSample *) OGRE_NEW Sample_EndlessWorld();
 #       endif
 #   endif
                 mPluginNameMap["Sample_Dot3Bump"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_Dot3Bump();
@@ -1216,6 +1231,7 @@ protected:
 		{
 			mWindow->removeAllViewports();
 			Ogre::SceneManager* sm = mRoot->createSceneManager(Ogre::ST_GENERIC, "DummyScene");
+			sm->addRenderQueueListener(mOverlaySystem);
 			Ogre::Camera* cam = sm->createCamera("DummyCamera");
 			mWindow->addViewport(cam);
 #ifdef USE_RTSHADER_SYSTEM
@@ -1350,12 +1366,36 @@ protected:
 				if (k == info.end() || k->second.empty()) info["Thumbnail"] = "thumb_error.png";
 				mSampleCategories.insert(info["Category"]);   // add sample category
 				if (info["Title"] == startupSampleTitle) startupSample = *j;   // we found the startup sample
+                sampleList.push_back(info["Title"]);
+                mPluginNameMap[info["Title"]] = (OgreBites::SdkSample *)(*j);
+			}
+
+			playPenTestPlugin = OGRE_NEW PlaypenTestPlugin();
+			mRoot->installPlugin(playPenTestPlugin);
+            newSamples = playPenTestPlugin->getSamples();
+			for (SampleSet::iterator j = newSamples.begin(); j != newSamples.end(); j++)
+			{
+				Ogre::NameValuePairList& info = (*j)->getInfo();   // acquire custom sample info
+				Ogre::NameValuePairList::iterator k;
+                
+				// give sample default title and category if none found
+				k= info.find("Title");
+				if (k == info.end() || k->second.empty()) info["Title"] = "Untitled";
+				k = info.find("Category");
+				if (k == info.end() || k->second.empty()) info["Category"] = "Unsorted";
+				k = info.find("Thumbnail");
+				if (k == info.end() || k->second.empty()) info["Thumbnail"] = "thumb_error.png";
+				mSampleCategories.insert(info["Category"]);   // add sample category
+				if (info["Title"] == startupSampleTitle) startupSample = *j;   // we found the startup sample
+                sampleList.push_back(info["Title"]);
+                mPluginNameMap[info["Title"]] = (OgreBites::SdkSample *)(*j);
 			}
 #  else
 #    if OGRE_DEBUG_MODE && !(OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS)
 			sampleList.push_back("PlayPen_d");
 #    else
 			sampleList.push_back("PlayPen");
+			sampleList.push_back("PlayPenTests");
 #    endif
 #  endif
 #endif
@@ -1462,6 +1502,8 @@ protected:
 #  ifdef SAMPLES_INCLUDE_PLAYPEN
 			mRoot->uninstallPlugin(playPenPlugin);
 			delete playPenPlugin;
+			mRoot->uninstallPlugin(playPenTestPlugin);
+			delete playPenTestPlugin;
 #  endif
 #else
             for (unsigned int i = 0; i < mLoadedSamplePlugins.size(); i++)
@@ -1661,6 +1703,7 @@ protected:
 #ifdef USE_RTSHADER_SYSTEM
 			mShaderGenerator->removeSceneManager(dummyScene);
 #endif
+			dummyScene->removeRenderQueueListener(mOverlaySystem);
 			mWindow->removeAllViewports();
 			mRoot->destroySceneManager(dummyScene);
 		}	

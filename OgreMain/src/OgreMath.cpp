@@ -354,7 +354,7 @@ namespace Ogre
         if (Math::Abs(denom) < std::numeric_limits<Real>::epsilon())
         {
             // Parallel
-            return std::pair<bool, Real>(false, 0);
+            return std::pair<bool, Real>(false, (Real)0);
         }
         else
         {
@@ -470,7 +470,7 @@ namespace Ogre
         // Check origin inside first
         if (rayorig.squaredLength() <= radius*radius && discardInside)
         {
-            return std::pair<bool, Real>(true, 0);
+            return std::pair<bool, Real>(true, (Real)0);
         }
 
         // Mmm, quadratics

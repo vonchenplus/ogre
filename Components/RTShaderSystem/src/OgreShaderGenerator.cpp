@@ -98,17 +98,17 @@ ShaderGenerator::ShaderGenerator()
 	
 	HighLevelGpuProgramManager& hmgr = HighLevelGpuProgramManager::getSingleton();
 
-	if (hmgr.isLanguageSupported("cg"))
+	if (hmgr.isLanguageSupported("glsles"))
+	{
+		mShaderLanguage	= "glsles";
+	}
+	else if (hmgr.isLanguageSupported("cg"))
 	{
 		mShaderLanguage	= "cg";
 	}
 	else if (hmgr.isLanguageSupported("glsl"))
 	{
 		mShaderLanguage	= "glsl";
-	}
-	else if (hmgr.isLanguageSupported("glsles"))
-	{
-		mShaderLanguage	= "glsles";
 	}
 	else if (hmgr.isLanguageSupported("hlsl"))
 	{
@@ -224,13 +224,15 @@ void ShaderGenerator::createSubRenderStateExFactories()
         mSubRenderStateExFactories[curFactory->getType()] = (curFactory);
     }
 
-	curFactory = new TextureAtlasSamplerFactory;
+	curFactory = OGRE_NEW TextureAtlasSamplerFactory;
 	addSubRenderStateFactory(curFactory);
 	mSubRenderStateExFactories[curFactory->getType()] = (curFactory);
 	
-	curFactory = new TriplanarTexturingFactory;
+#	if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
+	curFactory = OGRE_NEW TriplanarTexturingFactory;
 	addSubRenderStateFactory(curFactory);
 	mSubRenderStateExFactories[curFactory->getType()] = (curFactory);
+#	endif
 #endif
 }
 
@@ -766,8 +768,7 @@ bool ShaderGenerator::createShaderBasedTechnique(const String& materialName,
 	srcTechnique = findSourceTechnique(materialName, trueGroupName, srcTechniqueSchemeName, overProgrammable);
 
 	// No appropriate source technique found.
-	if ((srcTechnique == NULL) ||
-		((overProgrammable == false) && (isProgrammable(srcTechnique) == true)))
+	if (srcTechnique == NULL)
 	{
 		return false;
 	}
@@ -1346,7 +1347,7 @@ size_t ShaderGenerator::getFragmentShaderCount() const
 void ShaderGenerator::setTargetLanguage(const String& shaderLanguage)
 {
 	// Make sure that the shader language is supported.
-	if (mProgramWriterManager->isLanguageSupported(shaderLanguage) == false)
+	if (HighLevelGpuProgramManager::getSingleton().isLanguageSupported(shaderLanguage) == false)
 	{
 		OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
 			"The language " + shaderLanguage + " is not supported !!",

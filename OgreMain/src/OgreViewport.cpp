@@ -87,6 +87,13 @@ namespace Ogre {
     //---------------------------------------------------------------------
     Viewport::~Viewport()
     {
+		ListenerList listenersCopy;
+		std::swap(mListeners, listenersCopy);
+		for (ListenerList::iterator i = listenersCopy.begin(); i != listenersCopy.end(); ++i)
+		{
+			(*i)->viewportDestroyed(this);
+		}
+
 		RenderSystem* rs = Root::getSingleton().getRenderSystem();
 		if ((rs) && (rs->_getViewport() == this))
 		{

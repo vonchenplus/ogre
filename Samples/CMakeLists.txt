@@ -39,8 +39,17 @@ if (OGRE_BUILD_SAMPLES)
   	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreRTShaderSystem)
   endif ()
   
+  if (OGRE_BUILD_COMPONENT_OVERLAY)
+	ogre_add_component_include_dir(Overlay)
+  	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreOverlay)
+  endif ()
+  
   if (OGRE_BUILD_COMPONENT_TERRAIN)
   	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreTerrain)
+  endif ()
+
+  if (OGRE_BUILD_COMPONENT_VOLUME)
+  	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreVolume)
   endif ()
 
   if (OGRE_BUILD_RENDERSYSTEM_D3D9)
@@ -77,7 +86,7 @@ if (OGRE_BUILD_SAMPLES)
   	include_directories(${OGRE_SOURCE_DIR}/RenderSystems/Direct3D9/include)
   	include_directories(${OGRE_SOURCE_DIR}/RenderSystems/Direct3D11/include)
   	include_directories(${OGRE_SOURCE_DIR}/RenderSystems/GLES/include)
-  	include_directories(${CMAKE_SOURCE_DIR}/RenderSystems/GLES2/include)
+  	include_directories(${OGRE_SOURCE_DIR}/RenderSystems/GLES2/include)
   	include_directories(
 		${OGRE_SOURCE_DIR}/RenderSystems/GL/include
 		${OGRE_SOURCE_DIR}/RenderSystems/GL/src/GLSL/include
@@ -101,6 +110,9 @@ if (OGRE_BUILD_SAMPLES)
 	# Link to RT Shader System if enabled.
 	if (OGRE_BUILD_COMPONENT_RTSHADERSYSTEM)	
   		set(OGRE_LIBRARIES ${OGRE_LIBRARIES} OgreRTShaderSystem)
+	endif () 
+	if (OGRE_BUILD_COMPONENT_OVERLAY)	
+  		set(OGRE_LIBRARIES ${OGRE_LIBRARIES} OgreOverlay)
 	endif () 
   endif ()
   
@@ -131,6 +143,7 @@ if (OGRE_BUILD_SAMPLES)
   add_subdirectory(SphereMapping)
 if (OGRE_BUILD_COMPONENT_TERRAIN)
   add_subdirectory(Terrain)
+  add_subdirectory(EndlessWorld)
 endif ()
   add_subdirectory(Tesselation)
   add_subdirectory(TextureFX)
