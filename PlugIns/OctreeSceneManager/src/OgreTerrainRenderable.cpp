@@ -786,23 +786,47 @@ namespace Ogre
         Vector3 dir = end - start;
         Vector3 ray = start;
 
-        //special case...
-        if ( dir.x == 0 && dir.z == 0 )
-        {
-            if ( ray.y <= getHeightAt( ray.x, ray.z ) )
-            {
-                if ( result != 0 )
-                    * result = start;
-
-                return true;
-            }
-        }
-
         dir.normalise();
 
         //dir.x *= mScale.x;
         //dir.y *= mScale.y;
         //dir.z *= mScale.z;
+
+        //special case...
+        if (( dir.x == 0 && dir.z == 0 )   // straight vertical
+            || ( (dir.y > 0)               // OR  pointing upwards and almost vertical
+                  // && (Math::Abs(dir.x <= 0.0175f)  &&  Math::Abs(dir.z <= 0.0175f) )))     // vertical  +/-  1 degree
+                  // && (Math::Abs(dir.x <= 0.0827f)  &&  Math::Abs(dir.z <= 0.0827f) )))     // vertical  +/-  5 degree
+                  && (Math::Abs(dir.x <= 0.1736f)  &&  Math::Abs(dir.z <= 0.1736f) )))        // vertical  +/- 10 degree
+        {
+            float height = getHeightAt( start.x, start.z );
+    
+            // if origin is below terrain surface
+            if ( start.y <= height )
+            {
+                if ( result != 0 )
+                    * result = start;
+                return true;
+            }
+            else // origin is above terrain surface
+            {
+                if (dir.y > 0) // ray to sky
+                {
+                    if ( result != 0 )
+                        * result = Vector3( -1, -1, -1 ); // no intersection
+                    return false;
+                }
+                else // ray to bottom
+                {
+                    if ( result != 0 )
+                        * result = Vector3( start.x, height, start.z ); // intersection position
+                    return true;
+                }
+            }
+        } // special case
+
+
+
 
         const AxisAlignedBox& box = getBoundingBox();
         //start with the next one...
@@ -810,11 +834,10 @@ namespace Ogre
 
 
         while ( ! ( ( ray.x < box.getMinimum().x ) ||
-            ( ray.x > box.getMaximum().x ) ||
-            ( ray.z < box.getMinimum().z ) ||
-            ( ray.z > box.getMaximum().z ) ) )
+                    ( ray.x > box.getMaximum().x ) ||
+                    ( ray.z < box.getMinimum().z ) ||
+                    ( ray.z > box.getMaximum().z )    ))
         {
-
 
             float h = getHeightAt( ray.x, ray.z );
 
@@ -830,6 +853,14 @@ namespace Ogre
             {
                 ray += dir;
             }
+
+            // skip if direction is upwards and almost no chance to hit terrain
+            if ((ray.y - h > 500)   // currently more than 500 Ogre units above terrain
+                && (dir.y > 0.7f))  // ray points upwards with at least 45 degree
+            {
+                * result = Vector3( -1, -1, -1 ); // no intersection
+                return false;
+			}
 
         }
 
