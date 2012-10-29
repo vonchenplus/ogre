@@ -795,9 +795,9 @@ namespace Ogre
         //special case...
         if (( dir.x == 0 && dir.z == 0 )   // straight vertical
             || ( (dir.y > 0)               // OR  pointing upwards and almost vertical
-                  // && (Math::Abs(dir.x <= 0.0175f)  &&  Math::Abs(dir.z <= 0.0175f) )))     // vertical  +/-  1 degree
+                     && (Math::Abs(dir.x <= 0.0175f)  &&  Math::Abs(dir.z <= 0.0175f) )))     // vertical  +/-  1 degree
                   // && (Math::Abs(dir.x <= 0.0827f)  &&  Math::Abs(dir.z <= 0.0827f) )))     // vertical  +/-  5 degree
-                  && (Math::Abs(dir.x <= 0.1736f)  &&  Math::Abs(dir.z <= 0.1736f) )))        // vertical  +/- 10 degree
+                  // && (Math::Abs(dir.x <= 0.1736f)  &&  Math::Abs(dir.z <= 0.1736f) )))     // vertical  +/- 10 degree
         {
             float height = getHeightAt( start.x, start.z );
     
