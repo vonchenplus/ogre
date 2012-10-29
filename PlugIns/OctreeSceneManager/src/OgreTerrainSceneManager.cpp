@@ -891,9 +891,9 @@ namespace Ogre
 
         // Straight up / down?
         if (dir == Vector3::UNIT_Y || dir == Vector3::NEGATIVE_UNIT_Y
-         // || (dir.y > 0.9998f   &&   dir.x < 0.0175f   &&   dir.z < 0.0175f))  // similar to straight up    +/-  1 degree 
+            || (dir.y > 0.9998f   &&   dir.x < 0.0175f   &&   dir.z < 0.0175f))  // similar to straight up    +/-  1 degree 
          // || (dir.y > 0.9962f   &&   dir.x < 0.0872f   &&   dir.z < 0.0872f))  // similar to straight up    +/-  5 degree 
-            || (dir.y > 0.9849f   &&   dir.x < 0.1736f   &&   dir.z < 0.1736f))  // similar to straight up    +/- 10 degree 
+         // || (dir.y > 0.9849f   &&   dir.x < 0.1736f   &&   dir.z < 0.1736f))  // similar to straight up    +/- 10 degree 
         {
             Real height = static_cast<TerrainSceneManager*>(mParentSceneMgr)->getHeightAt(
                 origin.x, origin.z);
