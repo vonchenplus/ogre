@@ -18,6 +18,7 @@ elseif (OGRE_BUILD_PLATFORM_APPLE_IOS)
   list(APPEND SOURCE_FILES src/FileSystemLayerImpl_iOS.mm)
 elseif (APPLE)
   list(APPEND SOURCE_FILES src/FileSystemLayerImpl_OSX.cpp)
+  set(OGRE_UNITY_BUILD FALSE) # not working for the Browser, so disable
 elseif (UNIX)
   list(APPEND SOURCE_FILES src/FileSystemLayerImpl_Unix.cpp)
 else ()
@@ -61,12 +62,16 @@ if (APPLE AND OGRE_BUILD_PLATFORM_APPLE_IOS)
   set(HEADER_FILES ${HEADER_FILES}
     include/SampleBrowser_iOS.h
   )
+elseif (OGRE_BUILD_PLATFORM_NACL)
+  set(HEADER_FILES ${HEADER_FILES}
+    include/SampleBrowser_NaCl.h
+  )
 else ()
   set(HEADER_FILES ${HEADER_FILES}
     include/SampleBrowser_OSX.h
 	${OGRE_SOURCE_DIR}/Samples/Common/misc/SampleBrowser_OSX.icns
   )
-endif (APPLE AND OGRE_BUILD_PLATFORM_APPLE_IOS)
+endif ()
 
 if (OGRE_STATIC)
   # Find all samples headers, and copy them to a single include folder
