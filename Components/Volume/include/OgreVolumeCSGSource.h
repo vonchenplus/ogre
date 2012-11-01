@@ -60,7 +60,7 @@ namespace Volume {
         
         /** Overridden from Source.
         */
-        virtual Real getValueAndGradient(const Vector3 &position, Vector3 &gradient) const;
+        virtual Vector4 getValueAndGradient(const Vector3 &position) const;
 
         /** Overridden from VolumeSource.
         */
@@ -91,7 +91,7 @@ namespace Volume {
         
         /** Overridden from Source.
         */
-        virtual Real getValueAndGradient(const Vector3 &position, Vector3 &gradient) const;
+        virtual Vector4 getValueAndGradient(const Vector3 &position) const;
 
         /** Overridden from VolumeSource.
         */
@@ -110,6 +110,12 @@ namespace Volume {
         /// The box.
         AxisAlignedBox mBox;
 
+        /** Gets the distance of a point to the nearest cube element.
+        @param position
+            The point to test.
+        @return
+            The distance.
+        */
         inline Real distanceTo(const Vector3 &position) const
         {
             Real distance;
@@ -149,7 +155,7 @@ namespace Volume {
         
         /** Overridden from Source.
         */
-        virtual Real getValueAndGradient(const Vector3 &position, Vector3 &gradient) const;
+        virtual Vector4 getValueAndGradient(const Vector3 &position) const;
 
         /** Overridden from VolumeSource.
         */
@@ -193,7 +199,7 @@ namespace Volume {
         
         /** Overridden from Source.
         */
-        virtual Real getValueAndGradient(const Vector3 &position, Vector3 &gradient) const;
+        virtual Vector4 getValueAndGradient(const Vector3 &position) const;
 
         /** Overridden from VolumeSource.
         */
@@ -216,7 +222,7 @@ namespace Volume {
         
         /** Overridden from Source.
         */
-        virtual Real getValueAndGradient(const Vector3 &position, Vector3 &gradient) const;
+        virtual Vector4 getValueAndGradient(const Vector3 &position) const;
 
         /** Overridden from VolumeSource.
         */
@@ -240,7 +246,7 @@ namespace Volume {
         
         /** Overridden from Source.
         */
-        virtual Real getValueAndGradient(const Vector3 &position, Vector3 &gradient) const;
+        virtual Vector4 getValueAndGradient(const Vector3 &position) const;
 
         /** Overridden from VolumeSource.
         */
@@ -277,7 +283,7 @@ namespace Volume {
         
         /** Overridden from Source.
         */
-        virtual Real getValueAndGradient(const Vector3 &position, Vector3 &gradient) const;
+        virtual Vector4 getValueAndGradient(const Vector3 &position) const;
 
         /** Overridden from VolumeSource.
         */
@@ -304,7 +310,7 @@ namespace Volume {
         
         /** Overridden from Source.
         */
-        virtual Real getValueAndGradient(const Vector3 &position, Vector3 &gradient) const;
+        virtual Vector4 getValueAndGradient(const Vector3 &position) const;
 
         /** Overridden from VolumeSource.
         */

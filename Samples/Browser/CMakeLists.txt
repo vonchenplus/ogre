@@ -105,10 +105,20 @@ if(ANDROID)
     target_link_libraries(SampleBrowserDummy ${SAMPLE_LIBRARIES})
     add_dependencies(SampleBrowserDummy ${OGRE_SAMPLES_LIST})
 
-    SET(ANDROID_EXECUTABLE "android")
-    SET(NDK_BUILD_EXECUTABLE "ndk-build")
+    if(APPLE OR WIN32)
+      SET(ANDROID_EXECUTABLE "android")
+    else()
+      SET(ANDROID_EXECUTABLE "$ENV{ANDROID_SDK}/tools/android")
+    endif()
+
+    if(APPLE OR WIN32)
+      SET(NDK_BUILD_EXECUTABLE "ndk-build")
+    else()
+      SET(NDK_BUILD_EXECUTABLE "$ENV{ANDROID_NDK}/ndk-build")
+    endif()
+
     SET(ANT_EXECUTABLE "ant")
-	MATH(EXPR ANDROID_SDK_API_LEVEL "${ANDROID_NATIVE_API_LEVEL}+1")
+    MATH(EXPR ANDROID_SDK_API_LEVEL "${ANDROID_NATIVE_API_LEVEL}+1")
 	
     SET(ANDROID_TARGET "android-${ANDROID_SDK_API_LEVEL}")
     
@@ -119,7 +129,13 @@ if(ANDROID)
     file(WRITE "${NDKOUT}/default.properties" "target=${ANDROID_TARGET}")
     file(WRITE "${NDKOUT}/jni/Application.mk" "APP_ABI := ${ANDROID_ABI}\nAPP_STL := gnustl_static ")
     configure_file("${OGRE_TEMPLATES_DIR}/AndroidManifest.xml.in" "${NDKOUT}/AndroidManifest.xml" @ONLY)
-    configure_file("${OGRE_TEMPLATES_DIR}/Android.mk.in" "${NDKOUT}/jni/Android.mk" @ONLY)
+
+    if(NOT ANDROID_GLES_ONLY)
+     configure_file("${OGRE_TEMPLATES_DIR}/Android.mk.in" "${NDKOUT}/jni/Android.mk" @ONLY)
+    else()
+     configure_file("${OGRE_TEMPLATES_DIR}/AndroidGLES1.mk.in" "${NDKOUT}/jni/Android.mk" @ONLY)
+    endif()
+
     configure_file("${OGRE_TEMPLATES_DIR}/Android_resources.cfg.in" "${NDKOUT}/assets/resources.cfg" @ONLY)
     configure_file("${OGRE_TEMPLATES_DIR}/samples.cfg.in" "${NDKOUT}/assets/samples.cfg" @ONLY)
     
