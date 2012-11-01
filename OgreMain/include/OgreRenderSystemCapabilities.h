@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreStringVector.h"
 #include "OgreResource.h"
 #include "OgreLogManager.h"
+#include "OgreHeaderPrefix.h"
 
 // Because there are more than 32 possible Capabilities, more than 1 int is needed to store them all.
 // In fact, an array of integers is used to store capabilities. However all the capabilities are defined in the single
@@ -317,6 +318,8 @@ namespace Ogre
 		Real mMaxPointSize;
 		/// Are non-POW2 textures feature-limited?
 		bool mNonPOW2TexturesLimited;
+		/// The maximum supported anisotropy
+		Real mMaxSupportedAnisotropy;
 		/// The number of vertex texture units supported
 		ushort mNumVertexTextureUnits;
 		/// Are vertex texture units shared with fragment processor?
@@ -692,6 +695,16 @@ namespace Ogre
 		{
 			return mNonPOW2TexturesLimited;
 		}
+		/// Set the maximum supported anisotropic filtering
+		void setMaxSupportedAnisotropy(Real s)
+		{
+			mMaxSupportedAnisotropy = s;
+		}
+		/// Get the maximum supported anisotropic filtering
+		Real getMaxSupportedAnisotropy()
+		{
+			return mMaxSupportedAnisotropy;
+		}
 
 		/// Set the number of vertex texture units supported
 		void setNumVertexTextureUnits(ushort n)
@@ -852,6 +865,9 @@ namespace Ogre
 	/** @} */
 	/** @} */
 } // namespace
+
+
+#include "OgreHeaderSuffix.h"
 
 #endif // __RenderSystemCapabilities__
 
