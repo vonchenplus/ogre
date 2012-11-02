@@ -2172,4 +2172,9 @@ namespace Ogre {
     {
         //no effect in GLES2 rendersystem
     }
+
+    unsigned int GLES2RenderSystem::getDiscardBuffers(void)
+    {
+        return mStateCacheManager->getDiscardBuffers();
+    }
 }
