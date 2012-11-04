@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "OgreRenderable.h"
 #include "OgreMesh.h"
 #include "OgreLodStrategy.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
 
@@ -730,7 +731,7 @@ namespace Ogre {
 			the sparseness of population is no issue when it comes to rendering.
 			The default is Vector3(0,0,0).
 		@note Must be called before 'build'.
-		@param size Vector3 expressing the 3D origin of the geometry.
+		@param origin Vector3 expressing the 3D origin of the geometry.
 		*/
 		virtual void setOrigin(const Vector3& origin) { mOrigin = origin; }
 		/** Gets the origin of this geometry. */
@@ -776,6 +777,8 @@ namespace Ogre {
 	/** @} */
 
 }
+
+#include "OgreHeaderSuffix.h"
 
 #endif
 

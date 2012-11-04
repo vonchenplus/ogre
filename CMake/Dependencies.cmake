@@ -23,6 +23,15 @@ if(OGRE_BUILD_PLATFORM_APPLE_IOS)
     "${OGRE_BINARY_DIR}/../iOSDependencies"
     "${OGRE_SOURCE_DIR}/../iOSDependencies"
   )
+elseif(OGRE_BUILD_PLATFORM_ANDROID)
+  set(OGRE_DEP_SEARCH_PATH 
+    ${OGRE_DEPENDENCIES_DIR}
+    ${ENV_OGRE_DEPENDENCIES_DIR}
+    "${OGRE_BINARY_DIR}/AndroidDependencies"
+    "${OGRE_SOURCE_DIR}/AndroidDependencies"
+    "${OGRE_BINARY_DIR}/../AndroidDependencies"
+    "${OGRE_SOURCE_DIR}/../AndroidDependencies"
+  )
 else()
   set(OGRE_DEP_SEARCH_PATH 
     ${OGRE_DEPENDENCIES_DIR}
@@ -67,10 +76,10 @@ macro_log_feature(FreeImage_FOUND "freeimage" "Support for commonly used graphic
 
 # Find FreeType
 find_package(Freetype)
-macro_log_feature(FREETYPE_FOUND "freetype" "Portable font engine" "http://www.freetype.org" TRUE "" "")
+macro_log_feature(FREETYPE_FOUND "freetype" "Portable font engine" "http://www.freetype.org" FALSE "" "")
 
 # Find X11
-if (UNIX AND NOT APPLE)
+if (UNIX AND NOT APPLE AND NOT ANDROID AND NOT FLASHCC)
   find_package(X11)
   macro_log_feature(X11_FOUND "X11" "X Window system" "http://www.x.org" TRUE "" "")
   macro_log_feature(X11_Xt_FOUND "Xt" "X Toolkit" "http://www.x.org" TRUE "" "")
@@ -85,8 +94,10 @@ endif ()
 #######################################################################
 
 # Find OpenGL
-find_package(OpenGL)
-macro_log_feature(OPENGL_FOUND "OpenGL" "Support for the OpenGL render system" "http://www.opengl.org/" FALSE "" "")
+if(NOT ANDROID AND NOT FLASHCC)
+  find_package(OpenGL)
+  macro_log_feature(OPENGL_FOUND "OpenGL" "Support for the OpenGL render system" "http://www.opengl.org/" FALSE "" "")
+endif()
 
 # Find OpenGL ES 1.x
 find_package(OpenGLES)
@@ -107,10 +118,10 @@ endif()
 #######################################################################
 
 # Find Cg
-if (NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
+if (NOT (OGRE_BUILD_PLATFORM_APPLE_IOS OR OGRE_BUILD_PLATFORM_WINRT OR ANDROID OR FLASHCC))
   find_package(Cg)
   macro_log_feature(Cg_FOUND "cg" "C for graphics shader language" "http://developer.nvidia.com/object/cg_toolkit.html" FALSE "" "")
-endif (NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
+endif ()
 
 # Find Boost
 # Prefer static linking in all cases
@@ -128,12 +139,13 @@ set(Boost_ADDITIONAL_VERSIONS "1.53" "1.53.0" "1.52" "1.52.0" "1.51" "1.51.0" "1
 set(OGRE_BOOST_COMPONENTS thread date_time)
 find_package(Boost COMPONENTS ${OGRE_BOOST_COMPONENTS} QUIET)
 if (NOT Boost_FOUND)
-        if(Boost_USE_STATIC_LIBS)
-                set(Boost_USE_STATIC_LIBS OFF)
-        else()
-                set(Boost_USE_STATIC_LIBS ON)
-        endif()
-        find_package(Boost COMPONENTS ${OGRE_BOOST_COMPONENTS} QUIET)
+	# Try again with the other type of libs
+	if(Boost_USE_STATIC_LIBS)
+		set(Boost_USE_STATIC_LIBS OFF)
+	else()
+		set(Boost_USE_STATIC_LIBS ON)
+	endif()
+	find_package(Boost COMPONENTS ${OGRE_BOOST_COMPONENTS} QUIET)
 endif()
 
 if(Boost_FOUND AND Boost_VERSION GREATER 104900)
@@ -172,8 +184,16 @@ macro_log_feature(HLSL2GLSL_FOUND "HLSL2GLSL" "HLSL2GLSL" "http://hlsl2glslfork.
 #######################################################################
 
 # Find OIS
-find_package(OIS)
-macro_log_feature(OIS_FOUND "OIS" "Input library needed for the samples" "http://sourceforge.net/projects/wgois" FALSE "" "")
+if (OGRE_BUILD_PLATFORM_WINRT)
+	# for WinRT we need only includes
+	set(OIS_FIND_QUIETLY TRUE)
+        find_package(OIS)
+	set(OIS_INCLUDE_DIRS ${OIS_INCLUDE_DIR})
+	macro_log_feature(OIS_INCLUDE_DIRS "OIS" "Input library needed for the samples" "http://sourceforge.net/projects/wgois" FALSE "" "")
+else ()
+	find_package(OIS)
+	macro_log_feature(OIS_FOUND "OIS" "Input library needed for the samples" "http://sourceforge.net/projects/wgois" FALSE "" "")
+endif ()
 
 #######################################################################
 # Tools

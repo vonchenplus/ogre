@@ -65,7 +65,19 @@ namespace Ogre {
             GL_CHECK_ERROR
 		}
     }
-
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+    void GLSLESLinkProgram::notifyOnContextLost()
+    {
+        mLinked = false;
+        mTriedToLinkAndFailed = false;
+        mUniformRefsBuilt = false;
+    }
+    
+    void GLSLESLinkProgram::notifyOnContextReset()
+    {
+        activate();
+    }
+#endif
 	//-----------------------------------------------------------------------
 	void GLSLESLinkProgram::activate(void)
 	{
@@ -307,6 +319,7 @@ namespace Ogre {
 					case GCT_MATRIX_4X3:
                     case GCT_SAMPLER2DARRAY:
                     case GCT_UNKNOWN:
+                    case GCT_SUBROUTINE:
                         break;
 
 					} // End switch

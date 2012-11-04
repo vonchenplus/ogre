@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreCompositor.h"
 #include "OgreCompositionPass.h"
 #include "OgreAny.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre
 {
@@ -700,6 +701,7 @@ namespace Ogre
 			ID_2D,
 			ID_3D,
 			ID_CUBIC,
+			ID_2DARRAY,
 			ID_UNLIMITED,
 			ID_ALPHA,
 			ID_GAMMA,
@@ -718,6 +720,10 @@ namespace Ogre
 			ID_BILINEAR,
 			ID_TRILINEAR,
 			ID_ANISOTROPIC,
+		ID_CMPTEST,
+			ID_ON,
+			ID_OFF,
+		ID_CMPFUNC,
 		ID_MAX_ANISOTROPY,
 		ID_MIPMAP_BIAS,
 		ID_COLOUR_OP,
@@ -842,10 +848,29 @@ namespace Ogre
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
         ID_RT_SHADER_SYSTEM,
 #endif
+		/// Suport for shader model 5.0
+		// More program IDs
+		ID_TESSELATION_HULL_PROGRAM,
+		ID_TESSELATION_DOMAIN_PROGRAM,
+		ID_COMPUTE_PROGRAM,
+		ID_TESSELATION_HULL_PROGRAM_REF,
+		ID_TESSELATION_DOMAIN_PROGRAM_REF,
+		ID_COMPUTE_PROGRAM_REF,
+		// More binding IDs
+		ID_GEOMETRY,
+		ID_TESSELATION_HULL,
+		ID_TESSELATION_DOMAIN,
+		ID_COMPUTE,
+
+		// Support for subroutine
+		ID_SUBROUTINE,
+
 		ID_END_BUILTIN_IDS
 	};
 	/** @} */
 	/** @} */
 }
+
+#include "OgreHeaderSuffix.h"
 
 #endif
