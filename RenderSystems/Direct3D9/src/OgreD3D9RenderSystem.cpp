@@ -909,6 +909,7 @@ namespace Ogre
 		rsc->setCapability(RSC_HWOCCLUSION);		
 		rsc->setCapability(RSC_USER_CLIP_PLANES);			
 		rsc->setCapability(RSC_VERTEX_FORMAT_UBYTE4);			
+		rsc->setCapability(RSC_TEXTURE_1D);			
 		rsc->setCapability(RSC_TEXTURE_3D);			
 		rsc->setCapability(RSC_NON_POWER_OF_2_TEXTURES);
 		rsc->setNonPOW2TexturesLimited(false);
@@ -4235,6 +4236,34 @@ namespace Ogre
 	{
 		return mD3D->GetAdapterCount();
 	}
+
+    //---------------------------------------------------------------------
+    void D3D9RenderSystem::beginProfileEvent( const String &eventName )
+    {
+        if( eventName.empty() )
+            return;
+
+        vector<wchar_t>::type result(eventName.length() + 1, '\0');
+        (void)MultiByteToWideChar(CP_ACP, 0, eventName.data(), eventName.length(), &result[0], result.size());
+        (void)D3DPERF_BeginEvent(D3DCOLOR_ARGB(1, 0, 1, 0), &result[0]);
+    }
+
+    //---------------------------------------------------------------------
+    void D3D9RenderSystem::endProfileEvent( void )
+    {
+        (void)D3DPERF_EndEvent();
+    }
+
+    //---------------------------------------------------------------------
+    void D3D9RenderSystem::markProfileEvent( const String &eventName )
+    {
+        if( eventName.empty() )
+            return;
+
+        vector<wchar_t>::type result(eventName.length() + 1, '\0');
+        (void)MultiByteToWideChar(CP_ACP, 0, eventName.data(), eventName.length(), &result[0], result.size());
+        (void)D3DPERF_SetMarker(D3DCOLOR_ARGB(1, 0, 1, 0), &result[0]);
+    }
 
 	//---------------------------------------------------------------------
 	DWORD D3D9RenderSystem::getSamplerId(size_t unit) 
