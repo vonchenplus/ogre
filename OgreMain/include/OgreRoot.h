@@ -36,7 +36,7 @@ THE SOFTWARE.
 #include "OgreSceneManagerEnumerator.h"
 #include "OgreResourceGroupManager.h"
 #include "OgreLodStrategyManager.h"
-#include "OgreWorkQueue.h"
+#include "OgreWorkQueue.h"       
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
 #include "Android/OgreAndroidLogListener.h"
@@ -94,11 +94,6 @@ namespace Ogre
         MeshManager* mMeshManager;
         ParticleSystemManager* mParticleManager;
         SkeletonManager* mSkeletonManager;
-        OverlayElementFactory* mPanelFactory;
-        OverlayElementFactory* mBorderPanelFactory;
-        OverlayElementFactory* mTextAreaFactory;
-        OverlayManager* mOverlayManager;
-        FontManager* mFontManager;
         
         ArchiveFactory *mZipArchiveFactory;
         ArchiveFactory *mEmbeddedZipArchiveFactory;
