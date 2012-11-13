@@ -115,12 +115,15 @@ namespace Ogre {
         /// @copydoc FactoryObj::getType
         const String& getType(void) const;
         /// @copydoc FactoryObj::createInstance
-        Archive *createInstance( const String& name ) 
+        Archive *createInstance( const String& name, bool readOnly ) 
         {
+			if(!readOnly)
+				return NULL;
+
             return OGRE_NEW ZipArchive(name, "Zip");
         }
         /// @copydoc FactoryObj::destroyInstance
-        void destroyInstance( Archive* arch) { OGRE_DELETE arch; }
+        void destroyInstance( Archive* ptr) { OGRE_DELETE ptr; }
     };
 
     /** Specialisation of ZipArchiveFactory for embedded Zip files. */
@@ -135,7 +138,7 @@ namespace Ogre {
         /// @copydoc FactoryObj::getType
         const String& getType(void) const;
         /// @copydoc FactoryObj::createInstance
-        Archive *createInstance( const String& name ) 
+        Archive *createInstance( const String& name, bool readOnly ) 
         {
             ZipArchive * resZipArchive = OGRE_NEW ZipArchive(name, "EmbeddedZip", mPluginIo);
             return resZipArchive;

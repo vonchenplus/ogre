@@ -29,17 +29,27 @@ THE SOFTWARE.
 #define _DynLib_H__
 
 #include "OgrePrerequisites.h"
+#include "OgreHeaderPrefix.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 #    define DYNLIB_HANDLE hInstance
-#    define DYNLIB_LOAD( a ) LoadLibraryEx( a, NULL, LOAD_WITH_ALTERED_SEARCH_PATH )
+#    define DYNLIB_LOAD( a ) LoadLibraryEx( a, NULL, 0 ) // we can not use LOAD_WITH_ALTERED_SEARCH_PATH with relative pathes
 #    define DYNLIB_GETSYM( a, b ) GetProcAddress( a, b )
 #    define DYNLIB_UNLOAD( a ) !FreeLibrary( a )
 
 struct HINSTANCE__;
 typedef struct HINSTANCE__* hInstance;
 
-#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_NACL
+#elif OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+#    define DYNLIB_HANDLE hInstance
+#    define DYNLIB_LOAD( a ) LoadPackagedLibrary( UTFString(a).asWStr_c_str(), 0 )
+#    define DYNLIB_GETSYM( a, b ) GetProcAddress( a, b )
+#    define DYNLIB_UNLOAD( a ) !FreeLibrary( a )
+
+struct HINSTANCE__;
+typedef struct HINSTANCE__* hInstance;
+
+#elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_NACL || OGRE_PLATFORM == OGRE_PLATFORM_FLASHCC
 #    define DYNLIB_HANDLE void*
 #    define DYNLIB_LOAD( a ) dlopen( a, RTLD_LAZY | RTLD_GLOBAL)
 #    define DYNLIB_GETSYM( a, b ) dlsym( a, b )
@@ -120,5 +130,7 @@ namespace Ogre {
 	/** @} */
 
 }
+
+#include "OgreHeaderSuffix.h"
 
 #endif

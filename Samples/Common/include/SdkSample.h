@@ -414,26 +414,20 @@ namespace OgreBites
 		/*-----------------------------------------------------------------------------
 		| Extended to setup a default tray interface and camera controller.
 		-----------------------------------------------------------------------------*/
-#if (OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
-		virtual void _setup(Ogre::RenderWindow* window, OIS::MultiTouch* mouse, FileSystemLayer* fsLayer)
-#else
-		virtual void _setup(Ogre::RenderWindow* window, OIS::Keyboard* keyboard, OIS::Mouse* mouse, FileSystemLayer* fsLayer)
-#endif
+		virtual void _setup(Ogre::RenderWindow* window, InputContext inputContext, FileSystemLayer* fsLayer, Ogre::OverlaySystem* overlaySys)
 		{
 			// assign mRoot here in case Root was initialised after the Sample's constructor ran.
 			mRoot = Ogre::Root::getSingletonPtr();
 			mWindow = window;
-#if (OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS) && (OGRE_PLATFORM != OGRE_PLATFORM_ANDROID)
-			mKeyboard = keyboard;
-#endif
-			mMouse = mouse;
+			mInputContext = inputContext;
 			mFSLayer = fsLayer;
+			mOverlaySystem = overlaySys;
 
 			locateResources();
 			createSceneManager();
 			setupView();
 
-			mTrayMgr = new SdkTrayManager("SampleControls", window, mouse, this);  // create a tray interface
+			mTrayMgr = new SdkTrayManager("SampleControls", window, inputContext, this);  // create a tray interface
 
 			loadResources();
 			mResourcesLoaded = true;
@@ -518,6 +512,7 @@ namespace OgreBites
 			mCamera = mSceneMgr->createCamera("MainCamera");
 			mViewport = mWindow->addViewport(mCamera);
 			mCamera->setAspectRatio((Ogre::Real)mViewport->getActualWidth() / (Ogre::Real)mViewport->getActualHeight());
+            mCamera->setAutoAspectRatio(true);
 			mCamera->setNearClipDistance(5);
 
 			mCameraMan = new SdkCameraMan(mCamera);   // create a default camera controller

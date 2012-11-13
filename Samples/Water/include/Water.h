@@ -101,7 +101,6 @@ private:
 	static HardwareIndexBufferSharedPtr indexBuffer ; // indices for 2 faces
 	static HardwareVertexBufferSharedPtr *texcoordsVertexBuffers ;
     
-	float *texBufData;
 	void _prepareMesh()
 	{
 		int i,texLvl ;
@@ -558,13 +557,10 @@ public:
         
 		// rain
 		processCircles(evt.timeSinceLastFrame);
-#if (OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS) && (OGRE_PLATFORM != OGRE_PLATFORM_ANDROID)
-		if (mKeyboard->isKeyDown(OIS::KC_SPACE)) {
-			particleEmitter->setEmissionRate(20.0f);
-		} else {
-			particleEmitter->setEmissionRate(0.0f);
+		if(mInputContext.mKeyboard)
+		{
+			particleEmitter->setEmissionRate(mInputContext.mKeyboard->isKeyDown(OIS::KC_SPACE) ? 20.0f : 0.0f);
 		}
-#endif
 		processParticles();
         
         

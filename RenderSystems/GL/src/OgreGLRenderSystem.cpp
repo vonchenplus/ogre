@@ -222,9 +222,9 @@ namespace Ogre {
 		if (strstr(vendorName, "NVIDIA"))
 			rsc->setVendor(GPU_NVIDIA);
 		else if (strstr(vendorName, "ATI"))
-			rsc->setVendor(GPU_ATI);
+			rsc->setVendor(GPU_AMD);
 		else if (strstr(vendorName, "AMD"))
-			rsc->setVendor(GPU_ATI);
+			rsc->setVendor(GPU_AMD);
 		else if (strstr(vendorName, "Intel"))
 			rsc->setVendor(GPU_INTEL);
 		else if (strstr(vendorName, "S3"))
@@ -252,7 +252,7 @@ namespace Ogre {
 			bool disableAutoMip = false;
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_LINUX
 			// Apple & Linux ATI drivers have faults in hardware mipmap generation
-			if (rsc->getVendor() == GPU_ATI)
+			if (rsc->getVendor() == GPU_AMD)
 				disableAutoMip = true;
 #endif
 			// The Intel 915G frequently corrupts textures when using hardware mip generation
@@ -576,6 +576,7 @@ namespace Ogre {
 		}
 
 		// 3D textures should be supported by GL 1.2, which is our minimum version
+		rsc->setCapability(RSC_TEXTURE_1D);			
 		rsc->setCapability(RSC_TEXTURE_3D);
 
 		// Check for framebuffer object extension
@@ -2377,7 +2378,7 @@ namespace Ogre {
 		bool twoSidedOperation)
 	{
 		bool flip;
-		mStencilMask = mask;
+		mStencilMask = refValue;
 
 		if (twoSidedOperation)
 		{
@@ -2411,7 +2412,7 @@ namespace Ogre {
 				glEnable(GL_STENCIL_TEST_TWO_SIDE_EXT);
 				// Back
 				glActiveStencilFaceEXT(GL_BACK);
-				glStencilMask(mask);
+				glStencilMask(refValue);
 				glStencilFunc(convertCompareFunction(func), refValue, mask);
 				glStencilOp(
 					convertStencilOp(stencilFailOp, !flip), 
@@ -2419,7 +2420,7 @@ namespace Ogre {
 					convertStencilOp(passOp, !flip));
 				// Front
 				glActiveStencilFaceEXT(GL_FRONT);
-				glStencilMask(mask);
+				glStencilMask(refValue);
 				glStencilFunc(convertCompareFunction(func), refValue, mask);
 				glStencilOp(
 					convertStencilOp(stencilFailOp, flip),
@@ -2433,7 +2434,7 @@ namespace Ogre {
                 glDisable(GL_STENCIL_TEST_TWO_SIDE_EXT);
 
 			flip = false;
-			glStencilMask(mask);
+			glStencilMask(refValue);
 			glStencilFunc(convertCompareFunction(func), refValue, mask);
 			glStencilOp(
 				convertStencilOp(stencilFailOp, flip),
@@ -2580,6 +2581,16 @@ namespace Ogre {
 		}
 
 		activateGLTextureUnit(0);
+	}
+	//---------------------------------------------------------------------
+	void GLRenderSystem::_setTextureUnitCompareFunction(size_t unit, CompareFunction function)
+	{
+		//TODO: implement (opengl 3 only?)
+	}
+	//---------------------------------------------------------------------
+	void GLRenderSystem::_setTextureUnitCompareEnabled(size_t unit, bool compare)
+	{
+		//TODO: implement (opengl 3 only?)
 	}
 	//---------------------------------------------------------------------
 	GLfloat GLRenderSystem::_getCurrentAnisotropy(size_t unit)
