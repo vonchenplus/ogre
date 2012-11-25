@@ -55,6 +55,8 @@ Torus Knot Software Ltd.
 #include "OgreLodListener.h"
 #include "OgreInstanceManager.h"
 #include "OgreRenderSystem.h"
+#include "OgreHeaderPrefix.h"
+
 namespace Ogre {
 	/** \addtogroup Core
 	*  @{
@@ -3542,6 +3544,8 @@ namespace Ogre {
 
         /** Handle lod events. */
         void _handleLodEvents();
+
+		IlluminationRenderStage _getCurrentRenderStage() {return mIlluminationStage;}
     };
 
     /** Default implementation of IntersectionSceneQuery. */
@@ -3665,6 +3669,6 @@ namespace Ogre {
 
 } // Namespace
 
-
+#include "OgreHeaderSuffix.h"
 
 #endif
