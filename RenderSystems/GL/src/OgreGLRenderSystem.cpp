@@ -102,7 +102,7 @@ namespace Ogre {
 	}
 
 	GLRenderSystem::GLRenderSystem()
-		: mDepthWrite(true), mStencilMask(0xFFFFFFFF), mHardwareBufferManager(0),
+		: mDepthWrite(true), mStencilWriteMask(0xFFFFFFFF), mHardwareBufferManager(0),
 		mGpuProgramManager(0),
 		mGLSLProgramFactory(0),
 		mRTTManager(0),
@@ -222,9 +222,9 @@ namespace Ogre {
 		if (strstr(vendorName, "NVIDIA"))
 			rsc->setVendor(GPU_NVIDIA);
 		else if (strstr(vendorName, "ATI"))
-			rsc->setVendor(GPU_ATI);
+			rsc->setVendor(GPU_AMD);
 		else if (strstr(vendorName, "AMD"))
-			rsc->setVendor(GPU_ATI);
+			rsc->setVendor(GPU_AMD);
 		else if (strstr(vendorName, "Intel"))
 			rsc->setVendor(GPU_INTEL);
 		else if (strstr(vendorName, "S3"))
@@ -252,7 +252,7 @@ namespace Ogre {
 			bool disableAutoMip = false;
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_LINUX
 			// Apple & Linux ATI drivers have faults in hardware mipmap generation
-			if (rsc->getVendor() == GPU_ATI)
+			if (rsc->getVendor() == GPU_AMD)
 				disableAutoMip = true;
 #endif
 			// The Intel 915G frequently corrupts textures when using hardware mip generation
@@ -576,6 +576,7 @@ namespace Ogre {
 		}
 
 		// 3D textures should be supported by GL 1.2, which is our minimum version
+		rsc->setCapability(RSC_TEXTURE_1D);			
 		rsc->setCapability(RSC_TEXTURE_3D);
 
 		// Check for framebuffer object extension
@@ -2372,12 +2373,12 @@ namespace Ogre {
 	}
 	//---------------------------------------------------------------------
 	void GLRenderSystem::setStencilBufferParams(CompareFunction func, 
-		uint32 refValue, uint32 mask, StencilOperation stencilFailOp, 
+		uint32 refValue, uint32 compareMask, uint32 writeMask, StencilOperation stencilFailOp, 
 		StencilOperation depthFailOp, StencilOperation passOp, 
 		bool twoSidedOperation)
 	{
 		bool flip;
-		mStencilMask = mask;
+		mStencilWriteMask = writeMask;
 
 		if (twoSidedOperation)
 		{
@@ -2392,15 +2393,15 @@ namespace Ogre {
 			if(GLEW_VERSION_2_0) // New GL2 commands
 			{
 				// Back
-				glStencilMaskSeparate(GL_BACK, mask);
-				glStencilFuncSeparate(GL_BACK, convertCompareFunction(func), refValue, mask);
+				glStencilMaskSeparate(GL_BACK, writeMask);
+				glStencilFuncSeparate(GL_BACK, convertCompareFunction(func), refValue, compareMask);
 				glStencilOpSeparate(GL_BACK, 
 					convertStencilOp(stencilFailOp, !flip), 
 					convertStencilOp(depthFailOp, !flip), 
 					convertStencilOp(passOp, !flip));
 				// Front
-				glStencilMaskSeparate(GL_FRONT, mask);
-				glStencilFuncSeparate(GL_FRONT, convertCompareFunction(func), refValue, mask);
+				glStencilMaskSeparate(GL_FRONT, writeMask);
+				glStencilFuncSeparate(GL_FRONT, convertCompareFunction(func), refValue, compareMask);
 				glStencilOpSeparate(GL_FRONT, 
 					convertStencilOp(stencilFailOp, flip),
 					convertStencilOp(depthFailOp, flip), 
@@ -2411,16 +2412,16 @@ namespace Ogre {
 				glEnable(GL_STENCIL_TEST_TWO_SIDE_EXT);
 				// Back
 				glActiveStencilFaceEXT(GL_BACK);
-				glStencilMask(mask);
-				glStencilFunc(convertCompareFunction(func), refValue, mask);
+				glStencilMask(writeMask);
+				glStencilFunc(convertCompareFunction(func), refValue, compareMask);
 				glStencilOp(
 					convertStencilOp(stencilFailOp, !flip), 
 					convertStencilOp(depthFailOp, !flip), 
 					convertStencilOp(passOp, !flip));
 				// Front
 				glActiveStencilFaceEXT(GL_FRONT);
-				glStencilMask(mask);
-				glStencilFunc(convertCompareFunction(func), refValue, mask);
+				glStencilMask(writeMask);
+				glStencilFunc(convertCompareFunction(func), refValue, compareMask);
 				glStencilOp(
 					convertStencilOp(stencilFailOp, flip),
 					convertStencilOp(depthFailOp, flip), 
@@ -2433,8 +2434,8 @@ namespace Ogre {
                 glDisable(GL_STENCIL_TEST_TWO_SIDE_EXT);
 
 			flip = false;
-			glStencilMask(mask);
-			glStencilFunc(convertCompareFunction(func), refValue, mask);
+			glStencilMask(writeMask);
+			glStencilFunc(convertCompareFunction(func), refValue, compareMask);
 			glStencilOp(
 				convertStencilOp(stencilFailOp, flip),
 				convertStencilOp(depthFailOp, flip), 
@@ -2580,6 +2581,16 @@ namespace Ogre {
 		}
 
 		activateGLTextureUnit(0);
+	}
+	//---------------------------------------------------------------------
+	void GLRenderSystem::_setTextureUnitCompareFunction(size_t unit, CompareFunction function)
+	{
+		//TODO: implement (opengl 3 only?)
+	}
+	//---------------------------------------------------------------------
+	void GLRenderSystem::_setTextureUnitCompareEnabled(size_t unit, bool compare)
+	{
+		//TODO: implement (opengl 3 only?)
 	}
 	//---------------------------------------------------------------------
 	GLfloat GLRenderSystem::_getCurrentAnisotropy(size_t unit)
@@ -3391,7 +3402,7 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 		}
 		if (buffers & FBT_STENCIL)
 		{
-			glStencilMask(mStencilMask);
+			glStencilMask(mStencilWriteMask);
 		}
 	}
 	// ------------------------------------------------------------------
@@ -3548,7 +3559,7 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 		// difference with the really state stored in GL context.
 		glDepthMask(mDepthWrite);
 		glColorMask(mColourWrite[0], mColourWrite[1], mColourWrite[2], mColourWrite[3]);
-		glStencilMask(mStencilMask);
+		glStencilMask(mStencilWriteMask);
 
 	}
 	//---------------------------------------------------------------------

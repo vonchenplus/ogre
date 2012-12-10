@@ -56,9 +56,9 @@ namespace Ogre {
 		, mGLShaderHandle(0)
         , mGLProgramHandle(0)
         , mCompiled(0)
-        , mIsOptimised(false)
 #if !OGRE_NO_GLES2_GLSL_OPTIMISER
-        , mOptimiserEnabled(true)
+        , mIsOptimised(false)
+        , mOptimiserEnabled(false)
 #endif
     {
         if (createParamDictionary("GLSLESProgram"))
@@ -71,7 +71,7 @@ namespace Ogre {
                                             PT_STRING),&msCmdPreprocessorDefines);
 #if !OGRE_NO_GLES2_GLSL_OPTIMISER
 			dict->addParameter(ParameterDef("use_optimiser", 
-                                            "Should the GLSL optimiser be used. Default is true.",
+                                            "Should the GLSL optimiser be used. Default is false.",
                                             PT_BOOL),&msCmdOptimisation);
 #endif
         }
@@ -92,6 +92,13 @@ namespace Ogre {
             unloadHighLevel();
         }
     }
+    //---------------------------------------------------------------------------
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+    void GLSLESProgram::notifyOnContextLost()
+    {
+        unloadHighLevelImpl();
+    }
+#endif
     //-----------------------------------------------------------------------
 	void GLSLESProgram::loadFromSource(void)
 	{
@@ -267,6 +274,10 @@ namespace Ogre {
                 glDeleteProgram(mGLProgramHandle);
                 GL_CHECK_ERROR;
             }
+            
+            mGLShaderHandle = 0;
+            mGLProgramHandle = 0;
+            mCompiled = 0;
 		}
 	}
 

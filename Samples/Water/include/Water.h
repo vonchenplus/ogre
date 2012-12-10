@@ -101,7 +101,6 @@ private:
 	static HardwareIndexBufferSharedPtr indexBuffer ; // indices for 2 faces
 	static HardwareVertexBufferSharedPtr *texcoordsVertexBuffers ;
     
-	float *texBufData;
 	void _prepareMesh()
 	{
 		int i,texLvl ;
@@ -236,10 +235,15 @@ public:
 	{
 		posnormVertexBuffer = HardwareVertexBufferSharedPtr() ;
 		indexBuffer = HardwareIndexBufferSharedPtr() ;
-		for(int i=0;i<16;i++) {
-			texcoordsVertexBuffers[i] = HardwareVertexBufferSharedPtr() ;
+		if(texcoordsVertexBuffers != NULL)
+		{
+			for(int i=0;i<16;i++) {
+				texcoordsVertexBuffers[i] = HardwareVertexBufferSharedPtr() ;
+			}
+			delete [] texcoordsVertexBuffers;	
+			texcoordsVertexBuffers = NULL;
 		}
-		delete [] texcoordsVertexBuffers;
+		first = true;
 	}
 } ;
 bool WaterCircle::first = true ;
@@ -352,6 +356,7 @@ protected:
         particleSystem = mSceneMgr->createParticleSystem("rain",
                                                          "Examples/Water/Rain");
 		particleEmitter = particleSystem->getEmitter(0);
+		particleEmitter->setEmissionRate(0);
         SceneNode* rNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         rNode->translate(PLANE_SIZE/2.0f, 3000, PLANE_SIZE/2.0f);
         rNode->attachObject(particleSystem);
@@ -407,6 +412,8 @@ protected:
         
 		delete waterMesh;
 		waterMesh = 0;
+
+		WaterCircle::clearStaticBuffers();
 	}
     
 protected:
@@ -548,23 +555,16 @@ public:
     bool frameRenderingQueued(const FrameEvent& evt)
     {
 		if( SdkSample::frameRenderingQueued(evt) == false )
-		{
-			// check if we are exiting, if so, clear static HardwareBuffers to avoid segfault
-			WaterCircle::clearStaticBuffers();
 			return false;
-		}
         
         mAnimState->addTime(evt.timeSinceLastFrame);
         
 		// rain
 		processCircles(evt.timeSinceLastFrame);
-#if (OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS) && (OGRE_PLATFORM != OGRE_PLATFORM_ANDROID)
-		if (mKeyboard->isKeyDown(OIS::KC_SPACE)) {
-			particleEmitter->setEmissionRate(20.0f);
-		} else {
-			particleEmitter->setEmissionRate(0.0f);
+		if(mInputContext.mKeyboard)
+		{
+			particleEmitter->setEmissionRate(mInputContext.mKeyboard->isKeyDown(OIS::KC_SPACE) ? 20.0f : 0.0f);
 		}
-#endif
 		processParticles();
         
         

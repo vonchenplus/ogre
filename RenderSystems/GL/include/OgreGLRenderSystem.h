@@ -89,7 +89,7 @@ namespace Ogre {
         /// Store last depth write state
         bool mDepthWrite;
 		/// Store last stencil mask state
-		uint32 mStencilMask;
+		uint32 mStencilWriteMask;
 		/// Store last colour write state
 		bool mColourWrite[4];
 
@@ -427,8 +427,8 @@ namespace Ogre {
           RenderSystem.
          */
         void setStencilBufferParams(CompareFunction func = CMPF_ALWAYS_PASS, 
-            uint32 refValue = 0, uint32 mask = 0xFFFFFFFF, 
-            StencilOperation stencilFailOp = SOP_KEEP, 
+            uint32 refValue = 0, uint32 compareMask = 0xFFFFFFFF, uint32 writeMask = 0xFFFFFFFF,
+			StencilOperation stencilFailOp = SOP_KEEP, 
             StencilOperation depthFailOp = SOP_KEEP,
             StencilOperation passOp = SOP_KEEP, 
             bool twoSidedOperation = false);
@@ -436,6 +436,14 @@ namespace Ogre {
           RenderSystem
          */
         void _setTextureUnitFiltering(size_t unit, FilterType ftype, FilterOptions filter);
+		 /** See
+          RenderSystem
+         */
+		void _setTextureUnitCompareFunction(size_t unit, CompareFunction function);
+		 /** See
+          RenderSystem
+         */
+		void _setTextureUnitCompareEnabled(size_t unit, bool compare);
         /** See
           RenderSystem
          */
@@ -515,6 +523,9 @@ namespace Ogre {
 
 		/// @copydoc RenderSystem::getDisplayMonitorCount
 		unsigned int getDisplayMonitorCount() const;
+
+		/// @copydoc RenderSystem::hasAnisotropicMipMapFilter
+		virtual bool hasAnisotropicMipMapFilter() const { return false; }
         
 		/// @copydoc RenderSystem::beginProfileEvent
         virtual void beginProfileEvent( const String &eventName );
@@ -524,7 +535,7 @@ namespace Ogre {
 
 		/// @copydoc RenderSystem::markProfileEvent
         virtual void markProfileEvent( const String &eventName );
-};
+    };
 }
 #endif
 
