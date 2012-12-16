@@ -220,6 +220,8 @@ namespace Ogre
 
 }// namespace Ogre
 
+
 #include "OgreHeaderSuffix.h"
+
 #endif // _MemorySTLAllocator_H__
 

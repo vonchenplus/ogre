@@ -31,6 +31,7 @@ elseif (OGRE_BUILD_PLATFORM_APPLE_IOS)
   list(APPEND SOURCE_FILES src/FileSystemLayerImpl_iOS.mm)
 elseif (APPLE)
   list(APPEND SOURCE_FILES src/FileSystemLayerImpl_OSX.cpp)
+  set(OGRE_UNITY_BUILD FALSE) # not working for the Browser, so disable
 elseif (UNIX)
   list(APPEND SOURCE_FILES src/FileSystemLayerImpl_Unix.cpp)
 else ()
@@ -44,11 +45,12 @@ if (OGRE_BUILD_PLATFORM_APPLE_IOS)
   set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/SampleBrowser.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++")
 
   if(OGRE_BUILD_RENDERSYSTEM_GLES AND NOT OGRE_BUILD_RENDERSYSTEM_GLES2)
-    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_BSP Sample_Compositor Sample_CelShading Sample_CubeMapping Sample_Dot3Bump Sample_Fresnel Sample_Instancing Sample_Lighting Sample_ShaderSystem Sample_ShaderSystemTexturedFog Sample_ShaderSystemMultiLight Sample_Terrain Sample_VolumeTex Sample_Water)
+    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_BSP Sample_Compositor Sample_CelShading Sample_CubeMapping Sample_Dot3Bump Sample_EndlessWorld Sample_Fresnel Sample_Instancing Sample_Lighting Sample_ShaderSystem Sample_ShaderSystemTexturedFog Sample_ShaderSystemMultiLight Sample_Terrain Sample_VolumeTex Sample_Water)
   endif()
 
   if(NOT OGRE_BUILD_COMPONENT_TERRAIN AND NOT OGRE_SDK_BUILD)
     list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_Terrain)
+    list(REMOVE_ITEM OGRE_SAMPLES_LIST Sample_EndlessWorld)
   endif()
 
   if(NOT OGRE_BUILD_COMPONENT_RTSHADERSYSTEM AND NOT OGRE_SDK_BUILD)
@@ -61,6 +63,10 @@ endif ()
 if (APPLE AND OGRE_BUILD_PLATFORM_APPLE_IOS)
   set(HEADER_FILES ${HEADER_FILES}
     include/SampleBrowser_iOS.h
+  )
+elseif (OGRE_BUILD_PLATFORM_NACL)
+  set(HEADER_FILES ${HEADER_FILES}
+    include/SampleBrowser_NaCl.h
   )
 else ()
   set(HEADER_FILES ${HEADER_FILES}
@@ -88,6 +94,7 @@ if (OGRE_STATIC)
 	
 	ogre_add_component_include_dir(Paging)
 	ogre_add_component_include_dir(Terrain)
+	ogre_add_component_include_dir(Volume)
 else()
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)  
 endif()
@@ -98,19 +105,43 @@ if(ANDROID)
     target_link_libraries(SampleBrowserDummy ${SAMPLE_LIBRARIES})
     add_dependencies(SampleBrowserDummy ${OGRE_SAMPLES_LIST})
 
-    SET(ANDROID_EXECUTABLE "android")
-    SET(NDK_BUILD_EXECUTABLE "ndk-build")
+    if(APPLE OR WIN32)
+      SET(ANDROID_EXECUTABLE "android")
+    else()
+      SET(ANDROID_EXECUTABLE "$ENV{ANDROID_SDK}/tools/android")
+    endif()
+
+    if(APPLE OR WIN32)
+      SET(NDK_BUILD_EXECUTABLE "ndk-build")
+    else()
+      SET(NDK_BUILD_EXECUTABLE "$ENV{ANDROID_NDK}/ndk-build")
+    endif()
+
     SET(ANT_EXECUTABLE "ant")
-    SET(ANDROID_TARGET "android-15")
+	if(${ANDROID_NATIVE_API_LEVEL} LESS 14)
+		MATH(EXPR ANDROID_SDK_API_LEVEL "${ANDROID_NATIVE_API_LEVEL}+1")
+	else()
+		SET(ANDROID_SDK_API_LEVEL "${ANDROID_NATIVE_API_LEVEL}")
+		SET(SCREEN_SIZE "|screenSize")
+	endif()
+	
+    SET(ANDROID_TARGET "android-${ANDROID_SDK_API_LEVEL}")
     
     SET(NDKOUT "${CMAKE_BINARY_DIR}/SampleBrowserNDK")
     file(MAKE_DIRECTORY "${NDKOUT}")
     file(MAKE_DIRECTORY "${NDKOUT}/jni")
-    file(MAKE_DIRECTORY "${NDKOUT}/assets")
+    file(MAKE_DIRECTORY "${NDKOUT}/assets")	
+    file(MAKE_DIRECTORY "${NDKOUT}/res")
     file(WRITE "${NDKOUT}/default.properties" "target=${ANDROID_TARGET}")
     file(WRITE "${NDKOUT}/jni/Application.mk" "APP_ABI := ${ANDROID_ABI}\nAPP_STL := gnustl_static ")
     configure_file("${OGRE_TEMPLATES_DIR}/AndroidManifest.xml.in" "${NDKOUT}/AndroidManifest.xml" @ONLY)
-    configure_file("${OGRE_TEMPLATES_DIR}/Android.mk.in" "${NDKOUT}/jni/Android.mk" @ONLY)
+
+    if(NOT ANDROID_GLES_ONLY)
+     configure_file("${OGRE_TEMPLATES_DIR}/Android.mk.in" "${NDKOUT}/jni/Android.mk" @ONLY)
+    else()
+     configure_file("${OGRE_TEMPLATES_DIR}/AndroidGLES1.mk.in" "${NDKOUT}/jni/Android.mk" @ONLY)
+    endif()
+
     configure_file("${OGRE_TEMPLATES_DIR}/Android_resources.cfg.in" "${NDKOUT}/assets/resources.cfg" @ONLY)
     configure_file("${OGRE_TEMPLATES_DIR}/samples.cfg.in" "${NDKOUT}/assets/samples.cfg" @ONLY)
     
@@ -122,6 +153,10 @@ if(ANDROID)
     file(COPY "${CMAKE_SOURCE_DIR}/Samples/Media/packs" DESTINATION "${NDKOUT}/assets")
     file(COPY "${CMAKE_SOURCE_DIR}/Samples/Media/materials" DESTINATION "${NDKOUT}/assets")
     
+	file(COPY "${CMAKE_SOURCE_DIR}/SDK/Android/drawable-hdpi" DESTINATION "${NDKOUT}/res")
+	file(COPY "${CMAKE_SOURCE_DIR}/SDK/Android/drawable-ldpi" DESTINATION "${NDKOUT}/res")
+	file(COPY "${CMAKE_SOURCE_DIR}/SDK/Android/drawable-mdpi" DESTINATION "${NDKOUT}/res")
+	file(COPY "${CMAKE_SOURCE_DIR}/SDK/Android/drawable-xhdpi" DESTINATION "${NDKOUT}/res")
     
 	add_custom_command(
 	                    TARGET SampleBrowserDummy
@@ -329,6 +364,18 @@ if (APPLE)
 	if (OGRE_BUILD_COMPONENT_TERRAIN OR OGRE_SDK_BUILD)
 		add_custom_command(TARGET SampleBrowser POST_BUILD
 			COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/${OGRE_OSX_BUILD_CONFIGURATION}libOgreTerrain.dylib 
+			${OGRE_SAMPLE_CONTENTS_PATH}/Components/
+			)
+	endif()
+	if (OGRE_BUILD_COMPONENT_VOLUME OR OGRE_SDK_BUILD)
+		add_custom_command(TARGET SampleBrowser POST_BUILD
+			COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/${OGRE_OSX_BUILD_CONFIGURATION}libOgreVolume.dylib 
+			${OGRE_SAMPLE_CONTENTS_PATH}/Components/
+			)
+	endif()
+	if (OGRE_BUILD_COMPONENT_OVERLAY OR OGRE_SDK_BUILD)
+		add_custom_command(TARGET SampleBrowser POST_BUILD
+			COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/${OGRE_OSX_BUILD_CONFIGURATION}libOgreOverlay.dylib 
 			${OGRE_SAMPLE_CONTENTS_PATH}/Components/
 			)
 	endif()
