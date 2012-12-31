@@ -38,6 +38,10 @@ THE SOFTWARE.
 #include "OgreLodStrategyManager.h"
 #include "OgreWorkQueue.h"       
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+#include "Android/OgreAndroidLogListener.h"
+#endif
+
 #include <exception>
 
 namespace Ogre
@@ -90,14 +94,15 @@ namespace Ogre
         MeshManager* mMeshManager;
         ParticleSystemManager* mParticleManager;
         SkeletonManager* mSkeletonManager;
-        OverlayElementFactory* mPanelFactory;
-        OverlayElementFactory* mBorderPanelFactory;
-        OverlayElementFactory* mTextAreaFactory;
-        OverlayManager* mOverlayManager;
-        FontManager* mFontManager;
+        
         ArchiveFactory *mZipArchiveFactory;
         ArchiveFactory *mEmbeddedZipArchiveFactory;
         ArchiveFactory *mFileSystemArchiveFactory;
+        
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+        AndroidLogListener* mAndroidLogger;
+#endif
+        
 		ResourceGroupManager* mResourceGroupManager;
 		ResourceBackgroundQueue* mResourceBackgroundQueue;
 		ShadowTextureManager* mShadowTextureManager;
@@ -477,7 +482,15 @@ namespace Ogre
             @see
                 Root, Root::startRendering
         */
-        void queueEndRendering(void);
+        void queueEndRendering(bool state = true);
+
+        /** Check for planned end of rendering.
+            @remarks
+                This method return true if queueEndRendering() was called before.
+            @see
+                Root, Root::queueEndRendering, Root::startRendering
+        */
+        bool endRenderingQueued(void);
 
         /** Starts / restarts the automatic rendering cycle.
             @remarks
@@ -908,7 +921,6 @@ namespace Ogre
 		/** Destroy all RenderQueueInvocationSequences. 
 		@remarks
 			You must ensure that no Viewports are using custom sequences.
-		@param name The name to identify the sequence
 		*/
 		void destroyAllRenderQueueInvocationSequences(void);
 

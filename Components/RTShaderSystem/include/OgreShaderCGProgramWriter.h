@@ -50,7 +50,6 @@ class _OgreRTSSExport CGProgramWriter : public ProgramWriter
 public:
 
 	/** Class constructor. 
-	@param language The target shader language.
 	*/
 	CGProgramWriter();
 
@@ -88,7 +87,7 @@ protected:
 	void writeLocalParameter(std::ostream& os, ParameterPtr parameter);
 
 	/** Write a function declaration. */
-	void writeFunctionDeclaration(std::ostream& os, Function* function, ParameterPtr & colorParameter);
+	void writeFunctionDeclaration(std::ostream& os, Function* function);
 
 	/** Write function atom instance. */
 	void writeAtomInstance(std::ostream& os, FunctionAtom* atom);

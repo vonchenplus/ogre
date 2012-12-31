@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgreGLES2RenderSystem.h"
 #include "OgreRoot.h"
 #include "OgreGLES2Util.h"
+#include "OgreGLES2StateCacheManager.h"
 
 namespace Ogre {
     GLES2HardwareIndexBuffer::GLES2HardwareIndexBuffer(HardwareBufferManagerBase* mgr, 
@@ -38,9 +39,10 @@ namespace Ogre {
                                                      size_t numIndexes,
                                                      HardwareBuffer::Usage usage,
                                                      bool useShadowBuffer)
-        : HardwareIndexBuffer(mgr, idxType, numIndexes, usage, false, useShadowBuffer)
+        : HardwareIndexBuffer(mgr, idxType, numIndexes, usage, false, true)
     {
-		if (!dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->getGLES2Support()->checkExtension("GL_OES_element_index_uint") && idxType == HardwareIndexBuffer::IT_32BIT)
+		GLES2Support* glSupport = dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->getGLES2Support();
+		if (!glSupport->checkExtension("GL_OES_element_index_uint") && idxType == HardwareIndexBuffer::IT_32BIT)
 		{
 			OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
 				"32 bit hardware buffers are not allowed in OpenGL ES.",
@@ -53,33 +55,53 @@ namespace Ogre {
                         "Only support with shadowBuffer",
                         "GLES2HardwareIndexBuffer");
         }
-
-        glGenBuffers(1, &mBufferId);
-        GL_CHECK_ERROR;
-
-        if (!mBufferId)
-        {
-            OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
-                "Cannot create GL ES index buffer",
-                "GLES2HardwareIndexBuffer::GLES2HardwareIndexBuffer");
-        }
-
-        dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->_bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
-
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)mSizeInBytes, NULL,
-                     GLES2HardwareBufferManager::getGLUsage(usage));
-        GL_CHECK_ERROR;
+        createBuffer();
     }
 
     GLES2HardwareIndexBuffer::~GLES2HardwareIndexBuffer()
     {
-        glDeleteBuffers(1, &mBufferId);
+        destroyBuffer();
+    }
+    
+    void GLES2HardwareIndexBuffer::createBuffer()
+    {
+        glGenBuffers(1, &mBufferId);
         GL_CHECK_ERROR;
         
-        // Delete the cached value
-        dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->_deleteGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
+        if (!mBufferId)
+        {
+            OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,
+                        "Cannot create GL ES index buffer",
+                        "GLES2HardwareIndexBuffer::GLES2HardwareIndexBuffer");
+        }
+        
+		static_cast<GLES2HardwareBufferManagerBase*>(mMgr)->getStateCacheManager()->bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
+        
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)mSizeInBytes, NULL,
+                     GLES2HardwareBufferManager::getGLUsage(mUsage));
+        GL_CHECK_ERROR;
     }
-
+    
+    void GLES2HardwareIndexBuffer::destroyBuffer()
+    {
+		// Delete the cached value
+        static_cast<GLES2HardwareBufferManagerBase*>(mMgr)->getStateCacheManager()->deleteGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
+    }
+    
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+    void GLES2HardwareIndexBuffer::notifyOnContextLost()
+    {
+        destroyBuffer();
+    }
+    
+    void GLES2HardwareIndexBuffer::notifyOnContextReset()
+    {
+        createBuffer();
+        mShadowUpdated = true;
+        _updateFromShadow();
+    }
+#endif
+    
     void GLES2HardwareIndexBuffer::unlockImpl(void)
     {
         if (mLockedToScratch)
@@ -99,7 +121,7 @@ namespace Ogre {
         else
         {
 #if GL_OES_mapbuffer
-            dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->_bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
+			static_cast<GLES2HardwareBufferManagerBase*>(mMgr)->getStateCacheManager()->bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
 
 			if(!glUnmapBufferOES(GL_ELEMENT_ARRAY_BUFFER))
 			{
@@ -158,7 +180,7 @@ namespace Ogre {
 		if (!retPtr)
 		{
             GLenum access = 0;
-            dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->_bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
+			static_cast<GLES2HardwareBufferManagerBase*>(mMgr)->getStateCacheManager()->bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
 			// Use glMapBuffer
 			if(options == HBL_DISCARD)
 			{
@@ -215,7 +237,7 @@ namespace Ogre {
                                             const void* pSource,
                                             bool discardWholeBuffer)
     {
-        dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->_bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
+		static_cast<GLES2HardwareBufferManagerBase*>(mMgr)->getStateCacheManager()->bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
 
         // Update the shadow buffer
         if (mUseShadowBuffer)
@@ -251,28 +273,13 @@ namespace Ogre {
     {
         if (mUseShadowBuffer && mShadowUpdated && !mSuppressHardwareUpdate)
         {
-            const void *srcData = mShadowBuffer->lock(mLockStart, mLockSize,
-                                                       HBL_READ_ONLY);
+            const void *srcData = mShadowBuffer->lock(mLockStart, mLockSize, HBL_READ_ONLY);
 
-            dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->_bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
+			static_cast<GLES2HardwareBufferManagerBase*>(mMgr)->getStateCacheManager()->bindGLBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId);
+
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)mSizeInBytes, srcData, 
+				GLES2HardwareBufferManager::getGLUsage(mUsage));
             GL_CHECK_ERROR;
-
-            // DJR - Always update the entire buffer. Much faster on mobiles.
-            // A better approach would be to double buffer or ring buffer
-
-            // Update whole buffer if possible, otherwise normal
-//            if (mLockStart == 0 && mLockSize == mSizeInBytes)
-//            {
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)mSizeInBytes, srcData,
-                             GLES2HardwareBufferManager::getGLUsage(mUsage));
-                GL_CHECK_ERROR;
-//            }
-//            else
-//            {
-//                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-//                                (GLintptr)mLockStart, (GLsizeiptr)mLockSize, srcData);
-//                GL_CHECK_ERROR;
-//            }
 
             mShadowBuffer->unlock();
             mShadowUpdated = false;

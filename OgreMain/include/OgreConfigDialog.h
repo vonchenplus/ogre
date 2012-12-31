@@ -40,6 +40,8 @@ THE SOFTWARE.
 # include "GLX/OgreConfigDialogImp.h"
 #elif OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 # include "WIN32/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+# include "WIN32/OgreConfigDialogImpWinRT.h"
 #elif OGRE_PLATFORM == OGRE_PLATFORM_LINUX
 # include "GLX/OgreConfigDialogImp.h"
 #elif OGRE_PLATFORM == OGRE_PLATFORM_NACL
@@ -50,6 +52,8 @@ THE SOFTWARE.
 # include "iOS/OgreConfigDialogImp.h"
 #elif OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
 # include "Android/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_FLASHCC
+# include "FlashCC/OgreConfigDialogImp.h"
 #endif
 
 #endif

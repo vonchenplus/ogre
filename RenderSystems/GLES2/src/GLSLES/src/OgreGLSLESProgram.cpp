@@ -56,9 +56,9 @@ namespace Ogre {
 		, mGLShaderHandle(0)
         , mGLProgramHandle(0)
         , mCompiled(0)
-        , mIsOptimised(false)
 #if !OGRE_NO_GLES2_GLSL_OPTIMISER
-        , mOptimiserEnabled(true)
+        , mIsOptimised(false)
+        , mOptimiserEnabled(false)
 #endif
     {
         if (createParamDictionary("GLSLESProgram"))
@@ -71,7 +71,7 @@ namespace Ogre {
                                             PT_STRING),&msCmdPreprocessorDefines);
 #if !OGRE_NO_GLES2_GLSL_OPTIMISER
 			dict->addParameter(ParameterDef("use_optimiser", 
-                                            "Should the GLSL optimiser be used. Default is true.",
+                                            "Should the GLSL optimiser be used. Default is false.",
                                             PT_BOOL),&msCmdOptimisation);
 #endif
         }
@@ -92,6 +92,13 @@ namespace Ogre {
             unloadHighLevel();
         }
     }
+    //---------------------------------------------------------------------------
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+    void GLSLESProgram::notifyOnContextLost()
+    {
+        unloadHighLevelImpl();
+    }
+#endif
     //-----------------------------------------------------------------------
 	void GLSLESProgram::loadFromSource(void)
 	{
@@ -204,7 +211,11 @@ namespace Ogre {
 		// Add preprocessor extras and main source
 		if (!mSource.empty())
 		{
+#if !OGRE_NO_GLES2_GLSL_OPTIMISER
+			const char *source = (getOptimiserEnabled() && getIsOptimised()) ? mOptimisedSource.c_str() : mSource.c_str();
+#else
 			const char *source = mSource.c_str();
+#endif
 			glShaderSource(mGLShaderHandle, 1, &source, NULL);
 			// Check for load errors
             GL_CHECK_ERROR
@@ -229,14 +240,38 @@ namespace Ogre {
             logObjectInfo("GLSL ES compiled: " + mName, mGLShaderHandle);
 
         if(!mCompiled)
+		{
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
                         ((mType == GPT_VERTEX_PROGRAM) ? "Vertex Program " : "Fragment Program ") + mName +
                         " failed to compile. See compile log above for details.",
                         "GLSLESProgram::compile");
+		}
 
 		return (mCompiled == 1);
 	}
 
+#if !OGRE_NO_GLES2_GLSL_OPTIMISER	
+	//-----------------------------------------------------------------------
+    void GLSLESProgram::setOptimiserEnabled(bool enabled) 
+	{ 
+		if(mOptimiserEnabled != enabled && mOptimiserEnabled && mCompiled == 1)
+		{
+			glDeleteShader(mGLShaderHandle);
+            GL_CHECK_ERROR;
+
+            if(Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
+            {
+                glDeleteProgram(mGLProgramHandle);
+                GL_CHECK_ERROR;
+            }
+            
+            mGLShaderHandle = 0;
+            mGLProgramHandle = 0;
+            mCompiled = 0;
+		}
+		mOptimiserEnabled = enabled; 
+	}
+#endif
 	//-----------------------------------------------------------------------
 	void GLSLESProgram::createLowLevelImpl(void)
 	{
@@ -267,6 +302,10 @@ namespace Ogre {
                 glDeleteProgram(mGLProgramHandle);
                 GL_CHECK_ERROR;
             }
+            
+            mGLShaderHandle = 0;
+            mGLProgramHandle = 0;
+            mCompiled = 0;
 		}
 	}
 

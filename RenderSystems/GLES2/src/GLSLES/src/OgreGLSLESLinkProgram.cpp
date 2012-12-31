@@ -65,7 +65,19 @@ namespace Ogre {
             GL_CHECK_ERROR
 		}
     }
-
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+    void GLSLESLinkProgram::notifyOnContextLost()
+    {
+        mLinked = false;
+        mTriedToLinkAndFailed = false;
+        mUniformRefsBuilt = false;
+    }
+    
+    void GLSLESLinkProgram::notifyOnContextReset()
+    {
+        activate();
+    }
+#endif
 	//-----------------------------------------------------------------------
 	void GLSLESLinkProgram::activate(void)
 	{
@@ -104,6 +116,20 @@ namespace Ogre {
                 }
 #endif
 				compileAndLink();
+
+#if !OGRE_NO_GLES2_GLSL_OPTIMISER
+				// Try it again when we used the optimised versions
+				if(mTriedToLinkAndFailed && 
+					mVertexProgram->getGLSLProgram()->getOptimiserEnabled() && 
+					mFragmentProgram->getGLSLProgram()->getOptimiserEnabled())
+				{
+					LogManager::getSingleton().stream() << "Try not optimised shader.";	
+					mTriedToLinkAndFailed = false;
+					mVertexProgram->getGLSLProgram()->setOptimiserEnabled(false);
+					mFragmentProgram->getGLSLProgram()->setOptimiserEnabled(false);
+					compileAndLink();
+				}
+#endif
 			}
 
             extractLayoutQualifiers();
@@ -159,8 +185,10 @@ namespace Ogre {
         {
             glValidateProgramPipelineEXT(mGLProgramHandle);
         }
-#endif
         else if(glIsProgram(mGLProgramHandle))
+#else
+		if(glIsProgram(mGLProgramHandle))
+#endif
         {
             glValidateProgram(mGLProgramHandle);
         }
@@ -307,6 +335,7 @@ namespace Ogre {
 					case GCT_MATRIX_4X3:
                     case GCT_SAMPLER2DARRAY:
                     case GCT_UNKNOWN:
+                    case GCT_SUBROUTINE:
                         break;
 
 					} // End switch
