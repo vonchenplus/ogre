@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -129,8 +129,7 @@ namespace Ogre {
     {
         detectFBOFormats();
         
-        glGenFramebuffers(1, &mTempFBO);
-        GL_CHECK_ERROR
+        OGRE_CHECK_GL_ERROR(glGenFramebuffers(1, &mTempFBO));
     }
 
 	GL3PlusFBOManager::~GL3PlusFBOManager()
@@ -140,8 +139,7 @@ namespace Ogre {
 			LogManager::getSingleton().logMessage("GL: Warning! GL3PlusFBOManager destructor called, but not all renderbuffers were released.");
 		}
         
-        glDeleteFramebuffers(1, &mTempFBO);      
-        GL_CHECK_ERROR
+        OGRE_CHECK_GL_ERROR(glDeleteFramebuffers(1, &mTempFBO));
 	}
 
     /** Try a certain FBO format, and return the status. Also sets mDepthRB and mStencilRB.
@@ -436,7 +434,7 @@ namespace Ogre {
         {
             RBFormat key(format, width, height, fsaa);
             RenderBufferMap::iterator it = mRenderBufferMap.find(key);
-            if(it != mRenderBufferMap.end())
+            if(it != mRenderBufferMap.end() && (it->second.refcount == 0))
             {
                 retval.buffer = it->second.buffer;
                 retval.zoffset = 0;

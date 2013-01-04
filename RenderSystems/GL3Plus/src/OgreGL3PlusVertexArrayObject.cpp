@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,8 +35,7 @@ namespace Ogre {
         mVAO(0),
         mInitialised(false)
 	{
-        glGenVertexArrays(1, &mVAO);
-        GL_CHECK_ERROR
+        OGRE_CHECK_GL_ERROR(glGenVertexArrays(1, &mVAO));
 
         if (!mVAO)
         {
@@ -51,8 +50,7 @@ namespace Ogre {
 	{
         if(mVAO)
         {
-            glDeleteVertexArrays(1, &mVAO);
-            GL_CHECK_ERROR
+            OGRE_CHECK_GL_ERROR(glDeleteVertexArrays(1, &mVAO));
             mVAO = 0;
         }
 	}
@@ -62,8 +60,7 @@ namespace Ogre {
     {
         if(mVAO)
         {
-            glBindVertexArray(mVAO);
-            GL_CHECK_ERROR
+            OGRE_CHECK_GL_ERROR(glBindVertexArray(mVAO));
         }
     }
 }
