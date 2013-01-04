@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -57,8 +57,7 @@ namespace Ogre {
 
     void GLES2HardwareVertexBuffer::createBuffer()
     {
-        glGenBuffers(1, &mBufferId);
-        GL_CHECK_ERROR;
+        OGRE_CHECK_GL_ERROR(glGenBuffers(1, &mBufferId));
         
         if (!mBufferId)
         {
@@ -68,9 +67,8 @@ namespace Ogre {
         }
         
 		static_cast<GLES2HardwareBufferManagerBase*>(mMgr)->getStateCacheManager()->bindGLBuffer(GL_ARRAY_BUFFER, mBufferId);
-        glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, NULL,
-                     GLES2HardwareBufferManager::getGLUsage(mUsage));
-        GL_CHECK_ERROR;
+        OGRE_CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, NULL,
+                                         GLES2HardwareBufferManager::getGLUsage(mUsage)));
     }
     
     void GLES2HardwareVertexBuffer::destroyBuffer()
@@ -146,15 +144,14 @@ namespace Ogre {
             if(options == HBL_DISCARD)
 			{
 				// Discard the buffer
-				glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, NULL, 
-					GLES2HardwareBufferManager::getGLUsage(mUsage));
-                GL_CHECK_ERROR;
+				OGRE_CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, NULL, 
+                                                 GLES2HardwareBufferManager::getGLUsage(mUsage)));
 			}
 			if (mUsage & HBU_WRITE_ONLY)
 				access = GL_WRITE_ONLY_OES;
 
-			void* pBuffer = glMapBufferOES(GL_ARRAY_BUFFER, access);
-            GL_CHECK_ERROR;
+			void* pBuffer;
+            OGRE_CHECK_GL_ERROR(pBuffer = glMapBufferOES(GL_ARRAY_BUFFER, access));
 
 			if(pBuffer == 0)
 			{
@@ -244,21 +241,18 @@ namespace Ogre {
 
         if (offset == 0 && length == mSizeInBytes)
         {
-            glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, pSource,
-                         GLES2HardwareBufferManager::getGLUsage(mUsage));
-            GL_CHECK_ERROR;
+            OGRE_CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, pSource,
+                                             GLES2HardwareBufferManager::getGLUsage(mUsage)));
         }
         else
         {
             if(discardWholeBuffer)
             {
-                glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, NULL, 
-                                GLES2HardwareBufferManager::getGLUsage(mUsage));
-                GL_CHECK_ERROR;
+                OGRE_CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, NULL,
+                                                 GLES2HardwareBufferManager::getGLUsage(mUsage)));
             }
 
-            glBufferSubData(GL_ARRAY_BUFFER, offset, length, pSource);
-            GL_CHECK_ERROR;
+            OGRE_CHECK_GL_ERROR(glBufferSubData(GL_ARRAY_BUFFER, offset, length, pSource));
         }
     }
 
@@ -272,9 +266,8 @@ namespace Ogre {
 
 			static_cast<GLES2HardwareBufferManagerBase*>(mMgr)->getStateCacheManager()->bindGLBuffer(GL_ARRAY_BUFFER, mBufferId);
 
-            glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)mSizeInBytes, srcData,
-				GLES2HardwareBufferManager::getGLUsage(mUsage));
-            GL_CHECK_ERROR;
+            OGRE_CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)mSizeInBytes, srcData,
+                                             GLES2HardwareBufferManager::getGLUsage(mUsage)));
 
             mShadowBuffer->unlock();
             mShadowUpdated = false;
