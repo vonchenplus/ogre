@@ -85,8 +85,8 @@ public:
 		Vector3 tsPos;
 		terrain->getTerrainPosition(centrepos, &tsPos);
 #if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
-		if (mKeyboard->isKeyDown(OIS::KC_EQUALS) || mKeyboard->isKeyDown(OIS::KC_ADD) ||
-				mKeyboard->isKeyDown(OIS::KC_MINUS) || mKeyboard->isKeyDown(OIS::KC_SUBTRACT))
+		if (mInputContext.isKeyDown(OIS::KC_EQUALS) || mInputContext.isKeyDown(OIS::KC_ADD) ||
+				mInputContext.isKeyDown(OIS::KC_MINUS) || mInputContext.isKeyDown(OIS::KC_SUBTRACT))
 		{
 			switch(mMode)
 			{
@@ -115,7 +115,7 @@ public:
 
 							float addedHeight = weight * 250.0 * timeElapsed;
 							float newheight;
-							if (mKeyboard->isKeyDown(OIS::KC_EQUALS) || mKeyboard->isKeyDown(OIS::KC_ADD))
+							if (mInputContext.isKeyDown(OIS::KC_EQUALS) || mInputContext.isKeyDown(OIS::KC_ADD))
 								newheight = terrain->getHeightAtPoint(x, y) + addedHeight;
 							else
 								newheight = terrain->getHeightAtPoint(x, y) - addedHeight;
@@ -154,7 +154,7 @@ public:
 							float paint = weight * timeElapsed;
 							size_t imgY = imgSize - y;
 							float val;
-							if (mKeyboard->isKeyDown(OIS::KC_EQUALS) || mKeyboard->isKeyDown(OIS::KC_ADD))
+							if (mInputContext.isKeyDown(OIS::KC_EQUALS) || mInputContext.isKeyDown(OIS::KC_ADD))
 								val = layer->getBlendValue(x, imgY) + paint;
 							else
 								val = layer->getBlendValue(x, imgY) - paint;
@@ -286,7 +286,7 @@ public:
 		{
 		case OIS::KC_S:
 			// CTRL-S to save
-			if (mKeyboard->isKeyDown(OIS::KC_LCONTROL) || mKeyboard->isKeyDown(OIS::KC_RCONTROL))
+			if (mInputContext.isKeyDown(OIS::KC_LCONTROL) || mInputContext.isKeyDown(OIS::KC_RCONTROL))
 			{
 				saveTerrains(true);
 			}
@@ -467,8 +467,7 @@ protected:
 				blendMap0->convertImageToTerrainSpace(x, y, &tx, &ty);
 				Real height = terrain->getHeightAtTerrainPosition(tx, ty);
 				Real val = (height - minHeight0) / fadeDist0;
-				val = Math::Clamp(val, (Real)0, (Real)1);
-				//*pBlend0++ = val;
+				Math::Clamp(val, (Real)0, (Real)1);
 
 				val = (height - minHeight1) / fadeDist1;
 				val = Math::Clamp(val, (Real)0, (Real)1);

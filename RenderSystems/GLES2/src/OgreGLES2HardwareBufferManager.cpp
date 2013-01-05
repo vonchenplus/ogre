@@ -29,6 +29,10 @@ THE SOFTWARE.
 #include "OgreGLES2HardwareBufferManager.h"
 #include "OgreGLES2HardwareVertexBuffer.h"
 #include "OgreGLES2HardwareIndexBuffer.h"
+#include "OgreGLES2VertexDeclaration.h"
+#include "OgreGLES2RenderSystem.h"
+#include "OgreGLES2Support.h"
+#include "OgreRoot.h"
 
 namespace Ogre {
     //-----------------------------------------------------------------------
@@ -60,6 +64,7 @@ namespace Ogre {
 #	if OGRE_PLATFORM != OGRE_PLATFORM_WIN32
 		mMapBufferThreshold = 0;
 #	endif
+		mStateCacheManager = dynamic_cast<GLES2RenderSystem*>(Root::getSingleton().getRenderSystem())->getGLES2Support()->getStateCacheManager();
 }
 
     GLES2HardwareBufferManagerBase::~GLES2HardwareBufferManagerBase()
@@ -107,6 +112,16 @@ namespace Ogre {
 		return RenderToVertexBufferSharedPtr();
 	}
 
+	VertexDeclaration* GLES2HardwareBufferManagerBase::createVertexDeclarationImpl(void)
+	{
+		return OGRE_NEW GLES2VertexDeclaration();
+	}
+
+    void GLES2HardwareBufferManagerBase::destroyVertexDeclarationImpl(VertexDeclaration* decl)
+	{
+        if(decl)
+            OGRE_DELETE decl;
+	}
 
     GLenum GLES2HardwareBufferManagerBase::getGLUsage(unsigned int usage)
     {
@@ -258,4 +273,19 @@ namespace Ogre {
 	{
 		mMapBufferThreshold = value;
 	}
+    //---------------------------------------------------------------------
+    Ogre::HardwareUniformBufferSharedPtr GLES2HardwareBufferManagerBase::createUniformBuffer( size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name /*= ""*/ )
+    {
+        OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+            "GLES2 does not support uniform buffer objects", 
+            "GLES2HardwareBufferManagerBase::createUniformBuffer");
+    }
+    //---------------------------------------------------------------------
+    Ogre::HardwareCounterBufferSharedPtr GLES2HardwareBufferManagerBase::createCounterBuffer( size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name /*= ""*/ )
+    {
+        OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
+                    "GLES2 does not support atomic counter buffers",
+                    "GLES2HardwareBufferManagerBase::createCounterBuffer");
+    }
+
 }

@@ -41,7 +41,6 @@ THE SOFTWARE.
 #include "OgreHardwareIndexBuffer.h"
 #include "OgreRenderOperation.h"
 #include "OgreHeaderPrefix.h"
-#include "OgreSmallVector.h"
 
 namespace Ogre {
 
@@ -197,7 +196,7 @@ namespace Ogre {
 			work. Pass only shadowed buffers, or better yet perform mesh reduction as
 			an offline process using DefaultHardwareBufferManager to manage vertex
 			buffers in system memory.
-        @param buffer Pointer to x/y/z buffer with vertex positions. The number of vertices
+        @param vertexData Pointer to x/y/z buffer with vertex positions. The number of vertices
             must be the same as in the original GeometryData passed to the constructor.
         */
         virtual void addExtraVertexPositionBuffer(const VertexData* vertexData);
@@ -273,11 +272,16 @@ namespace Ogre {
         class _OgrePrivate PMVertex {
         public:
 			enum BorderStatus { BS_UNKNOWN = 0, BS_NOT_BORDER, BS_BORDER };
-            typedef SmallVector<PMVertex *, 8> NeighborList;
-	        typedef SmallVector<PMTriangle *, 8> FaceList;
+            typedef vector<PMVertex *>::type NeighborList;
+	        typedef vector<PMTriangle *>::type FaceList;
 
 		public:
-            PMVertex() : mBorderStatus(BS_UNKNOWN), removed(false) {}
+            PMVertex() : mBorderStatus(BS_UNKNOWN), removed(false) {
+                neighbor.reserve(8);
+                neighbor.clear();
+                face.reserve(8);
+                face.clear();
+            }
 
 			void setDetails(size_t index, const Vector3& pos, const Vector3& normal, const Vector2& uv);
 		
@@ -386,29 +390,6 @@ namespace Ogre {
 		/** Internal debugging method */
 		void dumpContents(const String& log);
     };
-			
-	template <typename T> struct HardwareBufferLockGuard
-	{
-		HardwareBufferLockGuard(const T& p, HardwareBuffer::LockOptions options)
-		: pBuf(p)
-		{
-			pData = pBuf->lock(options);
-		}
-		HardwareBufferLockGuard(const T& p, size_t offset, size_t length, HardwareBuffer::LockOptions options)
-		: pBuf(p)
-		{
-			pData = pBuf->lock(offset, length, options);
-		}		
-		~HardwareBufferLockGuard()
-		{
-			pBuf->unlock();
-		}
-		const T& pBuf;
-		void* pData;
-	};
-	
-	typedef HardwareBufferLockGuard<HardwareVertexBufferSharedPtr> VertexBufferLockGuard;
-	typedef HardwareBufferLockGuard<HardwareIndexBufferSharedPtr> IndexBufferLockGuard;
 	
 	/** @} */
 	/** @} */
