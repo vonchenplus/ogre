@@ -166,7 +166,7 @@ namespace Ogre {
         /**
         @remarks
             Register a listener to this log
-        @param
+        @param listener
             A valid listener derived class
         */
         void addListener(LogListener* listener);
@@ -174,7 +174,7 @@ namespace Ogre {
         /**
         @remarks
             Unregister a listener from this log
-        @param
+        @param listener
             A valid listener derived class
         */
         void removeListener(LogListener* listener);
