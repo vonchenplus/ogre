@@ -532,7 +532,7 @@ namespace Ogre
 		ZeroMemory( presentParams, sizeof(D3DPRESENT_PARAMETERS) );
 		presentParams->Windowed					= !mIsFullScreen;
 		presentParams->SwapEffect				= D3DSWAPEFFECT_DISCARD;
-		// triple buffer if VSync is on
+		// triple buffer if VSync is on or if flip swap is used. Otherwise we may get a performance penalty.
 		presentParams->BackBufferCount			= mVSync ? 2 : 1;
 		presentParams->EnableAutoDepthStencil	= (mDepthBufferPoolId != DepthBuffer::POOL_NO_DEPTH);
 		presentParams->hDeviceWindow			= mHWnd;
