@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -90,6 +90,7 @@ SceneManager::SceneManager(const String& name) :
 mName(name),
 mRenderQueue(0),
 mLastRenderQueueInvocationCustom(false),
+mAmbientLight(ColourValue::Black),
 mCurrentViewport(0),
 mSceneRoot(0),
 mSkyPlaneEntity(0),

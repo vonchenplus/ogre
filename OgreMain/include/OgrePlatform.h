@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -295,6 +295,15 @@ namespace Ogre {
 #    define OGRE_ENDIAN OGRE_ENDIAN_BIG
 #else
 #    define OGRE_ENDIAN OGRE_ENDIAN_LITTLE
+#endif
+
+//----------------------------------------------------------------------------
+// Library suffixes
+// "_d" for debug builds, nothing otherwise
+#if OGRE_DEBUG_MODE
+#   define OGRE_BUILD_SUFFIX "_d"
+#else
+#   define OGRE_BUILD_SUFFIX ""
 #endif
 
 // Integer formats of fixed bit width

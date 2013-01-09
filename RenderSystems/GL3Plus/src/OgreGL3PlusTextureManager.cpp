@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -47,8 +47,7 @@ namespace Ogre {
         ResourceGroupManager::getSingleton()._unregisterResourceManager(mResourceType);
 
         // Delete warning texture
-        glDeleteTextures(1, &mWarningTextureID);
-        GL_CHECK_ERROR
+        OGRE_CHECK_GL_ERROR(glDeleteTextures(1, &mWarningTextureID));
     }
 
     Resource* GL3PlusTextureManager::createImpl(const String& name, ResourceHandle handle, 
@@ -78,16 +77,10 @@ namespace Ogre {
         }
 
         // Create GL resource
-        glGenTextures(1, &mWarningTextureID);
-        GL_CHECK_ERROR
-        glBindTexture(GL_TEXTURE_2D, mWarningTextureID);
-        GL_CHECK_ERROR
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-        GL_CHECK_ERROR
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, (void*)data);
-        GL_CHECK_ERROR
+        OGRE_CHECK_GL_ERROR(glGenTextures(1, &mWarningTextureID));
+        OGRE_CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mWarningTextureID));
+        OGRE_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0));
+        OGRE_CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, (void*)data));
 
         // Free memory
         delete [] data;
