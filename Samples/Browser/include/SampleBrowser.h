@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2012 Torus Knot Software Ltd
+ Copyright (c) 2000-2013 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -1364,7 +1364,7 @@ protected:
 #else
 			Ogre::ConfigFile cfg;
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-            cfg.load(openAPKFile("samples.cfg"));
+            cfg.load(openAPKFile(mFSLayer->getConfigFilePath("samples.cfg")));
 #else
 			cfg.load(mFSLayer->getConfigFilePath("samples.cfg"));
 #endif

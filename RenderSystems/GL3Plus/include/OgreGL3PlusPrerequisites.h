@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -100,8 +100,9 @@ namespace Ogre {
 
 #define ENABLE_GL_CHECK 0
 #if ENABLE_GL_CHECK
-#define GL_CHECK_ERROR \
+#define OGRE_CHECK_GL_ERROR(glFunc) \
 { \
+    glFunc; \
     int e = glGetError(); \
     if (e != 0) \
     { \
@@ -114,13 +115,13 @@ namespace Ogre {
             case GL_OUT_OF_MEMORY:      errorString = "GL_OUT_OF_MEMORY";       break; \
             default:                                                            break; \
         } \
-        char msgBuf[10000]; \
-        sprintf(msgBuf, "OpenGL error 0x%04X %s in %s at line %i\n", e, errorString, __PRETTY_FUNCTION__, __LINE__); \
+        char msgBuf[4096]; \
+        sprintf(msgBuf, "OpenGL error 0x%04X %s in %s at line %i for %s\n", e, errorString, __PRETTY_FUNCTION__, __LINE__, #glFunc); \
         LogManager::getSingleton().logMessage(msgBuf); \
     } \
 }
 #else
-    #define GL_CHECK_ERROR {}
+#   define OGRE_CHECK_GL_ERROR(glFunc) { glFunc; }
 #endif
 
 #endif //#ifndef __GL3PlusPrerequisites_H__

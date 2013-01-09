@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2012 Torus Knot Software Ltd
+ Copyright (c) 2000-2013 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -73,12 +73,13 @@ namespace Ogre
 		 */
 		const Ogre::String getConfigFilePath(Ogre::String filename) const
 		{
-#if OGRE_DEBUG_MODE == 1 && (OGRE_PLATFORM != OGRE_PLATFORM_APPLE && OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS)
-			// add _d suffix to config files
-			Ogre::String::size_type pos = filename.rfind('.');
-			if (pos != Ogre::String::npos)
-				filename = filename.substr(0, pos) + "_d" + filename.substr(pos);
-#endif
+            #if OGRE_DEBUG_MODE == 1 && (OGRE_PLATFORM != OGRE_PLATFORM_APPLE && OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS)
+			    // add OGRE_BUILD_SUFFIX (default: "_d") to config file names
+			    Ogre::String::size_type pos = filename.rfind('.');
+			    if (pos != Ogre::String::npos)
+				    filename = filename.substr(0, pos) + OGRE_BUILD_SUFFIX + filename.substr(pos);
+            #endif
+
 			// look for the requested file in several locations:
             
 			// 1. in the writable path (so user can provide custom files)
