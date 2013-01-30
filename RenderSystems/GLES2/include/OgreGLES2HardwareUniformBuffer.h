@@ -25,19 +25,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#ifndef __GL3PlusHARDWAREUNIFORMBUFFER_H__
-#define __GL3PlusHARDWAREUNIFORMBUFFER_H__
+#ifndef __GLES2HARDWAREUNIFORMBUFFER_H__
+#define __GLES2HARDWAREUNIFORMBUFFER_H__
 
-#include "OgreGL3PlusPrerequisites.h"
+#include "OgreGLES2Prerequisites.h"
 #include "OgreHardwareUniformBuffer.h"
 
 namespace Ogre {
 
     /// Specialisation of HardwareUniformBuffer for OpenGL
-    class _OgreGL3PlusExport GL3PlusHardwareUniformBuffer : public HardwareUniformBuffer
+    class _OgreGLES2Export GLES2HardwareUniformBuffer : public HardwareUniformBuffer
     {
         private:
             GLuint mBufferId;
+            GLint mBinding;
 
         protected:
             /** See HardwareBuffer. */
@@ -46,9 +47,9 @@ namespace Ogre {
             void unlockImpl(void);
 
         public:
-            GL3PlusHardwareUniformBuffer(HardwareBufferManagerBase* mgr, size_t bufferSize, HardwareBuffer::Usage usage,
+            GLES2HardwareUniformBuffer(HardwareBufferManagerBase* mgr, size_t bufferSize, HardwareBuffer::Usage usage,
                                          bool useShadowBuffer, const String& name);
-            ~GL3PlusHardwareUniformBuffer();
+            ~GLES2HardwareUniformBuffer();
 
             /** See HardwareBuffer. */
             void readData(size_t offset, size_t length, void* pDest);
@@ -62,6 +63,8 @@ namespace Ogre {
                           size_t dstOffset, size_t length, bool discardWholeBuffer = false);
 
             inline GLuint getGLBufferId(void) const { return mBufferId; }
+            void setGLBufferBinding(GLint binding);
+            inline GLint getGLBufferBinding(void) const { return mBinding; }
     };
 }
-#endif // __GL3PlusHARDWAREUNIFORMBUFFER_H__
+#endif // __GLES2HARDWAREUNIFORMBUFFER_H__
