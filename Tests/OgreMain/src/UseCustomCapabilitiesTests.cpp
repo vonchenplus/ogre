@@ -118,12 +118,16 @@ void checkCaps(const Ogre::RenderSystemCapabilities* caps)
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION), true);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_DXT), true);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_VTC), false);
+    CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_PVRTC), false);
+    CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_BC4_BC5), false);
+    CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7), false);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_FBO), true);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_FBO_ARB), false);
 
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_FBO_ATI), false);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_PBUFFER), false);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_PERSTAGECONSTANT), false);
+    CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_VAO), false);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_SEPARATE_SHADER_OBJECTS), false);
 
     CPPUNIT_ASSERT(caps->isShaderProfileSupported("arbfp1"));
@@ -197,7 +201,7 @@ void UseCustomCapabilitiesTests::testCustomCapabilitiesGL()
 		logManager->createLog("testCustomCapabilitiesGL.log", true, false);
 	}
 
-	Root* root = OGRE_NEW Root("plugins.cfg");
+	Root* root = OGRE_NEW Root("plugins" OGRE_LIB_SUFFIX ".cfg");
 	RenderSystem* rs = root->getRenderSystemByName("OpenGL Rendering Subsystem");
 	if(rs == 0)
 	{
@@ -257,7 +261,7 @@ void UseCustomCapabilitiesTests::testCustomCapabilitiesD3D9()
 		logManager->createLog("testCustomCapabilitiesD3D9.log", true, false);
 	}
 
-    Root* root = OGRE_NEW Root("plugins.cfg");
+    Root* root = OGRE_NEW Root("plugins" OGRE_LIB_SUFFIX ".cfg");
 	RenderSystem* rs = root->getRenderSystemByName("Direct3D9 Rendering Subsystem");
 	if(rs == 0)
 	{

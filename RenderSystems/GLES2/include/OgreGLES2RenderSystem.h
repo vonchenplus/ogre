@@ -110,6 +110,7 @@ namespace Ogre {
             // local data member of _render that were moved here to improve performance
             // (save allocations)
             vector<GLuint>::type mRenderAttribsBound;
+            vector<GLuint>::type mRenderInstanceAttribsBound;
 
             GLint getCombinedMinMipFilter(void) const;
 
@@ -118,9 +119,17 @@ namespace Ogre {
 
             GLint getTextureAddressingMode(TextureUnitState::TextureAddressingMode tam) const;
             GLenum getBlendMode(SceneBlendFactor ogreBlend) const;
+            void bindVertexElementToGpu( const VertexElement &elem, HardwareVertexBufferSharedPtr vertexBuffer,
+                                        const size_t vertexStart,
+                                        vector<GLuint>::type &attribsBound,
+                                        vector<GLuint>::type &instanceAttribsBound,
+                                        bool updateVAO);
 
 			// Mipmap count of the actual bounded texture
 			size_t mCurTexMipCount;
+            GLint mViewport[4];
+            GLint mScissor[4];
+
         public:
             // Default constructor / destructor
             GLES2RenderSystem();
