@@ -38,9 +38,6 @@
 // Optimize for best performance.
 // #define PM_WORST_QUALITY
 
-// Disable assertations.
-// #define NDEBUG
-
 #include "OgreStableHeaders.h"
 #include "OgreProgressiveMeshGenerator.h"
 #include "OgreHardwareIndexBuffer.h"
@@ -97,12 +94,11 @@ void ProgressiveMeshGeneratorBase::generateAutoconfiguredLodLevels( MeshPtr& mes
 }
 
 ProgressiveMeshGenerator::ProgressiveMeshGenerator() :
-	mMesh(NULL), mMeshBoundingSphereRadius(0.0f), mCollapseCostLimit(NEVER_COLLAPSE_COST),
-	mUniqueVertexSet((UniqueVertexSet::size_type) 0, (const UniqueVertexSet::hasher&) PMVertexHash(this))
-
+    mUniqueVertexSet((UniqueVertexSet::size_type) 0, (const UniqueVertexSet::hasher&) PMVertexHash(this)),
+    mMesh(NULL), mMeshBoundingSphereRadius(0.0f),
+    mCollapseCostLimit(NEVER_COLLAPSE_COST)
 {
-	assert(NEVER_COLLAPSE_COST < UNINITIALIZED_COLLAPSE_COST && NEVER_COLLAPSE_COST != UNINITIALIZED_COLLAPSE_COST);
-
+	OgreAssert(NEVER_COLLAPSE_COST < UNINITIALIZED_COLLAPSE_COST && NEVER_COLLAPSE_COST != UNINITIALIZED_COLLAPSE_COST, "");
 }
 
 ProgressiveMeshGenerator::~ProgressiveMeshGenerator()
@@ -145,7 +141,7 @@ void ProgressiveMeshGenerator::tuneContainerSize()
 
 void ProgressiveMeshGenerator::initialize()
 {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	mMeshName = mMesh->getName();
 #endif
 	unsigned short submeshCount = mMesh->getNumSubMeshes();
@@ -176,13 +172,13 @@ void ProgressiveMeshGenerator::addVertexData(VertexData* vertexData, bool useSha
 	if ((useSharedVertexLookup && !mSharedVertexLookup.empty())) { // We already loaded the shared vertex buffer.
 		return;
 	}
-	assert(vertexData->vertexCount != 0);
+	OgreAssert(vertexData->vertexCount != 0, "");
 
 	// Locate position element and the buffer to go with it.
 	const VertexElement* elem = vertexData->vertexDeclaration->findElementBySemantic(VES_POSITION);
 
 	// Only float supported.
-	assert(elem->getSize() == 12);
+	OgreAssert(elem->getSize() == 12, "");
 
 	HardwareVertexBufferSharedPtr vbuf = vertexData->vertexBufferBinding->getBuffer(elem->getSource());
 
@@ -212,7 +208,7 @@ void ProgressiveMeshGenerator::addVertexData(VertexData* vertexData, bool useSha
 			v = *ret.first; // Point to the existing vertex.
 			v->seam = true;
 		} else {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 			// Needed for an assert, don't remove it.
 			v->costHeapPosition = mCollapseCostHeap.end();
 #endif
@@ -231,25 +227,25 @@ void ProgressiveMeshGenerator::addIndexDataImpl(IndexType* iPos, const IndexType
 	// Loop through all triangles and connect them to the vertices.
 	for (; iPos < iEnd; iPos += 3) {
 		// It should never reallocate or every pointer will be invalid.
-		assert(mTriangleList.capacity() > mTriangleList.size());
+		OgreAssert(mTriangleList.capacity() > mTriangleList.size(), "");
 		mTriangleList.push_back(PMTriangle());
 		PMTriangle* tri = &mTriangleList.back();
 		tri->isRemoved = false;
 		tri->submeshID = submeshID;
 		for (int i = 0; i < 3; i++) {
 			// Invalid index: Index is bigger then vertex buffer size.
-			assert(iPos[i] < lookup.size());
+			OgreAssert(iPos[i] < lookup.size(), "");
 			tri->vertexID[i] = iPos[i];
 			tri->vertex[i] = lookup[iPos[i]];
 		}
 		if (tri->isMalformed()) {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 			stringstream str;
 			str << "In " << mMeshName << " malformed triangle found with ID: " << getTriangleID(tri) << ". " <<
 			std::endl;
 			printTriangle(tri, str);
 			str << "It will be excluded from Lod level calculations.";
-			LogManager::getSingleton().stream() << str;
+			LogManager::getSingleton().stream() << str.str();
 #endif
 			tri->isRemoved = true;
 			mIndexBufferInfoList[tri->submeshID].indexCount -= 3;
@@ -279,7 +275,7 @@ void ProgressiveMeshGenerator::addIndexData(IndexData* indexData, bool useShared
 		addIndexDataImpl<unsigned short>((unsigned short*) iStart, (unsigned short*) iEnd, lookup, submeshID);
 	} else {
 		// Unsupported index size.
-		assert(isize == sizeof(unsigned int));
+		OgreAssert(isize == sizeof(unsigned int), "");
 		addIndexDataImpl<unsigned int>((unsigned int*) iStart, (unsigned int*) iEnd, lookup, submeshID);
 	}
 	ibuf->unlock();
@@ -314,7 +310,7 @@ void ProgressiveMeshGenerator::replaceVertexID(PMTriangle* triangle, unsigned in
 			return;
 		}
 	}
-	assert(0);
+	OgreAssert(0, "");
 }
 
 unsigned int ProgressiveMeshGenerator::PMTriangle::getVertexID(const PMVertex* v) const
@@ -324,7 +320,7 @@ unsigned int ProgressiveMeshGenerator::PMTriangle::getVertexID(const PMVertex* v
 			return vertexID[i];
 		}
 	}
-	assert(0);
+	OgreAssert(0, "");
 	return 0;
 }
 
@@ -395,7 +391,7 @@ void ProgressiveMeshGenerator::addTriangleToEdges(PMTriangle* triangle)
 #ifdef PM_BEST_QUALITY
 	PMTriangle* duplicate = isDuplicateTriangle(triangle);
 	if (duplicate != NULL) {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 		stringstream str;
 		str << "In " << mMeshName << " duplicate triangle found." << std::endl;
 		str << "Triangle " << getTriangleID(triangle) << " positions:" << std::endl;
@@ -444,7 +440,7 @@ ProgressiveMeshGenerator::PMTriangle* ProgressiveMeshGenerator::findSideTriangle
 			return triangle;
 		}
 	}
-	assert(0);
+	OgreAssert(0, "");
 	return NULL;
 }
 
@@ -463,7 +459,7 @@ void ProgressiveMeshGenerator::computeCosts()
 
 			computeVertexCollapseCost(&*it);
 		} else {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 			LogManager::getSingleton().stream() << "In " << mMeshName << " never used vertex found with ID: " << mCollapseCostHeap.size() << ". "
 			    << "Vertex position: ("
 			    << it->position.x << ", "
@@ -478,7 +474,7 @@ void ProgressiveMeshGenerator::computeCosts()
 void ProgressiveMeshGenerator::computeVertexCollapseCost(PMVertex* vertex)
 {
 	Real collapseCost = UNINITIALIZED_COLLAPSE_COST;
-	assert(!vertex->edges.empty());
+	OgreAssert(!vertex->edges.empty(), "");
 	VEdges::iterator it = vertex->edges.begin();
 	for (; it != vertex->edges.end(); it++) {
 		it->collapseCost = computeEdgeCollapseCost(vertex, getPointer(it));
@@ -487,7 +483,7 @@ void ProgressiveMeshGenerator::computeVertexCollapseCost(PMVertex* vertex)
 			vertex->collapseTo = it->dst;
 		}
 	}
-	assert(collapseCost != UNINITIALIZED_COLLAPSE_COST);
+	OgreAssert(collapseCost != UNINITIALIZED_COLLAPSE_COST, "");
 	vertex->costHeapPosition = mCollapseCostHeap.insert(std::make_pair(collapseCost, vertex));
 
 }
@@ -643,24 +639,24 @@ Real ProgressiveMeshGenerator::computeEdgeCollapseCost(PMVertex* src, PMEdge* ds
 		}
 	}
 
-	assert(cost >= 0);
+	OgreAssert(cost >= 0, "");
 	return cost * src->position.distance(dst->position);
 }
 
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 void ProgressiveMeshGenerator::assertOutdatedCollapseCost(PMVertex* vertex)
 {
 	// Validates that collapsing has updated all edges needed by computeEdgeCollapseCost.
-	// This will assert if the dependencies inside computeEdgeCollapseCost changes.
+	// This will OgreAssert if the dependencies inside computeEdgeCollapseCost changes.
 	VEdges::iterator it = vertex->edges.begin();
 	VEdges::iterator itEnd = vertex->edges.end();
 	for (; it != itEnd; it++) {
-		assert(it->collapseCost == computeEdgeCollapseCost(vertex, getPointer(it)));
+		OgreAssert(it->collapseCost == computeEdgeCollapseCost(vertex, getPointer(it)), "");
 		PMVertex* neighbor = it->dst;
 		VEdges::iterator it2 = neighbor->edges.begin();
 		VEdges::iterator it2End = neighbor->edges.end();
 		for (; it2 != it2End; it2++) {
-			assert(it2->collapseCost == computeEdgeCollapseCost(neighbor, getPointer(it2)));
+			OgreAssert(it2->collapseCost == computeEdgeCollapseCost(neighbor, getPointer(it2)), "");
 		}
 	}
 }
@@ -680,14 +676,14 @@ void ProgressiveMeshGenerator::updateVertexCollapseCost(PMVertex* vertex)
 		}
 	}
 	if (vertex->collapseTo != collapseTo || collapseCost != vertex->costHeapPosition->first) {
-		assert(vertex->collapseTo != NULL);
-		assert(vertex->costHeapPosition != mCollapseCostHeap.end());
+		OgreAssert(vertex->collapseTo != NULL, "");
+		OgreAssert(vertex->costHeapPosition != mCollapseCostHeap.end(), "");
 		mCollapseCostHeap.erase(vertex->costHeapPosition);
 		if (collapseCost != UNINITIALIZED_COLLAPSE_COST) {
 			vertex->collapseTo = collapseTo;
 			vertex->costHeapPosition = mCollapseCostHeap.insert(std::make_pair(collapseCost, vertex));
 		} else {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 			vertex->collapseTo = NULL;
 			vertex->costHeapPosition = mCollapseCostHeap.end();
 #endif
@@ -697,13 +693,13 @@ void ProgressiveMeshGenerator::updateVertexCollapseCost(PMVertex* vertex)
 
 void ProgressiveMeshGenerator::generateLodLevels(LodConfig& lodConfig)
 {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 
 	// Do not call this with empty Lod.
-	assert(!lodConfig.levels.empty());
+	OgreAssert(!lodConfig.levels.empty(), "");
 
 	// Too many lod levels.
-	assert(lodConfig.levels.size() <= 0xffff);
+	OgreAssert(lodConfig.levels.size() <= 0xffff, "");
 
 	// Lod distances needs to be sorted.
 	Mesh::LodValueList values;
@@ -718,7 +714,7 @@ void ProgressiveMeshGenerator::generateLodLevels(LodConfig& lodConfig)
 	tuneContainerSize();
 	initialize(); // Load vertices and triangles
 	computeCosts(); // Calculate all collapse costs
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	assertValidMesh();
 #endif // ifndef NDEBUG
 
@@ -746,7 +742,7 @@ void ProgressiveMeshGenerator::computeLods(LodConfig& lodConfigs)
 		lodConfigs.levels[curLod].outSkipped = (lastBakeVertexCount == vertexCount);
 		if (!lodConfigs.levels[curLod].outSkipped) {
 			lastBakeVertexCount = vertexCount;
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 			assertValidMesh();
 #endif // ifndef NDEBUG
 			bakeLods();
@@ -785,12 +781,12 @@ bool ProgressiveMeshGenerator::hasSrcID(unsigned int srcID, unsigned short subme
 	return false; // Not found
 }
 
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 void ProgressiveMeshGenerator::assertValidMesh()
 {
 	// Allows to find bugs in collapsing.
-	size_t s1 = mUniqueVertexSet.size();
-	size_t s2 = mCollapseCostHeap.size();
+//	size_t s1 = mUniqueVertexSet.size();
+//	size_t s2 = mCollapseCostHeap.size();
 	CollapseCostHeap::iterator it = mCollapseCostHeap.begin();
 	CollapseCostHeap::iterator itEnd = mCollapseCostHeap.end();
 	while (it != itEnd) {
@@ -798,8 +794,7 @@ void ProgressiveMeshGenerator::assertValidMesh()
 		it++;
 	}
 }
-#endif
-#ifndef NDEBUG
+
 void ProgressiveMeshGenerator::assertValidVertex(PMVertex* v)
 {
 	// Allows to find bugs in collapsing.
@@ -808,14 +803,14 @@ void ProgressiveMeshGenerator::assertValidVertex(PMVertex* v)
 	for (; it != itEnd; it++) {
 		PMTriangle* t = *it;
 		for (int i = 0; i < 3; i++) {
-			assert(t->vertex[i]->costHeapPosition != mCollapseCostHeap.end());
+			OgreAssert(t->vertex[i]->costHeapPosition != mCollapseCostHeap.end(), "");
 			t->vertex[i]->edges.findExists(PMEdge(t->vertex[i]->collapseTo));
 			for (int n = 0; n < 3; n++) {
 				if (i != n) {
-					VEdges::iterator it = t->vertex[i]->edges.findExists(PMEdge(t->vertex[n]));
-					assert(it->collapseCost != UNINITIALIZED_COLLAPSE_COST);
+					VEdges::iterator edgeIt = t->vertex[i]->edges.findExists(PMEdge(t->vertex[n]));
+					OgreAssert(edgeIt->collapseCost != UNINITIALIZED_COLLAPSE_COST, "");
 				} else {
-					assert(t->vertex[i]->edges.find(PMEdge(t->vertex[n])) == t->vertex[i]->edges.end());
+					OgreAssert(t->vertex[i]->edges.find(PMEdge(t->vertex[n])) == t->vertex[i]->edges.end(), "");
 				}
 			}
 		}
@@ -826,15 +821,15 @@ void ProgressiveMeshGenerator::assertValidVertex(PMVertex* v)
 void ProgressiveMeshGenerator::collapse(PMVertex* src)
 {
 	PMVertex* dst = src->collapseTo;
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	assertValidVertex(dst);
 	assertValidVertex(src);
 #endif // ifndef NDEBUG
-	assert(src->costHeapPosition->first != NEVER_COLLAPSE_COST);
-	assert(src->costHeapPosition->first != UNINITIALIZED_COLLAPSE_COST);
-	assert(!src->edges.empty());
-	assert(!src->triangles.empty());
-	assert(src->edges.find(PMEdge(dst)) != src->edges.end());
+	OgreAssert(src->costHeapPosition->first != NEVER_COLLAPSE_COST, "");
+	OgreAssert(src->costHeapPosition->first != UNINITIALIZED_COLLAPSE_COST, "");
+	OgreAssert(!src->edges.empty(), "");
+	OgreAssert(!src->triangles.empty(), "");
+	OgreAssert(src->edges.find(PMEdge(dst)) != src->edges.end(), "");
 
 	// It may have vertexIDs and triangles from different submeshes(different vertex buffers),
 	// so we need to connect them correctly based on deleted triangle's edge.
@@ -871,8 +866,8 @@ void ProgressiveMeshGenerator::collapse(PMVertex* src)
 			removeTriangleFromEdges(triangle, src);
 		}
 	}
-	assert(tmpCollapsedEdges.size());
-	assert(dst->edges.find(PMEdge(src)) == dst->edges.end());
+	OgreAssert(tmpCollapsedEdges.size(), "");
+	OgreAssert(dst->edges.find(PMEdge(src)) == dst->edges.end(), "");
 
 	it = src->triangles.begin();
 	for (; it != itEnd; it++) {
@@ -938,7 +933,7 @@ void ProgressiveMeshGenerator::collapse(PMVertex* src)
 	for (; it5 != it5End; it5++) {
 		updateVertexCollapseCost(*it5);
 	}
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	it3 = src->edges.begin();
 	it3End = src->edges.end();
 	for (; it3 != it3End; it3++) {
@@ -955,7 +950,7 @@ void ProgressiveMeshGenerator::collapse(PMVertex* src)
 	mCollapseCostHeap.erase(src->costHeapPosition); // Remove src from collapse costs.
 	src->edges.clear(); // Free memory
 	src->triangles.clear(); // Free memory
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	src->costHeapPosition = mCollapseCostHeap.end();
 	assertValidVertex(dst);
 #endif
@@ -984,7 +979,7 @@ size_t ProgressiveMeshGenerator::calcLodVertexCount(const LodLevel& lodConfig)
 		return 0;
 
 	default:
-		assert(0);
+		OgreAssert(0, "");
 		return uniqueVertices;
 	}
 }
@@ -999,7 +994,7 @@ void ProgressiveMeshGenerator::bakeLods()
 	for (unsigned short i = 0; i < submeshCount; i++) {
 		SubMesh::LODFaceList& lods = mMesh->getSubMesh(i)->mLodFaceList;
 		int indexCount = mIndexBufferInfoList[i].indexCount;
-		assert(indexCount >= 0);
+		OgreAssert(indexCount >= 0, "");
 		lods.push_back(OGRE_NEW IndexData());
 		lods.back()->indexStart = 0;
 
@@ -1032,7 +1027,7 @@ void ProgressiveMeshGenerator::bakeLods()
 	size_t triangleCount = mTriangleList.size();
 	for (size_t i = 0; i < triangleCount; i++) {
 		if (!mTriangleList[i].isRemoved) {
-			assert(mIndexBufferInfoList[mTriangleList[i].submeshID].indexCount != 0);
+			OgreAssert(mIndexBufferInfoList[mTriangleList[i].submeshID].indexCount != 0, "");
 			if (mIndexBufferInfoList[mTriangleList[i].submeshID].indexSize == 2) {
 				for (int m = 0; m < 3; m++) {
 					*(indexBuffer.get()[mTriangleList[i].submeshID].pshort++) =
@@ -1056,7 +1051,7 @@ void ProgressiveMeshGenerator::bakeLods()
 
 ProgressiveMeshGenerator::PMEdge::PMEdge(PMVertex* destination) :
 	dst(destination)
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	, collapseCost(UNINITIALIZED_COLLAPSE_COST)
 #endif
 	, refCount(0)
@@ -1089,7 +1084,7 @@ bool ProgressiveMeshGenerator::PMEdge::operator== (const PMEdge& other) const
 
 void ProgressiveMeshGenerator::addEdge(PMVertex* v, const PMEdge& edge)
 {
-	assert(edge.dst != v);
+	OgreAssert(edge.dst != v, "");
 	VEdges::iterator it;
 	it = v->edges.add(edge);
 	if (it == v->edges.end()) {
@@ -1138,7 +1133,7 @@ size_t ProgressiveMeshGenerator::PMVertexHash::operator() (const PMVertex* v) co
 template<typename T, unsigned S>
 void ProgressiveMeshGenerator::VectorSet<T, S>::addNotExists(const T& item)
 {
-	assert(find(item) == this->end());
+	OgreAssert(find(item) == this->end(), "");
 	this->push_back(item);
 }
 
@@ -1167,7 +1162,7 @@ template<typename T, unsigned S>
 void ProgressiveMeshGenerator::VectorSet<T, S>::removeExists(const T& item)
 {
 	iterator it = find(item);
-	assert(it != this->end());
+	OgreAssert(it != this->end(), "");
 	remove(it);
 }
 
@@ -1187,7 +1182,7 @@ template<typename T, unsigned S>
 void ProgressiveMeshGenerator::VectorSet<T, S>::replaceExists(const T& oldItem, const T& newItem)
 {
 	iterator it = find(oldItem);
-	assert(it != this->end());
+	OgreAssert(it != this->end(), "");
 	*it = newItem;
 }
 
@@ -1208,7 +1203,7 @@ typename ProgressiveMeshGenerator::VectorSet<T, S>::iterator ProgressiveMeshGene
     const T& item)
 {
 	iterator it = find(item);
-	assert(it != this->end());
+	OgreAssert(it != this->end(), "");
 	return it;
 }
 
