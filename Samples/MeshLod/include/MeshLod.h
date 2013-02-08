@@ -21,8 +21,8 @@ public:
 	Sample_MeshLod() :
 		mHeadEntity(0), mUserReductionValue(0.5)
 	{
-		mInfo["Title"] = "MeshLod";
-		mInfo["Description"] = "Shows how to add Lod levels to a mesh.";
+		mInfo["Title"] = "Mesh Lod";
+		mInfo["Description"] = "Shows how to add Lod levels to a mesh using the ProgressiveMesh class.";
 		mInfo["Thumbnail"] = "thumb_meshlod.png";
 		mInfo["Category"] = "Unsorted";
 	}

@@ -100,7 +100,7 @@ WorkQueue::Response* PMWorker::handleRequest(const WorkQueue::Request* req, cons
 
 void PMWorker::buildRequest(LodConfig& lodConfigs)
 {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	mMeshName = mRequest->meshName;
 #endif
 	mMeshBoundingSphereRadius = lodConfigs.mesh->getBoundingSphereRadius();
@@ -108,7 +108,7 @@ void PMWorker::buildRequest(LodConfig& lodConfigs)
 	tuneContainerSize();
 	initialize(); // Load vertices and triangles.
 	computeCosts(); // Calculate all collapse costs.
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	assertValidMesh();
 #endif
 
@@ -190,7 +190,7 @@ void PMWorker::addVertexBuffer(const PMGenRequest::VertexBuffer& vertexBuffer, b
 			v = *ret.first; // Point to the existing vertex.
 			v->seam = true;
 		} else {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 			v->costHeapPosition = mCollapseCostHeap.end();
 #endif
 			v->seam = false;
@@ -213,7 +213,7 @@ void PMWorker::addIndexBuffer(PMGenRequest::IndexBuffer& indexBuffer, bool useSh
 		addIndexDataImpl<unsigned short>((unsigned short*) iStart, (unsigned short*) iEnd, lookup, submeshID);
 	} else {
 		// Unsupported index size.
-		assert(isize == sizeof(unsigned int));
+		OgreAssert(isize == sizeof(unsigned int), "");
 		addIndexDataImpl<unsigned int>((unsigned int*) iStart, (unsigned int*) iEnd, lookup, submeshID);
 	}
 }
@@ -228,7 +228,7 @@ void PMWorker::bakeLods()
 	for (unsigned short i = 0; i < submeshCount; i++) {
 		std::vector<PMGenRequest::IndexBuffer>& lods = mRequest->submesh[i].genIndexBuffers;
 		int indexCount = mIndexBufferInfoList[i].indexCount;
-		assert(indexCount >= 0);
+		OgreAssert(indexCount >= 0, "");
 
 		lods.push_back(PMGenRequest::IndexBuffer());
 		if (indexCount == 0) {
@@ -326,7 +326,7 @@ void PMInjector::inject(PMGenRequest* request)
 {
 	const MeshPtr& mesh = request->config.mesh;
 	unsigned short submeshCount = request->submesh.size();
-	assert(mesh->getNumSubMeshes() == submeshCount);
+	OgreAssert(mesh->getNumSubMeshes() == submeshCount, "");
 	mesh->removeLodLevels();
 	for (unsigned short i = 0; i < submeshCount; i++) {
 		SubMesh::LODFaceList& lods = mesh->getSubMesh(i)->mLodFaceList;
@@ -337,7 +337,7 @@ void PMInjector::inject(PMGenRequest* request)
 		for (; it != itEnd; it++) {
 			PMGenRequest::IndexBuffer& buff = *it;
 			int indexCount = buff.indexCount;
-			assert(indexCount >= 0);
+			OgreAssert(indexCount >= 0, "");
 			lods.push_back(OGRE_NEW IndexData());
 			lods.back()->indexStart = 0;
 			lods.back()->indexCount = indexCount;
@@ -359,12 +359,12 @@ void PMInjector::inject(PMGenRequest* request)
 
 void QueuedProgressiveMeshGenerator::generateLodLevels(LodConfig& lodConfig)
 {
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	// Do not call this with empty Lod.
-	assert(!lodConfig.levels.empty());
+	OgreAssert(!lodConfig.levels.empty(), "");
 
 	// Too many lod levels.
-	assert(lodConfig.levels.size() <= 0xffff);
+	OgreAssert(lodConfig.levels.size() <= 0xffff, "");
 
 	// Lod distances needs to be sorted.
 	Mesh::LodValueList values;
@@ -387,7 +387,7 @@ void QueuedProgressiveMeshGenerator::copyVertexBuffer(VertexData* data, PMGenReq
 	const VertexElement* elem = data->vertexDeclaration->findElementBySemantic(VES_POSITION);
 
 	// Only float supported.
-	assert(elem->getSize() == 12);
+	OgreAssert(elem->getSize() == 12, "");
 
 	HardwareVertexBufferSharedPtr vbuf = data->vertexBufferBinding->getBuffer(elem->getSource());
 
