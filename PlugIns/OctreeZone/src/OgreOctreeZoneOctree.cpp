@@ -31,7 +31,6 @@ begin                : Mon Sep 30 2002
 copyright            : (C) 2002 by Jon Anderson
 email                : janders@users.sf.net
 
-Enhancements 2003 - 2004 (C) The OGRE Team
 Modified to use with PCZones 2007 by Eric Cha
 -----------------------------------------------------------------------------
 */

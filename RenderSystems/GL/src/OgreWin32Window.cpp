@@ -226,8 +226,8 @@ namespace Ogre {
 				windowAnchorPoint.y = top;
 
 
-				// Get the nearest monitor to this window.
-				hMonitor = MonitorFromPoint(windowAnchorPoint, MONITOR_DEFAULTTONEAREST);
+				// Get the default primary monitor to this window.
+				hMonitor = MonitorFromPoint(windowAnchorPoint, MONITOR_DEFAULTTOPRIMARY);
 			}
 
 			// Get the target monitor info		
@@ -315,7 +315,7 @@ namespace Ogre {
 					mWidth = rc.right - rc.left;
 					mHeight = rc.bottom - rc.top;
 
-					// Clamp window rect to the nearest display monitor.
+					// Clamp window rect to the default primary display monitor.
 					if (mLeft < monitorInfoEx.rcWork.left)
 						mLeft = monitorInfoEx.rcWork.left;		
 
