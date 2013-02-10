@@ -80,6 +80,11 @@ namespace Ogre {
             */
             size_t getGLMapBufferThreshold() const;
             void setGLMapBufferThreshold( const size_t value );
+            HardwareUniformBufferSharedPtr
+            createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name = "");
+            HardwareCounterBufferSharedPtr createCounterBuffer(size_t sizeBytes,
+                                                               HardwareBuffer::Usage usage = HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE,
+                                                               bool useShadowBuffer = false, const String& name = "");
     };
 
 	/// GLESHardwareBufferManagerBase as a Singleton

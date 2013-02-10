@@ -105,7 +105,7 @@ namespace Ogre {
             @param
                 delims A list of delimiter characters to split by
 			@param
-                delims A list of double delimeters characters to tokenise by
+                doubleDelims A list of double delimeters characters to tokenise by
             @param
                 maxSplits The maximum number of splits to perform (0 for unlimited splits). If this
                 parameters is > 0, the splitting process will stop after this many splits, left to right.
@@ -222,5 +222,17 @@ namespace Ogre {
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"
+
+#if _DEBUG && (OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT)
+#   pragma push_macro("NOMINMAX")
+#   define NOMINMAX
+#   include <windows.h>
+#   pragma pop_macro("NOMINMAX")
+#	define Ogre_OutputCString(str) ::OutputDebugStringA(str)
+#	define Ogre_OutputWString(str) ::OutputDebugStringW(str)
+#else
+#	define Ogre_OutputCString(str) std::cerr << str
+#	define Ogre_OutputWString(str) std::cerr << str
+#endif
 
 #endif // _String_H__

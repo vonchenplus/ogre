@@ -28,6 +28,7 @@ THE SOFTWARE.
 #ifndef __Ogre_Iterator_Wrapper_H__
 #define __Ogre_Iterator_Wrapper_H__
 
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre{
 
@@ -147,8 +148,8 @@ class VectorIteratorWrapper : public IteratorWrapper<T, IteratorType, typename  
 		 * 
 		 * Constructor that provide a start and end iterator to initialise.
 		 * 
-		 * @param start start iterator 
-		 * @param end end iterator 
+		 * @param start Start iterator 
+		 * @param last End iterator 
 		 */
 		VectorIteratorWrapper ( IteratorType start, IteratorType last )
 		: IteratorWrapper<T, IteratorType, typename T::value_type>( start, last ) 
@@ -378,6 +379,6 @@ class ConstMapIterator : public MapIteratorWrapper<T,  typename T::const_iterato
 
 }
 
-
+#include "OgreHeaderSuffix.h"
 
 #endif
