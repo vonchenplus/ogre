@@ -30,6 +30,7 @@ THE SOFTWARE.
 #define __MemoryAllocatorConfig_H__
 
 #include "OgreMemoryAllocatedObject.h" 
+#include "OgreHeaderPrefix.h"
 
 /** \addtogroup Core
 *  @{
@@ -316,6 +317,7 @@ namespace Ogre
 	typedef GeometryAllocatedObject		VertexDataAlloc;
 	typedef RenderSysAllocatedObject	ViewportAlloc;
 	typedef SceneCtlAllocatedObject		LodAlloc;
+    typedef GeneralAllocatedObject      FileSystemLayerAlloc;
 
 	// Containers (by-value only)
 	// Will  be of the form:
@@ -489,5 +491,8 @@ namespace Ogre
 
 /** @} */
 /** @} */
+
+
+#include "OgreHeaderSuffix.h"
 
 #endif

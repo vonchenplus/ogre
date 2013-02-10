@@ -76,7 +76,9 @@ namespace Ogre {
         /// 3D cube map, used in combination with 3D texture coordinates
         TEX_TYPE_CUBE_MAP = 4,
         /// 2D texture array
-        TEX_TYPE_2D_ARRAY = 5
+        TEX_TYPE_2D_ARRAY = 5,
+        /// 2D non-square texture, used in combination with 2D texture coordinates
+        TEX_TYPE_2D_RECT = 6
     };
 
 	/** Enum identifying special mipmap numbers
@@ -107,6 +109,8 @@ namespace Ogre {
         Texture(ResourceManager* creator, const String& name, ResourceHandle handle,
             const String& group, bool isManual = false, ManualResourceLoader* loader = 0);
 
+        virtual ~Texture() {}
+        
         /** Sets the type of texture; can only be changed before load() 
         */
         virtual void setTextureType(TextureType ttype ) { mTextureType = ttype; }

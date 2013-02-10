@@ -36,6 +36,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( TerrainTests );
 void TerrainTests::setUp()
 {
 	mRoot = OGRE_NEW Root();
+	mTerrainOpts = OGRE_NEW TerrainGlobalOptions();
 
 	// Load resource paths from config file
 	ConfigFile cf;
@@ -66,6 +67,7 @@ void TerrainTests::setUp()
 
 void TerrainTests::tearDown()
 {
+	OGRE_DELETE mTerrainOpts;
 	OGRE_DELETE mRoot;
 }
 
