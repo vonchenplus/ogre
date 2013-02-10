@@ -30,7 +30,7 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreGpuProgram.h"
-
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre 
 {
@@ -75,10 +75,10 @@ namespace Ogre
     protected:
         GpuProgramType mType;
 		Pass* mParent;
-        // The program link
+        /// The program link
         GpuProgramPtr mProgram;
 
-        /// program parameters
+        /// Program parameters
         GpuProgramParametersSharedPtr mParameters;
 		
 		/// Whether to recreate parameters next load
@@ -146,4 +146,7 @@ namespace Ogre
 	/** @} */
 	/** @} */
 }
+
+#include "OgreHeaderSuffix.h"
+
 #endif

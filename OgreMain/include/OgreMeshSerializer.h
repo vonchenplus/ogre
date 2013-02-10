@@ -32,7 +32,7 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreSerializer.h"
 #include "OgreMeshSerializerImpl.h"
-
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
 	
@@ -197,10 +197,13 @@ namespace Ogre {
 		virtual void processMaterialName(Mesh *mesh, String *name) = 0;
 		/// Called to override the reference to a skeleton
 		virtual void processSkeletonName(Mesh *mesh, String *name) = 0;
+		/// Allows to do changes on mesh after it's completely loaded. For example you can generate LOD levels here.
+		virtual void processMeshCompleted(Mesh *mesh) = 0;
 	};
 	/** @} */
 	/** @} */
 }
 
+#include "OgreHeaderSuffix.h"
 
 #endif
