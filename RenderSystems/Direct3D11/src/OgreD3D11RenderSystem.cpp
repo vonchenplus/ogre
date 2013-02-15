@@ -879,7 +879,7 @@ bail:
 				temp = mActiveD3DDriver->getVideoModeList()->item(j)->getDescription();
 
 				// In full screen we only want to allow supported resolutions, so temp and opt->second.currentValue need to 
-				// match exacly, but in windowed mode we can allow for arbitrary window sized, so we only need
+				// match exactly, but in windowed mode we can allow for arbitrary window sized, so we only need
 				// to match the colour values
 				if(fullScreen && (temp == opt->second.currentValue) ||
 				  !fullScreen && (temp.substr(temp.rfind('@')+1) == colourDepth))
@@ -1068,6 +1068,8 @@ bail:
 			// mCurrentCapabilities has already been loaded
 			if(!mUseCustomCapabilities)
 				mCurrentCapabilities = mRealCapabilities;
+
+			fireEvent("RenderSystemCapabilitiesCreated");
 
 			initialiseFromRenderSystemCapabilities(mCurrentCapabilities, mPrimaryWindow);
 
