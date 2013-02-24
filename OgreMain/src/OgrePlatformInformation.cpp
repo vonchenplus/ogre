@@ -557,6 +557,12 @@ namespace Ogre {
             case CPU_SUBTYPE_ARM_V7F:
                 cpuID = "ARM Cortex-A9";
                 break;
+            case CPU_SUBTYPE_ARM_V7S:
+                cpuID = "ARM Swift";
+                break;
+            case CPU_SUBTYPE_ARM_V7K:
+                cpuID = "ARM Kirkwood 40";
+                break;
             default:
                 cpuID = "Unknown ARM";
                 break;

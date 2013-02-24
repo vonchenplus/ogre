@@ -110,7 +110,7 @@ namespace Ogre {
 		// Adjust format if required
         mFormat = TextureManager::getSingleton().getNativeFormat(mTextureType, mFormat, mUsage);
         GLenum texTarget = getGLES2TextureTarget();
-
+        
 		// Check requested number of mipmaps
         size_t maxMips = GLES2PixelUtil::getMaxMipmaps(mWidth, mHeight, mDepth, mFormat);
         
@@ -156,7 +156,7 @@ namespace Ogre {
 			break;
 		}
 #endif
-
+        
 		// Set some misc default parameters, these can of course be changed later
 		mGLSupport.getStateCacheManager()->setTexParameteri(texTarget,
                                                             GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -166,6 +166,7 @@ namespace Ogre {
                                                             GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         mGLSupport.getStateCacheManager()->setTexParameteri(texTarget,
                                                             GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        
 
         // Allocate internal buffer so that glTexSubImageXD can be used
         // Internal format
@@ -314,6 +315,12 @@ namespace Ogre {
 #endif
         }
     }
+    }
+    
+    // Creation / loading methods
+    void GLES2Texture::createInternalResourcesImpl(void)
+    {
+		_createGLTexResource();
     
     // Creation / loading methods
     void GLES2Texture::createInternalResourcesImpl(void)
@@ -440,7 +447,22 @@ namespace Ogre {
         mSurfaceList.clear();
         OGRE_CHECK_GL_ERROR(glDeleteTextures(1, &mTextureID));
         mTextureID = 0;
+        mTextureID = 0;
     }
+    
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+    void GLES2Texture::notifyOnContextLost()
+    {
+        if (!mIsManual) 
+        {
+            freeInternalResources();
+        }
+        else
+        {
+            glDeleteTextures(1, &mTextureID);
+            GL_CHECK_ERROR;
+            mTextureID = 0;
+        }
     
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
     void GLES2Texture::notifyOnContextLost()

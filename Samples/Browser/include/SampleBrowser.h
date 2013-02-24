@@ -98,13 +98,12 @@
 #   include "Smoke.h"
 #   include "SphereMapping.h"
 #	include "Tesselation.h"
+#include "Tesselation.h"
 #   include "TextureFX.h"
 #   include "Transparency.h"
 #   if SAMPLES_INCLUDE_PLAYPEN
 #    include "PlayPen.h"
-#    include "PlayPenTestPlugin.h"
      PlayPenPlugin* playPenPlugin = 0;
-     PlaypenTestPlugin* playPenTestPlugin = 0;
 #   endif
 #   ifdef USE_RTSHADER_SYSTEM
 #       include "OgreRTShaderSystem.h"
@@ -210,7 +209,7 @@ protected:
 	| dynamic configuration, resource reloading, node labeling, and more.
 	=============================================================================*/
 	class SampleBrowser : public SampleContext, public SdkTrayListener
-	{
+	{        
 	public:
 
 		SampleBrowser(bool nograb = false, int startSampleIndex = -1) : SampleContext()
@@ -1087,6 +1086,7 @@ protected:
             mPluginNameMap["Sample_SkyDome"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyDome();
             mPluginNameMap["Sample_SkyPlane"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyPlane();
             mPluginNameMap["Sample_SphereMapping"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_SphereMapping();
+			mPluginNameMap["Sample_Tesselation"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_Tesselation();
             mPluginNameMap["Sample_TextureFX"]          = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureFX();
             mPluginNameMap["Sample_Transparency"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_Transparency();
 
@@ -1106,7 +1106,7 @@ protected:
                 mPluginNameMap["Sample_Ocean"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Ocean();
                 mPluginNameMap["Sample_Water"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Water();
 #       ifdef OGRE_BUILD_COMPONENT_TERRAIN
-                mPluginNameMap["Sample_Terrain"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Terrain();
+                 mPluginNameMap["Sample_Terrain"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Terrain();
                 mPluginNameMap["Sample_EndlessWorld"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_EndlessWorld();
 #       endif
 #   endif

@@ -3,6 +3,7 @@ testTerrain*.dat
 *.dll
 #*.vcxproj
 #*.filters
+#*.vcxproj
 *.vcxproj.user
 *.pdb
 *.ilk

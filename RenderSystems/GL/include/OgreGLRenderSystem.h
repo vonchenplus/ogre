@@ -535,6 +535,9 @@ namespace Ogre {
 
 		/// @copydoc RenderSystem::markProfileEvent
         virtual void markProfileEvent( const String &eventName );
+
+        /// @copydoc RenderSystem::hasAnisotropicMipMapFilter
+        virtual bool hasAnisotropicMipMapFilter() const { return false; }  
     };
 }
 #endif

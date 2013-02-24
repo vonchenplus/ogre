@@ -1483,21 +1483,30 @@ namespace Ogre
 		*/
 		virtual unsigned int getDisplayMonitorCount() const = 0;
 
+		/** Determines if the system has anisotropic mip map filter support
+		*/
+		virtual bool hasAnisotropicMipMapFilter() const = 0;
+
+		/** Gets a custom (maybe platform-specific) attribute.
+        @remarks This is a nasty way of satisfying any API's need to see platform-specific details.
+        @param name The name of the attribute.
+        @param pData Pointer to memory of the right kind of structure to receive the info.
+        */
+		virtual void getCustomAttribute(const String& name, void* pData);
+
         /**
-        * This marks the beginning of an event for GPU profiling.
+        * Begin an active GPU profiling event.
         */
         virtual void beginProfileEvent( const String &eventName ) = 0;
-
         /**
         * Ends the currently active GPU profiling event.
         */
         virtual void endProfileEvent( void ) = 0;
-
         /**
-        * Marks an instantaneous event for graphics profilers.  
-        * This is equivalent to calling @see beginProfileEvent and @see endProfileEvent back to back.
+        * Marks the currently active GPU profiling event.
         */
-        virtual void markProfileEvent( const String &event ) = 0;
+        virtual void markProfileEvent( const String &eventName ) = 0;
+
 
 		/** Determines if the system has anisotropic mip map filter support
 		*/

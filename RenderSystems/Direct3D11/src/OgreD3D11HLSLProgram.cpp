@@ -380,6 +380,8 @@ namespace Ogre {
         {
             pDefines =  mShaderMacros;
             shaderMacroSet = false;
+            pDefines =  mShaderMacros;
+            shaderMacroSet = false;
         }
 
 
@@ -392,6 +394,9 @@ namespace Ogre {
             compileFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
         compileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
+            Root::getSingleton().getRenderSystem()->getCapabilities();
+        if(caps->getVendor() == GPU_INTEL)
+            compileFlags = 0;
 #endif
 
         if (mColumnMajorMatrices)
@@ -1112,7 +1117,6 @@ namespace Ogre {
 
                 // populate type, array size & element size
                 populateDef(varRefTypeDesc, def);
-
                 mD3d11ShaderVariableSubparts.push_back(def);
             }
         }

@@ -94,9 +94,9 @@ namespace Ogre
 			mLights[i] = 0;
 
 		// Create our Direct3D object
-		if( NULL == (mD3D = Direct3DCreate9(D3D_SDK_VERSION)) )
-			OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Failed to create Direct3D9 object", "D3D9RenderSystem::D3D9RenderSystem" );
-
+		if ( NULL == (mD3D = Direct3DCreate9(D3D_SDK_VERSION)) )
+				OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Failed to create Direct3D9 object", "D3D9RenderSystem::D3D9RenderSystem" );
+		
 		// set config options defaults
 		initConfigOptions();
 
@@ -2832,6 +2832,16 @@ namespace Ogre
 			D3D9Mappings::get(ftype, filter, mDeviceManager->getActiveDevice()->getD3D9DeviceCaps(), texType));
 		if (FAILED(hr))
 			OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set texture filter ", "D3D9RenderSystem::_setTextureUnitFiltering");
+	}
+	//---------------------------------------------------------------------
+	void D3D9RenderSystem::_setTextureUnitCompareFunction(size_t unit, CompareFunction function)
+	{
+		//no effect in directX9 rendersystem
+	}
+	//---------------------------------------------------------------------
+	void D3D9RenderSystem::_setTextureUnitCompareEnabled(size_t unit, bool compare)
+	{
+		//no effect in directX9 rendersystem
 	}
 	//---------------------------------------------------------------------
 	void D3D9RenderSystem::_setTextureUnitCompareFunction(size_t unit, CompareFunction function)
