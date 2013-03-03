@@ -33,7 +33,7 @@ THE SOFTWARE.
 
 using namespace Ogre;
 
-// Regsiter the suite
+// Register the suite
 CPPUNIT_TEST_SUITE_REGISTRATION( StreamSerialiserTests );
 
 void StreamSerialiserTests::setUp()
@@ -45,7 +45,7 @@ void StreamSerialiserTests::tearDown()
 
 void StreamSerialiserTests::testWriteBasic()
 {
-	FileSystemArchive arch("./", "FileSystem");
+	FileSystemArchive arch("./", "FileSystem", false);
 	arch.load();
 
 	String fileName = "testSerialiser.dat";
