@@ -28,17 +28,23 @@ THE SOFTWARE.
 #include "ZipArchiveTests.h"
 #include "OgreZip.h"
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+#include "macUtils.h"
+#endif
+
 using namespace Ogre;
 
-// Regsiter the suite
+// Register the suite
 CPPUNIT_TEST_SUITE_REGISTRATION( ZipArchiveTests );
 
 void ZipArchiveTests::setUp()
 {
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
     testPath = "../../../../Tests/OgreMain/misc/ArchiveTest.zip";
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+    testPath = macBundlePath() + "/Contents/Resources/Media/misc/ArchiveTest.zip";
 #else
-    testPath = "../../../Tests/OgreMain/misc/ArchiveTest.zip";
+    testPath = "../Tests/OgreMain/misc/ArchiveTest.zip";
 #endif
 }
 void ZipArchiveTests::tearDown()

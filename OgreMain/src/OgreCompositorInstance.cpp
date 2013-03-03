@@ -56,6 +56,7 @@ CompositorInstance::CompositorInstance(CompositionTechnique *technique,
 		mEnabled(false),
 		mAlive(false)
 {
+	mEnabled = false;
 	const String& logicName = mTechnique->getCompositorLogicName();
 	if (!logicName.empty())
 	{
@@ -161,7 +162,7 @@ public:
 	virtual void execute(SceneManager *sm, RenderSystem *rs)
 	{
 		rs->setStencilCheckEnabled(stencilCheck);
-		rs->setStencilBufferParams(func, refValue, mask, stencilFailOp, depthFailOp, passOp, twoSidedOperation);
+		rs->setStencilBufferParams(func, refValue, mask, 0xFFFFFFFF, stencilFailOp, depthFailOp, passOp, twoSidedOperation);
 	}
 };
 
