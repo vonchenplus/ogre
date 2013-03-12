@@ -411,6 +411,10 @@ namespace Ogre {
             /** See
              RenderSystem
              */
+            virtual bool hasAnisotropicMipMapFilter() const { return false; }
+            /** See
+             RenderSystem
+             */
             void setVertexDeclaration(VertexDeclaration* decl);
             /** See
              RenderSystem
