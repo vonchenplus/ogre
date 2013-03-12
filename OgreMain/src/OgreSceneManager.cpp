@@ -3474,9 +3474,22 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
 
 				// Finalise GPU parameter bindings
 				updateGpuProgramParameters(pass);
+                if (rend->preRender(this, mDestRenderSystem))
+                {
+                    try
+                    {
+                        mDestRenderSystem->_render(ro);
+                    }
+                    catch (RenderingAPIException& e)
+                    {
+                        OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+                            "Exception when rendering material: " + pass->getParent()->getParent()->getName() +
+                            "\nOriginal Exception description: " + e.getFullDescription() + "\n" ,
+                            "SceneManager::renderSingleObject");
 
-				if (rend->preRender(this, mDestRenderSystem))
-					mDestRenderSystem->_render(ro);
+                    }
+
+                }
 				rend->postRender(this, mDestRenderSystem);
 
 				if (scissored == CLIPPED_SOME)
@@ -3542,7 +3555,21 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
 					updateGpuProgramParameters(pass);
 
 					if (rend->preRender(this, mDestRenderSystem))
-						mDestRenderSystem->_render(ro);
+                    {
+                        try
+                        {
+                            mDestRenderSystem->_render(ro);
+                        }
+                        catch (RenderingAPIException& e)
+                        {
+                            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+                                "Exception when rendering material: " + pass->getParent()->getParent()->getName() +
+                                "\nOriginal Exception description: " + e.getFullDescription() + "\n" ,
+                                "SceneManager::renderSingleObject");
+
+                        }
+
+                    }
 					rend->postRender(this, mDestRenderSystem);
 				}
 				if (scissored == CLIPPED_SOME)

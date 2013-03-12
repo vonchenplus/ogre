@@ -331,6 +331,7 @@ cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GLES "Build OpenGL ES 1.x RenderS
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GLES2 "Build OpenGL ES 2.x RenderSystem" FALSE "OPENGLES2_FOUND;NOT OGRE_BUILD_PLATFORM_WINRT" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_STAGE3D "Build Stage3D RenderSystem" FALSE "FLASHCC" FALSE)
 cmake_dependent_option(OGRE_BUILD_PLATFORM_NACL "Build Ogre for Google's Native Client (NaCl)" FALSE "OPENGLES2_FOUND" FALSE)
+cmake_dependent_option(OGRE_BUILD_PLATFORM_WINRT "Build Ogre for Metro style application (WinRT)" FALSE "WIN32;DirectX_D3D11_FOUND" FALSE)
 option(OGRE_BUILD_PLUGIN_BSP "Build BSP SceneManager plugin" TRUE)
 option(OGRE_BUILD_PLUGIN_OCTREE "Build Octree SceneManager plugin" TRUE)
 option(OGRE_BUILD_PLUGIN_PFX "Build ParticleFX plugin" TRUE)
@@ -401,6 +402,15 @@ set(OGRE_LIB_DIRECTORY "lib${LIB_SUFFIX}" CACHE STRING "Install path for librari
 # to potentially speed up the compilation.
 option(OGRE_UNITY_BUILD "Enable unity build for Ogre." FALSE)
 set(OGRE_UNITY_FILES_PER_UNIT "50" CACHE STRING "Number of files per compilation unit in Unity build.")
+
+
+if (ANDROID)
+  SET(TargetPlatform "Android")
+  SET(OGRE_BUILD_RENDERSYSTEM_GLES FALSE)
+  SET(OGRE_PLATFORM OGRE_PLATFORM_ANDROID)
+  SET(OGRE_CONFIG_ENABLE_VIEWPORT_ORIENTATIONMODE FALSE)
+  SET(OGRE_CONFIG_ENABLE_GLES2_VAO_SUPPORT FALSE)
+endif()
 
 # hide advanced options
 mark_as_advanced(

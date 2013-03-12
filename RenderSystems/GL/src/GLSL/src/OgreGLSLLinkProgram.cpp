@@ -116,6 +116,7 @@ namespace Ogre {
 		, mUniformRefsBuilt(false)
         , mLinked(false)
 		, mTriedToLinkAndFailed(false)
+        , mColumnMajorMatrices(true)
 	{
 	}
 
@@ -132,6 +133,25 @@ namespace Ogre {
 		if (!mLinked && !mTriedToLinkAndFailed)
 		{			
 			glGetError(); //Clean up the error. Otherwise will flood log.
+
+            // test if all linked programs use the same matrix ordering
+            bool vertexOrder = true, fragmentOrder = true, geometryOrder = true;
+            if (mVertexProgram)
+                vertexOrder = mVertexProgram->getGLSLProgram()->getColumnMajorMatrices();
+            if (mFragmentProgram)
+                fragmentOrder = mFragmentProgram->getGLSLProgram()->getColumnMajorMatrices();
+            if (mGeometryProgram)
+                geometryOrder = mGeometryProgram->getGLSLProgram()->getColumnMajorMatrices();
+            if ((mVertexProgram && mFragmentProgram && vertexOrder != fragmentOrder) || 
+                (mVertexProgram && mGeometryProgram && vertexOrder != geometryOrder) ||
+                (mFragmentProgram && mGeometryProgram && fragmentOrder != geometryOrder))
+            {
+                mTriedToLinkAndFailed = true;
+                OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
+                    "Trying to link GLSL programs with different matrix ordering.", 
+                    "GLSLLinkProgram::activate");
+            }
+            mColumnMajorMatrices = vertexOrder;
 
 			mGLHandle = glCreateProgramObjectARB();
 
@@ -283,6 +303,7 @@ namespace Ogre {
 				{
 
 					GLsizei glArraySize = (GLsizei)def->arraySize;
+                    int transpose = mColumnMajorMatrices ? GL_TRUE : GL_FALSE;
 
 					// get the index in the parameter real list
 					switch (def->constType)

@@ -982,6 +982,7 @@ namespace Ogre {
         // Generate renderbuffer
         OGRE_CHECK_GL_ERROR(glGenRenderbuffers(1, &mRenderbufferID));
         
+        
         // Bind it to FBO
         OGRE_CHECK_GL_ERROR(glBindRenderbuffer(GL_RENDERBUFFER, mRenderbufferID));
 

@@ -110,7 +110,7 @@ namespace Ogre {
 		// Adjust format if required
         mFormat = TextureManager::getSingleton().getNativeFormat(mTextureType, mFormat, mUsage);
         GLenum texTarget = getGLES2TextureTarget();
-
+        
 		// Check requested number of mipmaps
         size_t maxMips = GLES2PixelUtil::getMaxMipmaps(mWidth, mHeight, mDepth, mFormat);
         
@@ -156,7 +156,7 @@ namespace Ogre {
 			break;
 		}
 #endif
-
+        
 		// Set some misc default parameters, these can of course be changed later
 		mGLSupport.getStateCacheManager()->setTexParameteri(texTarget,
                                                             GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -166,6 +166,7 @@ namespace Ogre {
                                                             GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         mGLSupport.getStateCacheManager()->setTexParameteri(texTarget,
                                                             GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        
 
         // Allocate internal buffer so that glTexSubImageXD can be used
         // Internal format

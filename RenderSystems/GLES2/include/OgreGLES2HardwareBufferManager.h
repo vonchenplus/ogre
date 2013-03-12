@@ -95,6 +95,7 @@ namespace Ogre {
             size_t getGLMapBufferThreshold() const;
             void setGLMapBufferThreshold( const size_t value );
 			GLES2StateCacheManager * getStateCacheManager() { return mStateCacheManager; }
+
     };
 
 	/// GLES2HardwareBufferManagerBase as a Singleton

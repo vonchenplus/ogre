@@ -84,6 +84,18 @@ void GLES2HardwareOcclusionQuery::notifyOnContextReset()
 }
 #endif
 //------------------------------------------------------------------
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+void GLES2HardwareOcclusionQuery::notifyOnContextLost()
+{
+        destroyQuery();
+}
+//------------------------------------------------------------------
+void GLES2HardwareOcclusionQuery::notifyOnContextReset()
+{
+        createQuery();
+}
+#endif
+//------------------------------------------------------------------
 void GLES2HardwareOcclusionQuery::beginOcclusionQuery() 
 { 
 #ifdef GL_EXT_occlusion_query_boolean

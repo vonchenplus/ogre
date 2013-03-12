@@ -115,6 +115,7 @@ namespace Ogre {
         mGLSupport = getGLSupport();
 		mGLSupport->setStateCacheManager(mStateCacheManager);
         
+        
         mWorldMatrix = Matrix4::IDENTITY;
         mViewMatrix = Matrix4::IDENTITY;
 
@@ -385,7 +386,6 @@ namespace Ogre {
 #if OGRE_NO_GLES3_SUPPORT == 0
         rsc->setCapability(RSC_TEXTURE_3D);
 #endif
-
         // Alpha to coverage always 'supported' when MSAA is available
         // although card may ignore it if it doesn't specifically support A2C
         rsc->setCapability(RSC_ALPHA_TO_COVERAGE);
@@ -1438,8 +1438,10 @@ namespace Ogre {
                         // linear min, linear mip
                         return GL_LINEAR_MIPMAP_LINEAR;
                     case FO_POINT:
+#if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
                         // linear min, point mip
                         return GL_LINEAR_MIPMAP_NEAREST;
+#endif
                     case FO_NONE:
                         // linear min, no mip
                         return GL_LINEAR;
