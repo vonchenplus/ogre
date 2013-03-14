@@ -32,7 +32,6 @@ begin                : Fri Sep 27 2002
 copyright            : (C) 2002 by Jon Anderson
 email                : janders@users.sf.net
 
-Enhancements 2003 - 2004 (C) The OGRE Team
 ***************************************************************************/
 
 #ifndef OCTREECAMERA_H
@@ -78,7 +77,7 @@ public:
     /* Standard destructor */
     ~OctreeCamera();
 
-    /** Returns the visiblity of the box
+    /** Returns the visibility of the box
     */
     OctreeCamera::Visibility getVisibility( const AxisAlignedBox &bound );
 

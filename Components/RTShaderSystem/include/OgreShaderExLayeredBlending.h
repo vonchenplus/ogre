@@ -151,46 +151,46 @@ public:
 	*/
 	virtual void copyFrom(const SubRenderState& rhs);
 
-	static String Type;
+    static String Type;
 
 // Protected methods
 protected:
-	
-	/** 
-	@see SubRenderState::resolveParameters.
-	*/
-	virtual bool resolveParameters(ProgramSet* programSet);
+    
+    /** 
+    @see SubRenderState::resolveParameters.
+    */
+    virtual bool resolveParameters(ProgramSet* programSet);
 
-	/** 
-	@see SubRenderState::resolveDependencies.
-	*/
-	virtual bool resolveDependencies(Ogre::RTShader::ProgramSet* programSet);
+    /** 
+    @see SubRenderState::resolveDependencies.
+    */
+    virtual bool resolveDependencies(Ogre::RTShader::ProgramSet* programSet);
 
 
-	virtual void addPSBlendInvocations(Function* psMain, 
-									ParameterPtr arg1,
-									ParameterPtr arg2,
-									ParameterPtr texel,
-									int samplerIndex,
-									const LayerBlendModeEx& blendMode,
-									const int groupOrder, 
-									int& internalCounter,
-									int targetChannels);
-	/** 
-	Adds the function invocation to the pixel shader which will modify
-	the blend sources according to the source modification parameters.
-	*/
-	void addPSModifierInvocation(Function* psMain, 
-								int samplerIndex, 
-								ParameterPtr arg1,
-								ParameterPtr arg2,
-								const int groupOrder, 
-								int& internalCounter,
-								int targetChannels);
+    virtual void addPSBlendInvocations(Function* psMain, 
+                                       ParameterPtr arg1,
+                                       ParameterPtr arg2,
+                                       ParameterPtr texel,
+                                       int samplerIndex,
+                                       const LayerBlendModeEx& blendMode,
+                                       const int groupOrder, 
+                                       int& internalCounter,
+                                       int targetChannels);
+    /** 
+    Adds the function invocation to the pixel shader which will modify
+    the blend sources according to the source modification parameters.
+    */
+    void addPSModifierInvocation(Function* psMain, 
+                                 int samplerIndex, 
+                                 ParameterPtr arg1,
+                                 ParameterPtr arg2,
+                                 const int groupOrder, 
+                                 int& internalCounter,
+                                 int targetChannels);
 
-	// Attributes.
+    // Attributes.
 protected:
-	vector<TextureBlend>::type mTextureBlends;
+    vector<TextureBlend>::type mTextureBlends;
 
 };
 
@@ -219,7 +219,7 @@ public:
 	*/
 	virtual void writeInstance(MaterialSerializer* ser, SubRenderState* subRenderState, const TextureUnitState* srcTextureUnit, const TextureUnitState* dstTextureUnit);
 
-	
+    
 protected:
 
 	/** 
@@ -254,8 +254,8 @@ protected:
 	LayeredBlending* createOrRetrieveSubRenderState(SGScriptTranslator* translator);
 };
 
-}
-}
+} // namespace RTShader
+} // namespace Ogre
 
-#endif
-#endif
+#endif // RTSHADER_SYSTEM_BUILD_EXT_SHADERS
+#endif // _OgreShaderExLayeredBlending_
