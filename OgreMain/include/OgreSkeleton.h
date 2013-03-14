@@ -252,7 +252,6 @@ namespace Ogre {
             animations do not have to sum to 1.0, because some animations may affect only subsets
             of the skeleton. If the weights exceed 1.0 for the same area of the skeleton, the 
             movement will just be exaggerated.
-            @param 
         */
         virtual void setAnimationState(const AnimationStateSet& animSet);
 
@@ -368,7 +367,7 @@ namespace Ogre {
             'compatible' here means identically bones will have same hierarchy,
             but skeletons are not necessary to have same number of bones (if
             number bones of source skeleton's more than this skeleton, they will
-            copied as is, except that duplicate names are unallowed; and in the
+            copied as is, except that duplicate names are disallowed; and in the
             case of bones missing in source skeleton, nothing happen for those
             bones).
         @par
