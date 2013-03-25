@@ -88,7 +88,7 @@ namespace Ogre
 		/** Constructor.
 		@param terrain The ultimate parent terrain
 		@param parent Optional parent node (in which case xoff, yoff are 0 and size must be entire terrain)
-		@param xoff,off Offsets from the start of the terrain data in 2D
+		@param xoff, yoff Offsets from the start of the terrain data in 2D
 		@param size The size of the node in vertices at the highest LOD
 		@param lod The base LOD level
 		@param depth The depth that this node is at in the tree (or convenience)
@@ -121,8 +121,13 @@ namespace Ogre
 		void prepare(StreamSerialiser& stream);
 		/// Load node and children (perform GPU tasks, will be render thread)
 		void load();
+		/// Load node and children in a depth range (perform GPU tasks, will be render thread)
+		void load(uint16 depthStart, uint16 depthEnd);
+		void loadSelf();
 		/// Unload node and children (perform GPU tasks, will be render thread)
 		void unload();
+		/// Unload node and children in a depth range (perform GPU tasks, will be render thread)
+		void unload(uint16 depthStart, uint16 depthEnd);
 		/// Unprepare node and children (perform CPU tasks, may be background thread)
 		void unprepare();
 		/// Save node to a stream
@@ -332,7 +337,7 @@ namespace Ogre
 			TerrainQuadTreeNode* mParent;
 		public:
 			Movable(TerrainQuadTreeNode* parent);
-			~Movable();
+			virtual ~Movable();
 			
 	        // necessary overrides
 			const String& getMovableType(void) const;
@@ -357,7 +362,7 @@ namespace Ogre
 			TerrainQuadTreeNode* mParent;
 		public:
 			Rend(TerrainQuadTreeNode* parent);
-			~Rend();
+			virtual ~Rend();
 
 			const MaterialPtr& getMaterial(void) const;
 			Technique* getTechnique(void) const;

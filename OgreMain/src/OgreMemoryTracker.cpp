@@ -32,7 +32,7 @@ THE SOFTWARE.
 #include "OgreMemoryTracker.h"
 #include "OgreString.h"
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 #   include <windows.h>
 #	define Ogre_OutputCString(str) ::OutputDebugStringA(str)
 #	define Ogre_OutputWString(str) ::OutputDebugStringW(str)
@@ -136,10 +136,9 @@ namespace Ogre
 			}
 
 			if (mDumpToStdOut)		
-				std::cout << os.str();		
+				std::cout << os.str();
 
-			std::cout << os.str();
-			std::ofstream of;
+				std::ofstream of;
 			of.open(mLeakFileName.c_str());
 			of << os.str();
 			of.close();

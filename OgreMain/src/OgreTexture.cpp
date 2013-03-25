@@ -240,7 +240,7 @@ namespace Ogre {
 			multiImage = false;
 		}
 		
-		// Check wether number of faces in images exceeds number of faces
+		// Check whether number of faces in images exceeds number of faces
 		// in this texture. If so, clamp it.
 		if(faces > getNumFaces())
 			faces = getNumFaces();
@@ -285,7 +285,7 @@ namespace Ogre {
 		
 		// Main loading loop
         // imageMips == 0 if the image has no custom mipmaps, otherwise contains the number of custom mips
-        for(size_t mip = 0; mip<=imageMips; ++mip)
+        for(size_t mip = 0; mip <= std::min(mNumMipmaps, imageMips); ++mip)
         {
             for(size_t i = 0; i < faces; ++i)
             {

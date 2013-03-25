@@ -30,6 +30,8 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgrePlatform.h"
+#include "OgreCommon.h"
+#include "OgreHeaderPrefix.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 #  if !defined(WIN32_LEAN_AND_MEAN)
@@ -134,7 +136,7 @@ namespace Ogre
 			any messages.
 		@param window
 			The RenderWindow you are interested in monitoring
-		@param listner
+		@param listener
 			Your callback listener
 		*/
 		static void addWindowEventListener( RenderWindow* window, WindowEventListener* listener );
@@ -144,7 +146,7 @@ namespace Ogre
 			Remove previously added listener
 		@param window
 			The RenderWindow you registered with
-		@param listner
+		@param listener
 			The listener registered
 		*/
 		static void removeWindowEventListener( RenderWindow* window, WindowEventListener* listener );
@@ -178,11 +180,12 @@ namespace Ogre
 		//These are public only so GLXProc can access them without adding Xlib headers header
 		typedef multimap<RenderWindow*, WindowEventListener*>::type WindowEventListeners;
 		static WindowEventListeners _msListeners;
-
-		typedef vector<RenderWindow*>::type Windows;
-		static Windows _msWindows;
+		static RenderWindowList _msWindows;
 	};
 	/** @} */
 	/** @} */
 }
+
+#include "OgreHeaderSuffix.h"
+
 #endif
