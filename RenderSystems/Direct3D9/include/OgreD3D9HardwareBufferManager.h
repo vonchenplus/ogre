@@ -53,6 +53,13 @@ namespace Ogre {
             createIndexBuffer(HardwareIndexBuffer::IndexType itype, size_t numIndexes, HardwareBuffer::Usage usage, bool useShadowBuffer = false);
 		/// Create a render to vertex buffer
 		RenderToVertexBufferSharedPtr createRenderToVertexBuffer();
+		
+		HardwareUniformBufferSharedPtr 
+			createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name = "");
+
+		HardwareCounterBufferSharedPtr createCounterBuffer(size_t sizeBytes,
+                                                           HardwareBuffer::Usage usage = HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE,
+                                                           bool useShadowBuffer = false, const String& name = "");
     };
 
 	/// D3D9HardwareBufferManagerBase as a Singleton

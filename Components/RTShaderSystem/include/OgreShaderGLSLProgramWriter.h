@@ -48,7 +48,6 @@ class _OgreRTSSExport GLSLProgramWriter : public ProgramWriter
 public:
 
 	/** Class constructor. 
-	@param language The target shader language.
 	*/
 	GLSLProgramWriter();
 
@@ -88,10 +87,10 @@ protected:
 	void writeOutParameters(std::ostream& os, Function* function, GpuProgramType gpuType);
 
 protected:
-	typedef	std::map<GpuConstantType, const char*>		GpuConstTypeToStringMap;
-	typedef	std::map<Parameter::Semantic, const char*>	ParamSemanticToStringMap;
-	typedef	std::map<Parameter::Content, const char*>	ParamContentToStringMap;
-	typedef	std::map<String, String>					StringMap;
+	typedef	map<GpuConstantType, const char*>::type		GpuConstTypeToStringMap;
+	typedef	map<Parameter::Semantic, const char*>::type	ParamSemanticToStringMap;
+	typedef	map<Parameter::Content, const char*>::type	ParamContentToStringMap;
+	typedef	map<String, String>::type					StringMap;
 
 	// Attributes.
 protected:
