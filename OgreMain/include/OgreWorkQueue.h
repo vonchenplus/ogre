@@ -477,6 +477,8 @@ namespace Ogre
 				: mQueue(q) {}
 
 			void operator()();
+			
+			void operator()() const;
 
 			void run();
 		};
