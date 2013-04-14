@@ -183,6 +183,28 @@ namespace Ogre {
 				"You cannot call begin() again until after you call end()",
 				"ManualObject::begin");
 		}
+
+        // Check that a valid material was provided
+        MaterialPtr material = MaterialManager::getSingleton().getByName(materialName, groupName);
+
+		if( material.isNull() )
+		{
+			LogManager::getSingleton().logMessage("Can't assign material " + materialName +
+                                                  " to the ManualObject " + mName + " because this "
+                                                  "Material does not exist. Have you forgotten to define it in a "
+                                                  ".material script?");
+
+			material = MaterialManager::getSingleton().getByName("BaseWhite");
+
+			if (material.isNull())
+			{
+				OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
+                            "to the ManualObject " + mName + ". Did "
+                            "you forget to call MaterialManager::initialise()?",
+                            "ManualObject::begin");
+			}
+		}
+
 		mCurrentSection = OGRE_NEW ManualObjectSection(this, materialName, opType, groupName);
 		mCurrentUpdating = false;
 		mCurrentSection->setUseIdentityProjection(mUseIdentityProjection);
@@ -956,7 +978,9 @@ namespace Ogre {
 		Vector4 lightPos = light->getAs4DVector();
 		Matrix4 world2Obj = mParentNode->_getFullTransform().inverseAffine();
 		lightPos = world2Obj.transformAffine(lightPos);
-
+		Matrix3 world2Obj3x3;
+		world2Obj.extract3x3Matrix(world2Obj3x3);
+		extrusionDistance *= Math::Sqrt(std::min(std::min(world2Obj3x3.GetColumn(0).squaredLength(), world2Obj3x3.GetColumn(1).squaredLength()), world2Obj3x3.GetColumn(2).squaredLength()));
 
 		// Init shadow renderable list if required (only allow indexed)
 		bool init = mShadowRenderables.empty() && mAnyIndexed;

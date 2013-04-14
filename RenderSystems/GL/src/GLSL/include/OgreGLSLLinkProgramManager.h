@@ -36,6 +36,7 @@ THE SOFTWARE.
 
 namespace Ogre {
 
+    namespace GLSL {
 
 	/** Ogre assumes that there are separate vertex and fragment programs to deal with but
 		GLSL has one program object that represents the active vertex and fragment shader objects
@@ -127,7 +128,7 @@ namespace Ogre {
 			GLUniformReferenceList& list);
 		/** Populate a list of uniforms based on GLSL source.
 		@param src Reference to the source code
-		@param list The defs to populate (will not be cleared before adding, clear
+		@param constantDefs The defs to populate (will not be cleared before adding, clear
 		it yourself before calling this if that's what you want).
 		@param filename The file name this came from, for logging errors.
 		*/
@@ -139,6 +140,7 @@ namespace Ogre {
 
 	};
 
+    }
 }
 
 #endif // __GLSLLinkProgramManager_H__

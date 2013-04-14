@@ -115,6 +115,12 @@ namespace Ogre {
         FilterOptions mDefaultMagFilter;
         /// Default Texture filtering - mipmapping
         FilterOptions mDefaultMipFilter;
+		/// Default Texture filtering - comparison
+		FilterOptions mDefaultCompare;
+
+		bool			mDefaultCompareEnabled;
+		CompareFunction	mDefaultCompareFunction;
+
         /// Default Texture anisotropy
         unsigned int mDefaultMaxAniso;
         /// Serializer - Hold instance per thread if necessary
@@ -137,7 +143,7 @@ namespace Ogre {
 
 		/// The list of per-scheme (and general) material listeners
 		typedef list<Listener*>::type ListenerList;
-		typedef std::map<String, ListenerList> ListenerMap;
+		typedef map<String, ListenerList>::type ListenerMap;
 		ListenerMap mListenerMap;
 
     public:

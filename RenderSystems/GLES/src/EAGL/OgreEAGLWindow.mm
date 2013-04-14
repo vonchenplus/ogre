@@ -134,9 +134,6 @@ namespace Ogre {
         if(mWidth == w && mHeight == h)
             return;
         
-        // Destroy and recreate the framebuffer with new dimensions 
-        mContext->destroyFramebuffer();
-        
         mWidth = w;
         mHeight = h;
         
@@ -201,11 +198,6 @@ namespace Ogre {
             }
         }
 
-        if ((opt = mGLSupport->getConfigOptions().find("Content Scaling Factor")) != end)
-        {
-            mContentScalingFactor = StringConverter::parseReal(opt->second.currentValue);
-        }
-
         // Set us up with an external window, or create our own.
         if(!mIsExternal)
         {
@@ -228,6 +220,9 @@ namespace Ogre {
         OgreAssert(mView != nil, "EAGLWindow: Failed to create view");
 
         [mView setMWindowName:mName];
+
+        // Set the view to not clip. This helps with smoother transitions when rotating.
+        mView.clipsToBounds = NO;
 
         OgreAssert([mView.layer isKindOfClass:[CAEAGLLayer class]], "EAGLWindow: View's Core Animation layer is not a CAEAGLLayer. This is a requirement for using OpenGL ES for drawing.");
         
@@ -310,6 +305,14 @@ namespace Ogre {
         mName = name;
         mWidth = width;
         mHeight = height;
+
+        // Check the configuration. This may be overridden later by the value sent via miscParams
+        ConfigOptionMap::const_iterator configOpt;
+        ConfigOptionMap::const_iterator configEnd = mGLSupport->getConfigOptions().end();
+        if ((configOpt = mGLSupport->getConfigOptions().find("Content Scaling Factor")) != configEnd)
+        {
+            mContentScalingFactor = StringConverter::parseReal(configOpt->second.currentValue);
+        }
 
         if (miscParams)
         {

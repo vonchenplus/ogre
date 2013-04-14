@@ -158,7 +158,7 @@ namespace Ogre {
 			must not include any elements which do not already exist in the 
 			current declaration; you can drop elements by 
 			excluding them from the declaration if you wish, however.
-		@param bufferUsages Vector of usage flags which indicate the usage options
+		@param bufferUsage Vector of usage flags which indicate the usage options
 			for each new vertex buffer created. The indexes of the entries must correspond
 			to the buffer binding values referenced in the declaration.
 		@param mgr Optional pointer to the manager to use to create new declarations
@@ -249,10 +249,10 @@ namespace Ogre {
     public:
         IndexData();
         ~IndexData();
-		/// pointer to the HardwareIndexBuffer to use, must be specified if useIndexes = true
+		/// Pointer to the HardwareIndexBuffer to use, must be specified if useIndexes = true
 		HardwareIndexBufferSharedPtr indexBuffer;
 
-		/// index in the buffer to start from for this operation
+		/// Index in the buffer to start from for this operation
 		size_t indexStart;
 
 		/// The number of indexes to use from the buffer
@@ -290,7 +290,7 @@ namespace Ogre {
 			};
 
 			VertexCacheProfiler(unsigned int cachesize = 16, CacheType cachetype = FIFO )
-				: size ( cachesize ), type ( cachetype ), tail (0), buffersize (0), hit (0), miss (0)
+				: size ( cachesize ), tail (0), buffersize (0), hit (0), miss (0)
 			{
 				cache = OGRE_ALLOC_T(uint32, size, MEMCATEGORY_GEOMETRY);
 			}
@@ -310,7 +310,6 @@ namespace Ogre {
 		private:
 			unsigned int size;
 			uint32 *cache;
-			CacheType type;
 
 			unsigned int tail, buffersize;
 			unsigned int hit, miss;
