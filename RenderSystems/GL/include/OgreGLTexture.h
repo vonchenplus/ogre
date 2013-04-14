@@ -72,7 +72,7 @@ namespace Ogre {
         void unprepareImpl(void);
         /// @copydoc Resource::loadImpl
         void loadImpl(void);
-        /// @copydoc Resource::freeInternalResourcesImpl
+        /// @copydoc Texture::freeInternalResourcesImpl
         void freeInternalResourcesImpl(void);
 
 		/** internal method, create GLHardwarePixelBuffers for every face and
@@ -94,7 +94,6 @@ namespace Ogre {
 
     private:
         GLuint mTextureID;
-        GLSupport& mGLSupport;
 		
 		/// Vector of pointers to subsurfaces
 		typedef vector<HardwarePixelBufferSharedPtr>::type SurfaceList;

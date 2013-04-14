@@ -114,26 +114,15 @@ if (OGRE_INSTALL_DEPENDENCIES)
 		install(FILES ${OIS_LIBRARY_REL} DESTINATION lib/release CONFIGURATIONS Release)
 		install(FILES ${OIS_LIBRARY_REL} DESTINATION lib/minsizerel CONFIGURATIONS MinSizeRel)		
 	  endif ()
-	elseif(APPLE)
-	  if (EXISTS ${OGRE_DEP_DIR}/lib/debug/libOIS.a)
-	        install(FILES
-	          ${OGRE_DEP_DIR}/lib/debug/libOIS.a
-	          DESTINATION lib/debug CONFIGURATIONS Debug
-	        )
-	  endif ()
-	  if (EXISTS ${OGRE_DEP_DIR}/lib/release/libOIS.a)
-	        install(FILES
-	          ${OGRE_DEP_DIR}/lib/release/libOIS.a
-	          DESTINATION lib/release CONFIGURATIONS Release RelWithDebInfo MinSizeRel None ""
-	        )
-	  endif ()
 	endif ()
 	  endif ()
     
   if(WIN32)
     # copy the dependency DLLs to the right places
-    install_debug(OIS_d.dll)
-    install_release(OIS.dll)
+    if(NOT OGRE_BUILD_PLATFORM_WINRT)
+        install_debug(OIS_d.dll)
+        install_release(OIS.dll)
+    endif ()
 
     if (OGRE_BUILD_PLUGIN_CG)
 	  # if MinGW or NMake, the release/debug cg.dll's would conflict, so just pick one
@@ -159,15 +148,6 @@ if (OGRE_INSTALL_DEPENDENCIES)
     if (OGRE_BUILD_RENDERSYSTEM_GLES2)
       install_debug(libGLESv2.dll)
 	  install_release(libEGL.dll)
-    endif ()
-  elseif(APPLE)
-    # copy the dependency libs to the right places
-    install_debug(libOIS.a)
-    install_release(libOIS.a)
-
-    if (OGRE_BUILD_PLUGIN_CG)
-      install_debug(Cg.framework)
-      install_release(Cg.framework)
     endif ()
   endif ()
   
@@ -258,8 +238,10 @@ if (OGRE_COPY_DEPENDENCIES)
 
   if (WIN32)
     # copy the required DLLs to the build directory (configure_file is the only copy-like op I found in CMake)
-    copy_debug(OIS_d.dll)
-    copy_release(OIS.dll)
+    if(NOT OGRE_BUILD_PLATFORM_WINRT)
+        copy_debug(OIS_d.dll)
+        copy_release(OIS.dll)
+    endif ()
 
     if (OGRE_BUILD_PLUGIN_CG)
 	  # if MinGW or NMake, the release/debug cg.dll's would conflict, so just pick one
@@ -285,16 +267,6 @@ if (OGRE_COPY_DEPENDENCIES)
       copy_debug(libGLESv2.dll)
       copy_release(libEGL.dll)
       copy_release(libGLESv2.dll)
-    endif ()
-
-  elseif(APPLE)
-    # copy the required libs and frameworks to the build directory (configure_file is the only copy-like op I found in CMake)
-    copy_debug(libOIS.a)
-    copy_release(libOIS.a)
-
-    if (OGRE_BUILD_PLUGIN_CG)
-      copy_debug(Cg.framework)
-      copy_release(Cg.framework)
     endif ()
   endif ()
 

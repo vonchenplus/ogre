@@ -34,7 +34,7 @@ THE SOFTWARE.
 #if !defined(NOMINMAX) && defined(_MSC_VER)
 #	define NOMINMAX // required to stop windows.h messing up std::min
 #endif
-#include "windows.h"
+#include <windows.h>
 
 namespace Ogre
 {
@@ -55,7 +55,13 @@ namespace Ogre
         LARGE_INTEGER mStartTime;
         LARGE_INTEGER mFrequency;
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 		DWORD_PTR mTimerMask;
+#endif
+#if OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+		DWORD GetTickCount() { return (DWORD)GetTickCount64(); }
+#endif
+
     public:
 		/** Timer constructor.  MUST be called on same thread that calls getMilliseconds() */
 		Timer();

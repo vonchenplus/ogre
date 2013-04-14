@@ -34,6 +34,10 @@ namespace Ogre {
     void * mac_getBundleSym(CFBundleRef bundle, const char *name);
     bool mac_unloadExeBundle(CFBundleRef bundle);
     void* mac_loadDylib(const char* name);
-    _OgreExport std::string macPluginPath();
-    _OgreExport std::string macBundlePath();
+    void* mac_loadFramework(String name);
+    _OgreExport String macPluginPath();
+    _OgreExport String macBundlePath();
+    _OgreExport String macFrameworksPath();
+    _OgreExport String macCachePath();
+    _OgreExport String macTempFileName(void);
 }

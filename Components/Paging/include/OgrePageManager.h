@@ -165,7 +165,6 @@ namespace Ogre
 		/** Save a PagedWorld instance to a file. 
 		@param world The world to be saved
 		@param filename The filename to save the data to
-		@param arch The Archive that filename is relative to (optional)
 		*/
 		void saveWorld(PagedWorld* world, const String& filename);
 		/** Save a PagedWorld instance to a file. 
@@ -174,7 +173,7 @@ namespace Ogre
 		*/
 		void saveWorld(PagedWorld* world, const DataStreamPtr& stream);
 		/** Get a named world.
-		@params name The name of the world (not a filename, the identifying name)
+		@param name The name of the world (not a filename, the identifying name)
 		@return The world, or null if the world doesn't exist.
 		*/
 		PagedWorld* getWorld(const String& name);
@@ -391,7 +390,7 @@ namespace Ogre
 
 		/** Tells the paging system to start tracking a given camera. 
 		@remarks
-			In order for the paging system to funciton it needs to know which
+			In order for the paging system to function it needs to know which
 			Cameras to track. You may not want to have all your cameras affect
 			the paging system, so just add the cameras you want it to keep track of
 			here. 
