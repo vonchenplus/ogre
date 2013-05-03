@@ -1914,6 +1914,11 @@ namespace Ogre
 			
 			mMapDeviceToTextureResources.erase(it);
 
+			// Update size (the final size, including temp space because in consumed memory)
+			// this is needed in Resource class.  Size depends on number of devices so it must
+			// be recomputed after a device is destroyed.
+			mSize = calculateSize();
+
 			LogManager::getSingleton().logMessage("Released D3D9 texture: " + mName);	
 		}	
 	}
