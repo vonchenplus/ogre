@@ -1,0 +1,20 @@
+#version 100
+
+precision mediump int;
+precision mediump float;
+
+uniform sampler2D Image;
+uniform sampler2D Thaw;
+varying vec4 oUv;
+
+void main(void)
+{
+	vec4 texcoord;
+	texcoord = oUv;
+	texcoord.z = floor(texcoord.z);
+	
+    vec4 c0 = texture2D(Image, texcoord.xyz);
+    vec4 c1 = texture2D(Thaw, texcoord.xyz);
+
+	gl_FragColor = c1;//mix(c0, c1, fract(oUv.z));
+}
