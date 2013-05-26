@@ -294,7 +294,7 @@ namespace Ogre {
 		READ_BYTE(Mask)
 		READ_BYTE(ReadWriteMask)
 		READ_UINT(Stream)
-		READ_ENUM(MinPrecision, D3D_MIN_PRECISION)
+//		READ_ENUM(MinPrecision, D3D_MIN_PRECISION) // not needed and doesn't exist in June 2010 SDK
 		READ_END
 
 		READ_START(mD3d11ShaderOutputParameters, D3D11_SIGNATURE_PARAMETER_DESC)
@@ -306,7 +306,7 @@ namespace Ogre {
 		READ_BYTE(Mask)
 		READ_BYTE(ReadWriteMask)
 		READ_UINT(Stream)
-		READ_ENUM(MinPrecision, D3D_MIN_PRECISION)
+//		READ_ENUM(MinPrecision, D3D_MIN_PRECISION) // not needed and doesn't exist in June 2010 SDK
 		READ_END
 
 		READ_START(mD3d11ShaderVariables, D3D11_SHADER_VARIABLE_DESC)
@@ -704,7 +704,7 @@ namespace Ogre {
 #define SIZE_OF_DATA_END )
 
 #define SIZE_OF_DATA_UINT(member) + sizeof(uint32)
-#define	SIZE_OF_DATA_ENUM SIZE_OF_DATA_UINT
+#define	SIZE_OF_DATA_ENUM(member, memberType) SIZE_OF_DATA_UINT(member)
 
 #define SIZE_OF_DATA_BYTE(member) +  sizeof(BYTE)
 
@@ -745,7 +745,7 @@ namespace Ogre {
 								SIZE_OF_DATA_BYTE(Mask)
 								SIZE_OF_DATA_BYTE(ReadWriteMask)
 								SIZE_OF_DATA_UINT(Stream)
-								SIZE_OF_DATA_ENUM(MinPrecision, D3D_MIN_PRECISION)
+//								SIZE_OF_DATA_ENUM(MinPrecision, D3D_MIN_PRECISION)  // not needed and doesn't exist in June 2010 SDK
 								SIZE_OF_DATA_END
 
 								SIZE_OF_DATA_START(mD3d11ShaderOutputParameters, D3D11_SIGNATURE_PARAMETER_DESC)
@@ -757,7 +757,7 @@ namespace Ogre {
 								SIZE_OF_DATA_BYTE(Mask)
 								SIZE_OF_DATA_BYTE(ReadWriteMask)
 								SIZE_OF_DATA_UINT(Stream)
-								SIZE_OF_DATA_ENUM(MinPrecision, D3D_MIN_PRECISION)
+//								SIZE_OF_DATA_ENUM(MinPrecision, D3D_MIN_PRECISION)  // not needed and doesn't exist in June 2010 SDK
 								SIZE_OF_DATA_END
 
 								SIZE_OF_DATA_START(mD3d11ShaderVariables, D3D11_SHADER_VARIABLE_DESC)
@@ -874,7 +874,7 @@ namespace Ogre {
 	newMicrocode->write(&tmpVal, sizeof(uint32));					\
 	}
 
-#define	WRITE_ENUM WRITE_UINT
+#define	WRITE_ENUM(member, memberType) WRITE_UINT(member)
 
 #define WRITE_BYTE(member) {										\
 	newMicrocode->write(&curItem.member, sizeof(BYTE));	\
@@ -906,7 +906,7 @@ namespace Ogre {
 				WRITE_BYTE(Mask)
 				WRITE_BYTE(ReadWriteMask)
 				WRITE_UINT(Stream)
-				WRITE_ENUM(MinPrecision, D3D_MIN_PRECISION)
+//				WRITE_ENUM(MinPrecision, D3D_MIN_PRECISION)  // not needed and doesn't exist in June 2010 SDK
 				WRITE_END
 
 				WRITE_START(mD3d11ShaderOutputParameters, D3D11_SIGNATURE_PARAMETER_DESC)
@@ -918,7 +918,7 @@ namespace Ogre {
 				WRITE_BYTE(Mask)
 				WRITE_BYTE(ReadWriteMask)
 				WRITE_UINT(Stream)
-				WRITE_ENUM(MinPrecision, D3D_MIN_PRECISION)
+//				WRITE_ENUM(MinPrecision, D3D_MIN_PRECISION)  // not needed and doesn't exist in June 2010 SDK
 				WRITE_END
 
 				WRITE_START(mD3d11ShaderVariables, D3D11_SHADER_VARIABLE_DESC)
