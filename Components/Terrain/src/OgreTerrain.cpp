@@ -594,9 +594,6 @@ namespace Ogre
 	//---------------------------------------------------------------------
 	bool Terrain::prepare(const String& filename)
 	{
-		freeLodData();
-		mLodManager = OGRE_NEW TerrainLodManager( this, filename );
-
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 		DataStreamPtr stream = Root::getSingleton().openFileStream(macBundlePath() + "/../Documents/" + filename,
                                                                    _getDerivedResourceGroup());
@@ -604,10 +601,15 @@ namespace Ogre
 		DataStreamPtr stream = Root::getSingleton().openFileStream(filename,
                                                                    _getDerivedResourceGroup());
 #endif
-		
+		return prepare(stream);
+	}
+	//---------------------------------------------------------------------
+	bool Terrain::prepare(DataStreamPtr& stream)
+	{
+		freeLodData();
+		mLodManager = OGRE_NEW TerrainLodManager( this, stream );
 		StreamSerialiser ser(stream);
 		return prepare(ser);
-
 	}
 	//---------------------------------------------------------------------
 	bool Terrain::prepare(StreamSerialiser& stream)
@@ -617,13 +619,19 @@ namespace Ogre
 		freeTemporaryResources();
 		freeCPUResources();
 
+		if(mLodManager == NULL)
+		{
+			mLodManager = OGRE_NEW TerrainLodManager( this );
+		}
+
 		copyGlobalOptions();
 
 		const StreamSerialiser::Chunk *mainChunk = stream.readChunkBegin(TERRAIN_CHUNK_ID, TERRAIN_CHUNK_VERSION);
 		if (!mainChunk)
 			return false;
 
-		stream.readChunkBegin(Terrain::TERRAINGENERALINFO_CHUNK_ID, Terrain::TERRAINGENERALINFO_CHUNK_VERSION);
+        if(mainChunk->version > 1)
+            stream.readChunkBegin(Terrain::TERRAINGENERALINFO_CHUNK_ID, Terrain::TERRAINGENERALINFO_CHUNK_VERSION);
 		uint8 align;
 		stream.read(&align);
 		mAlign = (Alignment)align;
@@ -636,7 +644,9 @@ namespace Ogre
 		mRootNode->setPosition(mPos);
 		updateBaseScale();
 		determineLodLevels();
-		stream.readChunkEnd(Terrain::TERRAINGENERALINFO_CHUNK_ID);
+
+        if(mainChunk->version > 1)
+            stream.readChunkEnd(Terrain::TERRAINGENERALINFO_CHUNK_ID);
 
 		size_t numVertices = mSize * mSize;
 		mHeightData = OGRE_ALLOC_T(float, numVertices, MEMCATEGORY_GEOMETRY);
@@ -645,15 +655,22 @@ namespace Ogre
 		memset(mHeightData, 0.0f, sizeof(float)*numVertices);
 		memset(mDeltaData, 0.0f, sizeof(float)*numVertices);
 
-		// skip height/delta data
-		for (int i = 0; i < mNumLodLevels; i++)
-		{
-			stream.readChunkBegin(TerrainLodManager::TERRAINLODDATA_CHUNK_ID, TerrainLodManager::TERRAINLODDATA_CHUNK_VERSION);
-			stream.readChunkEnd(TerrainLodManager::TERRAINLODDATA_CHUNK_ID);
-		}
+        if(mainChunk->version > 1)
+        {
+            // skip height/delta data
+            for (int i = 0; i < mNumLodLevels; i++)
+            {
+                stream.readChunkBegin(TerrainLodManager::TERRAINLODDATA_CHUNK_ID, TerrainLodManager::TERRAINLODDATA_CHUNK_VERSION);
+                stream.readChunkEnd(TerrainLodManager::TERRAINLODDATA_CHUNK_ID);
+            }
 
-		// start uncompressing
-		stream.startDeflate( mainChunk->length - stream.getOffsetFromChunkStart() );
+            // start uncompressing
+            stream.startDeflate( mainChunk->length - stream.getOffsetFromChunkStart() );
+        }
+        else
+        {
+            stream.read(mHeightData, numVertices);
+        }
 
 		// Layer declaration
 		if (!readLayerDeclaration(stream, mLayerDecl))
@@ -728,12 +745,20 @@ namespace Ogre
 
 		}
 
+        if(mainChunk->version == 1)
+        {
+            // Load delta data
+            mDeltaData = OGRE_ALLOC_T(float, numVertices, MEMCATEGORY_GEOMETRY);
+            stream.read(mDeltaData, numVertices);
+        }
+
 		// Create & load quadtree
 		mQuadTree = OGRE_NEW TerrainQuadTreeNode(this, 0, 0, 0, mSize, mNumLodLevels - 1, 0, 0);
 		mQuadTree->prepare(stream);
 
 		// stop uncompressing
-		stream.stopDeflate();
+        if(mainChunk->version > 1)
+            stream.stopDeflate();
 
 		stream.readChunkEnd(TERRAIN_CHUNK_ID);
 
@@ -1151,7 +1176,8 @@ namespace Ogre
 		y = std::min(y, (long)mSize - 1L);
 		y = std::max(y, 0L);
 
-		long skip = 1 << mLodManager->getHighestLodPrepared();
+		int highestLod = mLodManager->getHighestLodPrepared();
+		long skip = 1 << (highestLod != -1 ? highestLod : 0);
 		if (x % skip == 0 && y % skip == 0)
 		return *getHeightData(x, y);
 
@@ -2711,7 +2737,7 @@ namespace Ogre
 	//---------------------------------------------------------------------
 	uint8 Terrain::getBlendTextureCount(uint8 numLayers) const
 	{
-		return ((numLayers - 1) / 4) + 1;
+		return ((numLayers - 2) / 4) + 1;
 	}
 	//---------------------------------------------------------------------
 	uint8 Terrain::getBlendTextureCount() const
