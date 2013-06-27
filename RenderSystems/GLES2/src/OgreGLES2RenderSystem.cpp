@@ -247,16 +247,28 @@ namespace Ogre {
 
         if (mGLSupport->checkExtension("GL_IMG_texture_compression_pvrtc") ||
             mGLSupport->checkExtension("GL_EXT_texture_compression_dxt1") ||
-            mGLSupport->checkExtension("GL_EXT_texture_compression_s3tc"))
+            mGLSupport->checkExtension("GL_EXT_texture_compression_s3tc") ||
+            mGLSupport->checkExtension("GL_OES_compressed_ETC1_RGB8_texture") ||
+            mGLSupport->checkExtension("GL_AMD_compressed_ATC_texture"))
         {
             rsc->setCapability(RSC_TEXTURE_COMPRESSION);
 
             if(mGLSupport->checkExtension("GL_IMG_texture_compression_pvrtc") ||
                mGLSupport->checkExtension("GL_IMG_texture_compression_pvrtc2"))
                 rsc->setCapability(RSC_TEXTURE_COMPRESSION_PVRTC);
+				
             if(mGLSupport->checkExtension("GL_EXT_texture_compression_dxt1") && 
                mGLSupport->checkExtension("GL_EXT_texture_compression_s3tc"))
                 rsc->setCapability(RSC_TEXTURE_COMPRESSION_DXT);
+
+            if(mGLSupport->checkExtension("GL_OES_compressed_ETC1_RGB8_texture"))
+                rsc->setCapability(RSC_TEXTURE_COMPRESSION_ETC1);
+
+            if(gleswIsSupported(3, 0))
+                rsc->setCapability(RSC_TEXTURE_COMPRESSION_ETC2);
+
+			if(mGLSupport->checkExtension("GL_AMD_compressed_ATC_texture"))
+                rsc->setCapability(RSC_TEXTURE_COMPRESSION_ATC);
         }
 
         if (mGLSupport->checkExtension("GL_EXT_texture_filter_anisotropic"))
@@ -336,6 +348,10 @@ namespace Ogre {
         if(mGLSupport->checkExtension("GL_EXT_separate_shader_objects"))
             rsc->setCapability(RSC_SEPARATE_SHADER_OBJECTS);
 #endif
+
+        // Separate shader objects don't work properly on Tegra
+        if (rsc->getVendor() == GPU_NVIDIA)
+            rsc->unsetCapability(RSC_SEPARATE_SHADER_OBJECTS);
 
         GLfloat floatConstantCount = 0;
 #if OGRE_NO_GLES3_SUPPORT == 0
@@ -613,7 +629,7 @@ namespace Ogre {
 			GLES2RenderBuffer *stencilBuffer = depthBuffer;
 			if( 
                depthFormat != GL_DEPTH24_STENCIL8_OES &&
-               stencilBuffer )
+               stencilFormat )
 			{
                 stencilBuffer = OGRE_NEW GLES2RenderBuffer( stencilFormat, fbo->getWidth(),
                                                            fbo->getHeight(), fbo->getFSAA() );
@@ -737,7 +753,7 @@ namespace Ogre {
 
     void GLES2RenderSystem::_setTexture(size_t stage, bool enabled, const TexturePtr &texPtr)
     {
-		GLES2TexturePtr tex = texPtr;
+		GLES2TexturePtr tex = texPtr.staticCast<GLES2Texture>();
 
 		if (!mStateCacheManager->activateGLTextureUnit(stage))
 			return;
@@ -1547,7 +1563,7 @@ namespace Ogre {
             globalVertexDeclaration = getGlobalInstanceVertexBufferVertexDeclaration();
             hasInstanceData = (op.useGlobalInstancingVertexBufferIsAvailable &&
                                     !globalInstanceVertexBuffer.isNull() && (globalVertexDeclaration != NULL))
-                                || op.vertexData->vertexBufferBinding->getHasInstanceData();
+                                || op.vertexData->vertexBufferBinding->hasInstanceData();
 
             numberOfInstances = op.numberOfInstances;
 
@@ -2290,7 +2306,7 @@ namespace Ogre {
             {
                 if (mCurrentVertexProgram)
                 {
-                    if (hwGlBuffer->getIsInstanceData())
+                    if (hwGlBuffer->isInstanceData())
                     {
                         OGRE_CHECK_GL_ERROR(glVertexAttribDivisorAPPLE(attrib, hwGlBuffer->getInstanceDataStepRate()));
                         instanceAttribsBound.push_back(attrib);
