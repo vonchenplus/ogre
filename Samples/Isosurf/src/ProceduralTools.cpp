@@ -7,15 +7,51 @@ using namespace Ogre;
 //Constants (copied as is from sample)
 
 // Grid sizes (in vertices)
-#define X_SIZE_LOG2		6
-#define Y_SIZE_LOG2		6
-#define Z_SIZE_LOG2		6
-#define TOTAL_POINTS	(1<<(X_SIZE_LOG2 + Y_SIZE_LOG2 + Z_SIZE_LOG2))
-#define CELLS_COUNT		(((1<<X_SIZE_LOG2) - 1) * ((1<<Y_SIZE_LOG2) - 1) * ((1<<Z_SIZE_LOG2) - 1))
+#define X_SIZE_LOG2             6
+#define Y_SIZE_LOG2             6
+#define Z_SIZE_LOG2             6
+#define TOTAL_POINTS    (1<<(X_SIZE_LOG2 + Y_SIZE_LOG2 + Z_SIZE_LOG2))
+#define CELLS_COUNT     (((1<<X_SIZE_LOG2) - 1) * ((1<<Y_SIZE_LOG2) - 1) * ((1<<Z_SIZE_LOG2) - 1))
 
-#define SWIZZLE	1
+#define SWIZZLE 1
 
-#define MAKE_INDEX(x, y, z, sizeLog2)	(int)((x) | ((y) << sizeLog2[0]) | ((z) << (sizeLog2[0] + sizeLog2[1])))
+#define MAKE_INDEX(x, y, z, sizeLog2)   (int)((x) | ((y) << sizeLog2[0]) | ((z) << (sizeLog2[0] + sizeLog2[1])))
+
+//JAJ
+//FIXME
+unsigned char edge_table[] = {
+    0, 0, 0, 0,
+    3, 0, 3, 1,
+    2, 1, 2, 0,
+    2, 0, 3, 0,
+    1, 2, 1, 3,
+    1, 0, 1, 2,
+    1, 0, 2, 0,
+    3, 0, 1, 0,
+    0, 2, 0, 1,
+    0, 1, 3, 1,
+    0, 1, 0, 3,
+    3, 1, 2, 1,
+    0, 2, 1, 2,
+    1, 2, 3, 2,
+    0, 3, 2, 3,
+
+    0, 0, 0, 1,
+    3, 2, 0, 0,
+    2, 3, 0, 0,
+    2, 1, 3, 1,
+    1, 0, 0, 0,
+    3, 0, 3, 2,
+    1, 3, 2, 3,
+    2, 0, 0, 0,
+    0, 3, 0, 0,
+    0, 2, 3, 2,
+    2, 1, 2, 3,
+    0, 1, 0, 0,
+    0, 3, 1, 3,
+    0, 2, 0, 0,
+    1, 3, 0, 0,
+};
 
 //--------------------------------------------------------------------------------------
 // Fills pPos with x, y, z de-swizzled from index with bitsizes in sizeLog2
@@ -28,7 +64,7 @@ void UnSwizzle(Ogre::uint index, Ogre::uint sizeLog2[3], Ogre::uint * pPos)
 
     // force index traversal to occur in 2x2x2 blocks by giving each of x, y, and z one
     // of the bottom 3 bits
-	pPos[0] = index & 1;
+    pPos[0] = index & 1;
     index >>= 1;
     pPos[1] = index & 1;
     index >>= 1;
@@ -49,125 +85,154 @@ void UnSwizzle(Ogre::uint index, Ogre::uint sizeLog2[3], Ogre::uint * pPos)
 
 MeshPtr ProceduralTools::generateTetrahedra()
 {
-	MeshPtr tetrahedraMesh = Ogre::MeshManager::getSingleton().createManual
-		("TetrahedraMesh", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+    //JAJ
+    //FIXME
+    DataStreamPtr imgstream(new MemoryDataStream(&edge_table, 120));
+    // TexturePtr ptex = TextureManager::getSingleton().createManual(
+    //     "lookup_table", // Name of texture
+    //     // "General", // Name of resource group in which the texture should be created
+    //     ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+    //     // TEX_TYPE_2D_ARRAY, // Texture type
+    //     TEX_TYPE_2D, // Texture type
+    //     15, // Width
+    //     2, // Height
+    //     1, // Depth (Must be 1 for two dimensional textures)
+    //     0, // Number of mipmaps
+    //     PF_BYTE_A8R8G8B8, // Pixel format
+    //     TU_STATIC // usage
+    // );
+    TexturePtr ptex = TextureManager::getSingleton().loadRawData(
+        "edge_table", // Name of texture
+        ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+        imgstream,
+        15, // Width
+        2, // Height
+        PF_A8R8G8B8, // Pixel format
+        TEX_TYPE_2D // Texture type
+    );
 
-	SubMesh* tetrahedraSubMesh = tetrahedraMesh->createSubMesh();
-	tetrahedraSubMesh->operationType = RenderOperation::OT_LINE_LIST;
-	tetrahedraSubMesh->setMaterialName("Ogre/IsoSurf/TessellateTetrahedra");
-	
-	Ogre::uint sizeLog2[3] = { X_SIZE_LOG2, Y_SIZE_LOG2, Z_SIZE_LOG2 };
-	Ogre::uint nTotalBits = sizeLog2[0] + sizeLog2[1] + sizeLog2[2];
-	Ogre::uint nPointsTotal = 1 << nTotalBits;
+    MeshPtr tetrahedraMesh = Ogre::MeshManager::getSingleton().createManual
+        ("TetrahedraMesh", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
-	tetrahedraSubMesh->useSharedVertices = false;
-	tetrahedraSubMesh->vertexData = new VertexData;
-	tetrahedraSubMesh->indexData = new IndexData;
+    SubMesh* tetrahedraSubMesh = tetrahedraMesh->createSubMesh();
+    tetrahedraSubMesh->operationType = RenderOperation::OT_LINE_LIST;
+    //tetrahedraSubMesh->operationType = RenderOperation::OT_TRIANGLE_STRIP;
+    //tetrahedraSubMesh->setMaterialName("Ogre/Isosurf/TessellateTetrahedra");
+    tetrahedraSubMesh->setMaterialName("BaseWhiteNoLighting");
+    
+    Ogre::uint sizeLog2[3] = { X_SIZE_LOG2, Y_SIZE_LOG2, Z_SIZE_LOG2 };
+    Ogre::uint nTotalBits = sizeLog2[0] + sizeLog2[1] + sizeLog2[2];
+    Ogre::uint nPointsTotal = 1 << nTotalBits;
 
-	tetrahedraSubMesh->vertexData->vertexDeclaration->addElement(0, 0, 
-		VET_FLOAT4, VES_POSITION);
+    tetrahedraSubMesh->useSharedVertices = false;
+    tetrahedraSubMesh->vertexData = new VertexData;
+    tetrahedraSubMesh->indexData = new IndexData;
 
-	HardwareVertexBufferSharedPtr vertexBuffer = HardwareBufferManager::getSingleton().createVertexBuffer(
-		tetrahedraSubMesh->vertexData->vertexDeclaration->getVertexSize(0), 
-		nPointsTotal, 
-		HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+    tetrahedraSubMesh->vertexData->vertexDeclaration->addElement(0, 0, 
+                                                                 VET_FLOAT4, VES_POSITION);
 
-	HardwareIndexBufferSharedPtr indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(
-		HardwareIndexBuffer::IT_32BIT, 
-		CELLS_COUNT * sizeof(Ogre::uint) * 24, 
-		HardwareBuffer::HBU_STATIC_WRITE_ONLY);
-	
-	tetrahedraSubMesh->vertexData->vertexBufferBinding->setBinding(0, vertexBuffer);
-	tetrahedraSubMesh->vertexData->vertexCount = nPointsTotal;
-	tetrahedraSubMesh->vertexData->vertexStart = 0;
-	
-	tetrahedraSubMesh->indexData->indexBuffer = indexBuffer;
-	
-	float* positions = static_cast<float*>(vertexBuffer->lock(HardwareBuffer::HBL_DISCARD));
-	
-	//Generate positions
-	for(Ogre::uint i=0; i<nPointsTotal; i++) {
-		Ogre::uint pos[3];
-		pos[0] = i & ((1<<X_SIZE_LOG2)-1);
-		pos[1] = (i >> X_SIZE_LOG2) & ((1<<Y_SIZE_LOG2)-1);
-		pos[2] = (i >> (X_SIZE_LOG2+Y_SIZE_LOG2)) & ((1<<Z_SIZE_LOG2)-1);
+    HardwareVertexBufferSharedPtr vertexBuffer = HardwareBufferManager::getSingleton().createVertexBuffer(
+        tetrahedraSubMesh->vertexData->vertexDeclaration->getVertexSize(0), 
+        nPointsTotal, 
+        HardwareBuffer::HBU_STATIC_WRITE_ONLY);
 
-		*positions++ = (float(pos[0]) / float(1<<X_SIZE_LOG2))*2.0f-1.0f;
-		*positions++ = (float(pos[1]) / float(1<<Y_SIZE_LOG2))*2.0f-1.0f;
-		*positions++ = (float(pos[2]) / float(1<<Z_SIZE_LOG2))*2.0f-1.0f;
-		*positions++ = 1.0f;
-	}
-	vertexBuffer->unlock();
-	
-	Ogre::uint numIndices = 0;
+    HardwareIndexBufferSharedPtr indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(
+        HardwareIndexBuffer::IT_32BIT, 
+        CELLS_COUNT * sizeof(Ogre::uint) * 24, 
+        HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+        
+    tetrahedraSubMesh->vertexData->vertexBufferBinding->setBinding(0, vertexBuffer);
+    tetrahedraSubMesh->vertexData->vertexCount = nPointsTotal;
+    tetrahedraSubMesh->vertexData->vertexStart = 0;
+        
+    tetrahedraSubMesh->indexData->indexBuffer = indexBuffer;
+        
+    float* positions = static_cast<float*>(vertexBuffer->lock(HardwareBuffer::HBL_DISCARD));
+        
+    //Generate positions
+    for (Ogre::uint i = 0; i < nPointsTotal; i++) 
+    {
+        Ogre::uint pos[3];
+        pos[0] = i & ((1<<X_SIZE_LOG2)-1);
+        pos[1] = (i >> X_SIZE_LOG2) & ((1<<Y_SIZE_LOG2)-1);
+        pos[2] = (i >> (X_SIZE_LOG2+Y_SIZE_LOG2)) & ((1<<Z_SIZE_LOG2)-1);
 
-	//Generate indices
-	Ogre::uint32* indices = static_cast<Ogre::uint32*>(indexBuffer->lock(HardwareBuffer::HBL_DISCARD));
+        *positions++ = (float(pos[0]) / float(1<<X_SIZE_LOG2))*2.0f-1.0f;
+        *positions++ = (float(pos[1]) / float(1<<Y_SIZE_LOG2))*2.0f-1.0f;
+        *positions++ = (float(pos[2]) / float(1<<Z_SIZE_LOG2))*2.0f-1.0f;
+        *positions++ = 1.0f;
+    }
+    vertexBuffer->unlock();
+        
+    Ogre::uint numIndices = 0;
 
-	for (Ogre::uint i = 0; i<nPointsTotal; i++) {
+    // Generate indices
+    Ogre::uint32* indices = static_cast<Ogre::uint32*>(indexBuffer->lock(HardwareBuffer::HBL_DISCARD));
 
-		Ogre::uint pos[3];
+    for (Ogre::uint i = 0; i < nPointsTotal; i++) 
+    {
+        Ogre::uint pos[3];
 #if SWIZZLE
-		UnSwizzle(i, sizeLog2, pos);	// un-swizzle current index to get x, y, z for the current sampling point
+        UnSwizzle(i, sizeLog2, pos);    // un-swizzle current index to get x, y, z for the current sampling point
 #else
-		pos[0] = i & ((1<<X_SIZE_LOG2)-1);
-		pos[1] = (i >> X_SIZE_LOG2) & ((1<<Y_SIZE_LOG2)-1);
-		pos[2] = (i >> (X_SIZE_LOG2+Y_SIZE_LOG2)) & ((1<<Z_SIZE_LOG2)-1);
+        pos[0] = i & ((1<<X_SIZE_LOG2)-1);
+        pos[1] = (i >> X_SIZE_LOG2) & ((1<<Y_SIZE_LOG2)-1);
+        pos[2] = (i >> (X_SIZE_LOG2+Y_SIZE_LOG2)) & ((1<<Z_SIZE_LOG2)-1);
 #endif
-		if ((int)pos[0] == (1 << sizeLog2[0]) - 1 || (int)pos[1] == (1 << sizeLog2[1]) - 1 || (int)pos[2] == (1 << sizeLog2[2]) - 1)
-			continue;	// skip extra cells
+        if ((int)pos[0] == (1 << sizeLog2[0]) - 1 || (int)pos[1] == (1 << sizeLog2[1]) - 1 || (int)pos[2] == (1 << sizeLog2[2]) - 1)
+            continue;       // skip extra cells
 
-		numIndices += 24; //Got to this point, adding 24 indices
+        numIndices += 24; // Got to this point, adding 24 indices
 
-		// NOTE: order of vertices matters! important for backface culling
+        // NOTE: order of vertices matters! important for backface culling
 
-		// T0
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
+        // T0
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
 
-		// T1
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0], pos[1] + 1, pos[2], sizeLog2);
+        // T1
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0], pos[1] + 1, pos[2], sizeLog2);
 
-		// T2
-		*indices++ = MAKE_INDEX(pos[0], pos[1] + 1, pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0], pos[1] + 1, pos[2] + 1, sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
+        // T2
+        *indices++ = MAKE_INDEX(pos[0], pos[1] + 1, pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0], pos[1] + 1, pos[2] + 1, sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
 
-		// T3
-		*indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0], pos[1], pos[2] + 1, sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0], pos[1] + 1, pos[2] + 1, sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
+        // T3
+        *indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0], pos[1], pos[2] + 1, sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0], pos[1] + 1, pos[2] + 1, sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
 
-		// T4
-		*indices++ = MAKE_INDEX(pos[0], pos[1], pos[2] + 1, sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2] + 1, sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
+        // T4
+        *indices++ = MAKE_INDEX(pos[0], pos[1], pos[2] + 1, sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2] + 1, sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
 
-		// T5
-		*indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2], sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2] + 1, sizeLog2);
-		*indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
-	}
-	
-	indexBuffer->unlock();
+        // T5
+        *indices++ = MAKE_INDEX(pos[0], pos[1], pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2], sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2] + 1, sizeLog2);
+        *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
+    }
+        
+    indexBuffer->unlock();
 
-	tetrahedraSubMesh->indexData->indexCount = numIndices;
-	tetrahedraSubMesh->indexData->indexStart = 0;
+    tetrahedraSubMesh->indexData->indexCount = numIndices;
+    tetrahedraSubMesh->indexData->indexStart = 0;
 
-	AxisAlignedBox meshBounds;
-	meshBounds.setMinimum(-1,-1,-1);
-	meshBounds.setMaximum(1,1,1);
-	tetrahedraMesh->_setBounds(meshBounds);
-	tetrahedraMesh->_setBoundingSphereRadius(2);
+    AxisAlignedBox meshBounds;
+    meshBounds.setMinimum(-1,-1,-1);
+    meshBounds.setMaximum(1,1,1);
+    tetrahedraMesh->_setBounds(meshBounds);
+    tetrahedraMesh->_setBoundingSphereRadius(2);
 
-	return tetrahedraMesh;
+    return tetrahedraMesh;
 }
