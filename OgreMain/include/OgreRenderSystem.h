@@ -653,6 +653,8 @@ namespace Ogre
 		unit, thus minimising render state changes.
 		*/
 		virtual void _setTextureUnitSettings(size_t texUnit, TextureUnitState& tl);
+		/** Set texture unit binding type */
+		virtual void _setBindingType(TextureUnitState::BindingType bindigType);
 		/** Turns off a texture unit. */
 		virtual void _disableTextureUnit(size_t texUnit);
 		/** Disables all texture units from the given unit upwards */
@@ -745,7 +747,8 @@ namespace Ogre
 		*/
 		virtual void _setTexture(size_t unit, bool enabled, const String &texname);
 
-		/** Binds a texture to a vertex sampler.
+		/** Binds a texture to a vertex, geometry, compute, tesselation hull
+		or tessellation domain sampler.
 		@remarks
 		Not all rendersystems support separate vertex samplers. For those that
 		do, you can set a texture for them, separate to the regular texture
@@ -755,6 +758,10 @@ namespace Ogre
 		@see RenderSystemCapabilites::getVertexTextureUnitsShared
 		*/
 		virtual void _setVertexTexture(size_t unit, const TexturePtr& tex);
+		virtual void _setGeometryTexture(size_t unit, const TexturePtr& tex);
+		virtual void _setComputeTexture(size_t unit, const TexturePtr& tex);
+		virtual void _setTesselationHullTexture(size_t unit, const TexturePtr& tex);
+		virtual void _setTesselationDomainTexture(size_t unit, const TexturePtr& tex);
 
 		/**
 		Sets the texture coordinate set to use for a texture unit.
