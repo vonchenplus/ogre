@@ -51,75 +51,75 @@ typedef std::map<std::string, OgreBites::SamplePlugin *> PluginMap;
 #ifdef USE_RTSHADER_SYSTEM
 
 /** This class demonstrates basic usage of the RTShader system.
-    It sub class the material manager listener class and when a target scheme callback
-    is invoked with the shader generator scheme it tries to create an equivalent shader
-    based technique based on the default technique of the given material.
+ It sub class the material manager listener class and when a target scheme callback
+ is invoked with the shader generator scheme it tries to create an equivalent shader
+ based technique based on the default technique of the given material.
 */
 class ShaderGeneratorTechniqueResolverListener : public MaterialManager::Listener
 {
- public:
+public:
 
-    ShaderGeneratorTechniqueResolverListener(RTShader::ShaderGenerator* pShaderGenerator)
-    {
-        mShaderGenerator = pShaderGenerator;
-    }
+	ShaderGeneratorTechniqueResolverListener(RTShader::ShaderGenerator* pShaderGenerator)
+	{
+		mShaderGenerator = pShaderGenerator;
+	}
 
-    /** This is the hook point where shader based technique will be created.
-        It will be called whenever the material manager won't find appropriate technique
-        that satisfy the target scheme name. If the scheme name is out target RT Shader System
-        scheme name we will try to create shader generated technique for it.
-    */
-    virtual Technique* handleSchemeNotFound(unsigned short schemeIndex,
-                                            const String& schemeName, Material* originalMaterial, unsigned short lodIndex,
-                                            const Renderable* rend)
-    {
-        Technique* generatedTech = NULL;
+	/** This is the hook point where shader based technique will be created.
+     It will be called whenever the material manager won't find appropriate technique
+     that satisfy the target scheme name. If the scheme name is out target RT Shader System
+     scheme name we will try to create shader generated technique for it.
+     */
+	virtual Technique* handleSchemeNotFound(unsigned short schemeIndex,
+                                                  const String& schemeName, Material* originalMaterial, unsigned short lodIndex,
+                                                  const Renderable* rend)
+	{
+		Technique* generatedTech = NULL;
 
-        // Case this is the default shader generator scheme.
-        if (schemeName == RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
-        {
-            bool techniqueCreated;
+		// Case this is the default shader generator scheme.
+		if (schemeName == RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
+		{
+			bool techniqueCreated;
 
-            // Create shader generated technique for this material.
-            techniqueCreated = mShaderGenerator->createShaderBasedTechnique(
-                originalMaterial->getName(),
-                MaterialManager::DEFAULT_SCHEME_NAME,
-                schemeName);
+			// Create shader generated technique for this material.
+			techniqueCreated = mShaderGenerator->createShaderBasedTechnique(
+                                                                            originalMaterial->getName(),
+                                                                            MaterialManager::DEFAULT_SCHEME_NAME,
+                                                                            schemeName);
 
-            // Case technique registration succeeded.
-            if (techniqueCreated)
-            {
-                // Force creating the shaders for the generated technique.
-                mShaderGenerator->validateMaterial(schemeName, originalMaterial->getName());
+			// Case technique registration succeeded.
+			if (techniqueCreated)
+			{
+				// Force creating the shaders for the generated technique.
+				mShaderGenerator->validateMaterial(schemeName, originalMaterial->getName());
 
-                // Grab the generated technique.
-                Material::TechniqueIterator itTech = originalMaterial->getTechniqueIterator();
+				// Grab the generated technique.
+				Material::TechniqueIterator itTech = originalMaterial->getTechniqueIterator();
 
-                while (itTech.hasMoreElements())
-                {
-                    Technique* curTech = itTech.getNext();
+				while (itTech.hasMoreElements())
+				{
+					Technique* curTech = itTech.getNext();
 
-                    if (curTech->getSchemeName() == schemeName)
-                    {
-                        generatedTech = curTech;
-                        break;
-                    }
-                }
-            }
-        }
+					if (curTech->getSchemeName() == schemeName)
+					{
+						generatedTech = curTech;
+						break;
+					}
+				}
+			}
+		}
 
-        return generatedTech;
-    }
+		return generatedTech;
+	}
 
- protected:
-    RTShader::ShaderGenerator*  mShaderGenerator;                       // The shader generator instance.
+protected:
+    RTShader::ShaderGenerator* mShaderGenerator; // The shader generator instance.
 };
 #endif // USE_RTSHADER_SYSTEM
 
 /** The common environment that all of the tests run in */
 class TestContext : public OgreBites::SampleContext
 {
- public:
+public:
 
     TestContext(int argc = 0, char** argv = 0);
     virtual ~TestContext();
@@ -196,7 +196,7 @@ class TestContext : public OgreBites::SampleContext
     }
 #endif
 
- protected:
+protected:
 
     /// The timestep
     Real mTimestep;
@@ -209,15 +209,15 @@ class TestContext : public OgreBites::SampleContext
 
     /// The tests to be run
     std::deque<OgreBites::Sample*> mTests;
-
+    
     /// Path to the output directory for the running test
     String mOutputDir;
 
     /// The active test (0 if none is active)
     VisualTest* mCurrentTest;
 #ifdef USE_RTSHADER_SYSTEM
-    RTShader::ShaderGenerator*                  mShaderGenerator;                       // The Shader generator instance.
-    ShaderGeneratorTechniqueResolverListener*   mMaterialMgrListener;           // Shader generator material manager listener.
+    RTShader::ShaderGenerator* mShaderGenerator; // The Shader generator instance.
+    ShaderGeneratorTechniqueResolverListener* mMaterialMgrListener;		// Shader generator material manager listener.
 #endif // USE_RTSHADER_SYSTEM
 
     /// The current frame of a running test
@@ -283,22 +283,21 @@ class TestContext : public OgreBites::SampleContext
 - (void)shutdown;
 
 @property (retain) NSTimer *mTimer;
-                   @property (nonatomic) NSTimeInterval mLastFrameTime;
+@property (nonatomic) NSTimeInterval mLastFrameTime;
 
-                                         @end
+@end
 
+static id mAppDelegate;
 
-                                         static id mAppDelegate;
+@implementation AppDelegate
 
-                                         @implementation AppDelegate
+@synthesize mTimer;
+@dynamic mLastFrameTime;
 
-                                         @synthesize mTimer;
-                                         @dynamic mLastFrameTime;
-
-                                         - (NSTimeInterval)mLastFrameTime
-                   {
-                       return mLastFrameTime;
-                   }
+- (NSTimeInterval)mLastFrameTime
+{
+    return mLastFrameTime;
+}
 
 - (void)setLastFrameTime:(NSTimeInterval)frameInterval
 {
@@ -315,21 +314,21 @@ class TestContext : public OgreBites::SampleContext
 }
 
 - (void)go {
-
+    
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     mLastFrameTime = 1;
     mTimer = nil;
-
+    
     try {
         tc = new TestContext(*_NSGetArgc(), *_NSGetArgv());
         tc->go();
         Root::getSingleton().getRenderSystem()->_initRenderTargets();
-
+        
         // Clear event times
-        Root::getSingleton().clearEventTimes();
+		Root::getSingleton().clearEventTimes();
     } catch( Exception& e ) {
         std::cerr << "An exception has occurred: " <<
-            e.getFullDescription().c_str() << std::endl;
+        e.getFullDescription().c_str() << std::endl;
     }
     mTimer = [NSTimer scheduledTimerWithTimeInterval:(NSTimeInterval)(1.0f / 60.0f) * mLastFrameTime
               target:self
@@ -342,12 +341,12 @@ class TestContext : public OgreBites::SampleContext
 - (void)applicationDidFinishLaunching:(NSNotification *)application {
     mLastFrameTime = 1;
     mTimer = nil;
-
+    
     [self go];
 }
 
 - (void)shutdown {
-
+    
     [NSApp terminate:nil];
 }
 
@@ -390,13 +389,13 @@ class TestContext : public OgreBites::SampleContext
 
 @property (nonatomic) NSTimeInterval mLastFrameTime;
 
-                      @end
+@end
 
-                      @implementation AppDelegate
+@implementation AppDelegate
 
-                      @dynamic mLastFrameTime;
+@dynamic mLastFrameTime;
 
-                      - (NSTimeInterval)mLastFrameTime
+- (NSTimeInterval)mLastFrameTime
 {
     return mLastFrameTime;
 }
@@ -434,10 +433,10 @@ class TestContext : public OgreBites::SampleContext
         Root::getSingleton().getRenderSystem()->_initRenderTargets();
 
         // Clear event times
-        Root::getSingleton().clearEventTimes();
+		Root::getSingleton().clearEventTimes();
     } catch( Exception& e ) {
         std::cerr << "An exception has occurred: " <<
-            e.getFullDescription().c_str() << std::endl;
+        e.getFullDescription().c_str() << std::endl;
     }
 
     [pool release];
