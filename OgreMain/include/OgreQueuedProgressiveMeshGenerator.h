@@ -126,11 +126,11 @@ private:
 	WorkQueue::Response* handleRequest(const WorkQueue::Request* req, const WorkQueue* srcQ);
 	void buildRequest(LodConfig& lodConfigs);
 	void tuneContainerSize();
-	void initialize();
+	void initialize(LodConfig& lodConfig);
 	void addVertexBuffer(const PMGenRequest::VertexBuffer& vertexBuffer, bool useSharedVertexLookup);
 	void addIndexBuffer(PMGenRequest::IndexBuffer& indexBuffer, bool useSharedVertexLookup, unsigned short submeshID);
 	void bakeLods();
-	void bakeMergedLods(int curLod);
+	void bakeMergedLods(bool firstBufferPass);
 
 };
 
