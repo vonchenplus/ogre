@@ -48,9 +48,7 @@ namespace Ogre
 
     class PCZone;
 
-
     /** Specialized viewpoint from which an PCZone Scene can be rendered.
-    @remarks
     */
 
     class _OgrePCZPluginExport PCZCamera : public Camera
@@ -81,11 +79,11 @@ namespace Ogre
 		/* isVisible() function for portals */
 		bool isVisible(PortalBase* portal, FrustumPlane* culledBy = 0) const;
 
-        /** Returns the visiblity of the box
+        /** Returns the visibility of the box
         */
         bool isVisibile( const AxisAlignedBox &bound );
 
-        /** Returns the detailed visiblity of the box
+        /** Returns the detailed visibility of the box
 		*/
 		PCZCamera::Visibility getVisibility( const AxisAlignedBox &bound );
 
@@ -96,12 +94,12 @@ namespace Ogre
            extra culling frustum is up to date */
         void update(void);
 
-		// calculate extra culling planes from portal and camera 
-		// origin and add to list of extra culling planes
+		/** Calculate extra culling planes from portal and camera
+		   origin and add to list of extra culling planes */
 		int addPortalCullingPlanes(PortalBase* portal);
-		// remove extra culling planes created from the given portal
+		/// Remove extra culling planes created from the given portal
 		void removePortalCullingPlanes(PortalBase* portal);
-		// remove all extra culling planes
+		/// Remove all extra culling planes
         void removeAllExtraCullingPlanes(void);
     protected:
 		AxisAlignedBox mBox;

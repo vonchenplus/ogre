@@ -40,12 +40,17 @@ THE SOFTWARE.
 #include "macUtils.h"
 #endif
 
-// Regsiter the suite
+// Register the suite
 CPPUNIT_TEST_SUITE_REGISTRATION( RenderSystemCapabilitiesTests );
 
 void RenderSystemCapabilitiesTests::setUp()
 {
     using namespace Ogre;
+
+    if(LogManager::getSingletonPtr() == 0)
+        mLogManager = OGRE_NEW LogManager();
+
+    LogManager::getSingleton().setLogDetail(LL_LOW);
 
     // we need to be able to create FileSystem archives to load .rendercaps
     mFileSystemArchiveFactory = OGRE_NEW FileSystemArchiveFactory();
@@ -67,7 +72,7 @@ void RenderSystemCapabilitiesTests::tearDown()
     OGRE_DELETE mRenderSystemCapabilitiesManager;
     OGRE_DELETE mArchiveManager;
     OGRE_DELETE mFileSystemArchiveFactory;
-
+    OGRE_DELETE mLogManager;
 }
 
 void RenderSystemCapabilitiesTests::testIsShaderProfileSupported(void)
@@ -354,6 +359,9 @@ void RenderSystemCapabilitiesTests::testWriteAllFalseCapabilities()
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression false") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_dxt false") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_vtc false") != lines.end());
+    CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_pvrtc false") != lines.end());
+    CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_bc4_bc5 false") != lines.end());
+    CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_bc6h_bc7 false") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tfbo false") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tfbo_arb false") != lines.end());
 
@@ -361,6 +369,7 @@ void RenderSystemCapabilitiesTests::testWriteAllFalseCapabilities()
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tpbuffer false") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tperstageconstant false") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tseparate_shader_objects false") != lines.end());
+    CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tvao false") != lines.end());
 
     // bool caps
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tvertex_texture_units_shared false") != lines.end());
@@ -413,6 +422,9 @@ void RenderSystemCapabilitiesTests::testWriteAllTrueCapabilities()
     caps.setCapability(RSC_TEXTURE_COMPRESSION);
     caps.setCapability(RSC_TEXTURE_COMPRESSION_DXT);
     caps.setCapability(RSC_TEXTURE_COMPRESSION_VTC);
+    caps.setCapability(RSC_TEXTURE_COMPRESSION_PVRTC);
+    caps.setCapability(RSC_TEXTURE_COMPRESSION_BC4_BC5);
+    caps.setCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7);
     caps.setCapability(RSC_FBO);
     caps.setCapability(RSC_FBO_ARB);
 
@@ -420,6 +432,7 @@ void RenderSystemCapabilitiesTests::testWriteAllTrueCapabilities()
     caps.setCapability(RSC_PBUFFER);
     caps.setCapability(RSC_PERSTAGECONSTANT);
     caps.setCapability(RSC_SEPARATE_SHADER_OBJECTS);
+    caps.setCapability(RSC_VAO);
 
     // write them to file
     serializer.writeScript(&caps, name, filename);
@@ -478,6 +491,9 @@ void RenderSystemCapabilitiesTests::testWriteAllTrueCapabilities()
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression true") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_dxt true") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_vtc true") != lines.end());
+    CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_pvrtc true") != lines.end());
+    CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_bc4_bc5 true") != lines.end());
+    CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\ttexture_compression_bc6h_bc7 true") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tfbo true") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tfbo_arb true") != lines.end());
 
@@ -485,6 +501,7 @@ void RenderSystemCapabilitiesTests::testWriteAllTrueCapabilities()
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tpbuffer true") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tperstageconstant true") != lines.end());
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tseparate_shader_objects true") != lines.end());
+    CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tvao true") != lines.end());
 
     // bool caps
     CPPUNIT_ASSERT(find(lines.begin(), lines.end(), "\tvertex_texture_units_shared true") != lines.end());
@@ -525,8 +542,12 @@ void RenderSystemCapabilitiesTests::testWriteAndReadComplexCapabilities()
     caps.setCapability(RSC_TEXTURE_COMPRESSION);
     caps.setCapability(RSC_TEXTURE_COMPRESSION_DXT);
     caps.setCapability(RSC_TEXTURE_COMPRESSION_VTC);
+    caps.setCapability(RSC_TEXTURE_COMPRESSION_PVRTC);
+    caps.setCapability(RSC_TEXTURE_COMPRESSION_BC4_BC5);
+    caps.setCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7);
     caps.setCapability(RSC_PERSTAGECONSTANT);
     caps.setCapability(RSC_SEPARATE_SHADER_OBJECTS);
+    caps.setCapability(RSC_VAO);
 
     caps.setNumWorldMatrices(11);
     caps.setNumTextureUnits(22);
@@ -611,6 +632,9 @@ void RenderSystemCapabilitiesTests::testWriteAndReadComplexCapabilities()
     CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_TEXTURE_COMPRESSION), caps2.hasCapability(RSC_TEXTURE_COMPRESSION));
     CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_TEXTURE_COMPRESSION_DXT), caps2.hasCapability(RSC_TEXTURE_COMPRESSION_DXT));
     CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_TEXTURE_COMPRESSION_VTC), caps2.hasCapability(RSC_TEXTURE_COMPRESSION_VTC));
+    CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_TEXTURE_COMPRESSION_PVRTC), caps2.hasCapability(RSC_TEXTURE_COMPRESSION_PVRTC));
+    CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_TEXTURE_COMPRESSION_BC4_BC5), caps2.hasCapability(RSC_TEXTURE_COMPRESSION_BC4_BC5));
+    CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7), caps2.hasCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7));
     CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_FBO), caps2.hasCapability(RSC_FBO));
     CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_FBO_ARB), caps2.hasCapability(RSC_FBO_ARB));
 
@@ -618,6 +642,7 @@ void RenderSystemCapabilitiesTests::testWriteAndReadComplexCapabilities()
     CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_PBUFFER), caps2.hasCapability(RSC_PBUFFER));
     CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_PERSTAGECONSTANT), caps2.hasCapability(RSC_PERSTAGECONSTANT));
     CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_SEPARATE_SHADER_OBJECTS), caps2.hasCapability(RSC_SEPARATE_SHADER_OBJECTS));
+    CPPUNIT_ASSERT_EQUAL(caps.hasCapability(RSC_VAO), caps2.hasCapability(RSC_VAO));
 
     CPPUNIT_ASSERT_EQUAL(caps.getNumWorldMatrices(), caps2.getNumWorldMatrices());
     CPPUNIT_ASSERT_EQUAL(caps.getNumTextureUnits(), caps2.getNumTextureUnits());

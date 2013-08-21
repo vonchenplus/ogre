@@ -92,20 +92,20 @@ namespace Ogre {
     #       define HashSet ::std::tr1::unordered_set
     #    endif
     #else
-    #   if OGRE_COMPILER == OGRE_COMPILER_MSVC
-    #       if OGRE_COMP_VER >= 1600 // VC++ 10.0
-	#			define HashMap ::std::tr1::unordered_map
-	#           define HashSet ::std::tr1::unordered_set
-	#		elif OGRE_COMP_VER > 1300 && !defined(_STLP_MSVC)
-    #           define HashMap ::stdext::hash_map
-	#           define HashSet ::stdext::hash_set
+    #   if OGRE_COMPILER == OGRE_COMPILER_MSVC && !defined(_STLP_MSVC)
+    #       if _MSC_FULL_VER >= 150030729 // VC++ 9.0 SP1+
+    #           define HashMap ::std::tr1::unordered_map
+    #           define HashSet ::std::tr1::unordered_set
+    #       elif OGRE_THREAD_PROVIDER == 1
+    #           define HashMap ::boost::unordered_map
+    #           define HashSet ::boost::unordered_set
     #       else
-    #           define HashMap ::std::hash_map
-	#           define HashSet ::std::hash_set
+    #           define HashMap ::std::unordered_map
+    #           define HashSet ::std::unordered_set
     #       endif
     #   else
-    #       define HashMap ::std::hash_map
-	#       define HashSet ::std::hash_set
+    #       define HashMap ::std::unordered_map
+	#       define HashSet ::std::unordered_set
     #   endif
     #endif
 
@@ -118,9 +118,6 @@ namespace Ogre {
     typedef unsigned short ushort;
     typedef unsigned int uint;
 	typedef unsigned long ulong;
-
-	// Useful threading defines
-#include "Threading/OgreThreadDefines.h"
 
 // Pre-declare classes
 // Allows use of pointers in header files without including individual .h
@@ -163,7 +160,6 @@ namespace Ogre {
     class FrameListener;
     class Frustum;
     class GpuProgram;
-    class GpuProgramPtr;
     class GpuProgramManager;
 	class GpuProgramUsage;
     class HardwareIndexBuffer;
@@ -172,7 +168,6 @@ namespace Ogre {
 	class HardwarePixelBuffer;
     class HardwarePixelBufferSharedPtr;
 	class HighLevelGpuProgram;
-    class HighLevelGpuProgramPtr;
 	class HighLevelGpuProgramManager;
 	class HighLevelGpuProgramFactory;
     class IndexData;
@@ -194,14 +189,12 @@ namespace Ogre {
 	class ManualResourceLoader;
 	class ManualObject;
     class Material;
-    class MaterialPtr;
     class MaterialManager;
     class Math;
     class Matrix3;
     class Matrix4;
     class MemoryManager;
     class Mesh;
-    class MeshPtr;
     class MeshSerializer;
     class MeshSerializerImpl;
     class MeshManager;
@@ -227,9 +220,11 @@ namespace Ogre {
     class PixelBox;
     class Plane;
     class PlaneBoundedVolume;
-	class Plugin;
+    class Plugin;
+    class PMWorker;
+    class PMInjector;
     class Pose;
-    class ProgressiveMesh;
+    class ProgressiveMeshGenerator;
     class Profile;
 	class Profiler;
     class Quaternion;
@@ -276,7 +271,6 @@ namespace Ogre {
     class SimpleRenderable;
     class SimpleSpline;
     class Skeleton;
-    class SkeletonPtr;
     class SkeletonInstance;
     class SkeletonManager;
     class Sphere;
@@ -293,7 +287,6 @@ namespace Ogre {
 	class ExternalTextureSource;
     class TextureUnitState;
     class Texture;
-    class TexturePtr;
     class TextureManager;
     class TransformKeyFrame;
 	class Timer;
@@ -318,6 +311,17 @@ namespace Ogre {
     class CompositionPass;
     class CompositionTargetPass;
 	class CustomCompositionPass;
+
+    template<typename T> class SharedPtr;
+    typedef SharedPtr<Compositor> CompositorPtr;
+    typedef SharedPtr<GpuProgram> GpuProgramPtr;
+    typedef SharedPtr<HighLevelGpuProgram> HighLevelGpuProgramPtr;
+    typedef SharedPtr<Material> MaterialPtr;
+    typedef SharedPtr<Mesh> MeshPtr;
+    typedef SharedPtr<PatchMesh> PatchMeshPtr;
+    typedef SharedPtr<Resource> ResourcePtr;
+    typedef SharedPtr<Skeleton> SkeletonPtr;
+    typedef SharedPtr<Texture> TexturePtr;
 }
 
 /* Include all the standard header *after* all the configuration

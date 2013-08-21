@@ -77,7 +77,7 @@ namespace Ogre
 		/// Projective texture
 		TEXCALC_PROJECTIVE_TEXTURE
 	};
-	/// Enum describing the various actions which can be taken onthe stencil buffer
+	/// Enum describing the various actions which can be taken on the stencil buffer
 	enum StencilOperation
 	{
 		/// Leave the stencil buffer unchanged
@@ -270,7 +270,7 @@ namespace Ogre
 		*/
 		void setWBufferEnabled(bool enabled);
 
-		/** Returns true if the renderer will try to use W-buffers when avalible.
+		/** Returns true if the renderer will try to use W-buffers when available.
 		*/
 		bool getWBufferEnabled(void) const;
 
@@ -801,7 +801,7 @@ namespace Ogre
 		*/
 		virtual void _setTextureUnitFiltering(size_t unit, FilterType ftype, FilterOptions filter) = 0;
 
-		/** Sets wether the compare func is enabled or not for this texture unit 
+		/** Sets whether the compare func is enabled or not for this texture unit 
 		@param unit The texture unit to set the filtering options for
 		@param compare The state (enabled/disabled)
 		*/
@@ -841,7 +841,7 @@ namespace Ogre
 		virtual void _setTextureMatrix(size_t unit, const Matrix4& xform) = 0;
 
 		/** Sets the global blending factors for combining subsequent renders with the existing frame contents.
-		The result of the blending operation is:</p>
+		The result of the blending operation is:
 		<p align="center">final = (texture * sourceFactor) + (pixel * destFactor)</p>
 		Each of the factors is specified as one of a number of options, as specified in the SceneBlendFactor
 		enumerated type.
@@ -853,7 +853,7 @@ namespace Ogre
 		virtual void _setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op = SBO_ADD) = 0;
 
 		/** Sets the global blending factors for combining subsequent renders with the existing frame contents.
-		The result of the blending operation is:</p>
+		The result of the blending operation is:
 		<p align="center">final = (texture * sourceFactor) + (pixel * destFactor)</p>
 		Each of the factors is specified as one of a number of options, as specified in the SceneBlendFactor
 		enumerated type.
@@ -1221,7 +1221,7 @@ namespace Ogre
 
         /** Returns the default material scheme used by the render system.
             Systems that use the RTSS to emulate a fixed function pipeline 
-            (e.g. OpenGL ES 2, DX11) need to override this function to return
+            (e.g. OpenGL ES 2, GL3+, DX11) need to override this function to return
             the default material scheme of the RTSS ShaderGenerator.
          
             This is currently only used to set the default material scheme for

@@ -195,7 +195,7 @@ namespace Ogre {
             index < mActiveBillboards.size() &&
             "Billboard index out of bounds." );
 
-        /* We can't access it directly, so we check wether it's in the first
+        /* We can't access it directly, so we check whether it's in the first
            or the second half, then we start either from the beginning or the
            end of the list
         */
@@ -220,7 +220,7 @@ namespace Ogre {
             index < mActiveBillboards.size() &&
             "Billboard index out of bounds." );
 
-        /* We can't access it directly, so we check wether it's in the first
+        /* We can't access it directly, so we check whether it's in the first
            or the second half, then we start either from the beginning or the
            end of the list.
            We then remove the billboard form the 'used' list and add it to
@@ -305,7 +305,7 @@ namespace Ogre {
     {
         mMaterialName = name;
 
-        mMaterial = MaterialManager::getSingleton().getByName(name, groupName);
+        mMaterial = MaterialManager::getSingleton().getByName(name, groupName).staticCast<Material>();
 
 		if (mMaterial.isNull())
 			OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find material " + name,
@@ -654,7 +654,7 @@ namespace Ogre {
                                                   "Material does not exist. Have you forgotten to define it in a "
                                                   ".material script?");
 			
-            mMaterial = MaterialManager::getSingleton().getByName("BaseWhite");
+            mMaterial = MaterialManager::getSingleton().getByName("BaseWhite").staticCast<Material>();
 			
             if (mMaterial.isNull())
             {

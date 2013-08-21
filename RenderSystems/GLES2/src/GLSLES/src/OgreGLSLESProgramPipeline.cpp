@@ -32,6 +32,10 @@
 #include "OgreGLSLESProgram.h"
 #include "OgreGLSLESProgramPipelineManager.h"
 #include "OgreGpuProgramManager.h"
+#include "OgreGLES2UniformCache.h"
+#include "OgreGLES2HardwareUniformBuffer.h"
+#include "OgreHardwareBufferManager.h"
+#include "OgreGLES2Util.h"
 
 namespace Ogre
 {
@@ -41,7 +45,8 @@ namespace Ogre
     GLSLESProgramPipeline::~GLSLESProgramPipeline()
     {
 #if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
-        OGRE_CHECK_GL_ERROR(glDeleteProgramPipelinesEXT(1, &mGLProgramPipelineHandle));
+        OGRE_IF_IOS_VERSION_IS_GREATER_THAN(5.0)
+            OGRE_CHECK_GL_ERROR(glDeleteProgramPipelinesEXT(1, &mGLProgramPipelineHandle));
 #endif
     }
 
@@ -118,31 +123,6 @@ namespace Ogre
         
 		if(mLinked)
 		{
-			if ( GpuProgramManager::getSingleton().getSaveMicrocodesToCache() )
-			{
-				// Add to the microcode to the cache
-				String name;
-				name = getCombinedName();
-
-				// Get buffer size
-				GLint binaryLength = 0;
-
-#if GL_OES_get_program_binary
-				OGRE_CHECK_GL_ERROR(glGetProgramiv(mGLHandle, GL_PROGRAM_BINARY_LENGTH_OES, &binaryLength));
-#endif
-
-                // Create microcode
-                GpuProgramManager::Microcode newMicrocode = 
-                    GpuProgramManager::getSingleton().createMicrocode((unsigned long)binaryLength + sizeof(GLenum));
-
-#if GL_OES_get_program_binary
-				// Get binary
-				OGRE_CHECK_GL_ERROR(glGetProgramBinaryOES(mGLHandle, binaryLength, NULL, (GLenum *)newMicrocode->getPtr(), newMicrocode->getPtr() + sizeof(GLenum)));
-#endif
-
-        		// Add to the microcode to the cache
-				GpuProgramManager::getSingleton().addMicrocodeToCache(name, newMicrocode);
-			}
             if(mVertexProgram && mVertexProgram->isLinked())
             {
                 OGRE_CHECK_GL_ERROR(glUseProgramStagesEXT(mGLProgramPipelineHandle, GL_VERTEX_SHADER_BIT_EXT, mVertexProgram->getGLSLProgram()->getGLProgramHandle()));
@@ -156,7 +136,8 @@ namespace Ogre
             logObjectInfo( getCombinedName() + String("GLSL program pipeline result : "), mGLProgramPipelineHandle );
 #if GL_EXT_debug_label && OGRE_PLATFORM != OGRE_PLATFORM_NACL
             if(mVertexProgram && mFragmentProgram)
-                glLabelObjectEXT(GL_PROGRAM_PIPELINE_OBJECT_EXT, mGLProgramPipelineHandle, 0,
+                OGRE_IF_IOS_VERSION_IS_GREATER_THAN(5.0)
+                    glLabelObjectEXT(GL_PROGRAM_PIPELINE_OBJECT_EXT, mGLProgramPipelineHandle, 0,
                                  (mVertexProgram->getName() + "/" + mFragmentProgram->getName()).c_str());
 #endif
 		}
@@ -212,35 +193,27 @@ namespace Ogre
 		{
 			glGetError(); // Clean up the error. Otherwise will flood log.
             
-			if ( GpuProgramManager::getSingleton().canGetCompiledShaderBuffer() &&
-				GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(getCombinedName()) )
-			{
-				getMicrocodeFromCache();
-			}
-			else
-			{
 #if !OGRE_NO_GLES2_GLSL_OPTIMISER
-                // Check CmdParams for each shader type to see if we should optimise
-                if(mVertexProgram)
+            // Check CmdParams for each shader type to see if we should optimise
+            if(mVertexProgram)
+            {
+                String paramStr = mVertexProgram->getGLSLProgram()->getParameter("use_optimiser");
+                if((paramStr == "true") || paramStr.empty())
                 {
-                    String paramStr = mVertexProgram->getGLSLProgram()->getParameter("use_optimiser");
-                    if((paramStr == "true") || paramStr.empty())
-                    {
-                        GLSLESProgramPipelineManager::getSingleton().optimiseShaderSource(mVertexProgram);
-                    }
+                    GLSLESProgramPipelineManager::getSingleton().optimiseShaderSource(mVertexProgram);
                 }
+            }
 
-                if(mFragmentProgram)
+            if(mFragmentProgram)
+            {
+                String paramStr = mFragmentProgram->getGLSLProgram()->getParameter("use_optimiser");
+                if((paramStr == "true") || paramStr.empty())
                 {
-                    String paramStr = mFragmentProgram->getGLSLProgram()->getParameter("use_optimiser");
-                    if((paramStr == "true") || paramStr.empty())
-                    {
-                        GLSLESProgramPipelineManager::getSingleton().optimiseShaderSource(mFragmentProgram);
-                    }
+                    GLSLESProgramPipelineManager::getSingleton().optimiseShaderSource(mFragmentProgram);
                 }
+            }
 #endif
-				compileAndLink();
-			}
+            compileAndLink();
 
             extractLayoutQualifiers();
 
@@ -261,13 +234,13 @@ namespace Ogre
 			{
 				vertParams = &(mVertexProgram->getGLSLProgram()->getConstantDefinitions().map);
                 GLSLESProgramPipelineManager::getSingleton().extractUniforms(mVertexProgram->getGLSLProgram()->getGLProgramHandle(),
-                                                                         vertParams, NULL, mGLUniformReferences);
+					vertParams, NULL, mGLUniformReferences, mGLUniformBufferReferences);
 			}
 			if (mFragmentProgram)
 			{
 				fragParams = &(mFragmentProgram->getGLSLProgram()->getConstantDefinitions().map);
                 GLSLESProgramPipelineManager::getSingleton().extractUniforms(mFragmentProgram->getGLSLProgram()->getGLProgramHandle(),
-                                                                         NULL, fragParams, mGLUniformReferences);
+                                                                         NULL, fragParams, mGLUniformReferences, mGLUniformBufferReferences);
 			}
 
 			mUniformRefsBuilt = true;
@@ -283,11 +256,18 @@ namespace Ogre
 		GLUniformReferenceIterator endUniform = mGLUniformReferences.end();
 #if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
         GLuint progID = 0;
+        GLSLESGpuProgram *prog;
         if(fromProgType == GPT_VERTEX_PROGRAM)
+        {
             progID = mVertexProgram->getGLSLProgram()->getGLProgramHandle();
+            prog = mVertexProgram;
+        }
         else if(fromProgType == GPT_FRAGMENT_PROGRAM)
+        {
             progID = mFragmentProgram->getGLSLProgram()->getGLProgramHandle();
-        
+            prog = mFragmentProgram;
+        }
+
 		for (;currentUniform != endUniform; ++currentUniform)
 		{
 			// Only pull values from buffer it's supposed to be in (vertex or fragment)
@@ -299,7 +279,35 @@ namespace Ogre
 				if (def->variability & mask)
 				{
 					GLsizei glArraySize = (GLsizei)def->arraySize;
-                    
+                    bool shouldUpdate = true;
+
+                    switch (def->constType)
+                    {
+                        case GCT_INT1:
+                        case GCT_INT2:
+                        case GCT_INT3:
+                        case GCT_INT4:
+                        case GCT_SAMPLER1D:
+                        case GCT_SAMPLER1DSHADOW:
+                        case GCT_SAMPLER2D:
+                        case GCT_SAMPLER2DSHADOW:
+                        case GCT_SAMPLER3D:
+                        case GCT_SAMPLERCUBE:
+                            shouldUpdate = prog->getUniformCache()->updateUniform(currentUniform->mLocation,
+                                                                        params->getIntPointer(def->physicalIndex),
+                                                                        def->elementSize * def->arraySize * sizeof(int));
+                            break;
+                        default:
+                            shouldUpdate = prog->getUniformCache()->updateUniform(currentUniform->mLocation,
+                                                                        params->getFloatPointer(def->physicalIndex),
+                                                                        def->elementSize * def->arraySize * sizeof(float));
+                            break;
+
+                    }
+
+                    if(!shouldUpdate)
+                        continue;
+
 					// Get the index in the parameter real list
 					switch (def->constType)
 					{
@@ -389,6 +397,35 @@ namespace Ogre
   		} // End for
 #endif
 	}
+    //-----------------------------------------------------------------------
+	void GLSLESProgramPipeline::updateUniformBlocks(GpuProgramParametersSharedPtr params,
+                                                  uint16 mask, GpuProgramType fromProgType)
+	{
+#if OGRE_NO_GLES3_SUPPORT == 0
+        // Iterate through the list of uniform buffers and update them as needed
+		GLUniformBufferIterator currentBuffer = mGLUniformBufferReferences.begin();
+		GLUniformBufferIterator endBuffer = mGLUniformBufferReferences.end();
+
+        const GpuProgramParameters::GpuSharedParamUsageList& sharedParams = params->getSharedParameters();
+
+		GpuProgramParameters::GpuSharedParamUsageList::const_iterator it, end = sharedParams.end();
+		for (it = sharedParams.begin(); it != end; ++it)
+        {
+            for (;currentBuffer != endBuffer; ++currentBuffer)
+            {
+                GLES2HardwareUniformBuffer* hwGlBuffer = static_cast<GLES2HardwareUniformBuffer*>(currentBuffer->get());
+                GpuSharedParametersPtr paramsPtr = it->getSharedParams();
+
+                // Block name is stored in mSharedParams->mName of GpuSharedParamUsageList items
+                GLint UniformTransform;
+                OGRE_CHECK_GL_ERROR(UniformTransform = glGetUniformBlockIndex(mGLProgramHandle, it->getName().c_str()));
+                OGRE_CHECK_GL_ERROR(glUniformBlockBinding(mGLProgramHandle, UniformTransform, hwGlBuffer->getGLBufferBinding()));
+
+                hwGlBuffer->writeData(0, hwGlBuffer->getSizeInBytes(), &paramsPtr->getFloatConstantList().front());
+            }
+        }
+#endif
+	}
 	//-----------------------------------------------------------------------
 	void GLSLESProgramPipeline::updatePassIterationUniforms(GpuProgramParametersSharedPtr params)
 	{
@@ -406,15 +443,29 @@ namespace Ogre
 				if (index == currentUniform->mConstantDef->physicalIndex)
 				{
 #if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
+
                     GLuint progID = 0;
                     if (mVertexProgram && currentUniform->mSourceProgType == GPT_VERTEX_PROGRAM)
                     {
+                        if(!mVertexProgram->getUniformCache()->updateUniform(currentUniform->mLocation,
+                                                                             params->getFloatPointer(index),
+                                                                             currentUniform->mConstantDef->elementSize *
+                                                                             currentUniform->mConstantDef->arraySize *
+                                                                             sizeof(float)))
+                            return;
+                        
                         progID = mVertexProgram->getGLSLProgram()->getGLProgramHandle();
                         OGRE_CHECK_GL_ERROR(glProgramUniform1fvEXT(progID, currentUniform->mLocation, 1, params->getFloatPointer(index)));
                     }
                     
                     if (mFragmentProgram && currentUniform->mSourceProgType == GPT_FRAGMENT_PROGRAM)
                     {
+                        if(!mFragmentProgram->getUniformCache()->updateUniform(currentUniform->mLocation,
+                                                                               params->getFloatPointer(index),
+                                                                               currentUniform->mConstantDef->elementSize *
+                                                                               currentUniform->mConstantDef->arraySize *
+                                                                               sizeof(float)))
+                            return;
                         progID = mFragmentProgram->getGLSLProgram()->getGLProgramHandle();
                         OGRE_CHECK_GL_ERROR(glProgramUniform1fvEXT(progID, currentUniform->mLocation, 1, params->getFloatPointer(index)));
                     }

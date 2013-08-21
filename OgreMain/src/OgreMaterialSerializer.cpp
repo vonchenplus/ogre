@@ -1238,9 +1238,11 @@ namespace Ogre
             context.pass->setTransparentSortingEnabled(true);
         else if (params == "off")
             context.pass->setTransparentSortingEnabled(false);
+        else if (params == "force")
+            context.pass->setTransparentSortingForced(true);
         else
             logParseError(
-            "Bad transparent_sorting attribute, valid parameters are 'on' or 'off'.",
+            "Bad transparent_sorting attribute, valid parameters are 'on', 'off' or 'force'.",
             context);
 
         return false;
@@ -1939,6 +1941,21 @@ namespace Ogre
             }
             isReal = true;
         }
+        else if ((start = vecparams[1].find("double")) != String::npos)
+        {
+            // find the dimensionality
+            start = vecparams[1].find_first_not_of("double");
+            // Assume 1 if not specified
+            if (start == String::npos)
+            {
+                dims = 1;
+            }
+            else
+            {
+                dims = StringConverter::parseInt(vecparams[1].substr(start));
+            }
+            isReal = true;
+        }
         else if ((start = vecparams[1].find("int")) != String::npos)
         {
             // find the dimensionality
@@ -2328,7 +2345,7 @@ namespace Ogre
             // that this new material should clone from
             StringUtil::trim(vecparams[1]);
             // make sure base material exists
-            basematerial = MaterialManager::getSingleton().getByName(vecparams[1]);
+            basematerial = MaterialManager::getSingleton().getByName(vecparams[1]).staticCast<Material>();
             // if it doesn't exist then report error in log and just create a new material
             if (basematerial.isNull())
             {
@@ -2341,7 +2358,7 @@ namespace Ogre
         StringUtil::trim(vecparams[0]);
 
         context.material =
-			MaterialManager::getSingleton().create(vecparams[0], context.groupName);
+			MaterialManager::getSingleton().create(vecparams[0], context.groupName).staticCast<Material>();
 
         if (!basematerial.isNull())
         {
@@ -2535,7 +2552,7 @@ namespace Ogre
         // passed in params
         if (context.program.isNull())
         {
-            context.program = GpuProgramManager::getSingleton().getByName(params);
+            context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
             if (context.program.isNull())
             {
                 // Unknown program
@@ -2584,7 +2601,7 @@ namespace Ogre
         // passed in params
         if (context.program.isNull())
         {
-            context.program = GpuProgramManager::getSingleton().getByName(params);
+            context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
             if (context.program.isNull())
             {
                 // Unknown program
@@ -2618,7 +2635,7 @@ namespace Ogre
         // update section
         context.section = MSS_PROGRAM_REF;
 
-        context.program = GpuProgramManager::getSingleton().getByName(params);
+        context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
         if (context.program.isNull())
         {
             // Unknown program
@@ -2651,7 +2668,7 @@ namespace Ogre
         // update section
         context.section = MSS_PROGRAM_REF;
 
-        context.program = GpuProgramManager::getSingleton().getByName(params);
+        context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
         if (context.program.isNull())
         {
             // Unknown program
@@ -2684,7 +2701,7 @@ namespace Ogre
         // update section
         context.section = MSS_PROGRAM_REF;
 
-        context.program = GpuProgramManager::getSingleton().getByName(params);
+        context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
         if (context.program.isNull())
         {
             // Unknown program
@@ -2718,7 +2735,7 @@ namespace Ogre
 		// update section
 		context.section = MSS_PROGRAM_REF;
 
-		context.program = GpuProgramManager::getSingleton().getByName(params);
+		context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
 		if (context.program.isNull())
 		{
 			// Unknown program
@@ -2767,7 +2784,7 @@ namespace Ogre
         // passed in params
         if (context.program.isNull())
         {
-            context.program = GpuProgramManager::getSingleton().getByName(params);
+            context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
             if (context.program.isNull())
             {
                 // Unknown program
@@ -3051,7 +3068,7 @@ namespace Ogre
         
         if (strategy == 0)
             logParseError(
-            "Bad lod_strategy attribute, available lod strategy name expected.",
+            "Bad lod_strategy attribute, available LOD strategy name expected.",
             context);
 
         context.material->setLodStrategy(strategy);
@@ -3062,7 +3079,7 @@ namespace Ogre
     bool parseLodDistances(String& params, MaterialScriptContext& context)
     {
         // Set to distance strategy
-        context.material->setLodStrategy(DistanceLodStrategy::getSingletonPtr());
+        context.material->setLodStrategy(DistanceLodSphereStrategy::getSingletonPtr());
 
         StringVector vecparams = StringUtil::split(params, " \t");
 
@@ -3596,7 +3613,7 @@ namespace Ogre
         if (mBuffer.empty())
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Queue is empty !", "MaterialSerializer::exportQueued");
 
-        LogManager::getSingleton().logMessage("MaterialSerializer : writing material(s) to material script : " + fileName, LML_CRITICAL);
+        LogManager::getSingleton().logMessage("MaterialSerializer : writing material(s) to material script : " + fileName, LML_NORMAL);
         FILE *fp;
         fp = fopen(fileName.c_str(), "w");
         if (!fp)
@@ -3626,7 +3643,7 @@ namespace Ogre
             fclose(locFp);
         }
 
-        LogManager::getSingleton().logMessage("MaterialSerializer : done.", LML_CRITICAL);
+        LogManager::getSingleton().logMessage("MaterialSerializer : done.", LML_NORMAL);
         clearQueue();
     }
     //-----------------------------------------------------------------------
@@ -3665,7 +3682,7 @@ namespace Ogre
 			outMaterialName = pMat->getName();
 		}
 
-        LogManager::getSingleton().logMessage("MaterialSerializer : writing material " + outMaterialName + " to queue.", LML_CRITICAL);
+        LogManager::getSingleton().logMessage("MaterialSerializer : writing material " + outMaterialName + " to queue.", LML_NORMAL);
 
 		bool skipWriting = false;
 
@@ -3756,7 +3773,7 @@ namespace Ogre
 			// Fire write begin event.
 			fireTechniqueEvent(MSE_WRITE_BEGIN, skipWriting, pTech);
 
-			// Lod index
+			// LOD index
 			if (mDefaults ||
 				pTech->getLodIndex() != 0)
 			{
@@ -4088,10 +4105,12 @@ namespace Ogre
 			}
 			// transparent_sorting
 			if (mDefaults ||
+				pPass->getTransparentSortingForced() == true ||
 				pPass->getTransparentSortingEnabled() != true)
 			{
 				writeAttribute(3, "transparent_sorting");
-                writeValue(pPass->getTransparentSortingEnabled() ? "on" : "off");
+				writeValue(pPass->getTransparentSortingForced() ? "force" :
+					(pPass->getTransparentSortingEnabled() ? "on" : "off"));
 			}
 
 
@@ -4335,7 +4354,7 @@ namespace Ogre
 		// Fire post section write event.
 		firePassEvent(MSE_POST_WRITE, skipWriting, pPass);
         
-		LogManager::getSingleton().logMessage("MaterialSerializer : done.", LML_CRITICAL);
+		LogManager::getSingleton().logMessage("MaterialSerializer : done.", LML_NORMAL);
     }
     //-----------------------------------------------------------------------
     String MaterialSerializer::convertFiltering(FilterOptions fo)
@@ -4381,7 +4400,7 @@ namespace Ogre
 		if (skipWriting)		
 			return;
 	
-        LogManager::getSingleton().logMessage("MaterialSerializer : parsing texture layer.", LML_CRITICAL);
+        LogManager::getSingleton().logMessage("MaterialSerializer : parsing texture layer.", LML_NORMAL);
         mBuffer += "\n";
         writeAttribute(3, "texture_unit");
         // only write out name if its not equal to the default name
@@ -5044,7 +5063,7 @@ namespace Ogre
         writeValue(quoteWord(program->getName()));
         beginSection(3);
         {
-            // write out paramters
+            // write out parameters
             GpuProgramParameters* defaultParams= 0;
             // does the GPU program have default parameters?
             if (program->hasDefaultParameters())
@@ -5107,7 +5126,7 @@ namespace Ogre
 			}
 
 			writeGpuProgramParameter("param_named", 
-				paramName, autoEntry, defaultAutoEntry, def.isFloat(), 
+				paramName, autoEntry, defaultAutoEntry, def.isFloat(), def.isDouble(),
 				def.physicalIndex, def.elementSize * def.arraySize,
 				params, defaultParams, level, useMainBuffer);
 		}
@@ -5126,7 +5145,7 @@ namespace Ogre
 		GpuLogicalBufferStructPtr floatLogical = params->getFloatLogicalBufferStruct();
         if( !floatLogical.isNull() )
 		{
-			OGRE_LOCK_MUTEX(floatLogical->mutex)
+                    OGRE_LOCK_MUTEX(floatLogical->mutex);
 
 			for(GpuLogicalIndexUseMap::const_iterator i = floatLogical->map.begin();
 				i != floatLogical->map.end(); ++i)
@@ -5144,9 +5163,37 @@ namespace Ogre
 
 				writeGpuProgramParameter("param_indexed", 
 					StringConverter::toString(logicalIndex), autoEntry, 
-					defaultAutoEntry, true, logicalUse.physicalIndex, 
+					defaultAutoEntry, true, false, logicalUse.physicalIndex,
 					logicalUse.currentSize,
 					params, defaultParams, level, useMainBuffer);
+			}
+		}
+
+        // double params
+		GpuLogicalBufferStructPtr doubleLogical = params->getDoubleLogicalBufferStruct();
+        if( !doubleLogical.isNull() )
+		{
+                    OGRE_LOCK_MUTEX(floatLogical->mutex);
+
+			for(GpuLogicalIndexUseMap::const_iterator i = doubleLogical->map.begin();
+				i != doubleLogical->map.end(); ++i)
+			{
+				size_t logicalIndex = i->first;
+				const GpuLogicalIndexUse& logicalUse = i->second;
+
+				const GpuProgramParameters::AutoConstantEntry* autoEntry =
+                params->findDoubleAutoConstantEntry(logicalIndex);
+				const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry = 0;
+				if (defaultParams)
+				{
+					defaultAutoEntry = defaultParams->findDoubleAutoConstantEntry(logicalIndex);
+				}
+
+				writeGpuProgramParameter("param_indexed",
+                                         StringConverter::toString(logicalIndex), autoEntry,
+                                         defaultAutoEntry, false, true, logicalUse.physicalIndex,
+                                         logicalUse.currentSize,
+                                         params, defaultParams, level, useMainBuffer);
 			}
 		}
 
@@ -5154,7 +5201,7 @@ namespace Ogre
 		GpuLogicalBufferStructPtr intLogical = params->getIntLogicalBufferStruct();
         if( !intLogical.isNull() )
 		{
-			OGRE_LOCK_MUTEX(intLogical->mutex)
+                    OGRE_LOCK_MUTEX(intLogical->mutex);
 
 			for(GpuLogicalIndexUseMap::const_iterator i = intLogical->map.begin();
 				i != intLogical->map.end(); ++i)
@@ -5172,7 +5219,7 @@ namespace Ogre
 
 				writeGpuProgramParameter("param_indexed", 
 					StringConverter::toString(logicalIndex), autoEntry, 
-					defaultAutoEntry, false, logicalUse.physicalIndex, 
+					defaultAutoEntry, false, false, logicalUse.physicalIndex,
 					logicalUse.currentSize,
 					params, defaultParams, level, useMainBuffer);
 			}
@@ -5185,7 +5232,7 @@ namespace Ogre
 		const String& commandName, const String& identifier, 
 		const GpuProgramParameters::AutoConstantEntry* autoEntry, 
 		const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry, 
-		bool isFloat, size_t physicalIndex, size_t physicalSize,
+		bool isFloat, bool isDouble, size_t physicalIndex, size_t physicalSize,
 		const GpuProgramParametersSharedPtr& params, GpuProgramParameters* defaultParams,
 		const ushort level, const bool useMainBuffer)
 	{
@@ -5225,6 +5272,13 @@ namespace Ogre
 						params->getFloatPointer(physicalIndex), 
 						defaultParams->getFloatPointer(physicalIndex),
 						sizeof(float) * physicalSize) != 0;
+				}
+				else if (isDouble)
+				{
+					different = memcmp(
+						params->getDoublePointer(physicalIndex),
+						defaultParams->getDoublePointer(physicalIndex),
+						sizeof(double) * physicalSize) != 0;
 				}
 				else
 				{
@@ -5292,6 +5346,18 @@ namespace Ogre
 						writeValue(StringConverter::toString(*pFloat++), useMainBuffer);
 					}
 				}
+				else if (isDouble)
+				{
+					// Get pointer to start of values
+					const double* pDouble = params->getDoublePointer(physicalIndex);
+
+					writeValue("double" + countLabel, useMainBuffer);
+					// iterate through real constants
+					for (size_t f = 0 ; f < physicalSize; ++f)
+					{
+						writeValue(StringConverter::toString(*pDouble++), useMainBuffer);
+					}
+				}
 				else
 				{
 					// Get pointer to start of values
@@ -5321,7 +5387,7 @@ namespace Ogre
         while (currentDef != endDef)
         {
             // get gpu program from gpu program manager
-            GpuProgramPtr program = GpuProgramManager::getSingleton().getByName((*currentDef));
+            GpuProgramPtr program = GpuProgramManager::getSingleton().getByName((*currentDef)).staticCast<GpuProgram>();
             // write gpu program definition type to buffer
             // check program type for vertex program
             // write program type

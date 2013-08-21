@@ -53,9 +53,9 @@ namespace Ogre  {
             case PF_L8:
                 return GL_RED;
             case PF_L16:
-                return GL_R16;
-//			case PF_BYTE_LA:
-//				return GL_RG;
+                return GL_RED;
+			case PF_BYTE_LA:
+				return GL_RG;
 			case PF_R3G3B2:
 				return GL_RGB;
 			case PF_A1R5G5B5:
@@ -162,14 +162,28 @@ namespace Ogre  {
                 return GL_RGB16_SNORM;
             case PF_R16G16B16A16_SNORM:
                 return GL_RGBA16_SNORM;
-            case PF_RGTC_RED:
+            case PF_BC4_UNORM:
                 return GL_COMPRESSED_RED_RGTC1;
-            case PF_RGTC_SIGNED_RED:
+            case PF_BC4_SNORM:
                 return GL_COMPRESSED_SIGNED_RED_RGTC1;
-            case PF_RGTC_RED_GREEN:
+            case PF_BC5_UNORM:
                 return GL_COMPRESSED_RG_RGTC2;
-            case PF_RGTC_RED_GREEN_SIGNED:
+            case PF_BC5_SNORM:
                 return GL_COMPRESSED_SIGNED_RG_RGTC2;
+            case PF_BC6H_SF16:
+                return GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB;
+            case PF_BC6H_UF16:
+                return GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB;
+            case PF_BC7_UNORM:
+                return GL_COMPRESSED_RGBA_BPTC_UNORM_ARB;
+            case PF_BC7_UNORM_SRGB:
+                return GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB;
+            case PF_ETC2_RGB8:
+                return GL_COMPRESSED_RGB8_ETC2;
+            case PF_ETC2_RGBA8:
+                return GL_COMPRESSED_RGBA8_ETC2_EAC;
+            case PF_ETC2_RGB8A1:
+                return GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2;
 
             default:
                 return 0;
@@ -290,17 +304,14 @@ namespace Ogre  {
         switch(mFormat)
         {
             case PF_DEPTH:
-                return GL_DEPTH_COMPONENT;
+                return GL_DEPTH_COMPONENT16;
             case PF_L8:
+            case PF_A8:
                 return GL_R8;
             case PF_L16:
                 return GL_R16;
-            case PF_A8:
-                return GL_R8;
-//            case PF_A4L4:
-//                return GL_LUMINANCE4_ALPHA4;
-//			case PF_BYTE_LA:
-//				return GL_RG16;
+			case PF_BYTE_LA:
+				return GL_RG8;
 			case PF_R3G3B2:
 				return GL_R3_G3_B2;
 			case PF_A1R5G5B5:
@@ -434,14 +445,28 @@ namespace Ogre  {
                 return GL_RGB16_SNORM;
             case PF_R16G16B16A16_SNORM:
                 return GL_RGBA16_SNORM;
-            case PF_RGTC_RED:
-                return GL_COMPRESSED_RED_RGTC1;//GL_COMPRESSED_RED
-            case PF_RGTC_SIGNED_RED:
+            case PF_BC4_UNORM:
+                return GL_COMPRESSED_RED_RGTC1;
+            case PF_BC4_SNORM:
                 return GL_COMPRESSED_SIGNED_RED_RGTC1;
-            case PF_RGTC_RED_GREEN:
-                return GL_COMPRESSED_RG;//GL_COMPRESSED_RG_RGTC2;
-            case PF_RGTC_RED_GREEN_SIGNED:
+            case PF_BC5_UNORM:
+                return GL_COMPRESSED_RG_RGTC2;
+            case PF_BC5_SNORM:
                 return GL_COMPRESSED_SIGNED_RG_RGTC2;
+            case PF_BC6H_SF16:
+                return GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB;
+            case PF_BC6H_UF16:
+                return GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB;
+            case PF_BC7_UNORM:
+                return GL_COMPRESSED_RGBA_BPTC_UNORM_ARB;
+            case PF_BC7_UNORM_SRGB:
+                return GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB;
+            case PF_ETC2_RGB8:
+                return GL_COMPRESSED_RGB8_ETC2;
+            case PF_ETC2_RGBA8:
+                return GL_COMPRESSED_RGBA8_ETC2_EAC;
+            case PF_ETC2_RGB8A1:
+                return GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2;
 
             default:
                 return GL_NONE;
@@ -467,20 +492,18 @@ namespace Ogre  {
 	{
 		switch(fmt) 
 		{
+        case GL_DEPTH_COMPONENT16:
+        case GL_DEPTH_COMPONENT24:
+        case GL_DEPTH_COMPONENT32:
+        case GL_DEPTH_COMPONENT32F:
         case GL_DEPTH_COMPONENT:
             return PF_DEPTH;
 		case GL_R8:
-        case GL_RED:
 			return PF_L8;
 		case GL_R16:
 			return PF_L16;
-//		case GL_R8:
-//			return PF_A8;
-//		case GL_LUMINANCE4_ALPHA4:
-//			// Unsupported by GL as input format, use the byte packed format
-//			return PF_BYTE_LA;
-//		case GL_RG8:
-//			return PF_BYTE_LA;
+		case GL_RG8:
+			return PF_BYTE_LA;
 		case GL_R3_G3_B2:
 			return PF_R3G3B2;
 		case GL_RGB5_A1:
@@ -601,13 +624,27 @@ namespace Ogre  {
         case GL_RGBA16_SNORM:
             return PF_R16G16B16A16_SNORM;
         case GL_COMPRESSED_RED_RGTC1:
-            return PF_RGTC_RED;
+            return PF_BC4_UNORM;
         case GL_COMPRESSED_SIGNED_RED_RGTC1:
-            return PF_RGTC_SIGNED_RED;
+            return PF_BC4_SNORM;
         case GL_COMPRESSED_RG_RGTC2:
-            return PF_RGTC_RED_GREEN;
+            return PF_BC5_UNORM;
         case GL_COMPRESSED_SIGNED_RG_RGTC2:
-            return PF_RGTC_RED_GREEN_SIGNED;
+            return PF_BC5_SNORM;
+        case GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT_ARB:
+            return PF_BC6H_SF16;
+        case GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB:
+            return PF_BC6H_UF16;
+        case GL_COMPRESSED_RGBA_BPTC_UNORM_ARB:
+            return PF_BC7_UNORM;
+        case GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB:
+            return PF_BC7_UNORM_SRGB;
+        case GL_COMPRESSED_RGB8_ETC2:
+            return PF_ETC2_RGB8;
+        case GL_COMPRESSED_RGBA8_ETC2_EAC:
+            return PF_ETC2_RGBA8;
+        case GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2:
+            return PF_ETC2_RGB8A1;
 
 		default:
 			return PF_A8R8G8B8;

@@ -651,7 +651,7 @@ namespace Ogre {
                             beg = findAndMark("uniform vec3 "+newName+"[4]", "uniform mat4x3 "+oldName, beg);
                     }
 
-                    // mark all occurences of the parameter name for replacement
+                    // mark all occurrences of the parameter name for replacement
                     findAndMark(newName, oldName, beg);
                 }
             }
@@ -682,7 +682,7 @@ namespace Ogre {
                 mark.pos = cur;
                 cur += search.size();
                 // check if previous or following character continue an identifier
-                // in that case, skip this occurence as it's part of a longer identifier
+                // in that case, skip this occurrence as it's part of a longer identifier
                 if (mark.pos > 0)
                 {
                     char c = source[mark.pos-1];
@@ -705,7 +705,7 @@ namespace Ogre {
 
         void buildOutput()
         {
-            // sort replacements in order of occurence
+            // sort replacements in order of occurrence
             std::sort(replacements.begin(), replacements.end());
             String::size_type cur = start;
             for (vector<ReplacementMark>::type::iterator it = replacements.begin(); it != replacements.end(); ++it)
@@ -740,7 +740,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void CgProgram::loadHighLevelSafe()
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
 		if (this->isSupported())
 			loadHighLevel();
     }
@@ -898,7 +898,7 @@ namespace Ogre {
 			// Record logical / physical mapping
 			if (def.isFloat())
 			{
-				OGRE_LOCK_MUTEX(mFloatLogicalToPhysical->mutex)
+                            OGRE_LOCK_MUTEX(mFloatLogicalToPhysical->mutex);
 				mFloatLogicalToPhysical->map.insert(
 					GpuLogicalIndexUseMap::value_type(def.logicalIndex, 
 						GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));
@@ -906,7 +906,7 @@ namespace Ogre {
 			}
 			else
 			{
-				OGRE_LOCK_MUTEX(mIntLogicalToPhysical->mutex)
+                            OGRE_LOCK_MUTEX(mIntLogicalToPhysical->mutex);
 				mIntLogicalToPhysical->map.insert(
 					GpuLogicalIndexUseMap::value_type(def.logicalIndex, 
 						GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));
@@ -1025,7 +1025,7 @@ namespace Ogre {
 					// Record logical / physical mapping
 					if (def.isFloat())
 					{
-						OGRE_LOCK_MUTEX(mFloatLogicalToPhysical->mutex)
+                                            OGRE_LOCK_MUTEX(mFloatLogicalToPhysical->mutex);
 						mFloatLogicalToPhysical->map.insert(
 							GpuLogicalIndexUseMap::value_type(def.logicalIndex, 
 								GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));
@@ -1033,7 +1033,7 @@ namespace Ogre {
 					}
 					else
 					{
-						OGRE_LOCK_MUTEX(mIntLogicalToPhysical->mutex)
+                                            OGRE_LOCK_MUTEX(mIntLogicalToPhysical->mutex);
 						mIntLogicalToPhysical->map.insert(
 							GpuLogicalIndexUseMap::value_type(def.logicalIndex, 
 								GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));

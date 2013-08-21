@@ -143,9 +143,9 @@ namespace Ogre {
         void prepareImpl(void);
         /// @copydoc Resource::unprepareImpl
         void unprepareImpl(void);
-		/// overriden from Resource
+		/// overridden from Resource
 		void loadImpl();
-		/// overriden from Resource
+		/// overridden from Resource
 		void postLoadImpl();
 
         /** Vector of pointers to streams that were pulled from disk by
@@ -164,9 +164,9 @@ namespace Ogre {
 		/// destructor
 		~D3D11Texture();
 
-		/// overriden from Texture
+		/// overridden from Texture
 		void copyToTexture( TexturePtr& target );
-		/// overriden from Texture
+		/// overridden from Texture
 		void loadImage( const Image &img );
 
 
@@ -200,76 +200,6 @@ namespace Ogre {
 
 		bool HasAutoMipMapGenerationEnabled() const { return mAutoMipMapGeneration; }
 
-	};
-
-	/** Specialisation of SharedPtr to allow SharedPtr to be assigned to D3D11TexturePtr 
-	@note Has to be a subclass since we need operator=.
-	We could templatise this instead of repeating per Resource subclass, 
-	except to do so requires a form VC6 does not support i.e.
-	ResourceSubclassPtr<T> : public SharedPtr<T>
-	*/
-	class D3D11TexturePtr : public SharedPtr<D3D11Texture> 
-	{
-	public:
-		D3D11TexturePtr() : SharedPtr<D3D11Texture>() {}
-		explicit D3D11TexturePtr(D3D11Texture* rep) : SharedPtr<D3D11Texture>(rep) {}
-		D3D11TexturePtr(const D3D11TexturePtr& r) : SharedPtr<D3D11Texture>(r) {} 
-		D3D11TexturePtr(const ResourcePtr& r) : SharedPtr<D3D11Texture>()
-		{
-			// lock & copy other mutex pointer
-			OGRE_MUTEX_CONDITIONAL(r.OGRE_AUTO_MUTEX_NAME)
-			{
-				OGRE_LOCK_MUTEX(*r.OGRE_AUTO_MUTEX_NAME)
-					OGRE_COPY_AUTO_SHARED_MUTEX(r.OGRE_AUTO_MUTEX_NAME)
-					pRep = static_cast<D3D11Texture*>(r.getPointer());
-				pUseCount = r.useCountPointer();
-				if (pUseCount)
-				{
-					++(*pUseCount);
-				}
-			}
-		}
-
-		/// Operator used to convert a ResourcePtr to a D3D11TexturePtr
-		D3D11TexturePtr& operator=(const ResourcePtr& r)
-		{
-			if (pRep == static_cast<D3D11Texture*>(r.getPointer()))
-				return *this;
-			release();
-			// lock & copy other mutex pointer
-			OGRE_MUTEX_CONDITIONAL(r.OGRE_AUTO_MUTEX_NAME)
-			{
-				OGRE_LOCK_MUTEX(*r.OGRE_AUTO_MUTEX_NAME)
-					OGRE_COPY_AUTO_SHARED_MUTEX(r.OGRE_AUTO_MUTEX_NAME)
-					pRep = static_cast<D3D11Texture*>(r.getPointer());
-				pUseCount = r.useCountPointer();
-				if (pUseCount)
-				{
-					++(*pUseCount);
-				}
-			}
-			return *this;
-		}
-		/// Operator used to convert a TexturePtr to a D3D11TexturePtr
-		D3D11TexturePtr& operator=(const TexturePtr& r)
-		{
-			if (pRep == static_cast<D3D11Texture*>(r.getPointer()))
-				return *this;
-			release();
-			// lock & copy other mutex pointer
-			OGRE_MUTEX_CONDITIONAL(r.OGRE_AUTO_MUTEX_NAME)
-			{
-				OGRE_LOCK_MUTEX(*r.OGRE_AUTO_MUTEX_NAME)
-					OGRE_COPY_AUTO_SHARED_MUTEX(r.OGRE_AUTO_MUTEX_NAME)
-					pRep = static_cast<D3D11Texture*>(r.getPointer());
-				pUseCount = r.useCountPointer();
-				if (pUseCount)
-				{
-					++(*pUseCount);
-				}
-			}
-			return *this;
-		}
 	};
 
 	/// RenderTexture implementation for D3D11

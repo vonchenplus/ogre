@@ -347,7 +347,7 @@ void Sample_ShaderSystem::setupContent()
 
 	// Create reflection entity that will show the exported material.
 	const String& mainExportedMaterial = mSceneMgr->getEntity(MAIN_ENTITY_NAME)->getSubEntity(0)->getMaterialName() + "_RTSS_Export";
-	MaterialPtr matMainEnt        = MaterialManager::getSingleton().getByName(mainExportedMaterial, SAMPLE_MATERIAL_GROUP);
+	MaterialPtr matMainEnt        = MaterialManager::getSingleton().getByName(mainExportedMaterial, SAMPLE_MATERIAL_GROUP).staticCast<Material>();
 
 	entity = mSceneMgr->createEntity("ExportedMaterialEntity", MAIN_ENTITY_MESH);
 	entity->setMaterial(matMainEnt);
@@ -400,10 +400,12 @@ void Sample_ShaderSystem::setupContent()
 	childNode->setPosition(-300.0, 100.0, -100.0);
 	childNode->attachObject(entity);
 
-    // OpenGL ES 2.0 does not support texture atlases
+    // OpenGL ES 2.0 does not support texture atlases. But ES 3.0 does!
+#if OGRE_NO_GLES3_SUPPORT == 1
 	if (Ogre::Root::getSingletonPtr()->getRenderSystem()->getName().find("OpenGL ES 2") == String::npos)
+#endif
     {
-        RTShader::RenderState* pMainRenderState = 
+        RTShader::RenderState* pMainRenderState =
             RTShader::ShaderGenerator::getSingleton().createOrRetrieveRenderState(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME).first;
         pMainRenderState->addTemplateSubRenderState(
             Ogre::RTShader::ShaderGenerator::getSingleton().createSubRenderState(
@@ -712,7 +714,7 @@ void Sample_ShaderSystem::generateShaders(Entity* entity)
 		// Setup custom shader sub render states according to current setup.
 		if (success)
 		{					
-			MaterialPtr curMaterial = MaterialManager::getSingleton().getByName(curMaterialName);
+			MaterialPtr curMaterial = MaterialManager::getSingleton().getByName(curMaterialName).staticCast<Material>();
 			Pass* curPass = curMaterial->getTechnique(0)->getPass(0);
 
 			if (mSpecularEnable)
@@ -918,7 +920,7 @@ void Sample_ShaderSystem::addModelToScene(const String &  modelName)
 	    mLotsOfModelsNodes.push_back(childNode);
 	    childNode->setPosition(mNumberOfModelsAdded * scaleFactor, 15,  i * scaleFactor);
 	    childNode->attachObject(entity);
-        MeshPtr modelMesh = MeshManager::getSingleton().getByName(modelName);
+        MeshPtr modelMesh = MeshManager::getSingleton().getByName(modelName).staticCast<Mesh>();
         Vector3 modelSize = modelMesh->getBounds().getSize();
         childNode->scale(1 / modelSize.x * scaleFactor, 
                          1 / modelSize.y * scaleFactor, 
@@ -1130,7 +1132,7 @@ void Sample_ShaderSystem::applyShadowType(int menuIndex)
 		
 		
 		// Disable fog on the caster pass.
-		MaterialPtr passCaterMaterial = MaterialManager::getSingleton().getByName("PSSM/shadow_caster");
+		MaterialPtr passCaterMaterial = MaterialManager::getSingleton().getByName("PSSM/shadow_caster").staticCast<Material>();
 		Pass* pssmCasterPass = passCaterMaterial->getTechnique(0)->getPass(0);
 		pssmCasterPass->setFog(true);
 
@@ -1168,7 +1170,7 @@ void Sample_ShaderSystem::applyShadowType(int menuIndex)
 void Sample_ShaderSystem::exportRTShaderSystemMaterial(const String& fileName, const String& materialName)
 {
 	// Grab material pointer.
-	MaterialPtr materialPtr = MaterialManager::getSingleton().getByName(materialName);
+	MaterialPtr materialPtr = MaterialManager::getSingleton().getByName(materialName).staticCast<Material>();
 
 	// Create shader based technique.
 	bool success = mShaderGenerator->createShaderBasedTechnique(materialName,
@@ -1331,7 +1333,7 @@ void Sample_ShaderSystem::updateTargetObjInfo()
 
 	if (mViewport->getMaterialScheme() == RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
 	{		
-		MaterialPtr matMainEnt        = MaterialManager::getSingleton().getByName(targetObjMaterialName);
+		MaterialPtr matMainEnt        = MaterialManager::getSingleton().getByName(targetObjMaterialName).staticCast<Material>();
 
 		if (matMainEnt.isNull() == false)
 		{
@@ -1682,7 +1684,7 @@ void Sample_ShaderSystem::createMaterialForTexture( const String & texName, bool
 	MaterialManager * matMgr = MaterialManager::getSingletonPtr();
 	if ( matMgr->resourceExists(texName) == false )
 	{
-		MaterialPtr newMat = matMgr->create(texName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+		MaterialPtr newMat = matMgr->create(texName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME).staticCast<Material>();
 		newMat->getTechnique(0)->getPass(0)->setLightingEnabled(false);
 		TextureUnitState* pState = newMat->getTechnique(0)->getPass(0)->createTextureUnitState(texName);
 		if(isTextureAtlasTexture) 

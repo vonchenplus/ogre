@@ -71,7 +71,7 @@ namespace Ogre {
 		// Was it created?
 		if(res.second)
         {
-            TexturePtr tex = res.first;
+            TexturePtr tex = res.first.staticCast<Texture>();
             tex->setTextureType(texType);
             tex->setNumMipmaps((numMipmaps == MIP_DEFAULT)? mDefaultNumMipmaps :
 				static_cast<size_t>(numMipmaps));
@@ -89,7 +89,7 @@ namespace Ogre {
     {
 		ResourceCreateOrRetrieveResult res =
             createOrRetrieve(name,group,false,0,0,texType,numMipmaps,gamma,isAlpha,desiredFormat,hwGamma);
-        TexturePtr tex = res.first;
+        TexturePtr tex = res.first.staticCast<Texture>();
 		tex->prepare();
         return tex;
     }
@@ -100,7 +100,7 @@ namespace Ogre {
     {
 		ResourceCreateOrRetrieveResult res =
             createOrRetrieve(name,group,false,0,0,texType,numMipmaps,gamma,isAlpha,desiredFormat,hwGamma);
-        TexturePtr tex = res.first;
+        TexturePtr tex = res.first.staticCast<Texture>();
 		tex->load();
         return tex;
     }
@@ -110,7 +110,7 @@ namespace Ogre {
         const Image &img, TextureType texType, int numMipmaps, Real gamma, bool isAlpha, 
 		PixelFormat desiredFormat, bool hwGamma)
     {
-        TexturePtr tex = create(name, group, true);
+        TexturePtr tex = create(name, group, true).staticCast<Texture>();
 
         tex->setTextureType(texType);
         tex->setNumMipmaps((numMipmaps == MIP_DEFAULT)? mDefaultNumMipmaps :
@@ -129,7 +129,7 @@ namespace Ogre {
         PixelFormat format, TextureType texType, 
         int numMipmaps, Real gamma, bool hwGamma)
 	{
-        TexturePtr tex = create(name, group, true);
+        TexturePtr tex = create(name, group, true).staticCast<Texture>();
 
         tex->setTextureType(texType);
         tex->setNumMipmaps((numMipmaps == MIP_DEFAULT)? mDefaultNumMipmaps :
@@ -146,11 +146,21 @@ namespace Ogre {
         PixelFormat format, int usage, ManualResourceLoader* loader, bool hwGamma, 
 		uint fsaa, const String& fsaaHint)
     {
+        TexturePtr ret;
+        ret.setNull();
+
+        // Check for 3D texture support
+		const RenderSystemCapabilities* caps =
+            Root::getSingleton().getRenderSystem()->getCapabilities();
+        if (((texType == TEX_TYPE_3D) || (texType == TEX_TYPE_2D_ARRAY)) &&
+            !caps->hasCapability(RSC_TEXTURE_3D))
+            return ret;
+
         if (((usage & (int)TU_STATIC) != 0) && (!Root::getSingleton().getRenderSystem()->isStaticBufferLockable()))
         {
             usage = (usage & ~(int)TU_STATIC) | (int)TU_DYNAMIC;
         }
-        TexturePtr ret = create(name, group, true, loader);
+        ret = create(name, group, true, loader).staticCast<Texture>();
         ret->setTextureType(texType);
         ret->setWidth(width);
         ret->setHeight(height);

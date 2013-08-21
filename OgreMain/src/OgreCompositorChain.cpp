@@ -106,10 +106,10 @@ void CompositorChain::createOriginalScene()
     compName += StringConverter::toString((size_t)mViewport);
 
 	mOriginalSceneScheme = mViewport->getMaterialScheme();
-	CompositorPtr scene = CompositorManager::getSingleton().getByName(compName, ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
+	CompositorPtr scene = CompositorManager::getSingleton().getByName(compName, ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME).staticCast<Compositor>();
 	if (scene.isNull())
 	{
-		scene = CompositorManager::getSingleton().create(compName, ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
+		scene = CompositorManager::getSingleton().create(compName, ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME).staticCast<Compositor>();
 		CompositionTechnique *t = scene->createTechnique();
 		t->setSchemeName(StringUtil::BLANK);
 		CompositionTargetPass *tp = t->getOutputTargetPass();
@@ -129,7 +129,7 @@ void CompositorChain::createOriginalScene()
 
 		/// Create base "original scene" compositor
 		scene = CompositorManager::getSingleton().load(compName,
-			ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
+			ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME).staticCast<Compositor>();
 
 
 
@@ -362,9 +362,6 @@ void CompositorChain::preTargetOperation(CompositorInstance::TargetOperation &op
 		mOurListener.notifyViewport(vp);
 		/// Register it
 		sm->addRenderQueueListener(&mOurListener);
-		/// Set visiblity mask
-		mOldVisibilityMask = sm->getVisibilityMask();
-		sm->setVisibilityMask(op.visibilityMask);
 		/// Set whether we find visibles
 		mOldFindVisibleObjects = sm->getFindVisibleObjects();
 		sm->setFindVisibleObjects(op.findVisibleObjects);
@@ -373,6 +370,9 @@ void CompositorChain::preTargetOperation(CompositorInstance::TargetOperation &op
 		cam->setLodBias(cam->getLodBias() * op.lodBias);
 	}
 
+    // Set the visibility mask
+    mOldVisibilityMask = vp->getVisibilityMask();
+    vp->setVisibilityMask(op.visibilityMask);
 	/// Set material scheme 
 	mOldMaterialScheme = vp->getMaterialScheme();
 	vp->setMaterialScheme(op.materialScheme);
@@ -393,11 +393,11 @@ void CompositorChain::postTargetOperation(CompositorInstance::TargetOperation &o
 		/// Unregister our listener
 		sm->removeRenderQueueListener(&mOurListener);
 		/// Restore default scene and camera settings
-		sm->setVisibilityMask(mOldVisibilityMask);
 		sm->setFindVisibleObjects(mOldFindVisibleObjects);
 		cam->setLodBias(mOldLodBias);
 	}
 
+    vp->setVisibilityMask(mOldVisibilityMask);
 	vp->setMaterialScheme(mOldMaterialScheme);
 	vp->setShadowsEnabled(mOldShadowsEnabled);
 }

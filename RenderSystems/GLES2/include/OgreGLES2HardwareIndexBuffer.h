@@ -38,12 +38,6 @@ namespace Ogre {
     {
         private:
             GLuint mBufferId;
-            // Scratch buffer handling
-            bool mLockedToScratch;
-            size_t mScratchOffset;
-            size_t mScratchSize;
-            void* mScratchPtr;
-            bool mScratchUploadOnUnlock;
         
         protected:
             /** See HardwareBuffer. */
@@ -73,6 +67,11 @@ namespace Ogre {
             /** See HardwareBuffer. */
             void writeData(size_t offset, size_t length, 
                 const void* pSource, bool discardWholeBuffer = false);
+#if OGRE_NO_GLES3_SUPPORT == 0
+            /** See HardwareBuffer. */
+            void copyData(HardwareBuffer& srcBuffer, size_t srcOffset,
+                      size_t dstOffset, size_t length, bool discardWholeBuffer = false);
+#endif
             /** See HardwareBuffer. */
             void _updateFromShadow(void);
 

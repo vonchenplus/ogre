@@ -26,8 +26,14 @@
  -----------------------------------------------------------------------------
  */
 #include "OgreStableHeaders.h"
+
+#if OGRE_NO_ZIP_ARCHIVE == 0
+
 #include "OgreDeflate.h"
 #include "OgreException.h"
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+#include "macUtils.h"
+#endif
 
 #include <zlib.h>
 
@@ -148,6 +154,8 @@ namespace Ogre
                     mTempFileName = tmpname;
                     free(tmpname);
                 }
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+                mTempFileName = macTempFileName();
 #else
                 char tmpname[L_tmpnam];
                 tmpnam(tmpname);
@@ -316,7 +324,7 @@ namespace Ogre
 			/* done when last data in file processed */
 		} while (flush != Z_FINISH);
 		assert(ret == Z_STREAM_END);        /* stream will be complete */
-		
+                (void)ret;
 		deflateEnd(mZStream);
 
         inFile.close();
@@ -434,4 +442,4 @@ namespace Ogre
 	
 }
 
-
+#endif

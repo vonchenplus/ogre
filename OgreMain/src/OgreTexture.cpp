@@ -101,7 +101,7 @@ namespace Ogre {
 		// Scope lock for actual loading
 		try
 		{
-			OGRE_LOCK_AUTO_MUTEX
+                    OGRE_LOCK_AUTO_MUTEX;
 			vector<const Image*>::type imagePtrs;
 			imagePtrs.push_back(&img);
 			_loadImages( imagePtrs );
@@ -240,7 +240,7 @@ namespace Ogre {
 			multiImage = false;
 		}
 		
-		// Check wether number of faces in images exceeds number of faces
+		// Check whether number of faces in images exceeds number of faces
 		// in this texture. If so, clamp it.
 		if(faces > getNumFaces())
 			faces = getNumFaces();

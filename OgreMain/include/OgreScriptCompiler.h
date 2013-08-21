@@ -126,7 +126,7 @@ namespace Ogre
 		map<String,String>::type mEnv;
 	public:
 		String name, cls;
-		std::vector<String> bases;
+		vector<String>::type bases;
 		uint32 id;
 		bool abstract;
 		AbstractNodeList children;
@@ -384,7 +384,7 @@ namespace Ogre
 	class _OgreExport ScriptCompilerManager : public Singleton<ScriptCompilerManager>, public ScriptLoader, public ScriptCompilerAlloc
 	{
 	private:
-		OGRE_AUTO_MUTEX
+            OGRE_AUTO_MUTEX;
 
 		// A list of patterns loaded by this compiler manager
 		StringVector mScriptPatterns;

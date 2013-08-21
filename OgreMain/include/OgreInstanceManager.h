@@ -49,7 +49,7 @@ namespace Ogre
         must have a unique name. It's wasteless to create two InstanceManagers with the same
         mesh reference, instancing technique and instances per batch count.
         This class takes care of managing batches automatically, so that more are created when
-        needed, and reuse existing ones as much as posible; thus the user doesn't have to worry
+        needed, and reuse existing ones as much as possible; thus the user doesn't have to worry
         of managing all those low level issues.
         @see InstanceBatch & @see InstanceEntity for more information.
 
@@ -197,7 +197,7 @@ namespace Ogre
 				* Not implemented. (see HWInstancingVTF's recommendation)
 			ShaderBased:
 				* Not supported.
-		@param Number of custom parameters each instance will have. Default: 0
+		@param numCustomParams Number of custom parameters each instance will have. Default: 0
 		*/
 		void setNumCustomParams( unsigned char numCustomParams );
 
@@ -310,7 +310,11 @@ namespace Ogre
         InstanceBatchIterator getInstanceBatchIterator( const String &materialName ) const
         {
             InstanceBatchMap::const_iterator it = mInstanceBatches.find( materialName );
-            return InstanceBatchIterator( it->second.begin(), it->second.end() );
+            if(it != mInstanceBatches.end())
+                return InstanceBatchIterator( it->second.begin(), it->second.end() );
+            else
+                OGRE_EXCEPT(Exception::ERR_INVALID_STATE, "Cannot create instance batch iterator. "
+                            "Material " + materialName + " cannot be found.", "InstanceManager::getInstanceBatchIterator");
         }
     };
 } // namespace Ogre

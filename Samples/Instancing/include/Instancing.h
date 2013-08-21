@@ -125,7 +125,7 @@ protected:
 		}
 
 		assert (mSelectedMesh < numTypeMeshes);
-		MeshPtr m = MeshManager::getSingleton ().getByName (meshes[mSelectedMesh] + ".mesh");
+		MeshPtr m = MeshManager::getSingleton ().getByName (meshes[mSelectedMesh] + ".mesh").staticCast<Mesh>();
 		if (m.isNull ())
 		{
 			m = MeshManager::getSingleton ().load (meshes[mSelectedMesh] + ".mesh", 
@@ -253,16 +253,19 @@ protected:
 	}
 	String buildInstancedMaterial(const String &originalMaterialName)
 	{
-
 		// already instanced ?
 		if (StringUtil::endsWith (originalMaterialName, "/instanced"))
 			return originalMaterialName;
 
-		MaterialPtr originalMaterial = MaterialManager::getSingleton ().getByName (originalMaterialName);
+		MaterialPtr originalMaterial = MaterialManager::getSingleton ().getByName (originalMaterialName).staticCast<Material>();
+
+#if defined(USE_RTSHADER_SYSTEM)
+        originalMaterial->getBestTechnique()->setSchemeName(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+#endif
 
 		// if originalMat doesn't exists use "Instancing" material name
 		const String instancedMaterialName (originalMaterial.isNull() ? "Instancing" : originalMaterialName + "/Instanced");
-		MaterialPtr  instancedMaterial = MaterialManager::getSingleton ().getByName (instancedMaterialName);
+		MaterialPtr  instancedMaterial = MaterialManager::getSingleton ().getByName (instancedMaterialName).staticCast<Material>();
 
 		// already exists ?
 		if (instancedMaterial.isNull())
