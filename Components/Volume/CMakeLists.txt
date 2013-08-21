@@ -14,41 +14,8 @@
 PROJECT(OgreVolume)
 
 # define header and source files for the library
-set (HEADER_FILES
-	include/OgreVolumeCacheSource.h
-	include/OgreVolumeCSGSource.h
-	include/OgreVolumeDualGridGenerator.h
-	include/OgreVolumeGridSource.h
-	include/OgreVolumeHalfFloatGridSource.h
-	include/OgreVolumeIsoSurface.h
-	include/OgreVolumeIsoSurfaceMC.h
-	include/OgreVolumeIsoSurfaceTablesMC.h
-	include/OgreVolumeMeshBuilder.h
-	include/OgreVolumeTextureSource.h
-	include/OgreVolumeChunk.h
-	include/OgreVolumeOctreeNode.h
-	include/OgreVolumeOctreeNodeSplitPolicy.h
-	include/OgreVolumeSimplexNoise.h
-	include/OgreVolumeSource.h
-	include/OgreVolumePrerequisites.h
-)
-set(SOURCE_FILES
-	src/OgreVolumeCacheSource.cpp
-	src/OgreVolumeCSGSource.cpp
-	src/OgreVolumeDualGridGenerator.cpp
-	src/OgreVolumeGridSource.cpp
-	src/OgreVolumeHalfFloatGridSource.cpp
-	src/OgreVolumeIsoSurface.cpp
-	src/OgreVolumeIsoSurfaceMC.cpp
-	src/OgreVolumeMeshBuilder.cpp
-	src/OgreVolumeTextureSource.cpp
-	src/OgreVolumeChunk.cpp
-	src/OgreVolumeOctreeNode.cpp
-	src/OgreVolumeOctreeNodeSplitPolicy.cpp
-	src/OgreVolumeSimplexNoise.cpp
-	src/OgreVolumeSource.cpp
-)
-
+file(GLOB HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 # Add needed definitions 
 add_definitions(-DOGRE_VOLUME_EXPORTS -D_MT -D_USRDLL)
@@ -59,17 +26,16 @@ include_directories(${OGRE_SOURCE_DIR}/OgreMain/include)
 
 # setup target
 ogre_add_library(OgreVolume ${OGRE_COMP_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES} ${PLATFORM_HEADER_FILES} ${PLATFORM_SOURCE_FILES})
-set_target_properties(OgreVolume PROPERTIES VERSION ${OGRE_SOVERSION})
+set_target_properties(OgreVolume PROPERTIES VERSION ${OGRE_SOVERSION} SOVERSION ${OGRE_SOVERSION})
 target_link_libraries(OgreVolume OgreMain)
 if (OGRE_CONFIG_THREADS)
-  target_link_libraries(OgreVolume ${Boost_LIBRARIES})
+  target_link_libraries(OgreVolume ${OGRE_THREAD_LIBRARIES})
 endif ()
 
 
 # install 
-ogre_config_component(OgreVolume)
-
 ogre_config_framework(OgreVolume)
+ogre_config_component(OgreVolume)
 
 install(FILES ${HEADER_FILES}
   DESTINATION include/OGRE/Volume

@@ -206,38 +206,58 @@ namespace Ogre {
         PF_R32G32B32A32_SINT = 68,
         /// 32-bit pixel format, 9 bits for blue, green, red plus a 5 bit exponent.
         PF_R9G9B9E5_SHAREDEXP = 69,
-        /// RGTC Unsigned red pixel format
-        PF_RGTC_RED = 70,
-        /// RGTC Signed red pixel format
-        PF_RGTC_SIGNED_RED = 71,
-        /// RGTC Unsigned red-green pixel format
-        PF_RGTC_RED_GREEN = 72,
-        /// RGTC Signed red pixel format
-        PF_RGTC_RED_GREEN_SIGNED = 73,
+        /// DDS (DirectDraw Surface) BC4 format (unsigned normalised)
+        PF_BC4_UNORM = 70,
+        /// DDS (DirectDraw Surface) BC4 format (signed normalised)
+        PF_BC4_SNORM = 71,
+        /// DDS (DirectDraw Surface) BC5 format (unsigned normalised)
+        PF_BC5_UNORM = 72,
+        /// DDS (DirectDraw Surface) BC5 format (signed normalised)
+        PF_BC5_SNORM = 73,
+        /// DDS (DirectDraw Surface) BC6H format (unsigned 16 bit float)
+        PF_BC6H_UF16 = 74,
+        /// DDS (DirectDraw Surface) BC6H format (signed 16 bit float)
+        PF_BC6H_SF16 = 75,
+        /// DDS (DirectDraw Surface) BC7 format (unsigned normalised)
+        PF_BC7_UNORM = 76,
+        /// DDS (DirectDraw Surface) BC7 format (unsigned normalised sRGB)
+        PF_BC7_UNORM_SRGB = 77,
         /// 8-bit pixel format, all bits red.
-        PF_R8 = 74,
+        PF_R8 = 78,
         /// 16-bit pixel format, 8 bits red, 8 bits green.
-        PF_RG8 = 75,
-        /// 8-bit pixel format, 8 bits red (signed normalized int).
-        PF_R8_SNORM = 76,
-        /// 16-bit pixel format, 8 bits red (signed normalized int), 8 bits blue (signed normalized int).
-        PF_R8G8_SNORM = 77,
-        /// 24-bit pixel format, 8 bits red (signed normalized int), 8 bits blue (signed normalized int), 8 bits green (signed normalized int).
-        PF_R8G8B8_SNORM = 78,
-        /// 32-bit pixel format, 8 bits red (signed normalized int), 8 bits blue (signed normalized int), 8 bits green (signed normalized int), 8 bits alpha (signed normalized int).
-        PF_R8G8B8A8_SNORM = 79,
-        /// 16-bit pixel format, 16 bits red (signed normalized int).
-        PF_R16_SNORM = 80,
-        /// 32-bit pixel format, 16 bits red (signed normalized int), 16 bits blue (signed normalized int).
-        PF_R16G16_SNORM = 81,
-        /// 48-bit pixel format, 16 bits red (signed normalized int), 16 bits blue (signed normalized int), 16 bits green (signed normalized int).
-        PF_R16G16B16_SNORM = 82,
-        /// 64-bit pixel format, 16 bits red (signed normalized int), 16 bits blue (signed normalized int), 16 bits green (signed normalized int), 16 bits alpha (signed normalized int).
-        PF_R16G16B16A16_SNORM = 83,
+        PF_RG8 = 79,
+        /// 8-bit pixel format, 8 bits red (signed normalised int).
+        PF_R8_SNORM = 80,
+        /// 16-bit pixel format, 8 bits red (signed normalised int), 8 bits blue (signed normalised int).
+        PF_R8G8_SNORM = 81,
+        /// 24-bit pixel format, 8 bits red (signed normalised int), 8 bits blue (signed normalised int), 8 bits green (signed normalised int).
+        PF_R8G8B8_SNORM = 82,
+        /// 32-bit pixel format, 8 bits red (signed normalised int), 8 bits blue (signed normalised int), 8 bits green (signed normalised int), 8 bits alpha (signed normalised int).
+        PF_R8G8B8A8_SNORM = 83,
+        /// 16-bit pixel format, 16 bits red (signed normalised int).
+        PF_R16_SNORM = 84,
+        /// 32-bit pixel format, 16 bits red (signed normalised int), 16 bits blue (signed normalised int).
+        PF_R16G16_SNORM = 85,
+        /// 48-bit pixel format, 16 bits red (signed normalised int), 16 bits blue (signed normalised int), 16 bits green (signed normalised int).
+        PF_R16G16B16_SNORM = 86,
+        /// 64-bit pixel format, 16 bits red (signed normalised int), 16 bits blue (signed normalised int), 16 bits green (signed normalised int), 16 bits alpha (signed normalised int).
+        PF_R16G16B16A16_SNORM = 87,
         /// ETC1 (Ericsson Texture Compression)
-        PF_ETC1_RGB8 = 84,
+        PF_ETC1_RGB8 = 88,
+        /// ETC2 (Ericsson Texture Compression)
+        PF_ETC2_RGB8 = 89,
+        /// ETC2 (Ericsson Texture Compression)
+        PF_ETC2_RGBA8 = 90,
+        /// ETC2 (Ericsson Texture Compression)
+        PF_ETC2_RGB8A1 = 91,
+		/// ATC (AMD_compressed_ATC_texture)
+		PF_ATC_RGB = 92,
+		/// ATC (AMD_compressed_ATC_texture)
+		PF_ATC_RGBA_EXPLICIT_ALPHA = 93,
+		/// ATC (AMD_compressed_ATC_texture)
+		PF_ATC_RGBA_INTERPOLATED_ALPHA = 94,
 		// Number of pixel formats currently defined
-        PF_COUNT = 85
+        PF_COUNT = 95
     };
 	typedef vector<PixelFormat>::type PixelFormatList;
 
@@ -245,22 +265,22 @@ namespace Ogre {
      * Flags defining some on/off properties of pixel formats
      */
     enum PixelFormatFlags {
-        // This format has an alpha channel
+        /// This format has an alpha channel
         PFF_HASALPHA        = 0x00000001,      
-        // This format is compressed. This invalidates the values in elemBytes,
-        // elemBits and the bit counts as these might not be fixed in a compressed format.
+        /** This format is compressed. This invalidates the values in elemBytes,
+            elemBits and the bit counts as these might not be fixed in a compressed format. */
         PFF_COMPRESSED    = 0x00000002,
-        // This is a floating point format
+        /// This is a floating point format
         PFF_FLOAT           = 0x00000004,         
-        // This is a depth format (for depth textures)
+        /// This is a depth format (for depth textures)
         PFF_DEPTH           = 0x00000008,
-        // Format is in native endian. Generally true for the 16, 24 and 32 bits
-        // formats which can be represented as machine integers.
+        /** Format is in native endian. Generally true for the 16, 24 and 32 bits
+            formats which can be represented as machine integers. */
         PFF_NATIVEENDIAN    = 0x00000010,
-        // This is an intensity format instead of a RGB one. The luminance
-        // replaces R,G and B. (but not A)
+        /** This is an intensity format instead of a RGB one. The luminance
+            replaces R,G and B. (but not A) */
         PFF_LUMINANCE       = 0x00000020,
-        // This is an integer format
+        /// This is an integer format
         PFF_INTEGER         = 0x00000040
     };
     
@@ -439,6 +459,8 @@ namespace Ogre {
         static bool hasAlpha(PixelFormat format);
         /** Shortcut method to determine if the format is floating point */
         static bool isFloatingPoint(PixelFormat format);
+        /** Shortcut method to determine if the format is integer */
+        static bool isInteger(PixelFormat format);
         /** Shortcut method to determine if the format is compressed */
         static bool isCompressed(PixelFormat format);
         /** Shortcut method to determine if the format is a depth format. */
@@ -448,7 +470,7 @@ namespace Ogre {
         /** Shortcut method to determine if the format is a luminance format. */
         static bool isLuminance(PixelFormat format);
 		
-		/** Return wether a certain image extent is valid for this image format.
+		/** Return whether a certain image extent is valid for this image format.
 			@param width
 				The width of the area
 			@param height
@@ -481,7 +503,7 @@ namespace Ogre {
         */
         static String getFormatName(PixelFormat srcformat);
 
-        /** Returns wether the format can be packed or unpacked with the packColour()
+        /** Returns whether the format can be packed or unpacked with the packColour()
         and unpackColour() functions. This is generally not true for compressed and
         depth formats as they are special. It can only be true for formats with a
         fixed element size.
@@ -537,7 +559,9 @@ namespace Ogre {
         */
         static void packColour(const ColourValue &colour, const PixelFormat pf,  void* dest);
         /** Pack a colour value to memory
-        	@param r,g,b,a	The four colour components, range 0x00 to 0xFF
+            @param r,g,b,a	The four colour components, range 0.0f to 1.0f
+                            (an exception to this case exists for floating point pixel
+                            formats, which don't clamp to 0.0f..1.0f)
         	@param pf		Pixelformat in which to write the colour
         	@param dest		Destination memory location
         */
@@ -558,7 +582,10 @@ namespace Ogre {
         */
         static void unpackColour(ColourValue *colour, PixelFormat pf,  const void* src);
         /** Unpack a colour value from memory
-        	@param r,g,b,a	The colour is returned here (as byte)
+        	@param r        The red channel is returned here (as byte)
+            @param g        The blue channel is returned here (as byte)
+            @param b        The green channel is returned here (as byte)
+            @param a        The alpha channel is returned here (as byte)
         	@param pf		Pixelformat in which to read the colour
         	@param src		Source memory location
         	@remarks 	This function returns the colour components in 8 bit precision,
@@ -567,7 +594,10 @@ namespace Ogre {
         */
         static void unpackColour(uint8 *r, uint8 *g, uint8 *b, uint8 *a, PixelFormat pf,  const void* src);
         /** Unpack a colour value from memory
-        	@param r,g,b,a	The colour is returned here (as float)
+            @param r        The red channel is returned here (as float)
+            @param g        The blue channel is returned here (as float)
+            @param b        The green channel is returned here (as float)
+            @param a        The alpha channel is returned here (as float)
         	@param pf		Pixelformat in which to read the colour
         	@param src		Source memory location
         */
@@ -591,6 +621,12 @@ namespace Ogre {
          	dimensions. In case the source and destination format match, a plain copy is done.
         */
         static void bulkPixelConversion(const PixelBox &src, const PixelBox &dst);
+
+      	/** Flips pixels inplace in vertical direction.
+            @param	src			PixelBox containing pixels, pitches and format
+            @remarks Non consecutive pixel boxes are supported.
+         */
+        static void bulkPixelVerticalFlip(const PixelBox &box);
     };
 	/** @} */
 	/** @} */

@@ -137,6 +137,7 @@ namespace Ogre {
             RBFormat(GLenum inFormat, size_t inWidth, size_t inHeight, uint fsaa):
                 format(inFormat), width(inWidth), height(inHeight), samples(fsaa)
             {}
+            RBFormat() {}
             GLenum format;
             size_t width;
             size_t height;
@@ -192,6 +193,7 @@ namespace Ogre {
         void detectFBOFormats();
         GLuint _tryFormat(GLenum depthFormat, GLenum stencilFormat);
         bool _tryPackedFormat(GLenum packedFormat);
+        void _createTempFramebuffer(GLuint fmt, GLuint &fb, GLuint &tid);
     };
     
 

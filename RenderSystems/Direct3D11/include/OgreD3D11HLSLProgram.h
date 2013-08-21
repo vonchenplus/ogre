@@ -101,7 +101,7 @@ namespace Ogre {
 		void populateParameterNames(GpuProgramParametersSharedPtr params);
 
 		// Recursive utility method for populateParameterNames
-		void processParamElement(String prefix, LPCSTR pName, size_t paramIndex, ID3D11ShaderReflectionType* varRefType);
+		void processParamElement(String prefix, LPCSTR pName, ID3D11ShaderReflectionType* varRefType);
 
 		void populateDef(D3D11_SHADER_TYPE_DESC& d3dDesc, GpuConstantDefinition& def) const;
 
@@ -357,6 +357,8 @@ namespace Ogre {
         
 		unsigned int getNumInputs(void)const;
 		unsigned int getNumOutputs(void)const;
+
+		String getNameForMicrocodeCache();
 
 		const D3D11_SIGNATURE_PARAMETER_DESC & getInputParamDesc(unsigned int index) const;
 		const D3D11_SIGNATURE_PARAMETER_DESC & getOutputParamDesc(unsigned int index) const;	

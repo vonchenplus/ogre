@@ -39,23 +39,20 @@ THE SOFTWARE.
 #include "macUtils.h"
 #endif
 
-// Regsiter the suite
+// Register the suite
 CPPUNIT_TEST_SUITE_REGISTRATION( UseCustomCapabilitiesTests );
 
 void UseCustomCapabilitiesTests::setUp()
 {
     using namespace Ogre;
 
-	// set up silent logging to not pollute output
-	if(LogManager::getSingletonPtr())
-		OGRE_DELETE Ogre::LogManager::getSingletonPtr();
-	
 	// write cleanup to log
 	if(LogManager::getSingletonPtr() == 0)
 	{
 		LogManager* logManager = OGRE_NEW LogManager();
 		logManager->createLog("testCustomCapabilitiesSetUp.log", true, false);
 	}
+    LogManager::getSingleton().setLogDetail(LL_LOW);
 
 	
 	if(Ogre::HighLevelGpuProgramManager::getSingletonPtr())
@@ -69,9 +66,9 @@ void UseCustomCapabilitiesTests::setUp()
 	if(Ogre::ResourceGroupManager::getSingletonPtr())
 		OGRE_DELETE Ogre::ResourceGroupManager::getSingletonPtr();
 
-	// set up silent logging to not pollute output
-	if(LogManager::getSingletonPtr())
-		OGRE_DELETE Ogre::LogManager::getSingletonPtr();
+#if OGRE_STATIC
+        mStaticPluginLoader = OGRE_NEW Ogre::StaticPluginLoader();
+#endif
 }
 
 void UseCustomCapabilitiesTests::tearDown()
@@ -81,6 +78,9 @@ void UseCustomCapabilitiesTests::tearDown()
 	if(LogManager::getSingletonPtr())
 		OGRE_DELETE Ogre::LogManager::getSingletonPtr();
 
+#if OGRE_STATIC
+        OGRE_DELETE mStaticPluginLoader;
+#endif
 }
 
 void checkCaps(const Ogre::RenderSystemCapabilities* caps)
@@ -118,12 +118,16 @@ void checkCaps(const Ogre::RenderSystemCapabilities* caps)
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION), true);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_DXT), true);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_VTC), false);
+    CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_PVRTC), false);
+    CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_BC4_BC5), false);
+    CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7), false);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_FBO), true);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_FBO_ARB), false);
 
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_FBO_ATI), false);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_PBUFFER), false);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_PERSTAGECONSTANT), false);
+    CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_VAO), false);
     CPPUNIT_ASSERT_EQUAL(caps->hasCapability(RSC_SEPARATE_SHADER_OBJECTS), false);
 
     CPPUNIT_ASSERT(caps->isShaderProfileSupported("arbfp1"));
@@ -196,8 +200,16 @@ void UseCustomCapabilitiesTests::testCustomCapabilitiesGL()
 		LogManager* logManager = OGRE_NEW LogManager();
 		logManager->createLog("testCustomCapabilitiesGL.log", true, false);
 	}
+    LogManager::getSingleton().setLogDetail(LL_LOW);
 
-	Root* root = OGRE_NEW Root("plugins" OGRE_LIB_SUFFIX ".cfg");
+#ifdef OGRE_STATIC_LIB
+	Root* root = OGRE_NEW Root(StringUtil::BLANK);
+        
+	mStaticPluginLoader.load();
+#else
+	Root* root = OGRE_NEW Root("plugins.cfg");
+#endif
+
 	RenderSystem* rs = root->getRenderSystemByName("OpenGL Rendering Subsystem");
 	if(rs == 0)
 	{
@@ -256,8 +268,16 @@ void UseCustomCapabilitiesTests::testCustomCapabilitiesD3D9()
 		LogManager* logManager = OGRE_NEW LogManager();
 		logManager->createLog("testCustomCapabilitiesD3D9.log", true, false);
 	}
+    LogManager::getSingleton().setLogDetail(LL_LOW);
 
-    Root* root = OGRE_NEW Root("plugins" OGRE_LIB_SUFFIX ".cfg");
+#ifdef OGRE_STATIC_LIB
+	Root* root = OGRE_NEW Root(StringUtil::BLANK);
+        
+	mStaticPluginLoader.load();
+#else
+	Root* root = OGRE_NEW Root("plugins.cfg");
+#endif
+
 	RenderSystem* rs = root->getRenderSystemByName("Direct3D9 Rendering Subsystem");
 	if(rs == 0)
 	{

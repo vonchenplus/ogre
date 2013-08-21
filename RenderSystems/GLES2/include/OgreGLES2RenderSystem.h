@@ -90,6 +90,11 @@ namespace Ogre {
 
             /* The current GL context  - main thread only */
             GLES2Context *mCurrentContext;
+
+            typedef list<GLES2Context*>::type GLES2ContextList;
+            /// List of background thread contexts
+            GLES2ContextList mBackgroundContextList;
+
             GLES2GpuProgramManager *mGpuProgramManager;
             GLSLESProgramFactory* mGLSLESProgramFactory;
 #if !OGRE_NO_GLES2_CG_SUPPORT
@@ -110,6 +115,7 @@ namespace Ogre {
             // local data member of _render that were moved here to improve performance
             // (save allocations)
             vector<GLuint>::type mRenderAttribsBound;
+            vector<GLuint>::type mRenderInstanceAttribsBound;
 
             GLint getCombinedMinMipFilter(void) const;
 
@@ -118,9 +124,17 @@ namespace Ogre {
 
             GLint getTextureAddressingMode(TextureUnitState::TextureAddressingMode tam) const;
             GLenum getBlendMode(SceneBlendFactor ogreBlend) const;
+            void bindVertexElementToGpu( const VertexElement &elem, HardwareVertexBufferSharedPtr vertexBuffer,
+                                        const size_t vertexStart,
+                                        vector<GLuint>::type &attribsBound,
+                                        vector<GLuint>::type &instanceAttribsBound,
+                                        bool updateVAO);
 
 			// Mipmap count of the actual bounded texture
 			size_t mCurTexMipCount;
+            GLint mViewport[4];
+            GLint mScissor[4];
+
         public:
             // Default constructor / destructor
             GLES2RenderSystem();
@@ -431,10 +445,11 @@ namespace Ogre {
             Real getVerticalTexelOffset(void) { return 0.0; }                 // No offset in GL
             Real getMinimumDepthInputValue(void) { return -1.0f; }            // Range [-1.0f, 1.0f]
             Real getMaximumDepthInputValue(void) { return 1.0f; }             // Range [-1.0f, 1.0f]
-            void registerThread() {}
-            void unregisterThread() {}
-            void preExtraThreadsStarted() {}
-            void postExtraThreadsStarted() {}
+            OGRE_MUTEX(mThreadInitMutex);
+            void registerThread();
+            void unregisterThread();
+            void preExtraThreadsStarted();
+            void postExtraThreadsStarted();
             void setClipPlanesImpl(const Ogre::PlaneList& planeList) {}
 
             // ----------------------------------

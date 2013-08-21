@@ -165,6 +165,16 @@ namespace Ogre {
 #define OGRE_QUOTE(x) OGRE_QUOTE_INPLACE(x)
 #define OGRE_WARN( x )  message( __FILE__ "(" QUOTE( __LINE__ ) ") : " x "\n" )
 
+// For marking functions as deprecated
+#if OGRE_COMPILER == OGRE_COMPILER_MSVC
+#   define OGRE_DEPRECATED(func) __declspec(deprecated) func
+#elif OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG
+#   define OGRE_DEPRECATED(func) func __attribute__ ((deprecated))
+#else
+#   pragma message("WARNING: You need to implement OGRE_DEPRECATED for this compiler")
+#   define OGRE_DEPRECATED(func) func
+#endif
+
 //----------------------------------------------------------------------------
 // Windows Settings
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
@@ -243,14 +253,6 @@ namespace Ogre {
 #       define OGRE_DEBUG_MODE 0
 #   endif
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-    #define OGRE_PLATFORM_LIB "OgrePlatform.bundle"
-#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-    #define OGRE_PLATFORM_LIB "OgrePlatform.a"
-#else //OGRE_PLATFORM_LINUX
-    #define OGRE_PLATFORM_LIB "libOgrePlatform.so"
-#endif
-
 // Always enable unicode support for the moment
 // Perhaps disable in old versions of gcc if necessary
 #define OGRE_UNICODE_SUPPORT 1
@@ -295,6 +297,33 @@ namespace Ogre {
 #    define OGRE_ENDIAN OGRE_ENDIAN_BIG
 #else
 #    define OGRE_ENDIAN OGRE_ENDIAN_LITTLE
+#endif
+
+//----------------------------------------------------------------------------
+// Set the default locale for strings
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+//	Locales are not supported by the C lib you have to go through JNI.
+#	define OGRE_DEFAULT_LOCALE ""
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+#	define OGRE_DEFAULT_LOCALE "C"
+#else
+#	if OGRE_COMPILER == OGRE_COMPILER_MSVC
+#		if _MSC_VER >= 1700
+#			define OGRE_DEFAULT_LOCALE "en-GB"
+#		else
+// 			http://msdn.microsoft.com/en-us/library/39cwe7zf%28v=vs.90%29.aspx
+#			define OGRE_DEFAULT_LOCALE "uk"
+#		endif
+#	elif OGRE_COMPILER == OGRE_COMPILER_GCCE
+//		http://gcc.gnu.org/onlinedocs/libstdc++/manual/localization.html
+#   	define OGRE_DEFAULT_LOCALE "en_GB.UTF8"
+#	else
+#       if OGRE_NO_LIBCPP_SUPPORT == 0
+#           define OGRE_DEFAULT_LOCALE "en_GB.UTF-8"
+#       else
+#   	    define OGRE_DEFAULT_LOCALE "C"
+#       endif
+#	endif
 #endif
 
 //----------------------------------------------------------------------------

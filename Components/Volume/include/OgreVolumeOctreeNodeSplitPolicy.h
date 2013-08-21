@@ -47,9 +47,6 @@ namespace Volume {
     {
     protected:
 
-        /// The factor on the diagonal used to decide as min distance to the isosurface whether to proceed with the splitting decision.
-        static const Real MIN_SPLIT_DISTANCE_DIAGONAL_FACTOR;
-
         /// Holds the volume source to decide something.
         const Source *mSrc;
         
@@ -112,7 +109,7 @@ namespace Volume {
         @param geometricError
             The accepted geometric error.
         @return
-            true if the node should be splitted.
+            true if the node should be split.
         */
         bool doSplit(OctreeNode *node, const Real geometricError) const;
     };

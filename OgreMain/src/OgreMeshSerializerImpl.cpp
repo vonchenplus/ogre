@@ -609,10 +609,16 @@ namespace Ogre {
         const VertexDeclaration::VertexElementList& elems =
             vertexData->vertexDeclaration->getElements();
 
+        // Vertex declaration
+		size += MSTREAM_OVERHEAD_SIZE + elems.size() * (MSTREAM_OVERHEAD_SIZE + sizeof(unsigned short) * 5);
+
         VertexDeclaration::VertexElementList::const_iterator i, iend;
         iend = elems.end();
         for (i = elems.begin(); i != iend; ++i)
         {
+            // Vertex element header
+            size += MSTREAM_OVERHEAD_SIZE + sizeof(unsigned short) * 5;
+
             const VertexElement& elem = *i;
             // Vertex element
             size += VertexElement::getTypeSize(elem.getType()) * vertexData->vertexCount;
@@ -1374,6 +1380,11 @@ namespace Ogre {
         // Read the strategy to be used for this mesh
         String strategyName = readString(stream);
         LodStrategy *strategy = LodStrategyManager::getSingleton().getStrategy(strategyName);
+
+        // Check that valid strategy name was given, otherwise use default
+        if (strategy == 0)
+            strategy = LodStrategyManager::getSingleton().getDefaultStrategy();
+
         pMesh->setLodStrategy(strategy);
 
         // unsigned short numLevels;
@@ -1381,7 +1392,7 @@ namespace Ogre {
         // bool manual;  (true for manual alternate meshes, false for generated)
 		readBools(stream, &(pMesh->mIsLodManual), 1);
 
-		// Preallocate submesh lod face data if not manual
+		// Preallocate submesh LOD face data if not manual
 		if (!pMesh->mIsLodManual)
 		{
 			unsigned short numsubs = pMesh->getNumSubMeshes();
@@ -2880,7 +2891,7 @@ namespace Ogre {
         unsigned short streamID, i;
 
         // Use the old strategy for this mesh
-        LodStrategy *strategy = DistanceLodStrategy::getSingletonPtr();
+        LodStrategy *strategy = DistanceLodSphereStrategy::getSingletonPtr();
         pMesh->setLodStrategy(strategy);
 
         // unsigned short numLevels;
@@ -2888,7 +2899,7 @@ namespace Ogre {
         // bool manual;  (true for manual alternate meshes, false for generated)
         readBools(stream, &(pMesh->mIsLodManual), 1);
 
-        // Preallocate submesh lod face data if not manual
+        // Preallocate submesh LOD face data if not manual
         if (!pMesh->mIsLodManual)
         {
             unsigned short numsubs = pMesh->getNumSubMeshes();

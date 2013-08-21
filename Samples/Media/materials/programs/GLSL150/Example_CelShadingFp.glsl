@@ -17,8 +17,7 @@ out vec4 fragColour;
 {
 	vec4 diffuse;
 	vec4 specular;
-} LightingParams;
-*/
+} LightingParams;*/
 
 void main()
 {
@@ -29,6 +28,6 @@ void main()
 
 	fragColour = edgeStep * ((diffuse * diffuseStep) + 
                             (specular * specularStep));
-//	fragColour = edgeStep.x * ((LightingParams.diffuse * diffuseStep.x) + 
-//                        (LightingParams.specular * specularStep.x));
+//	fragColour = edgeStep * ((LightingParams.diffuse * diffuseStep) + 
+//                        (LightingParams.specular * specularStep));
 }

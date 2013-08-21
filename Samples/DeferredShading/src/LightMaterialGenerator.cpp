@@ -64,7 +64,7 @@ public:
 			programName += "LightMaterial_vs";
 		}
 
-		GpuProgramPtr ptr = HighLevelGpuProgramManager::getSingleton().getByName(programName);
+		GpuProgramPtr ptr = HighLevelGpuProgramManager::getSingleton().getByName(programName).staticCast<GpuProgram>();
 		assert(!ptr.isNull());
 		return ptr;
 	}
@@ -119,7 +119,7 @@ public:
 		{
 			materialName += "Shadow";
 		}
-		return MaterialManager::getSingleton().getByName(materialName);
+		return MaterialManager::getSingleton().getByName(materialName).staticCast<Material>();
 	}
 
 	protected:
@@ -229,7 +229,7 @@ public:
 			programName += "LightMaterial_vs";
 		}
 
-		GpuProgramPtr ptr = HighLevelGpuProgramManager::getSingleton().getByName(programName);
+		GpuProgramPtr ptr = HighLevelGpuProgramManager::getSingleton().getByName(programName).staticCast<GpuProgram>();
 		assert(!ptr.isNull());
 		return ptr;
 	}
@@ -290,7 +290,7 @@ public:
 		{
 			materialName += "Shadow";
 		}
-		return MaterialManager::getSingleton().getByName(materialName);
+		return MaterialManager::getSingleton().getByName(materialName).staticCast<Material>();
 	}
 
 protected:
@@ -302,7 +302,7 @@ protected:
         String strPPD;
 
         //Get the type of light
-        uint lightType;
+        Ogre::uint lightType = 0;
         if (permutation & LightMaterialGenerator::MI_POINT)
         {
             lightType = 1;
@@ -380,10 +380,10 @@ LightMaterialGenerator::LightMaterialGenerator()
 				LightMaterialGenerator::MI_SHADOW_CASTER;
 	
 	materialBaseName = "DeferredShading/LightMaterial/";
-    if (GpuProgramManager::getSingleton().isSyntaxSupported("cg"))
-        mImpl = new LightMaterialGeneratorCG("DeferredShading/LightMaterial/");
-    else if (GpuProgramManager::getSingleton().isSyntaxSupported("glsl"))
+    if (GpuProgramManager::getSingleton().isSyntaxSupported("glsl") && !(GpuProgramManager::getSingleton().isSyntaxSupported("ps_2_x") ||GpuProgramManager::getSingleton().isSyntaxSupported("arbfp1")))
         mImpl = new LightMaterialGeneratorGLSL("DeferredShading/LightMaterial/");
+    else
+        mImpl = new LightMaterialGeneratorCG("DeferredShading/LightMaterial/");
 }
 
 LightMaterialGenerator::~LightMaterialGenerator()

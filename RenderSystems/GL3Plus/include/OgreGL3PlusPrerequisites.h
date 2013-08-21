@@ -43,6 +43,9 @@ namespace Ogre {
     class GL3PlusHardwarePixelBuffer;
     class GL3PlusRenderBuffer;
 	class GL3PlusDepthBuffer;
+
+    typedef SharedPtr<GL3PlusGpuProgram> GL3PlusGpuProgramPtr;
+    typedef SharedPtr<GL3PlusTexture> GL3PlusTexturePtr;
 }
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
@@ -94,6 +97,9 @@ namespace Ogre {
 #    define _OgreGL3PlusExport
 #endif
 
+// Convenience macro from ARB_vertex_buffer_object spec
+#define GL_BUFFER_OFFSET(i) ((char *)NULL + (i))
+
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
 #   define __PRETTY_FUNCTION__ __FUNCTION__
 #endif
@@ -112,6 +118,7 @@ namespace Ogre {
             case GL_INVALID_ENUM:       errorString = "GL_INVALID_ENUM";        break; \
             case GL_INVALID_VALUE:      errorString = "GL_INVALID_VALUE";       break; \
             case GL_INVALID_OPERATION:  errorString = "GL_INVALID_OPERATION";   break; \
+            case GL_INVALID_FRAMEBUFFER_OPERATION:  errorString = "GL_INVALID_FRAMEBUFFER_OPERATION";   break; \
             case GL_OUT_OF_MEMORY:      errorString = "GL_OUT_OF_MEMORY";       break; \
             default:                                                            break; \
         } \

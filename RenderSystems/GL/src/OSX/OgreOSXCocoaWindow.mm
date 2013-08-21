@@ -26,13 +26,17 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#include "OgreOSXCocoaWindow.h"
-#include "OgreRoot.h"
-#include "OgreLogManager.h"
-#include "OgreStringConverter.h"
-#include "OgreWindowEventUtilities.h"
-#include "OgreGLPixelFormat.h"
-#include "OgreGLRenderSystem.h"
+#import "OgreOSXCocoaWindow.h"
+#import "OgreRoot.h"
+#import "OgreLogManager.h"
+#import "OgreStringConverter.h"
+#import "OgreWindowEventUtilities.h"
+#import "OgreGLPixelFormat.h"
+
+#import "OgreGLRenderSystem.h"
+#import <AppKit/NSScreen.h>
+#import <AppKit/NSOpenGLView.h>
+#import <QuartzCore/CVDisplayLink.h>
 
 @implementation OgreWindow
 
@@ -118,8 +122,11 @@ namespace Ogre {
         NSString *windowTitle = [NSString stringWithCString:name.c_str() encoding:NSUTF8StringEncoding];
 		int winx = 0, winy = 0;
 		int depth = 32;
-        NameValuePairList::const_iterator opt(NULL);
-		
+#if OGRE_NO_LIBCPP_SUPPORT == 0
+        NameValuePairList::const_iterator opt{};
+#else
+        NameValuePairList::const_iterator opt;
+#endif
         mIsFullScreen = fullScreen;
 		
 		if(miscParams)
@@ -232,7 +239,11 @@ namespace Ogre {
         }
         else
         {
-            NameValuePairList::const_iterator param_useNSView_pair(NULL);
+#if OGRE_NO_LIBCPP_SUPPORT == 0
+            NameValuePairList::const_iterator param_useNSView_pair{};
+#else
+            NameValuePairList::const_iterator param_useNSView_pair;
+#endif
             param_useNSView_pair = miscParams->find("macAPICocoaUseNSView");
 
             if(param_useNSView_pair != miscParams->end())
@@ -388,6 +399,10 @@ namespace Ogre {
                         "CocoaWindow::copyContentsToMemory" );
         }
         
+        if(dst.getWidth() != dst.rowPitch)
+        {
+            glPixelStorei(GL_PACK_ROW_LENGTH, dst.rowPitch);
+        }
         if((dst.getWidth()*Ogre::PixelUtil::getNumElemBytes(dst.format)) & 3)
         {
             // Standard alignment of 4 is not right
@@ -400,24 +415,9 @@ namespace Ogre {
                      format, type, dst.data);
         
         glPixelStorei(GL_PACK_ALIGNMENT, 4);
+        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
         
-        //vertical flip
-        {
-            size_t rowSpan = dst.getWidth() * PixelUtil::getNumElemBytes(dst.format);
-            size_t height = dst.getHeight();
-            uchar *tmpData = (uchar *)OGRE_MALLOC_ALIGN(rowSpan * height, MEMCATEGORY_GENERAL, false);
-            uchar *srcRow = (uchar *)dst.data, *tmpRow = tmpData + (height - 1) * rowSpan;
-            
-            while (tmpRow >= tmpData)
-            {
-                memcpy(tmpRow, srcRow, rowSpan);
-                srcRow += rowSpan;
-                tmpRow -= rowSpan;
-            }
-            memcpy(dst.data, tmpData, rowSpan * height);
-            
-            OGRE_FREE_ALIGN(tmpData, MEMCATEGORY_GENERAL, false);
-        }
+        PixelUtil::bulkPixelVerticalFlip(dst);
     }
 
     void OSXCocoaWindow::reposition(int left, int top)
@@ -661,7 +661,6 @@ namespace Ogre {
                 [mWindow setContentView:mView];
                 [mWindow setFrameOrigin:NSZeroPoint];
                 [mWindow setLevel:NSMainMenuWindowLevel+1];
-                [NSApp activateIgnoringOtherApps:YES];
 
                 mWindowOrigin = mWindow.frame.origin;
                 mLeft = mTop = 0;
@@ -692,6 +691,7 @@ namespace Ogre {
             
             // Even though OgreCocoaView doesn't accept first responder, it will get passed onto the next in the chain
             [mWindow makeFirstResponder:mView];
+            [NSApp activateIgnoringOtherApps:YES];
         }
     }
 

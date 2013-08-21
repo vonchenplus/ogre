@@ -205,7 +205,7 @@ void GLSLProgramWriter::writeSourceCode(std::ostream& os, Program* program)
 			FunctionInvocation::OperandVector::iterator itOperandEnd = pFuncInvoc->getOperandList().end();
 
 			// Local string stream
-			std::stringstream localOs;
+			StringStream localOs;
 
 			// Write function name			
 			localOs << "\t" << pFuncInvoc->getFunctionName() << "(";
@@ -644,6 +644,16 @@ void GLSLProgramWriter::writeOutParameters(std::ostream& os, Function* function,
                 os << "out vec4 fragColour;" << std::endl;
                 mInputToGLStatesMap[pParam->getName()] = "fragColour";
             }
+        }
+    }
+    
+    if(gpuType == GPT_VERTEX_PROGRAM)
+    {
+        // Special case where gl_Position needs to be redeclared
+        if(Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS) &&
+           mGLSLVersion >= 150)
+        {
+            os << "out gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\nfloat gl_ClipDistance[];\n};\n" << std::endl;
         }
     }
 }

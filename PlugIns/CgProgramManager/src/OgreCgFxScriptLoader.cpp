@@ -2726,7 +2726,7 @@ namespace Ogre {
     {
 		String streamAsString = stream->getAsString();
 
-		MaterialPtr ogreMaterial = MaterialManager::getSingleton().create(stream->getName(), groupName);
+		MaterialPtr ogreMaterial = MaterialManager::getSingleton().create(stream->getName(), groupName).staticCast<Material>();
 
 		String sourceToUse = CgProgram::resolveCgIncludes(streamAsString, ogreMaterial.getPointer(), stream->getName());
 
@@ -2812,6 +2812,10 @@ namespace Ogre {
 		case GPT_GEOMETRY_PROGRAM:
 			stateName = "GeometryProgram";
 			break;
+        case GPT_COMPUTE_PROGRAM:
+        case GPT_DOMAIN_PROGRAM:
+        case GPT_HULL_PROGRAM:
+            break;
 		}
 		CGstateassignment cgStateAssignment = cgGetNamedStateAssignment(cgPass, stateName);
 		if (!cgStateAssignment)
@@ -2826,6 +2830,10 @@ namespace Ogre {
 				break;
             case GPT_GEOMETRY_PROGRAM:
                 stateName = "GeometryShader";
+                break;
+            case GPT_COMPUTE_PROGRAM:
+            case GPT_DOMAIN_PROGRAM:
+            case GPT_HULL_PROGRAM:
                 break;
 			}
 

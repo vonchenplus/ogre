@@ -639,7 +639,7 @@ namespace Ogre
 				ObjectAbstractNode *obj = (ObjectAbstractNode*)(*i).get();
 
 				// Overlay base classes in order.
-                for (std::vector<String>::const_iterator baseIt = obj->bases.begin(), end_it = obj->bases.end(); baseIt != end_it; ++baseIt)
+                for (vector<String>::const_iterator baseIt = obj->bases.begin(), end_it = obj->bases.end(); baseIt != end_it; ++baseIt)
 				{
                     const String& base = *baseIt;
 					// Check the top level first, then check the import table
@@ -1569,7 +1569,7 @@ namespace Ogre
 	ScriptCompilerManager::ScriptCompilerManager()
 		:mListener(0), OGRE_THREAD_POINTER_INIT(mScriptCompiler)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+            OGRE_LOCK_AUTO_MUTEX;
 		mScriptPatterns.push_back("*.program");
 		mScriptPatterns.push_back("*.material");
 		mScriptPatterns.push_back("*.particle");
@@ -1591,7 +1591,7 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	void ScriptCompilerManager::setListener(ScriptCompilerListener *listener)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+            OGRE_LOCK_AUTO_MUTEX;
 		mListener = listener;
 	}
 	//-----------------------------------------------------------------------
@@ -1602,13 +1602,13 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	void ScriptCompilerManager::addTranslatorManager(Ogre::ScriptTranslatorManager *man)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+            OGRE_LOCK_AUTO_MUTEX;
 		mManagers.push_back(man);
 	}
 	//-----------------------------------------------------------------------
 	void ScriptCompilerManager::removeTranslatorManager(Ogre::ScriptTranslatorManager *man)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+            OGRE_LOCK_AUTO_MUTEX;
 		
 		for(vector<ScriptTranslatorManager*>::type::iterator i = mManagers.begin(); i != mManagers.end(); ++i)
 		{
@@ -1629,7 +1629,7 @@ namespace Ogre
 	{
 		ScriptTranslator *translator = 0;
 		{
-			OGRE_LOCK_AUTO_MUTEX
+                    OGRE_LOCK_AUTO_MUTEX;
 			
 			// Start looking from the back
 			for(vector<ScriptTranslatorManager*>::type::reverse_iterator i = mManagers.rbegin(); i != mManagers.rend(); ++i)
@@ -1671,7 +1671,7 @@ namespace Ogre
 #endif
 		// Set the listener on the compiler before we continue
 		{
-			OGRE_LOCK_AUTO_MUTEX
+                    OGRE_LOCK_AUTO_MUTEX;
 			OGRE_THREAD_POINTER_GET(mScriptCompiler)->setListener(mListener);
 		}
         OGRE_THREAD_POINTER_GET(mScriptCompiler)->compile(stream->getAsString(), stream->getName(), groupName);

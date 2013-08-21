@@ -90,6 +90,34 @@ namespace Ogre {
             void* getDataPtr(size_t offset) const { return (void*)(mData + offset); }
     };
 
+    /// Specialisation of HardwareUniformBuffer for emulation
+    class _OgreGLES2Export GLES2DefaultHardwareUniformBuffer : public HardwareUniformBuffer
+    {
+    protected:
+        unsigned char* mData;
+        /// @copydoc HardwareBuffer::lock
+        void* lockImpl(size_t offset, size_t length, LockOptions options);
+        /// @copydoc HardwareBuffer::unlock
+        void unlockImpl(void);
+
+    public:
+        GLES2DefaultHardwareUniformBuffer(size_t bufferSize, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name);
+        GLES2DefaultHardwareUniformBuffer(HardwareBufferManagerBase* mgr, size_t bufferSize,
+                                            HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name);
+        ~GLES2DefaultHardwareUniformBuffer();
+        /// @copydoc HardwareBuffer::readData
+        void readData(size_t offset, size_t length, void* pDest);
+        /// @copydoc HardwareBuffer::writeData
+        void writeData(size_t offset, size_t length, const void* pSource,
+                       bool discardWholeBuffer = false);
+        /** Override HardwareBuffer to turn off all shadowing. */
+        void* lock(size_t offset, size_t length, LockOptions options);
+        /** Override HardwareBuffer to turn off all shadowing. */
+        void unlock(void);
+
+        void* getDataPtr(size_t offset) const { return (void*)(mData + offset); }
+    };
+
     /** Specialisation of HardwareBufferManager to emulate hardware buffers.
     @remarks
         You might want to instantiate this class if you want to utilise
@@ -111,15 +139,11 @@ namespace Ogre {
                 createIndexBuffer(HardwareIndexBuffer::IndexType itype, size_t numIndexes,
                     HardwareBuffer::Usage usage, bool useShadowBuffer = false);
             /// Create a render to vertex buffer
-	    RenderToVertexBufferSharedPtr createRenderToVertexBuffer(void);
+            RenderToVertexBufferSharedPtr createRenderToVertexBuffer(void);
 
-        HardwareUniformBufferSharedPtr 
-            createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name = "")
-        {
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-                "GLES2 does not support uniform buffer objects", 
-                "GLES2DefaultHardwareBufferManagerBase::createUniformBuffer");
-        }
+        HardwareUniformBufferSharedPtr
+            createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name = "");
+
 		HardwareCounterBufferSharedPtr createCounterBuffer(size_t sizeBytes,
                                                            HardwareBuffer::Usage usage = HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE,
                                                            bool useShadowBuffer = false, const String& name = "")
@@ -143,14 +167,6 @@ namespace Ogre {
 		{
 			OGRE_DELETE mImpl;
 		}
-        HardwareUniformBufferSharedPtr 
-            createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name = "")
-        {
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-                "GLES2 does not support render to vertex buffer objects", 
-                "GLES2DefaultHardwareBufferManager::createUniformBuffer");
-        }
-
     };
 }
 

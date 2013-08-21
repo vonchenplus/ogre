@@ -185,7 +185,7 @@ namespace Ogre
 
         /** Returns true if this technique supports skeletal animation
         @remarks
-            A virtual function could have been used, but using a simple variable overriden
+            A virtual function could have been used, but using a simple variable overridden
             by the derived class is faster than virtual call overhead. And both are clean
             ways of implementing it.
         */
@@ -258,7 +258,7 @@ namespace Ogre
         @param optimizeCulling true will call the DoCull version, false the NoCull
         @param usedEntities Array of InstancedEntities to parent with this batch. Those reparented
             are removed from this input vector
-			@param Array of Custom parameters correlated with the InstancedEntities in usedEntities.
+        @param usedParams Array of Custom parameters correlated with the InstancedEntities in usedEntities.
 			They follow the fate of the entities in that vector.
 		@remarks:
 			This function assumes caller holds data to mInstancedEntities! Otherwise
