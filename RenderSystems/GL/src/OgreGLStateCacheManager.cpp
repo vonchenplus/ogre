@@ -48,6 +48,7 @@ namespace Ogre {
     GLStateCacheManager::~GLStateCacheManager()
     {
         OGRE_DELETE mImp;
+        mImp = 0;
     }
 
     void GLStateCacheManager::initializeCache()
@@ -74,7 +75,12 @@ namespace Ogre {
     {
         mImp->setTexParameteri(target, pname, param);
     }
-    
+
+    void GLStateCacheManager::invalidateStateForTexture(GLuint texture)
+    {
+        mImp->invalidateStateForTexture(texture);
+    }
+
     void GLStateCacheManager::bindGLTexture(GLenum target, GLuint texture)
     {
         mImp->bindGLTexture(target, texture);

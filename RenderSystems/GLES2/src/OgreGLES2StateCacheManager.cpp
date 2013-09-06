@@ -48,6 +48,7 @@ namespace Ogre {
     GLES2StateCacheManager::~GLES2StateCacheManager()
     {
         delete mImp;
+        mImp = 0;
     }
 
     void GLES2StateCacheManager::initializeCache()
@@ -69,7 +70,12 @@ namespace Ogre {
     {
         mImp->deleteGLBuffer(target, buffer, force);
     }
-    
+
+    void GLES2StateCacheManager::invalidateStateForTexture(GLuint texture)
+    {
+        mImp->invalidateStateForTexture(texture);
+    }
+
     void GLES2StateCacheManager::setTexParameteri(GLenum target, GLenum pname, GLint param)
     {
         mImp->setTexParameteri(target, pname, param);
