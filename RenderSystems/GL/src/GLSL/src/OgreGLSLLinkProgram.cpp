@@ -118,6 +118,8 @@ namespace Ogre {
         , mLinked(false)
 		, mTriedToLinkAndFailed(false)
 	{
+        // Initialise uniform cache
+		mUniformCache = new GLUniformCache();
 	}
 
 	//-----------------------------------------------------------------------
@@ -125,6 +127,8 @@ namespace Ogre {
 	{
 		glDeleteObjectARB(mGLHandle);
 
+        delete mUniformCache;
+        mUniformCache = 0;
 	}
 
 	//-----------------------------------------------------------------------
@@ -263,6 +267,20 @@ namespace Ogre {
 		GLUniformReferenceIterator currentUniform = mGLUniformReferences.begin();
 		GLUniformReferenceIterator endUniform = mGLUniformReferences.end();
 
+        GLSLGpuProgram *prog = 0;
+        if(fromProgType == GPT_VERTEX_PROGRAM)
+        {
+            prog = mVertexProgram;
+        }
+        else if(fromProgType == GPT_FRAGMENT_PROGRAM)
+        {
+            prog = mFragmentProgram;
+        }
+        else if(fromProgType == GPT_GEOMETRY_PROGRAM)
+        {
+            prog = mGeometryProgram;
+        }
+
         // determine if we need to transpose matrices when binding
         int transpose = GL_TRUE;
         if ((fromProgType == GPT_FRAGMENT_PROGRAM && mVertexProgram && (!mVertexProgram->getGLSLProgram()->getColumnMajorMatrices())) ||
@@ -284,6 +302,35 @@ namespace Ogre {
 				{
 
 					GLsizei glArraySize = (GLsizei)def->arraySize;
+
+                    bool shouldUpdate = true;
+
+                    switch (def->constType)
+                    {
+                        case GCT_INT1:
+                        case GCT_INT2:
+                        case GCT_INT3:
+                        case GCT_INT4:
+                        case GCT_SAMPLER1D:
+                        case GCT_SAMPLER1DSHADOW:
+                        case GCT_SAMPLER2D:
+                        case GCT_SAMPLER2DSHADOW:
+                        case GCT_SAMPLER3D:
+                        case GCT_SAMPLERCUBE:
+                            shouldUpdate = mUniformCache->updateUniform(currentUniform->mLocation,
+                                                                        params->getIntPointer(def->physicalIndex),
+                                                                        def->elementSize * def->arraySize * sizeof(int));
+                            break;
+                        default:
+                            shouldUpdate = mUniformCache->updateUniform(currentUniform->mLocation,
+                                                                        params->getFloatPointer(def->physicalIndex),
+                                                                        def->elementSize * def->arraySize * sizeof(float));
+                            break;
+
+                    }
+
+                    if(!shouldUpdate)
+                        continue;
 
 					// get the index in the parameter real list
 					switch (def->constType)
@@ -418,9 +465,12 @@ namespace Ogre {
 				// get the index in the parameter real list
 				if (index == currentUniform->mConstantDef->physicalIndex)
 				{
-					glUniform1fvARB( currentUniform->mLocation, 1, params->getFloatPointer(index));
-					// there will only be one multipass entry
-					return;
+                    if(!mUniformCache->updateUniform(currentUniform->mLocation,
+                                                     params->getFloatPointer(index),
+                                                     currentUniform->mConstantDef->elementSize *
+                                                     currentUniform->mConstantDef->arraySize *
+                                                     sizeof(float)))
+                        return;
 				}
 			}
 		}

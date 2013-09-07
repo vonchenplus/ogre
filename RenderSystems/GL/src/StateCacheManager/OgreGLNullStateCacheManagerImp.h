@@ -26,19 +26,19 @@
  -----------------------------------------------------------------------------
  */
 
-#ifndef __GLES2NullStateCacheManagerImp_H__
-#define __GLES2NullStateCacheManagerImp_H__
+#ifndef __GLNullStateCacheManagerImp_H__
+#define __GLNullStateCacheManagerImp_H__
 
-#include "OgreGLES2Prerequisites.h"
+#include "OgreGLPrerequisites.h"
 
 typedef Ogre::GeneralAllocatedObject StateCacheAlloc;
 
 namespace Ogre
 {
-    /** An in memory cache of the OpenGL ES state.
-     @see GLES2StateCacheManager
+    /** An in memory cache of the OpenGL state.
+     @see GLStateCacheManager
      */
-    class GLES2StateCacheManagerImp : public StateCacheAlloc
+    class GLStateCacheManagerImp : public StateCacheAlloc
     {
     private:        
         /// Stores the current clear colour
@@ -51,6 +51,10 @@ namespace Ogre
         GLenum mPolygonMode;
         /// Stores the current blend equation
         GLenum mBlendEquation;
+        /// Stores the current blend source function
+        GLenum mBlendFuncSource;
+        /// Stores the current blend destination function
+        GLenum mBlendFuncDest;
         /// Stores the current face culling setting
         GLenum mCullFace;
         /// Stores the current depth test function
@@ -58,105 +62,152 @@ namespace Ogre
         /// Stores the current stencil mask
         GLuint mStencilMask;
         /// Stores the currently active texture unit
-        unsigned char mActiveTextureUnit;
+        size_t mActiveTextureUnit;
         /// Mask of buffers who contents can be discarded if GL_EXT_discard_framebuffer is supported
         unsigned int mDiscardBuffers;
         /// Stores the current depth clearing colour
         GLclampf mClearDepth;
-        
+        /// Viewport origin and size
+        int mViewport[4];
+
+        GLenum mBlendEquationRGB;
+        GLenum mBlendEquationAlpha;
+        GLenum mShadeModel;
+
+        GLfloat mAmbient[4];
+        GLfloat mDiffuse[4];
+        GLfloat mSpecular[4];
+        GLfloat mEmissive[4];
+        GLfloat mLightAmbient[4];
+        GLfloat mShininess;
+
+        GLfloat mPointSize;
+        GLfloat mPointSizeMin;
+        GLfloat mPointSizeMax;
+        GLfloat mPointAttenuation[3];
+
     public:
-        GLES2StateCacheManagerImp(void);
-        ~GLES2StateCacheManagerImp(void);
+        GLStateCacheManagerImp(void);
+        ~GLStateCacheManagerImp(void);
         
-        /// See GLES2StateCacheManager.initializeCache.
+        /// See GLStateCacheManager.initializeCache.
         void initializeCache();
         
-        /// See GLES2StateCacheManager.clearCache.
+        /// See GLStateCacheManager.clearCache.
         void clearCache();
 		
-        /// See GLES2StateCacheManager.bindGLBuffer.
+        /// See GLStateCacheManager.bindGLBuffer.
         void bindGLBuffer(GLenum target, GLuint buffer, bool force = false);
         
-        /// See GLES2StateCacheManager.deleteGLBuffer.
+        /// See GLStateCacheManager.deleteGLBuffer.
         void deleteGLBuffer(GLenum target, GLuint buffer, bool force = false);
         
-        /// See GLES2StateCacheManager.bindGLTexture.
+        /// See GLStateCacheManager.bindGLTexture.
         void bindGLTexture(GLenum target, GLuint texture);
+        
+        /// See GLStateCacheManager.setTexParameteri.
+        void setTexParameteri(GLenum target, GLenum pname, GLint param);
 
-        /// See GLES2StateCacheManager.invalidateStateForTexture.
+        /// See GLStateCacheManager.invalidateStateForTexture.
         void invalidateStateForTexture(GLuint texture);
 
-        /// See GLES2StateCacheManager.setTexParameteri.
-        void setTexParameteri(GLenum target, GLenum pname, GLint param);
+        /// See GLStateCacheManager.activateGLTextureUnit.
+        bool activateGLTextureUnit(size_t unit);
         
-        /// See GLES2StateCacheManager.activateGLTextureUnit.
-        bool activateGLTextureUnit(unsigned char unit);
-        
-        /// See GLES2StateCacheManager.getBlendEquation.
+        /// See GLStateCacheManager.getBlendEquation.
         GLenum getBlendEquation(void) const { return mBlendEquation; }
         
-        /// See GLES2StateCacheManager.setBlendEquation.
+        /// See GLStateCacheManager.setBlendEquation.
         void setBlendEquation(GLenum eq);
-        
-        /// See GLES2StateCacheManager.setBlendFunc.
+
+        /// Set the blend equation for RGB and alpha separately.
+        void setBlendEquation(GLenum eqRGB, GLenum eqA);
+
+        /// See GLStateCacheManager.setBlendFunc.
         void setBlendFunc(GLenum source, GLenum dest);
-        
-        /// See GLES2StateCacheManager.getDepthMask.
+
+        /// See GLStateCacheManager.setShadeModel.
+        void setShadeModel(GLenum model);
+
+        /// See GLStateCacheManager.setLightAmbient.
+        void setLightAmbient(GLfloat r, GLfloat g, GLfloat b);
+
+        /// See GLStateCacheManager.getDepthMask.
         GLboolean getDepthMask(void) const { return mDepthMask; }
         
-        /// See GLES2StateCacheManager.setDepthMask.
+        /// See GLStateCacheManager.setDepthMask.
         void setDepthMask(GLboolean mask);
         
-        /// See GLES2StateCacheManager.getDepthFunc.
+        /// See GLStateCacheManager.getDepthFunc.
         GLenum getDepthFunc(void) const { return mDepthFunc; }
         
-        /// See GLES2StateCacheManager.setDepthFunc.
+        /// See GLStateCacheManager.setDepthFunc.
         void setDepthFunc(GLenum func);
         
-        /// See GLES2StateCacheManager.getClearDepth.
+        /// See GLStateCacheManager.getClearDepth.
         GLclampf getClearDepth(void) const { return mClearDepth; }
         
-        /// See GLES2StateCacheManager.setClearDepth.
+        /// See GLStateCacheManager.setClearDepth.
         void setClearDepth(GLclampf depth);
         
-        /// See GLES2StateCacheManager.setClearColour.
+        /// See GLStateCacheManager.setClearColour.
         void setClearColour(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
         
-        /// See GLES2StateCacheManager.getColourMask.
+        /// See GLStateCacheManager.getColourMask.
         vector<GLboolean>::type & getColourMask(void) { return mColourMask; }
         
-        /// See GLES2StateCacheManager.setColourMask.
+        /// See GLStateCacheManager.setColourMask.
         void setColourMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
         
-        /// See GLES2StateCacheManager.getStencilMask.
+        /// See GLStateCacheManager.getStencilMask.
         GLuint getStencilMask(void) const { return mStencilMask; }
         
-        /// See GLES2StateCacheManager.setStencilMask.
+        /// See GLStateCacheManager.setStencilMask.
         void setStencilMask(GLuint mask);
         
-        /// See GLES2StateCacheManager.setEnabled.
+        /// See GLStateCacheManager.setEnabled.
         void setEnabled(GLenum flag);
         
-        /// See GLES2StateCacheManager.setDisabled.
+        /// See GLStateCacheManager.setDisabled.
         void setDisabled(GLenum flag);
         
-        /// See GLES2StateCacheManager.getDiscardBuffers.
+        /// See GLStateCacheManager.getDiscardBuffers.
         unsigned int getDiscardBuffers(void) const { return mDiscardBuffers; }
         
-        /// See GLES2StateCacheManager.setDiscardBuffers.
+        /// See GLStateCacheManager.setDiscardBuffers.
         void setDiscardBuffers(unsigned int flags) { mDiscardBuffers = flags; }
         
-        /// See GLES2StateCacheManager.getPolygonMode.
+        /// See GLStateCacheManager.getPolygonMode.
         GLenum getPolygonMode(void) const { return mPolygonMode; }
         
-        /// See GLES2StateCacheManager.setPolygonMode.
+        /// See GLStateCacheManager.setPolygonMode.
         void setPolygonMode(GLenum mode) { mPolygonMode = mode; }
         
-        /// See GLES2StateCacheManager.getCullFace.
+        /// See GLStateCacheManager.getCullFace.
         GLenum getCullFace(void) const { return mCullFace; }
         
-        /// See GLES2StateCacheManager.setCullFace.
+        /// See GLStateCacheManager.setCullFace.
         void setCullFace(GLenum face);
+
+        /// Enable the specified texture coordinate generation option for the currently active texture unit
+        void enableTextureCoordGen(GLenum type);
+        /// Disable the specified texture coordinate generation option for the currently active texture unit
+        void disableTextureCoordGen(GLenum type);
+
+        // Set material lighting parameters
+        void setMaterialAmbient(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+        void setMaterialDiffuse(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+        void setMaterialEmissive(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+        void setMaterialSpecular(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+        void setMaterialShininess(GLfloat shininess);
+        void setPointSize(GLfloat size);
+        void setPointParameters(GLfloat* attenuation, float minSize, float maxSize);
+
+        /// Set viewport parameters
+        void setViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+
+        /// Get viewport parameters
+        void getViewport(int* array);
     };
 }
 
