@@ -42,18 +42,54 @@ namespace Ogre {
     
     GLStateCacheManager::GLStateCacheManager() 
     {
-        mImp = OGRE_NEW GLStateCacheManagerImp();
+        mImp = 0;
     }
     
     GLStateCacheManager::~GLStateCacheManager()
     {
-        OGRE_DELETE mImp;
-        mImp = 0;
+        for (CachesMap::iterator it = mCaches.begin(); it != mCaches.end(); ++it)
+            OGRE_DELETE it->second;
     }
 
-    void GLStateCacheManager::initializeCache()
+    void GLStateCacheManager::switchContext(intptr_t id)
     {
-        mImp->initializeCache();
+        CachesMap::iterator it = mCaches.find(id);
+        if (it != mCaches.end())
+        {
+            // Already have a cache for this context
+            mImp = it->second;
+        }
+        else
+        {
+            // No cache for this context yet
+            mImp = OGRE_NEW GLStateCacheManagerImp();
+            mImp->initializeCache();
+            mCaches[id] = mImp;
+        }
+    }
+
+    void GLStateCacheManager::unregisterContext(intptr_t id)
+    {
+        CachesMap::iterator it = mCaches.find(id);
+        if (it != mCaches.end())
+        {
+            if (mImp == it->second)
+                mImp = NULL;
+            OGRE_DELETE it->second;
+            mCaches.erase(it);
+        }
+
+        // Always keep a valid cache, even if no contexts are left.
+        // This is needed due to the way GLRenderSystem::shutdown works -
+        // HardwareBufferManager destructor may call deleteGLBuffer even after all contexts
+        // have been deleted
+        if (mImp == NULL)
+        {
+            // Therefore we add a "dummy" cache if none are left
+            if (!mCaches.size())
+                mCaches[0] = OGRE_NEW GLStateCacheManagerImp();
+            mImp = mCaches.begin()->second;
+        }
     }
     
     void GLStateCacheManager::clearCache()
