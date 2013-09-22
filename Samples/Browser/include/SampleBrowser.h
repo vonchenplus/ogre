@@ -85,6 +85,8 @@
 #   include "DynTex.h"
 #   include "FacialAnimation.h"
 #   include "Grass.h"
+#	include "Hair.h"
+#	include "Island.h"
 #   include "Lighting.h"
 #   include "MeshLod.h"
 #   include "ParticleFX.h"
@@ -97,6 +99,7 @@
 #   include "Smoke.h"
 #   include "SphereMapping.h"
 #	include "Tesselation.h"
+#	include "TerrainTessellation.h"
 #   include "TextureFX.h"
 #   include "Transparency.h"
 #   if SAMPLES_INCLUDE_PLAYPEN
@@ -1089,12 +1092,14 @@ protected:
             mPluginNameMap["Sample_TextureArray"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureArray();
 			mPluginNameMap["Sample_Tesselation"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_Tesselation();
 			mPluginNameMap["Sample_PNTriangles"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_PNTriangles();
-#		endif
-			
+			mPluginNameMap["Sample_Hair"]				= (OgreBites::SdkSample *) OGRE_NEW Sample_Hair();
+			mPluginNameMap["Sample_Island"]				= (OgreBites::SdkSample *) OGRE_NEW Sample_Island();
+			mPluginNameMap["Sample_TerrainTessellation"]= (OgreBites::SdkSample *) OGRE_NEW Sample_TerrainTessellation();
 #			if defined(OGRE_BUILD_COMPONENT_VOLUME) && OGRE_PLATFORM != OGRE_PLATFORM_NACL
             mPluginNameMap["Sample_VolumeCSG"]          = (OgreBites::SdkSample *) OGRE_NEW Sample_VolumeCSG();
             mPluginNameMap["Sample_VolumeTerrain"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_VolumeTerrain();
 #			endif
+#		endif // OGRE_PLATFORM_ANDROID
             mPluginNameMap["Sample_Shadows"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_Shadows();
             mPluginNameMap["Sample_Lighting"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_Lighting();
             mPluginNameMap["Sample_MeshLod"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_MeshLod();
@@ -1388,6 +1393,9 @@ protected:
             sampleList.push_back("Sample_Water");
 			sampleList.push_back("Sample_PNTriangles");
 			sampleList.push_back("Sample_Tesselation");
+			sampleList.push_back("Sample_Hair");
+			sampleList.push_back("Sample_Island");
+			sampleList.push_back("Sample_TerrainTessellation");
             sampleList.push_back("Sample_Transparency");
             sampleList.push_back("Sample_TextureFX");
 #else
