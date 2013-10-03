@@ -79,13 +79,13 @@ protected:
         TexturePtr tex = TextureManager::getSingleton().createManual("TextureArrayTex", 
             ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
             TEX_TYPE_2D_ARRAY, 
-            512, 512, texNames.size(), 
+            512, 512, (uint)texNames.size(),
             0, 
             PF_X8R8G8B8 );
 
 
         // add all the textures to a 2d texture array
-		for (size_t i = 0; i < texNames.size(); i++)
+		for (uint32 i = 0; i < static_cast<uint32>(texNames.size()); i++)
 		{
             Image terrainTex;
             terrainTex.load(texNames[i], ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);

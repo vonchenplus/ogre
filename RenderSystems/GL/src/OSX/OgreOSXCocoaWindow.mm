@@ -306,7 +306,7 @@ namespace Ogre {
 
         [mGLContext update];
 
-        rs->clearFrameBuffer(FBT_COLOUR);
+//        rs->clearFrameBuffer(FBT_COLOUR);
 
         [mGLContext flushBuffer];
         CGLUnlockContext((CGLContextObj)[mGLContext CGLContextObj]);
@@ -445,7 +445,7 @@ namespace Ogre {
         
         if(dst.getWidth() != dst.rowPitch)
         {
-            glPixelStorei(GL_PACK_ROW_LENGTH, dst.rowPitch);
+            glPixelStorei(GL_PACK_ROW_LENGTH, static_cast<GLint>(dst.rowPitch));
         }
         if((dst.getWidth()*Ogre::PixelUtil::getNumElemBytes(dst.format)) & 3)
         {
@@ -646,8 +646,8 @@ namespace Ogre {
 
         _setWindowParameters();
 
-        GLRenderSystem *rs = static_cast<GLRenderSystem*>(Root::getSingleton().getRenderSystem());
-        rs->clearFrameBuffer(FBT_COLOUR);
+//        GLRenderSystem *rs = static_cast<GLRenderSystem*>(Root::getSingleton().getRenderSystem());
+//        rs->clearFrameBuffer(FBT_COLOUR);
 
         // Show window
         if(mWindow)

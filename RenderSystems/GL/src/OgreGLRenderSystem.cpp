@@ -241,9 +241,7 @@ namespace Ogre {
 		else
 			rsc->setVendor(GPU_UNKNOWN);
 
-#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
 		if(mEnableFixedPipeline)
-#endif
 		{
 			// Supports fixed-function
 			rsc->setCapability(RSC_FIXED_FUNCTION);
@@ -1201,6 +1199,8 @@ namespace Ogre {
 #if OGRE_THREAD_SUPPORT != 1
 		glewContextInit(mGLSupport);
 #endif
+
+		mStateCacheManager->switchContext((intptr_t)mCurrentContext);
 	}
 
 
@@ -2849,7 +2849,6 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 		// Call super class
 		RenderSystem::_render(op);
 
-#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
 	 	if ( ! mEnableFixedPipeline && !mRealCapabilities->hasCapability(RSC_FIXED_FUNCTION)
 			 && 
 			 (
@@ -2862,7 +2861,6 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 				"Attempted to render using the fixed pipeline when it is disabled.",
 				"GLRenderSystem::_render");
 		}
-#endif
 
         HardwareVertexBufferSharedPtr globalInstanceVertexBuffer = getGlobalInstanceVertexBuffer();
         VertexDeclaration* globalVertexDeclaration = getGlobalInstanceVertexBufferVertexDeclaration();
@@ -3454,7 +3452,6 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 	//---------------------------------------------------------------------
 	void GLRenderSystem::_oneTimeContextInitialization()
 	{
-		mStateCacheManager->initializeCache();
 		if (GLEW_VERSION_1_2)
 		{
             // Set nicer lighting model -- d3d9 has this by default
@@ -3511,6 +3508,8 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 			mCurrentContext->endCurrent();
 		mCurrentContext = context;
 		mCurrentContext->setCurrent();
+
+		mStateCacheManager->switchContext((intptr_t)mCurrentContext);
 
 		// Check if the context has already done one-time initialisation
 		if(!mCurrentContext->getInitialized()) 
@@ -3601,6 +3600,7 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 				mMainContext = 0;
 			}
 		}
+		mStateCacheManager->unregisterContext((intptr_t)context);
 	}
 	//---------------------------------------------------------------------
 	Real GLRenderSystem::getMinimumDepthInputValue(void)
