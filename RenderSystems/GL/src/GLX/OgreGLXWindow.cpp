@@ -671,7 +671,7 @@ namespace Ogre
 	}
 	
 	//-------------------------------------------------------------------------------------------------//
-	void GLXWindow::swapBuffers(bool waitForVSync)
+	void GLXWindow::swapBuffers()
 	{
 		if (mClosed || mIsExternalGLControl) 
 			return;
