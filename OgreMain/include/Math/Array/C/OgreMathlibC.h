@@ -34,7 +34,6 @@ THE SOFTWARE.
 #endif
 
 #include "OgrePrerequisites.h"
-#include "OgreMath.h"
 
 namespace Ogre
 {
@@ -380,4 +379,5 @@ namespace Ogre
 
 #include "OgreMathlibC.inl"
 
+#endif
 #endif
