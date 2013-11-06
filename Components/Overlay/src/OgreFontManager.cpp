@@ -258,8 +258,8 @@ namespace Ogre
 				if (itemVec.size() == 2)
 				{
 					pFont->addCodePointRange(Font::CodePointRange(
-						StringConverter::parseLong(itemVec[0]), 
-						StringConverter::parseLong(itemVec[1])));
+						StringConverter::parseUnsignedInt(itemVec[0]),
+						StringConverter::parseUnsignedInt(itemVec[1])));
 				}
 			}
 		}
@@ -269,7 +269,7 @@ namespace Ogre
     void FontManager::logBadAttrib(const String& line, FontPtr& pFont)
     {
         LogManager::getSingleton().logMessage("Bad attribute line: " + line +
-            " in font " + pFont->getName());
+            " in font " + pFont->getName(), LML_CRITICAL);
 
     }
 

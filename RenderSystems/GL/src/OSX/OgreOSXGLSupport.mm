@@ -46,8 +46,17 @@ THE SOFTWARE.
 
 namespace Ogre {
 
+bool OSXGLSupport::OSVersionIsAtLeast(String newVersion)
+{
+    return [mCurrentOSVersion compare:[NSString stringWithCString:newVersion.c_str() encoding:NSASCIIStringEncoding]
+                              options:NSNumericSearch] >= NSOrderedSame;
+}
+
+
 OSXGLSupport::OSXGLSupport() : mAPI(""), mContextType("")
 {
+    NSDictionary *dict = [NSDictionary dictionaryWithContentsOfFile:@"/System/Library/CoreServices/SystemVersion.plist"];
+    mCurrentOSVersion = [dict objectForKey:@"ProductVersion"];
 }
 
 OSXGLSupport::~OSXGLSupport()
@@ -66,9 +75,7 @@ void OSXGLSupport::addConfig( void )
 	ConfigOption optVsync;
 	ConfigOption optSRGB;
     ConfigOption optContentScalingFactor;
-#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
 	ConfigOption optEnableFixedPipeline;
-#endif
 
 	// FS setting possibilities
 	optFullScreen.name = "Full Screen";
@@ -116,16 +123,17 @@ void OSXGLSupport::addConfig( void )
     optContentScalingFactor.possibleValues.push_back( "1.33" );
     optContentScalingFactor.possibleValues.push_back( "1.5" );
     optContentScalingFactor.possibleValues.push_back( "2.0" );
-    optContentScalingFactor.currentValue = StringConverter::toString((float)[NSScreen mainScreen].backingScaleFactor);
+    if(OSVersionIsAtLeast("10.7"))
+        optContentScalingFactor.currentValue = StringConverter::toString((float)[NSScreen mainScreen].backingScaleFactor);
+    else
+        optContentScalingFactor.currentValue = "1.0";
     optContentScalingFactor.immutable = false;
 
-#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
-		optEnableFixedPipeline.name = "Fixed Pipeline Enabled";
-		optEnableFixedPipeline.possibleValues.push_back( "Yes" );
-		optEnableFixedPipeline.possibleValues.push_back( "No" );
-		optEnableFixedPipeline.currentValue = "Yes";
-		optEnableFixedPipeline.immutable = false;
-#endif
+    optEnableFixedPipeline.name = "Fixed Pipeline Enabled";
+    optEnableFixedPipeline.possibleValues.push_back( "Yes" );
+    optEnableFixedPipeline.possibleValues.push_back( "No" );
+    optEnableFixedPipeline.currentValue = "Yes";
+    optEnableFixedPipeline.immutable = false;
 
 	CGLRendererInfoObj rend;
 
@@ -292,9 +300,7 @@ void OSXGLSupport::addConfig( void )
     mOptions[optBitDepth.name] = optBitDepth;
     mOptions[optContentScalingFactor.name] = optContentScalingFactor;
 
-#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
     mOptions[optEnableFixedPipeline.name] = optEnableFixedPipeline;
-#endif
 }
 
 String OSXGLSupport::validateConfig( void )
@@ -352,13 +358,11 @@ RenderWindow* OSXGLSupport::createWindow( bool autoCreateWindow, GLRenderSystem*
         if( opt != mOptions.end() )
             winOptions["gamma"] = opt->second.currentValue;
 
-#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
 			opt = mOptions.find("Fixed Pipeline Enabled");
 			if (opt == mOptions.end())
 				OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find Fixed Pipeline enabled options!", "Win32GLSupport::createWindow");
 			bool enableFixedPipeline = (opt->second.currentValue == "Yes");
 			renderSystem->setFixedPipelineEnabled(enableFixedPipeline);
-#endif
 
         opt = mOptions.find( "macAPI" );
         if( opt != mOptions.end() )
@@ -462,7 +466,7 @@ bool OSXGLSupport::supportsPBuffers()
 	return true;
 }
 
-GLPBuffer* OSXGLSupport::createPBuffer(PixelComponentType format, size_t width, size_t height)
+GLPBuffer* OSXGLSupport::createPBuffer(PixelComponentType format, uint32 width, uint32 height)
 {
 //	if(mContextType == "NSOpenGL")
 //		return OGRE_NEW OSXCocoaPBuffer(format, width, height);

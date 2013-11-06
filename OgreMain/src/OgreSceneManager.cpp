@@ -91,6 +91,7 @@ mName(name),
 mRenderQueue(0),
 mLastRenderQueueInvocationCustom(false),
 mAmbientLight(ColourValue::Black),
+mCameraInProgress(0),
 mCurrentViewport(0),
 mSceneRoot(0),
 mSkyPlaneEntity(0),
@@ -129,6 +130,7 @@ mShadowStencilPass(0),
 mShadowModulativePass(0),
 mShadowMaterialInitDone(false),
 mShadowIndexBufferSize(51200),
+mShadowIndexBufferUsedSize(0),
 mFullScreenQuad(0),
 mShadowDirLightExtrudeDist(10000),
 mIlluminationStage(IRS_NONE),
@@ -1777,7 +1779,7 @@ void SceneManager::_setSkyBox(
 			!m->getBestTechnique()->getNumPasses())
 		{
 			LogManager::getSingleton().logMessage(
-				"Warning, skybox material " + materialName + " is not supported, defaulting.");
+				"Warning, skybox material " + materialName + " is not supported, defaulting.", LML_CRITICAL);
 			m = MaterialManager::getSingleton().getDefaultSettings();
 		}
 
@@ -4260,7 +4262,7 @@ void SceneManager::setShadowTechnique(ShadowTechnique technique)
         {
             LogManager::getSingleton().logMessage(
                 "WARNING: Stencil shadows were requested, but this device does not "
-                "have a hardware stencil. Shadows disabled.");
+                "have a hardware stencil. Shadows disabled.", LML_CRITICAL);
             mShadowTechnique = SHADOWTYPE_NONE;
         }
         else if (mShadowIndexBuffer.isNull())
@@ -5635,8 +5637,8 @@ void SceneManager::renderShadowVolumesToStencil(const Light* light,
         // Get shadow renderables			
         ShadowCaster::ShadowRenderableListIterator iShadowRenderables =
             caster->getShadowVolumeRenderableIterator(mShadowTechnique,
-            light, &mShadowIndexBuffer, extrudeInSoftware, 
-            extrudeDist, flags);
+            light, &mShadowIndexBuffer, &mShadowIndexBufferUsedSize,
+            extrudeInSoftware, extrudeDist, flags);
 
         // Render a shadow volume here
         //  - if we have 2-sided stencil, one render with no culling
@@ -5868,6 +5870,7 @@ void SceneManager::setShadowIndexBufferSize(size_t size)
             false);
     }
     mShadowIndexBufferSize = size;
+	mShadowIndexBufferUsedSize = 0;
 }
 //---------------------------------------------------------------------
 void SceneManager::setShadowTextureConfig(size_t shadowIndex, unsigned short width, 
@@ -6366,11 +6369,11 @@ void SceneManager::prepareShadowTextures(Camera* cam, Viewport* vp, const LightL
 			shadowTextureIndex += textureCountPerLight;
 		}
 	}
-	catch (Exception& e) 
+	catch (Exception&) 
 	{
 		// we must reset the illumination stage if an exception occurs
 		mIlluminationStage = savedStage;
-		throw e;
+		throw;
 	}
     // Set the illumination stage, prevents recursive calls
     mIlluminationStage = savedStage;
@@ -6713,7 +6716,7 @@ void SceneManager::updateDirtyInstanceManagers(void)
 }
 //---------------------------------------------------------------------
 AxisAlignedBoxSceneQuery* 
-SceneManager::createAABBQuery(const AxisAlignedBox& box, unsigned long mask)
+SceneManager::createAABBQuery(const AxisAlignedBox& box, uint32 mask)
 {
     DefaultAxisAlignedBoxSceneQuery* q = OGRE_NEW DefaultAxisAlignedBoxSceneQuery(this);
     q->setBox(box);
@@ -6722,7 +6725,7 @@ SceneManager::createAABBQuery(const AxisAlignedBox& box, unsigned long mask)
 }
 //---------------------------------------------------------------------
 SphereSceneQuery* 
-SceneManager::createSphereQuery(const Sphere& sphere, unsigned long mask)
+SceneManager::createSphereQuery(const Sphere& sphere, uint32 mask)
 {
     DefaultSphereSceneQuery* q = OGRE_NEW DefaultSphereSceneQuery(this);
     q->setSphere(sphere);
@@ -6732,7 +6735,7 @@ SceneManager::createSphereQuery(const Sphere& sphere, unsigned long mask)
 //---------------------------------------------------------------------
 PlaneBoundedVolumeListSceneQuery* 
 SceneManager::createPlaneBoundedVolumeQuery(const PlaneBoundedVolumeList& volumes, 
-                                            unsigned long mask)
+                                            uint32 mask)
 {
     DefaultPlaneBoundedVolumeListSceneQuery* q = OGRE_NEW DefaultPlaneBoundedVolumeListSceneQuery(this);
     q->setVolumes(volumes);
@@ -6742,7 +6745,7 @@ SceneManager::createPlaneBoundedVolumeQuery(const PlaneBoundedVolumeList& volume
 
 //---------------------------------------------------------------------
 RaySceneQuery* 
-SceneManager::createRayQuery(const Ray& ray, unsigned long mask)
+SceneManager::createRayQuery(const Ray& ray, uint32 mask)
 {
     DefaultRaySceneQuery* q = OGRE_NEW DefaultRaySceneQuery(this);
     q->setRay(ray);
@@ -6751,7 +6754,7 @@ SceneManager::createRayQuery(const Ray& ray, unsigned long mask)
 }
 //---------------------------------------------------------------------
 IntersectionSceneQuery* 
-SceneManager::createIntersectionQuery(unsigned long mask)
+SceneManager::createIntersectionQuery(uint32 mask)
 {
 
     DefaultIntersectionSceneQuery* q = OGRE_NEW DefaultIntersectionSceneQuery(this);

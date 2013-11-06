@@ -35,6 +35,9 @@ THE SOFTWARE.
 #include "OgreGLES2RenderSystem.h"
 #include "OgreGLES2PixelFormat.h"
 
+#import <UIKit/UIWindow.h>
+#import <UIKit/UIGraphics.h>
+
 namespace Ogre {
     EAGL2Window::EAGL2Window(EAGL2Support *glsupport)
         :   mClosed(false),
@@ -397,7 +400,7 @@ namespace Ogre {
 		mClosed = false;
     }
 
-    void EAGL2Window::swapBuffers(bool waitForVSync)
+    void EAGL2Window::swapBuffers()
     {
         if (mClosed)
         {
