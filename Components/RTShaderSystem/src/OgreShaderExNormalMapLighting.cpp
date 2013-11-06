@@ -82,7 +82,7 @@ int	NormalMapLighting::getExecutionOrder() const
 void NormalMapLighting::updateGpuProgramsParams(Renderable* rend, Pass* pass, const AutoParamDataSource* source, 
 	const LightList* pLightList)
 {		
-	if (mLightParamsList.size() == 0)
+	if (mLightParamsList.empty())
 		return;
 
 	Light::LightTypes curLightType = Light::LT_DIRECTIONAL; 
@@ -339,12 +339,12 @@ bool NormalMapLighting::resolveGlobalParameters(ProgramSet* programSet)
 	// Resolve pixel shader normal.
 	if (mNormalMapSpace == NMS_OBJECT)
 	{
-		mPSNormal = psMain->resolveLocalParameter(Parameter::SPS_NORMAL, 0, Parameter::SPC_NORMAL_OBJECT_SPACE, GCT_FLOAT3);
+		mPSNormal = psMain->resolveLocalParameter(Parameter::SPS_NORMAL, 0, Parameter::SPC_NORMAL_OBJECT_SPACE, GCT_FLOAT4);
 		hasError |= !(mPSNormal.get());
 	}
 	else if (mNormalMapSpace == NMS_TANGENT)
 	{
-		mPSNormal = psMain->resolveLocalParameter(Parameter::SPS_NORMAL, 0, Parameter::SPC_NORMAL_TANGENT_SPACE, GCT_FLOAT3);
+		mPSNormal = psMain->resolveLocalParameter(Parameter::SPS_NORMAL, 0, Parameter::SPC_NORMAL_TANGENT_SPACE, GCT_FLOAT4);
 		hasError |= !(mPSNormal.get());
 	}
 	

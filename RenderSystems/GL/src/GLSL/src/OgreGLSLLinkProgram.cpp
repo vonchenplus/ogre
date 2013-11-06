@@ -190,12 +190,11 @@ namespace Ogre {
 		glProgramBinary(mGLHandle, 
 						binaryFormat, 
 						programBuffer,
-						sizeOfBuffer
+						static_cast<GLsizei>(sizeOfBuffer)
 						);
 
-		GLint   success = 0;
-        glGetProgramiv(mGLHandle, GL_LINK_STATUS, &success);
-        if (!success)
+        glGetProgramiv(mGLHandle, GL_LINK_STATUS, &mLinked);
+        if (!mLinked)
         {
             //
             // Something must have changed since the program binaries
@@ -267,20 +266,6 @@ namespace Ogre {
 		GLUniformReferenceIterator currentUniform = mGLUniformReferences.begin();
 		GLUniformReferenceIterator endUniform = mGLUniformReferences.end();
 
-        GLSLGpuProgram *prog = 0;
-        if(fromProgType == GPT_VERTEX_PROGRAM)
-        {
-            prog = mVertexProgram;
-        }
-        else if(fromProgType == GPT_FRAGMENT_PROGRAM)
-        {
-            prog = mFragmentProgram;
-        }
-        else if(fromProgType == GPT_GEOMETRY_PROGRAM)
-        {
-            prog = mGeometryProgram;
-        }
-
         // determine if we need to transpose matrices when binding
         int transpose = GL_TRUE;
         if ((fromProgType == GPT_FRAGMENT_PROGRAM && mVertexProgram && (!mVertexProgram->getGLSLProgram()->getColumnMajorMatrices())) ||
@@ -319,12 +304,12 @@ namespace Ogre {
                         case GCT_SAMPLERCUBE:
                             shouldUpdate = mUniformCache->updateUniform(currentUniform->mLocation,
                                                                         params->getIntPointer(def->physicalIndex),
-                                                                        def->elementSize * def->arraySize * sizeof(int));
+                                                                        static_cast<GLsizei>(def->elementSize * def->arraySize * sizeof(int)));
                             break;
                         default:
                             shouldUpdate = mUniformCache->updateUniform(currentUniform->mLocation,
                                                                         params->getFloatPointer(def->physicalIndex),
-                                                                        def->elementSize * def->arraySize * sizeof(float));
+                                                                        static_cast<GLsizei>(def->elementSize * def->arraySize * sizeof(float)));
                             break;
 
                     }
@@ -467,9 +452,9 @@ namespace Ogre {
 				{
                     if(!mUniformCache->updateUniform(currentUniform->mLocation,
                                                      params->getFloatPointer(index),
-                                                     currentUniform->mConstantDef->elementSize *
+                                                     static_cast<GLsizei>(currentUniform->mConstantDef->elementSize *
                                                      currentUniform->mConstantDef->arraySize *
-                                                     sizeof(float)))
+                                                     sizeof(float))))
                         return;
 				}
 			}
@@ -599,8 +584,19 @@ namespace Ogre {
 		glGetObjectParameterivARB( mGLHandle, GL_OBJECT_LINK_STATUS_ARB, &mLinked );
 		mTriedToLinkAndFailed = !mLinked;
 
+		if(mTriedToLinkAndFailed == true)
+		{
+			GLchar *msg = NULL;
+			GLint length;
+			glGetProgramiv(mGLHandle, GL_INFO_LOG_LENGTH, &length);
+			msg = new GLchar[length];
+			glGetProgramInfoLog(mGLHandle, length, NULL, msg);
+			logObjectInfo( getCombinedName() + String(", Error linking program: ") + msg, mGLHandle );
+			delete msg;
+		}
+		
 		// force logging and raise exception if not linked
-        GLenum glErr = glGetError();
+		GLenum glErr = glGetError();
         if(glErr != GL_NO_ERROR)
         {
 		    reportGLSLError( glErr, "GLSLLinkProgram::compileAndLink",

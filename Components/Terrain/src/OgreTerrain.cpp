@@ -1060,7 +1060,7 @@ namespace Ogre
 				// vertex data goes at this level, at bakedresolution
 				// applies to all lower levels (except those with a closer vertex data)
 				// determine physical size (as opposed to resolution)
-				size_t sz = ((bakedresolution-1) / splits) + 1;
+				uint sz = ((bakedresolution-1) / splits) + 1;
 				mQuadTree->assignVertexData(depth, prevdepth, bakedresolution, sz);
 
 				// next set to look for
@@ -1216,7 +1216,7 @@ namespace Ogre
 		dirtyRect(rect);
 	}
 	//---------------------------------------------------------------------
-	float Terrain::getHeightAtTerrainPosition(Real x, Real y)
+	float Terrain::getHeightAtTerrainPosition(Real x, Real y) const
 	{
 		// get left / bottom points (rounded down)
 		Real factor = (Real)mSize - 1.0f;
@@ -1284,24 +1284,24 @@ namespace Ogre
 
 	}
 	//---------------------------------------------------------------------
-	float Terrain::getHeightAtWorldPosition(Real x, Real y, Real z)
+	float Terrain::getHeightAtWorldPosition(Real x, Real y, Real z) const
 	{
 		Vector3 terrPos;
 		getTerrainPosition(x, y, z, &terrPos);
 		return getHeightAtTerrainPosition(terrPos.x, terrPos.y);
 	}
 	//---------------------------------------------------------------------
-	float Terrain::getHeightAtWorldPosition(const Vector3& pos)
+	float Terrain::getHeightAtWorldPosition(const Vector3& pos) const
 	{
 		return getHeightAtWorldPosition(pos.x, pos.y, pos.z);
 	}
 	//---------------------------------------------------------------------
-	const float* Terrain::getDeltaData()
+	const float* Terrain::getDeltaData() const
 	{
 		return mDeltaData;
 	}
 	//---------------------------------------------------------------------
-	const float* Terrain::getDeltaData(long x, long y)
+	const float* Terrain::getDeltaData(long x, long y) const
 	{
 		assert (x >= 0 && x < mSize && y >= 0 && y < mSize);
 		return &mDeltaData[y * mSize + x];
@@ -1469,22 +1469,22 @@ namespace Ogre
 		return ret;
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPoint(long x, long y, Vector3* outpos)
+	void Terrain::getPoint(long x, long y, Vector3* outpos) const
 	{
 		getPointAlign(x, y, mAlign, outpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPoint(long x, long y, float height, Vector3* outpos)
+	void Terrain::getPoint(long x, long y, float height, Vector3* outpos) const
 	{
 		getPointAlign(x, y, height, mAlign, outpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPointAlign(long x, long y, Alignment align, Vector3* outpos)
+	void Terrain::getPointAlign(long x, long y, Alignment align, Vector3* outpos) const
 	{
 		getPointAlign(x, y, *getHeightData(x, y), align, outpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPointAlign(long x, long y, float height, Alignment align, Vector3* outpos)
+	void Terrain::getPointAlign(long x, long y, float height, Alignment align, Vector3* outpos) const
 	{
 		switch(align)
 		{
@@ -1546,22 +1546,22 @@ namespace Ogre
 		(*outXform)[3][3] = 1.0f;
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getVector(const Vector3& inVec, Vector3* outVec)
+	void Terrain::getVector(const Vector3& inVec, Vector3* outVec) const
 	{
 		getVectorAlign(inVec.x, inVec.y, inVec.z, mAlign, outVec);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getVector(Real x, Real y, Real z, Vector3* outVec)
+	void Terrain::getVector(Real x, Real y, Real z, Vector3* outVec) const
 	{
 		getVectorAlign(x, y, z, mAlign, outVec);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getVectorAlign(const Vector3& inVec, Alignment align, Vector3* outVec)
+	void Terrain::getVectorAlign(const Vector3& inVec, Alignment align, Vector3* outVec) const
 	{
 		getVectorAlign(inVec.x, inVec.y, inVec.z, align, outVec);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getVectorAlign(Real x, Real y, Real z, Alignment align, Vector3* outVec)
+	void Terrain::getVectorAlign(Real x, Real y, Real z, Alignment align, Vector3* outVec) const
 	{
 
 		switch(align)
@@ -1585,32 +1585,32 @@ namespace Ogre
 		
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPosition(const Vector3& TSpos, Vector3* outWSpos)
+	void Terrain::getPosition(const Vector3& TSpos, Vector3* outWSpos) const
 	{
 		getPositionAlign(TSpos, mAlign, outWSpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPosition(Real x, Real y, Real z, Vector3* outWSpos)
+	void Terrain::getPosition(Real x, Real y, Real z, Vector3* outWSpos) const
 	{
 		getPositionAlign(x, y, z, mAlign, outWSpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getTerrainPosition(const Vector3& WSpos, Vector3* outTSpos)
+	void Terrain::getTerrainPosition(const Vector3& WSpos, Vector3* outTSpos) const
 	{
 		getTerrainPositionAlign(WSpos, mAlign, outTSpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getTerrainPosition(Real x, Real y, Real z, Vector3* outTSpos)
+	void Terrain::getTerrainPosition(Real x, Real y, Real z, Vector3* outTSpos) const
 	{
 		getTerrainPositionAlign(x, y, z, mAlign, outTSpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPositionAlign(const Vector3& TSpos, Alignment align, Vector3* outWSpos)
+	void Terrain::getPositionAlign(const Vector3& TSpos, Alignment align, Vector3* outWSpos) const
 	{
 		getPositionAlign(TSpos.x, TSpos.y, TSpos.z, align, outWSpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPositionAlign(Real x, Real y, Real z, Alignment align, Vector3* outWSpos)
+	void Terrain::getPositionAlign(Real x, Real y, Real z, Alignment align, Vector3* outWSpos) const
 	{
 		switch(align)
 		{
@@ -1633,12 +1633,12 @@ namespace Ogre
 
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getTerrainPositionAlign(const Vector3& WSpos, Alignment align, Vector3* outTSpos)
+	void Terrain::getTerrainPositionAlign(const Vector3& WSpos, Alignment align, Vector3* outTSpos) const
 	{
 		getTerrainPositionAlign(WSpos.x, WSpos.y, WSpos.z, align, outTSpos);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getTerrainPositionAlign(Real x, Real y, Real z, Alignment align, Vector3* outTSpos)
+	void Terrain::getTerrainPositionAlign(Real x, Real y, Real z, Alignment align, Vector3* outTSpos) const
 	{
 		switch(align)
 		{
@@ -1661,22 +1661,22 @@ namespace Ogre
 
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getTerrainVector(const Vector3& inVec, Vector3* outVec)
+	void Terrain::getTerrainVector(const Vector3& inVec, Vector3* outVec) const
 	{
 		getTerrainVectorAlign(inVec.x, inVec.y, inVec.z, mAlign, outVec);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getTerrainVector(Real x, Real y, Real z, Vector3* outVec)
+	void Terrain::getTerrainVector(Real x, Real y, Real z, Vector3* outVec) const
 	{
 		getTerrainVectorAlign(x, y, z, mAlign, outVec);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getTerrainVectorAlign(const Vector3& inVec, Alignment align, Vector3* outVec)
+	void Terrain::getTerrainVectorAlign(const Vector3& inVec, Alignment align, Vector3* outVec) const
 	{
 		getTerrainVectorAlign(inVec.x, inVec.y, inVec.z, align, outVec);
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getTerrainVectorAlign(Real x, Real y, Real z, Alignment align, Vector3* outVec)
+	void Terrain::getTerrainVectorAlign(Real x, Real y, Real z, Alignment align, Vector3* outVec) const
 	{
 
 		switch(align)
@@ -2098,9 +2098,9 @@ namespace Ogre
 			if (lodRect.bottom % step)
 				lodRect.bottom += step - (lodRect.bottom % step);
 
-			for (int j = lodRect.top; j < lodRect.bottom - step; j += step )
+			for (long j = lodRect.top; j < lodRect.bottom - step; j += step )
 			{
-				for (int i = lodRect.left; i < lodRect.right - step; i += step )
+				for (long i = lodRect.left; i < lodRect.right - step; i += step )
 				{
 					// Form planes relating to the lower detail tris to be produced
 					// For even tri strip rows, they are this shape:
@@ -2141,8 +2141,8 @@ namespace Ogre
 						int xubound = (i == (mSize - step)? step : step - 1);
 						for ( int x = 0; x <= xubound; x++ )
 						{
-							int fulldetailx = i + x;
-							int fulldetaily = j + y;
+							int fulldetailx = static_cast<int>(i + x);
+							int fulldetaily = static_cast<int>(j + y);
 							if ( fulldetailx % step == 0 && 
 								fulldetaily % step == 0 )
 							{
@@ -2231,12 +2231,12 @@ namespace Ogre
 	}
 
 	//---------------------------------------------------------------------
-	uint16 Terrain::getResolutionAtLod(uint16 lodLevel)
+	uint16 Terrain::getResolutionAtLod(uint16 lodLevel) const
 	{
 		return ((mSize - 1) >> lodLevel) + 1;
 	}
 	//---------------------------------------------------------------------
-	uint Terrain::getGeoDataSizeAtLod(uint16 lodLevel)
+	uint Terrain::getGeoDataSizeAtLod(uint16 lodLevel) const
 	{
 		uint size = getResolutionAtLod(lodLevel);
 		uint prevSize = (lodLevel<mNumLodLevels-1) ? getResolutionAtLod(lodLevel+1) : 0;
@@ -2748,7 +2748,7 @@ namespace Ogre
 		return (uint8)mBlendTextureList.size();
 	}
 	//---------------------------------------------------------------------
-	PixelFormat Terrain::getBlendTextureFormat(uint8 textureIndex, uint8 numLayers)
+	PixelFormat Terrain::getBlendTextureFormat(uint8 textureIndex, uint8 numLayers) const
 	{
 		/*
 		if (numLayers - 1 - (textureIndex * 4) > 3)
@@ -3281,13 +3281,13 @@ namespace Ogre
 		mIsLoaded = true;
 	}
 	//---------------------------------------------------------------------
-	uint16 Terrain::getLODLevelWhenVertexEliminated(long x, long y)
+	uint16 Terrain::getLODLevelWhenVertexEliminated(long x, long y) const
 	{
 		// gets eliminated by either row or column first
 		return std::min(getLODLevelWhenVertexEliminated(x), getLODLevelWhenVertexEliminated(y));
 	}
 	//---------------------------------------------------------------------
-	uint16 Terrain::getLODLevelWhenVertexEliminated(long rowOrColulmn)
+	uint16 Terrain::getLODLevelWhenVertexEliminated(long rowOrColulmn) const
 	{
 		// LOD levels bisect the domain.
 		// start at the lowest detail
@@ -3322,7 +3322,8 @@ namespace Ogre
 		uint8* pData = static_cast<uint8*>(
 			OGRE_MALLOC(widenedRect.width() * widenedRect.height() * 3, MEMCATEGORY_GENERAL));
 
-		PixelBox* pixbox = OGRE_NEW PixelBox(widenedRect.width(), widenedRect.height(), 1, PF_BYTE_RGB, pData);
+		PixelBox* pixbox = OGRE_NEW PixelBox(static_cast<uint32>(widenedRect.width()),
+                                             static_cast<uint32>(widenedRect.height()), 1, PF_BYTE_RGB, pData);
 
 		// Evaluate normal like this
 		//  3---2---1
@@ -3395,10 +3396,10 @@ namespace Ogre
 				// content of normalsBox is already inverted in Y, but rect is still 
 				// in terrain space for dealing with sub-rect, so invert
 				Image::Box dstBox;
-				dstBox.left = rect.left;
-				dstBox.right = rect.right;
-				dstBox.top = mSize - rect.bottom;
-				dstBox.bottom = mSize - rect.top;
+				dstBox.left = static_cast<uint32>(rect.left);
+				dstBox.right = static_cast<uint32>(rect.right);
+				dstBox.top = static_cast<uint32>(mSize - rect.bottom);
+				dstBox.bottom = static_cast<uint32>(mSize - rect.top);
 				mTerrainNormalMap->getBuffer()->blitFromMemory(*normalsBox, dstBox);
 			}
 		}
@@ -3505,7 +3506,8 @@ namespace Ogre
 		uint8* pData = static_cast<uint8*>(
 			OGRE_MALLOC(widenedRect.width() * widenedRect.height(), MEMCATEGORY_GENERAL));
 
-		PixelBox* pixbox = OGRE_NEW PixelBox(widenedRect.width(), widenedRect.height(), 1, PF_L8, pData);
+		PixelBox* pixbox = OGRE_NEW PixelBox(static_cast<uint32>(widenedRect.width()),
+                                             static_cast<uint32>(widenedRect.height()), 1, PF_L8, pData);
 
 		Real heightPad = (getMaxHeight() - getMinHeight()) * 1.0e-3f;
 
@@ -3566,10 +3568,10 @@ namespace Ogre
 				// content of PixelBox is already inverted in Y, but rect is still 
 				// in terrain space for dealing with sub-rect, so invert
 				Image::Box dstBox;
-				dstBox.left = rect.left;
-				dstBox.right = rect.right;
-				dstBox.top = mLightmapSizeActual - rect.bottom;
-				dstBox.bottom = mLightmapSizeActual - rect.top;
+				dstBox.left = static_cast<uint32>(rect.left);
+				dstBox.right = static_cast<uint32>(rect.right);
+				dstBox.top = static_cast<uint32>(mLightmapSizeActual - rect.bottom);
+				dstBox.bottom = static_cast<uint32>(mLightmapSizeActual - rect.top);
 				mLightmap->getBuffer()->blitFromMemory(*lightmapBox, dstBox);
 			}
 		}
@@ -3767,7 +3769,7 @@ namespace Ogre
 
 	}
 	//---------------------------------------------------------------------
-	Terrain* Terrain::getNeighbour(NeighbourIndex index)
+	Terrain* Terrain::getNeighbour(NeighbourIndex index) const
 	{
 		return mNeighbours[index];
 	}
@@ -3968,7 +3970,7 @@ namespace Ogre
 
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getEdgeRect(NeighbourIndex index, long range, Rect* outRect)
+	void Terrain::getEdgeRect(NeighbourIndex index, long range, Rect* outRect) const
 	{
 		// We make the edge rectangle 2 rows / columns at the edge of the tile
 		// 2 because this copes with normal changes and potentially filtered
@@ -4027,7 +4029,7 @@ namespace Ogre
 		};
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getNeighbourEdgeRect(NeighbourIndex index, const Rect& inRect, Rect* outRect)
+	void Terrain::getNeighbourEdgeRect(NeighbourIndex index, const Rect& inRect, Rect* outRect) const
 	{
 		assert (mSize == getNeighbour(index)->getSize());
 
@@ -4073,7 +4075,7 @@ namespace Ogre
 
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getNeighbourPoint(NeighbourIndex index, long x, long y, long *outx, long *outy)
+	void Terrain::getNeighbourPoint(NeighbourIndex index, long x, long y, long *outx, long *outy) const
 	{
 		// Get the index of the point we should be looking at on a neighbour
 		// in order to match up points
@@ -4112,7 +4114,7 @@ namespace Ogre
 		};
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getPointFromSelfOrNeighbour(long x, long y, Vector3* outpos)
+	void Terrain::getPointFromSelfOrNeighbour(long x, long y, Vector3* outpos) const
 	{
 		if (x >= 0 && y >=0 && x < mSize && y < mSize)
 			getPoint(x, y, outpos);
@@ -4142,7 +4144,7 @@ namespace Ogre
 		}
 	}
 	//---------------------------------------------------------------------
-	void Terrain::getNeighbourPointOverflow(long x, long y, NeighbourIndex *outindex, long *outx, long *outy)
+	void Terrain::getNeighbourPointOverflow(long x, long y, NeighbourIndex *outindex, long *outx, long *outy) const
 	{
 		if (x < 0)
 		{

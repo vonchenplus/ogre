@@ -200,7 +200,7 @@ namespace Ogre {
         
         if (unit < dynamic_cast<GLRenderSystem*>(Root::getSingleton().getRenderSystem())->getCapabilities()->getNumTextureUnits())
         {
-            glActiveTexture(GL_TEXTURE0 + unit);
+            glActiveTexture(static_cast<GLenum>(GL_TEXTURE0 + unit));
             
             mActiveTextureUnit = unit;
             
@@ -498,5 +498,11 @@ namespace Ogre {
     void GLStateCacheManagerImp::disableTextureCoordGen(GLenum type)
     {
         glDisable(type);
+    }
+
+    void GLStateCacheManagerImp::setPolygonMode(GLenum mode)
+    {
+        mPolygonMode = mode;
+        glPolygonMode(GL_FRONT_AND_BACK, mPolygonMode);
     }
 }
