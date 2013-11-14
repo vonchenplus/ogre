@@ -83,16 +83,16 @@ namespace Ogre {
     {
 
 
-		MaterialPtr material = MaterialManager::getSingleton().getByName(name, groupName).staticCast<Material>();
+		MaterialPtr material = MaterialManager::getSingleton().getByName(name, groupName);
 
 		if( material.isNull() )
 		{
 			LogManager::getSingleton().logMessage("Can't assign material " + name +
 				" to SubEntity of " + mParentEntity->getName() + " because this "
 				"Material does not exist. Have you forgotten to define it in a "
-				".material script?");
+				".material script?", LML_CRITICAL);
 
-			material = MaterialManager::getSingleton().getByName("BaseWhite").staticCast<Material>();
+			material = MaterialManager::getSingleton().getByName("BaseWhite");
 
 			if (material.isNull())
 			{
@@ -115,9 +115,9 @@ namespace Ogre {
 			LogManager::getSingleton().logMessage("Can't assign material "  
                 " to SubEntity of " + mParentEntity->getName() + " because this "
                 "Material does not exist. Have you forgotten to define it in a "
-                ".material script?");
+                ".material script?", LML_CRITICAL);
 			
-            mMaterialPtr = MaterialManager::getSingleton().getByName("BaseWhite").staticCast<Material>();
+			mMaterialPtr = MaterialManager::getSingleton().getByName("BaseWhite");
 			
             if (mMaterialPtr.isNull())
             {

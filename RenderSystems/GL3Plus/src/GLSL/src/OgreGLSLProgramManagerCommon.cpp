@@ -911,7 +911,7 @@ namespace Ogre {
                     else
                     {
                         LogManager::getSingleton().logMessage("Missing opening brace in GLSL Uniform Block in file "
-                                                              + filename);
+                                                              + filename, LML_CRITICAL);
                         break;
                     }
 
@@ -1073,7 +1073,7 @@ namespace Ogre {
                 if (def.constType == GCT_UNKNOWN)
                 {
                     LogManager::getSingleton().logMessage("Problem parsing the following GLSL Uniform: '"
-                                                          + line + "' in file " + filename);
+                                                          + line + "' in file " + filename, LML_CRITICAL);
                     // next uniform
                     break;
                 }

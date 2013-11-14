@@ -125,8 +125,8 @@ namespace Ogre {
 #	define OGRE_PLATFORM OGRE_PLATFORM_FLASHCC
 #elif defined( __APPLE_CC__)
     // Device                                                     Simulator
-    // Both requiring OS version 4.0 or greater
-#   if __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 40000 || __IPHONE_OS_VERSION_MIN_REQUIRED >= 40000
+    // Both requiring OS version 6.0 or greater
+#   if __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 60000 || __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
 #       define OGRE_PLATFORM OGRE_PLATFORM_APPLE_IOS
 #   else
 #       define OGRE_PLATFORM OGRE_PLATFORM_APPLE
@@ -266,13 +266,15 @@ namespace Ogre {
 #       undef OGRE_UNICODE_SUPPORT
 #   endif
 #	define OGRE_UNICODE_SUPPORT 1
-#	define CLOCKS_PER_SEC  1000
     // A quick define to overcome different names for the same function
 #   define stricmp strcasecmp
 #   ifdef DEBUG
 #       define OGRE_DEBUG_MODE 1
 #   else
 #       define OGRE_DEBUG_MODE 0
+#   endif
+#   ifndef CLOCKS_PER_SEC
+#	    define CLOCKS_PER_SEC  1000
 #   endif
 #endif
     

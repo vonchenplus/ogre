@@ -137,11 +137,11 @@ protected:
 
 		if (mUseOcclusionQuery == false)
 		{
-			LogManager::getSingleton().logMessage("Sample_Lighting - Error: failed to create hardware occlusion query");
+			LogManager::getSingleton().logMessage("Sample_Lighting - Error: failed to create hardware occlusion query", LML_CRITICAL);
 		}
 		
 		// Create the materials to be used by the objects used fo the occlusion query
-		MaterialPtr matBase = MaterialManager::getSingleton().getByName("BaseWhiteNoLighting").staticCast<Material>();
+		MaterialPtr matBase = MaterialManager::getSingleton().getByName("BaseWhiteNoLighting");
 		MaterialPtr matQueryArea = matBase->clone("QueryArea");
 		matQueryArea->setDepthWriteEnabled(false);
 		matQueryArea->setColourWriteEnabled(false);

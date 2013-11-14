@@ -305,7 +305,7 @@ namespace Ogre {
     {
         mMaterialName = name;
 
-        mMaterial = MaterialManager::getSingleton().getByName(name, groupName).staticCast<Material>();
+        mMaterial = MaterialManager::getSingleton().getByName(name, groupName);
 
 		if (mMaterial.isNull())
 			OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find material " + name,
@@ -652,9 +652,9 @@ namespace Ogre {
 			LogManager::getSingleton().logMessage("Can't assign material "  
                                                   " to BillboardSet of " + getName() + " because this "
                                                   "Material does not exist. Have you forgotten to define it in a "
-                                                  ".material script?");
+                                                  ".material script?", LML_CRITICAL);
 			
-            mMaterial = MaterialManager::getSingleton().getByName("BaseWhite").staticCast<Material>();
+			mMaterial = MaterialManager::getSingleton().getByName("BaseWhite");
 			
             if (mMaterial.isNull())
             {
@@ -782,7 +782,7 @@ namespace Ogre {
 			LogManager::getSingleton().logMessage("Warning: BillboardSet " +
 				mName + " has point rendering enabled but is using a type "
 				"other than BBT_POINT, this may not give you the results you "
-				"expect.");
+				"expect.", LML_CRITICAL);
 		}
 
         mVertexData = OGRE_NEW VertexData();

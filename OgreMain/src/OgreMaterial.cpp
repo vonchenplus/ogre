@@ -201,11 +201,11 @@ namespace Ogre {
 		MaterialPtr newMat;
 		if (changeGroup)
 		{
-			newMat = MaterialManager::getSingleton().create(newName, newGroup).staticCast<Material>();
+			newMat = MaterialManager::getSingleton().create(newName, newGroup);
 		}
 		else
 		{
-			newMat = MaterialManager::getSingleton().create(newName, mGroup).staticCast<Material>();
+			newMat = MaterialManager::getSingleton().create(newName, mGroup);
 		}
         
 
@@ -516,7 +516,7 @@ namespace Ogre {
         // Did we find any?
         if (mSupportedTechniques.empty())
         {
-			LogManager::getSingleton().stream()
+            LogManager::getSingleton().stream(LML_CRITICAL)
 				<< "WARNING: material " << mName << " has no supportable "
 				<< "Techniques and will be blank. Explanation: \n" << mUnsupportedReasons;
         }

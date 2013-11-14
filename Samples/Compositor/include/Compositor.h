@@ -34,6 +34,7 @@ class _OgreSampleClassExport Sample_Compositor : public SdkSample
 
     void setupContent(void);
     void cleanupContent(void);
+    StringVector getRequiredPlugins();
 
     bool frameRenderingQueued(const FrameEvent& evt);
 
@@ -131,6 +132,13 @@ void Sample_Compositor::setupContent(void)
     setDragLook(true);
 #endif
 }
+StringVector Sample_Compositor::getRequiredPlugins()
+{
+    StringVector names;
+    if (!GpuProgramManager::getSingleton().isSyntaxSupported("glsles") && !GpuProgramManager::getSingleton().isSyntaxSupported("glsl150"))
+        names.push_back("Cg Program Manager");
+    return names;
+}
 //-----------------------------------------------------------------------------------
 void Sample_Compositor::registerCompositors(void)
 {
@@ -171,7 +179,7 @@ void Sample_Compositor::registerCompositors(void)
             Ogre::CompositorManager::getSingleton().setCompositorEnabled(vp, compositorName, false);
         } catch (...) {
             /// Warn user
-            LogManager::getSingleton().logMessage("Could not load compositor " + compositorName);
+			LogManager::getSingleton().logMessage("Could not load compositor " + compositorName, LML_CRITICAL);
         }
     }
 
@@ -359,7 +367,7 @@ void Sample_Compositor::itemSelected(OgreBites::SelectMenu* menu)
     }
 
     mTrayMgr->getWidget("DebugRTTPanel")->show();
-    mTrayMgr->moveWidgetToTray("DebugRTTPanel", TL_TOPRIGHT, mTrayMgr->getNumWidgets(TL_TOPRIGHT) - 1);
+	mTrayMgr->moveWidgetToTray("DebugRTTPanel", TL_TOPRIGHT, static_cast<unsigned int>(mTrayMgr->getNumWidgets(TL_TOPRIGHT) - 1));
     StringVector parts = StringUtil::split(menu->getSelectedItem(), ";");
     mDebugTextureTUS->setContentType(TextureUnitState::CONTENT_COMPOSITOR);
 
@@ -518,7 +526,7 @@ void Sample_Compositor::createEffects(void)
     /// Motion blur effect
     Ogre::CompositorPtr comp3 = Ogre::CompositorManager::getSingleton().create(
         "Motion Blur", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME
-    ).staticCast<Compositor>();
+		);
     {
         Ogre::CompositionTechnique *t = comp3->createTechnique();
         {
@@ -589,7 +597,7 @@ void Sample_Compositor::createEffects(void)
     /// Heat vision effect
     Ogre::CompositorPtr comp4 = Ogre::CompositorManager::getSingleton().create(
         "Heat Vision", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME
-    ).staticCast<Compositor>();
+		);
     {
         Ogre::CompositionTechnique *t = comp4->createTechnique();
         t->setCompositorLogicName("HeatVision");

@@ -38,7 +38,7 @@ void MaterialControls::addControl(const Ogre::String& params)
     if (vecparams.size() != 6)
     {
         Ogre::LogManager::getSingleton().logMessage(
-            "Incorrect number of parameters passed in params string for MaterialControls::addControl()" );
+            "Incorrect number of parameters passed in params string for MaterialControls::addControl()", Ogre::LML_CRITICAL);
 
         return;
     }
@@ -87,7 +87,7 @@ void loadMaterialControlsFile(MaterialControlsContainer& controlsContainer, cons
             {
                 materialName = cf.getSetting("material", secName);
 				
-				Ogre::MaterialPtr curMat = Ogre::MaterialManager::getSingleton().getByName(materialName).staticCast<Ogre::Material>();
+				Ogre::MaterialPtr curMat = Ogre::MaterialManager::getSingleton().getByName(materialName);
 				curMat->load();
 				Ogre::Technique * curTec = curMat->getBestTechnique();
 				if (!curTec || !curTec->isSupported())
