@@ -54,7 +54,7 @@ namespace Ogre
         {
             LogManager::getSingleton().logMessage(
                 "Error in material " + context.material->getName() +
-                " : " + error);
+                " : " + error, LML_CRITICAL);
         }
         else
         {
@@ -63,13 +63,13 @@ namespace Ogre
                 LogManager::getSingleton().logMessage(
                     "Error in material " + context.material->getName() +
                     " at line " + StringConverter::toString(context.lineNo) +
-                    " of " + context.filename + ": " + error);
+                    " of " + context.filename + ": " + error, LML_CRITICAL);
             }
             else
             {
                 LogManager::getSingleton().logMessage(
                     "Error at line " + StringConverter::toString(context.lineNo) +
-                    " of " + context.filename + ": " + error);
+                    " of " + context.filename + ": " + error, LML_CRITICAL);
             }
         }
     }
@@ -2423,7 +2423,7 @@ namespace Ogre
             // that this new material should clone from
             StringUtil::trim(vecparams[1]);
             // make sure base material exists
-            basematerial = MaterialManager::getSingleton().getByName(vecparams[1]).staticCast<Material>();
+            basematerial = MaterialManager::getSingleton().getByName(vecparams[1]);
             // if it doesn't exist then report error in log and just create a new material
             if (basematerial.isNull())
             {
@@ -2436,7 +2436,7 @@ namespace Ogre
         StringUtil::trim(vecparams[0]);
 
         context.material =
-			MaterialManager::getSingleton().create(vecparams[0], context.groupName).staticCast<Material>();
+            MaterialManager::getSingleton().create(vecparams[0], context.groupName);
 
         if (!basematerial.isNull())
         {
@@ -2630,7 +2630,7 @@ namespace Ogre
         // passed in params
         if (context.program.isNull())
         {
-            context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
+            context.program = GpuProgramManager::getSingleton().getByName(params);
             if (context.program.isNull())
             {
                 // Unknown program
@@ -2679,7 +2679,7 @@ namespace Ogre
         // passed in params
         if (context.program.isNull())
         {
-            context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
+            context.program = GpuProgramManager::getSingleton().getByName(params);
             if (context.program.isNull())
             {
                 // Unknown program
@@ -2713,7 +2713,7 @@ namespace Ogre
         // update section
         context.section = MSS_PROGRAM_REF;
 
-        context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
+        context.program = GpuProgramManager::getSingleton().getByName(params);
         if (context.program.isNull())
         {
             // Unknown program
@@ -2746,7 +2746,7 @@ namespace Ogre
         // update section
         context.section = MSS_PROGRAM_REF;
 
-        context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
+        context.program = GpuProgramManager::getSingleton().getByName(params);
         if (context.program.isNull())
         {
             // Unknown program
@@ -2779,7 +2779,7 @@ namespace Ogre
         // update section
         context.section = MSS_PROGRAM_REF;
 
-        context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
+        context.program = GpuProgramManager::getSingleton().getByName(params);
         if (context.program.isNull())
         {
             // Unknown program
@@ -2813,7 +2813,7 @@ namespace Ogre
 		// update section
 		context.section = MSS_PROGRAM_REF;
 
-		context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
+		context.program = GpuProgramManager::getSingleton().getByName(params);
 		if (context.program.isNull())
 		{
 			// Unknown program
@@ -2862,7 +2862,7 @@ namespace Ogre
         // passed in params
         if (context.program.isNull())
         {
-            context.program = GpuProgramManager::getSingleton().getByName(params).staticCast<GpuProgram>();
+            context.program = GpuProgramManager::getSingleton().getByName(params);
             if (context.program.isNull())
             {
                 // Unknown program
@@ -5567,7 +5567,7 @@ namespace Ogre
         while (currentDef != endDef)
         {
             // get gpu program from gpu program manager
-            GpuProgramPtr program = GpuProgramManager::getSingleton().getByName((*currentDef)).staticCast<GpuProgram>();
+            GpuProgramPtr program = GpuProgramManager::getSingleton().getByName((*currentDef));
             // write gpu program definition type to buffer
             // check program type for vertex program
             // write program type

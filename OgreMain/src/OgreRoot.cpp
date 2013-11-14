@@ -1215,6 +1215,12 @@ namespace Ogre {
 	RenderWindow* Root::createRenderWindow(const String &name, unsigned int width, unsigned int height,
 			bool fullScreen, const NameValuePairList *miscParams)
 	{
+		if (!mIsInitialised)
+		{
+			OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
+			"Cannot create window - Root has not been initialised! "
+			"Make sure to call Root::initialise before creating a window.", "Root::createRenderWindow");
+		}
         if (!mActiveRenderer)
         {
             OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
@@ -1238,6 +1244,12 @@ namespace Ogre {
 	bool Root::createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
 		RenderWindowList& createdWindows)
 	{
+		if (!mIsInitialised)
+		{
+			OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
+			"Cannot create window - Root has not been initialised! "
+			"Make sure to call Root::initialise before creating a window.", "Root::createRenderWindows");
+		}
 		if (!mActiveRenderer)
 		{
 			OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
@@ -1422,7 +1434,7 @@ namespace Ogre {
 		// give client app opportunity to use queued GPU time
 		bool ret = _fireFrameRenderingQueued();
 		// block for final swap
-		mActiveRenderer->_swapAllRenderTargetBuffers(mActiveRenderer->getWaitForVerticalBlank());
+		mActiveRenderer->_swapAllRenderTargetBuffers();
 
         // This belongs here, as all render targets must be updated before events are
         // triggered, otherwise targets could be mismatched.  This could produce artifacts,
@@ -1440,7 +1452,7 @@ namespace Ogre {
 		// give client app opportunity to use queued GPU time
 		bool ret = _fireFrameRenderingQueued(evt);
 		// block for final swap
-		mActiveRenderer->_swapAllRenderTargetBuffers(mActiveRenderer->getWaitForVerticalBlank());
+		mActiveRenderer->_swapAllRenderTargetBuffers();
 
 		// This belongs here, as all render targets must be updated before events are
 		// triggered, otherwise targets could be mismatched.  This could produce artifacts,
