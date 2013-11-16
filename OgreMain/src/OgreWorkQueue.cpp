@@ -231,7 +231,7 @@ namespace Ogre {
 			}
 #endif
 		}
-		if(idleThread){
+		if(OGRE_THREAD_SUPPORT && idleThread){
 			OGRE_LOCK_MUTEX(mIdleMutex);
 			mIdleRequestQueue.push_back(req);
 			if(!mIdleThreadRunning)
@@ -562,11 +562,14 @@ namespace Ogre {
 		}
 		else
 		{
+			if (!r->getAborted())
+			{
 			// no response, delete request
 			LogManager::getSingleton().stream() << 
 				"DefaultWorkQueueBase('" << mName << "') warning: no handler processed request "
 				<< r->getID() << ", channel " << r->getChannel()
 				<< ", type " << r->getType();
+			}
 			OGRE_DELETE r;
 		}
 
