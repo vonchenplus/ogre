@@ -425,7 +425,6 @@ namespace Ogre {
 				//*((int*)CPUString) = result._ebx;
                                 memcpy(CPUString, &result._ebx, sizeof(int));
 				//*((int*)(CPUString+4)) = result._edx;
-                                memcpy(CPUString+4, &result._edx, sizeof(int));
                                 //*((int*)(CPUString+8)) = result._ecx;
                                 memcpy(CPUString+8, &result._ecx, sizeof(int));
 

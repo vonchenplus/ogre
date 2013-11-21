@@ -102,8 +102,8 @@
 #   if SAMPLES_INCLUDE_PLAYPEN
 #    include "PlayPen.h"
 #    include "PlayPenTestPlugin.h"
-     PlayPenPlugin* playPenPlugin = 0;
-     PlaypenTestPlugin* playPenTestPlugin = 0;
+	PlayPenPlugin* playPenPlugin = 0;
+    PlaypenTestPlugin* playPenTestPlugin = 0;
 #   endif
 #   ifdef INCLUDE_RTSHADER_SYSTEM
 #       include "OgreRTShaderSystem.h"
@@ -209,7 +209,7 @@ protected:
 	| dynamic configuration, resource reloading, node labeling, and more.
 	=============================================================================*/
 	class SampleBrowser : public SampleContext, public SdkTrayListener
-	{
+	{        
 	public:
 
 		SampleBrowser(bool nograb = false, int startSampleIndex = -1) : SampleContext()
@@ -1089,7 +1089,7 @@ protected:
 			mPluginNameMap["Sample_Tesselation"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_Tesselation();
 			mPluginNameMap["Sample_PNTriangles"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_PNTriangles();
 
-#			if defined(OGRE_BUILD_COMPONENT_VOLUME) && OGRE_PLATFORM != OGRE_PLATFORM_NACL
+#                       if defined(OGRE_BUILD_COMPONENT_VOLUME) && OGRE_PLATFORM != OGRE_PLATFORM_NACL
             mPluginNameMap["Sample_VolumeCSG"]          = (OgreBites::SdkSample *) OGRE_NEW Sample_VolumeCSG();
             mPluginNameMap["Sample_VolumeTerrain"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_VolumeTerrain();
 #			endif
@@ -1104,6 +1104,7 @@ protected:
             mPluginNameMap["Sample_SkyDome"]            = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyDome();
             mPluginNameMap["Sample_SkyPlane"]           = (OgreBites::SdkSample *) OGRE_NEW Sample_SkyPlane();
             mPluginNameMap["Sample_SphereMapping"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_SphereMapping();
+			mPluginNameMap["Sample_Tesselation"]		= (OgreBites::SdkSample *) OGRE_NEW Sample_Tesselation();
             mPluginNameMap["Sample_TextureFX"]          = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureFX();
             mPluginNameMap["Sample_Transparency"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_Transparency();
 
@@ -1366,8 +1367,8 @@ protected:
             sampleList.push_back("Sample_BezierPatch");
             sampleList.push_back("Sample_CameraTrack");
             sampleList.push_back("Sample_CelShading");
-            sampleList.push_back("Sample_Character");     
-            sampleList.push_back("Sample_Compositor");     
+            sampleList.push_back("Sample_Character");   
+			sampleList.push_back("Sample_Compositor");     			
             sampleList.push_back("Sample_CubeMapping");    
             sampleList.push_back("Sample_Dot3Bump");
             sampleList.push_back("Sample_DynTex");      
