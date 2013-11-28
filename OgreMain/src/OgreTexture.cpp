@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -101,7 +101,7 @@ namespace Ogre {
 		// Scope lock for actual loading
 		try
 		{
-			OGRE_LOCK_AUTO_MUTEX
+                    OGRE_LOCK_AUTO_MUTEX;
 			vector<const Image*>::type imagePtrs;
 			imagePtrs.push_back(&img);
 			_loadImages( imagePtrs );
@@ -214,7 +214,7 @@ namespace Ogre {
         }
 
 		// The custom mipmaps in the image have priority over everything
-        size_t imageMips = images[0]->getNumMipmaps();
+        uint8 imageMips = images[0]->getNumMipmaps();
 
 		if(imageMips > 0)
 		{
@@ -240,7 +240,7 @@ namespace Ogre {
 			multiImage = false;
 		}
 		
-		// Check wether number of faces in images exceeds number of faces
+		// Check whether number of faces in images exceeds number of faces
 		// in this texture. If so, clamp it.
 		if(faces > getNumFaces())
 			faces = getNumFaces();
@@ -254,7 +254,7 @@ namespace Ogre {
                 ")";
             if (!(mMipmapsHardwareGenerated && mNumMipmaps == 0))
             {
-                str << " with " << mNumMipmaps;
+                str << " with " << static_cast<int>(mNumMipmaps);
                 if(mUsage & TU_AUTOMIPMAP)
                 {
                     if (mMipmapsHardwareGenerated)
@@ -285,7 +285,7 @@ namespace Ogre {
 		
 		// Main loading loop
         // imageMips == 0 if the image has no custom mipmaps, otherwise contains the number of custom mips
-        for(size_t mip = 0; mip<=imageMips; ++mip)
+        for(size_t mip = 0; mip <= std::min(mNumMipmaps, imageMips); ++mip)
         {
             for(size_t i = 0; i < faces; ++i)
             {
@@ -439,15 +439,24 @@ namespace Ogre {
 		void* currentPixData = pixData;
 		for (size_t face = 0; face < getNumFaces(); ++face)
 		{
+            uint32 width = getWidth();
+            uint32 height = getHeight();
+            uint32 depth = getDepth();
 			for (size_t mip = 0; mip < numMips; ++mip)
 			{
-				size_t mipDataSize = PixelUtil::getMemorySize(getWidth(), getHeight(), getDepth(), getFormat());
+				size_t mipDataSize = PixelUtil::getMemorySize(width, height, depth, getFormat());
 
-				Ogre::PixelBox pixBox(getWidth(), getHeight(), getDepth(), getFormat(), currentPixData);
+				Ogre::PixelBox pixBox(width, height, depth, getFormat(), currentPixData);
 				getBuffer(face, mip)->blitToMemory(pixBox);
 
 				currentPixData = (void*)((char*)currentPixData + mipDataSize);
 
+                if(width != 1)
+                    width /= 2;
+                if(height != 1)
+                    height /= 2;
+                if(depth != 1)
+                    depth /= 2;
 			}
 		}
 

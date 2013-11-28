@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,7 @@ namespace Ogre {
 	//-----------------------------------------------------------------------------
 	ManualObject::ManualObject(const String& name)
 		: MovableObject(name),
-		  mDynamic(false), mCurrentSection(0), mFirstVertex(true),
+		  mDynamic(false), mCurrentSection(0), mCurrentUpdating(false), mFirstVertex(true),
 		  mTempVertexPending(false),
 		  mTempVertexBuffer(0), mTempVertexSize(TEMP_INITIAL_VERTEX_SIZE),
 		  mTempIndexBuffer(0), mTempIndexSize(TEMP_INITIAL_INDEX_SIZE),
@@ -183,6 +183,28 @@ namespace Ogre {
 				"You cannot call begin() again until after you call end()",
 				"ManualObject::begin");
 		}
+
+        // Check that a valid material was provided
+        MaterialPtr material = MaterialManager::getSingleton().getByName(materialName, groupName);
+
+		if( material.isNull() )
+		{
+			LogManager::getSingleton().logMessage("Can't assign material " + materialName +
+                                                  " to the ManualObject " + mName + " because this "
+                                                  "Material does not exist. Have you forgotten to define it in a "
+                                                  ".material script?", LML_CRITICAL);
+
+            material = MaterialManager::getSingleton().getByName("BaseWhite");
+
+			if (material.isNull())
+			{
+				OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
+                            "to the ManualObject " + mName + ". Did "
+                            "you forget to call MaterialManager::initialise()?",
+                            "ManualObject::begin");
+			}
+		}
+
 		mCurrentSection = OGRE_NEW ManualObjectSection(this, materialName, opType, groupName);
 		mCurrentUpdating = false;
 		mCurrentSection->setUseIdentityProjection(mUseIdentityProjection);
@@ -596,13 +618,27 @@ namespace Ogre {
 				for (ushort t = 0; t < dims; ++t)
 					*pFloat++ = mTempVertex.texCoord[elem.getIndex()][t];
 				break;
-			case VES_DIFFUSE:
-				rs = Root::getSingleton().getRenderSystem();
-				if (rs)
-					rs->convertColourValue(mTempVertex.colour, pRGBA++);
-				else
-					*pRGBA++ = mTempVertex.colour.getAsRGBA(); // pick one!
-				break;
+            case VES_DIFFUSE:
+                rs = Root::getSingleton().getRenderSystem();
+                if (rs)
+                {
+                    rs->convertColourValue(mTempVertex.colour, pRGBA++);
+                }
+                else
+                {
+                    switch(elem.getType())
+                    {
+                        case VET_COLOUR_ABGR:
+                            *pRGBA++ = mTempVertex.colour.getAsABGR();
+                            break;
+                        case VET_COLOUR_ARGB:
+                            *pRGBA++ = mTempVertex.colour.getAsARGB();
+                            break;
+                        default:
+                            *pRGBA++ = mTempVertex.colour.getAsRGBA();
+                    }
+                }
+                break;
 			default:
 				// nop ?
 				break;
@@ -940,7 +976,7 @@ namespace Ogre {
 	ShadowCaster::ShadowRenderableListIterator
 	ManualObject::getShadowVolumeRenderableIterator(
 		ShadowTechnique shadowTechnique, const Light* light,
-		HardwareIndexBufferSharedPtr* indexBuffer,
+		HardwareIndexBufferSharedPtr* indexBuffer, size_t* indexBufferUsedSize,
 		bool extrude, Real extrusionDistance, unsigned long flags)
 	{
 		assert(indexBuffer && "Only external index buffers are supported right now");		
@@ -956,7 +992,9 @@ namespace Ogre {
 		Vector4 lightPos = light->getAs4DVector();
 		Matrix4 world2Obj = mParentNode->_getFullTransform().inverseAffine();
 		lightPos = world2Obj.transformAffine(lightPos);
-
+		Matrix3 world2Obj3x3;
+		world2Obj.extract3x3Matrix(world2Obj3x3);
+		extrusionDistance *= Math::Sqrt(std::min(std::min(world2Obj3x3.GetColumn(0).squaredLength(), world2Obj3x3.GetColumn(1).squaredLength()), world2Obj3x3.GetColumn(2).squaredLength()));
 
 		// Init shadow renderable list if required (only allow indexed)
 		bool init = mShadowRenderables.empty() && mAnyIndexed;
@@ -1020,8 +1058,8 @@ namespace Ogre {
 		updateEdgeListLightFacing(edgeList, lightPos);
 
 		// Generate indexes and update renderables
-		generateShadowVolume(edgeList, *indexBuffer, light,
-			mShadowRenderables, flags);
+		generateShadowVolume(edgeList, *indexBuffer, *indexBufferUsedSize, 
+			light, mShadowRenderables, flags);
 
 
 		return ShadowRenderableListIterator(
@@ -1062,7 +1100,7 @@ namespace Ogre {
 		{
 			// Load from default group. If user wants to use alternate groups,
 			// they can define it and preload
-			mMaterial = MaterialManager::getSingleton().load(mMaterialName, mGroupName);
+			mMaterial = MaterialManager::getSingleton().load(mMaterialName, mGroupName).staticCast<Material>();
 		}
 		return mMaterial;
 	}

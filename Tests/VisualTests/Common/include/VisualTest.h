@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,13 +31,13 @@ THE SOFTWARE.
 
 #include "SdkSample.h"
 
+// resource group that will be automatically unloaded after the close of the sample
+#define TRANSIENT_RESOURCE_GROUP "VisualTestTransient"
+
 /** The base class for a visual test scene */
 class VisualTest : public OgreBites::Sample
 {
 public:
-
-    // resource group that will be automatically unloaded after the close of the sample
-    static Ogre::String TRANSIENT_RESOURCE_GROUP;
 
     VisualTest()
     {
@@ -46,7 +46,6 @@ public:
         mInfo["Category"] = "Tests";
         mInfo["Thumbnail"] = "thumb_visual_tests.png";
         mInfo["Help"] = "";
-
         Ogre::ResourceGroupManager& rgm = Ogre::ResourceGroupManager::getSingleton();
         if (!rgm.resourceGroupExists(TRANSIENT_RESOURCE_GROUP))
             rgm.createResourceGroup(TRANSIENT_RESOURCE_GROUP);
@@ -62,11 +61,17 @@ public:
     }
 
     /** Does some basic setup tasks */
-    virtual void _setup(Ogre::RenderWindow* window, OIS::Keyboard* keyboard, 
-        OIS::Mouse* mouse, OgreBites::FileSystemLayer* fsLayer)
+#if (OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS) || (OGRE_PLATFORM == OGRE_PLATFORM_ANDROID)
+    virtual void _setup(Ogre::RenderWindow* window, OgreBites::InputContext inputContext, Ogre::FileSystemLayer* fsLayer, Ogre::OverlaySystem* overlaySys)
     {
-        OgreBites::Sample::_setup(window, keyboard, mouse, fsLayer);
+        OgreBites::Sample::_setup(window, inputContext, fsLayer, overlaySys);
     }
+#else
+    virtual void _setup(Ogre::RenderWindow* window, OgreBites::InputContext inputContext, Ogre::FileSystemLayer* fsLayer, Ogre::OverlaySystem* overlaySys)
+    {
+        OgreBites::Sample::_setup(window, inputContext, fsLayer, overlaySys);
+    }
+#endif
 
     /** Clean up */
     virtual void _shutdown()

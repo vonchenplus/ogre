@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "OgreTechnique.h"
 #include "OgrePass.h"
 #include "OgreManualObject.h"
+#include "OgreNameGenerator.h"
 
 namespace Ogre {
 
@@ -333,12 +334,11 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Node* Node::removeChild(unsigned short index)
     {
-        Node* ret;
         if (index < mChildren.size())
         {
             ChildNodeMap::iterator i = mChildren.begin();
             while (index--) ++i;
-            ret = i->second;
+            Node* ret = i->second;
             // cancel any pending update
             cancelUpdate(ret);
 
@@ -537,13 +537,15 @@ namespace Ogre {
 	void Node::_setDerivedPosition( const Vector3& pos )
 	{
 		//find where the node would end up in parent's local space
-		setPosition( mParent->convertWorldToLocalPosition( pos ) );
+        if(mParent)
+            setPosition( mParent->convertWorldToLocalPosition( pos ) );
 	}
 	//-----------------------------------------------------------------------
 	void Node::_setDerivedOrientation( const Quaternion& q )
 	{
 		//find where the node would end up in parent's local space
-		setOrientation( mParent->convertWorldToLocalOrientation( q ) );
+        if(mParent)
+            setOrientation( mParent->convertWorldToLocalOrientation( q ) );
 	}
 
     //-----------------------------------------------------------------------
@@ -928,9 +930,9 @@ namespace Ogre {
 
 			// indices
 			// 6 arrows
-			for (size_t i = 0; i < 6; ++i)
+			for (uint32 i = 0; i < 6; ++i)
 			{
-				size_t base = i * 7; 
+				uint32 base = i * 7;
 				mo.triangle(base + 0, base + 1, base + 2);
 				mo.triangle(base + 0, base + 2, base + 3);
 				mo.triangle(base + 4, base + 5, base + 6);

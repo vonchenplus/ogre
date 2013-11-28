@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <assert.h>
 
 namespace Ogre {
+    namespace GLSL {
 
 // Limit max number of macro arguments to this
 #define MAX_MACRO_ARGS 16
@@ -119,7 +120,7 @@ bool CPreprocessor::Token::GetValue (long &oValue) const
 
     for (; i < Length; i++)
     {
-        long c = long (String [i]);
+        int c = int (String [i]);
         if (isspace (c))
             // Possible end of number
             break;
@@ -178,7 +179,7 @@ int CPreprocessor::Token::CountNL ()
         return 0;
 
     const char *s = String;
-    int l = Length;
+    size_t l = Length;
     int c = 0;
     while (l > 0)
     {
@@ -237,7 +238,7 @@ static void DefaultError (void *iData, int iLine, const char *iError,
                   iLine, iError, int (iTokenLen), iToken);
     else
         snprintf (line, sizeof (line), "line %d: %s\n", iLine, iError);
-    LogManager::getSingleton ().logMessage (line);
+    LogManager::getSingleton ().logMessage (line, LML_CRITICAL);
 }
 
 //---------------------------------------------------------------------------//
@@ -765,7 +766,7 @@ CPreprocessor::Token CPreprocessor::GetArgument (Token &oArg, bool iExpand)
         }
     }
 
-    uint len = oArg.Length;
+    size_t len = oArg.Length;
     while (true)
     {
         Token t = GetToken (iExpand);
@@ -1297,4 +1298,5 @@ char *CPreprocessor::Parse (const char *iSource, size_t iLength, size_t &oLength
     return retval.Buffer;
 }
 
+} // namespace GLSL
 } // namespace Ogre

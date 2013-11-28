@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -109,11 +109,11 @@ namespace Ogre
 			// parentWindowHandle		-> parentHWnd
 			opt = miscParams->find("parentWindowHandle");
 			if(opt != miscParams->end())
-				parentHWnd = (HWND)StringConverter::parseUnsignedInt(opt->second);
+				parentHWnd = (HWND)StringConverter::parseSizeT(opt->second);
 			// externalWindowHandle		-> externalHandle
 			opt = miscParams->find("externalWindowHandle");
 			if(opt != miscParams->end())
-				externalHandle = (HWND)StringConverter::parseUnsignedInt(opt->second);
+				externalHandle = (HWND)StringConverter::parseSizeT(opt->second);
 			// vsync	[parseBool]
 			opt = miscParams->find("vsync");
 			if(opt != miscParams->end())
@@ -259,12 +259,12 @@ namespace Ogre
 			// No specified top left -> Center the window in the middle of the monitor
 			if (left == INT_MAX || top == INT_MAX)
 			{				
-				int screenw = monitorInfo.rcWork.right  - monitorInfo.rcWork.left;
-				int screenh = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
+				uint32 screenw = monitorInfo.rcWork.right  - monitorInfo.rcWork.left;
+				uint32 screenh = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
 
 				// clamp window dimensions to screen size
-				int outerw = (winWidth < screenw)? winWidth : screenw;
-				int outerh = (winHeight < screenh)? winHeight : screenh;
+				uint32 outerw = (winWidth < screenw)? winWidth : screenw;
+				uint32 outerh = (winHeight < screenh)? winHeight : screenh;
 
 				if (left == INT_MAX)
 					left = monitorInfo.rcWork.left + (screenw - outerw) / 2;
@@ -454,25 +454,6 @@ namespace Ogre
 		AdjustWindowRect(&rc, getWindowStyle(mIsFullScreen), false);
 		*winWidth = rc.right - rc.left;
 		*winHeight = rc.bottom - rc.top;
-
-		// adjust to monitor
-		HMONITOR hMonitor = MonitorFromWindow(mHWnd, MONITOR_DEFAULTTONEAREST);
-
-		// Get monitor info	
-		MONITORINFO monitorInfo;
-
-		memset(&monitorInfo, 0, sizeof(MONITORINFO));
-		monitorInfo.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(hMonitor, &monitorInfo);
-
-		LONG maxW = monitorInfo.rcWork.right  - monitorInfo.rcWork.left;
-		LONG maxH = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
-
-		if (*winWidth > (unsigned int)maxW)
-			*winWidth = maxW;
-		if (*winHeight > (unsigned int)maxH)
-			*winHeight = maxH;
-
 	}
 
 	void D3D9RenderWindow::_finishSwitchingFullscreen()
@@ -505,9 +486,8 @@ namespace Ogre
 			monitorInfo.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(hMonitor, &monitorInfo);
 
-			LONG screenw = monitorInfo.rcWork.right  - monitorInfo.rcWork.left;
-			LONG screenh = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
-
+			ULONG screenw = monitorInfo.rcWork.right  - monitorInfo.rcWork.left;
+			ULONG screenh = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
 
 			int left = screenw > winWidth ? ((screenw - winWidth) / 2) : 0;
 			int top = screenh > winHeight ? ((screenh - winHeight) / 2) : 0;
@@ -532,7 +512,7 @@ namespace Ogre
 		ZeroMemory( presentParams, sizeof(D3DPRESENT_PARAMETERS) );
 		presentParams->Windowed					= !mIsFullScreen;
 		presentParams->SwapEffect				= D3DSWAPEFFECT_DISCARD;
-		// triple buffer if VSync is on
+		// triple buffer if VSync is on or if flip swap is used. Otherwise we may get a performance penalty.
 		presentParams->BackBufferCount			= mVSync ? 2 : 1;
 		presentParams->EnableAutoDepthStencil	= (mDepthBufferPoolId != DepthBuffer::POOL_NO_DEPTH);
 		presentParams->hDeviceWindow			= mHWnd;
@@ -743,13 +723,18 @@ namespace Ogre
 
 	void D3D9RenderWindow::resize(unsigned int width, unsigned int height)
 	{
-		if (mHWnd && !mIsFullScreen)
+		if (!mIsExternal)
 		{
-			unsigned int winWidth, winHeight;
-			adjustWindow(width, height, &winWidth, &winHeight);
-			SetWindowPos(mHWnd, 0, 0, 0, winWidth, winHeight,
-				SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+			if (mHWnd && !mIsFullScreen)
+			{
+				unsigned int winWidth, winHeight;
+				adjustWindow(width, height, &winWidth, &winHeight);
+				SetWindowPos(mHWnd, 0, 0, 0, winWidth, winHeight,
+					SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+			}
 		}
+		else
+			updateWindowRect();
 	}
 
 	void D3D9RenderWindow::windowMovedOrResized()
@@ -760,7 +745,7 @@ namespace Ogre
 		updateWindowRect();
 	}
 
-	void D3D9RenderWindow::swapBuffers( bool waitForVSync )
+	void D3D9RenderWindow::swapBuffers( )
 	{
 		if (mDeviceValid)
 			mDevice->present(this);		

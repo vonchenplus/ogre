@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -291,12 +291,12 @@ void WaterMesh::updateMesh(Real timeSinceLastFrame)
 
 		/* we use an algorithm from
 		 * http://collective.valve-erc.com/index.php?go=water_simulation
-		 * The params could be dynamically changed every frame ofcourse
+		 * The params could be dynamically changed every frame of course
 		 */
-		double C = PARAM_C; // ripple speed
-		double D = PARAM_D; // distance
-		double U = PARAM_U; // viscosity
-		double T = PARAM_T; // time
+		Real C = PARAM_C; // ripple speed
+		Real D = PARAM_D; // distance
+		Real U = PARAM_U; // viscosity
+		Real T = PARAM_T; // time
 		Real TERM1 = ( 4.0f - 8.0f*C*C*T*T/(D*D) ) / (U*T+2) ;
 		Real TERM2 = ( U*T-2.0f ) / (U*T+2.0f) ;
 		Real TERM3 = ( 2.0f * C*C*T*T/(D*D) ) / (U*T+2) ;

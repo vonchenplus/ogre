@@ -9,7 +9,7 @@
 
 #######################################################################
 # This file takes care of configuring Ogre to build with the settings
-# given in CMake. It creates the necessary config.h file and will 
+# given in CMake. It creates the necessary config.h file and will
 # also prepare package files for pkg-config and CMake.
 #######################################################################
 
@@ -60,12 +60,16 @@ if (OGRE_CONFIG_THREADS)
 	if (OGRE_CONFIG_THREAD_PROVIDER STREQUAL "tbb")
 		set(OGRE_THREAD_PROVIDER 3)
 		include_directories(${TBB_INCLUDE_DIRS})
+		if (WIN32 AND MINGW)
+			add_definitions(-D_WIN32_WINNT=0x0501)    
+		endif ()
+
 		set(OGRE_THREAD_LIBRARIES ${TBB_LIBRARIES})
 	endif ()
 endif()
 
 
-# determine config values depending on build options 
+# determine config values depending on build options
 set(OGRE_SET_DOUBLE 0)
 set(OGRE_SET_ALLOCATOR ${OGRE_CONFIG_ALLOCATOR})
 set(OGRE_SET_CONTAINERS_USE_ALLOCATOR 0)
@@ -77,14 +81,20 @@ set(OGRE_SET_THREAD_PROVIDER ${OGRE_THREAD_PROVIDER})
 set(OGRE_SET_DISABLE_FREEIMAGE 0)
 set(OGRE_SET_DISABLE_DDS 0)
 set(OGRE_SET_DISABLE_PVRTC 0)
+set(OGRE_SET_DISABLE_ETC 0)
 set(OGRE_SET_DISABLE_ZIP 0)
+set(OGRE_SET_DISABLE_LIBCPP_SUPPORT 0)
 set(OGRE_SET_DISABLE_VIEWPORT_ORIENTATIONMODE 0)
 set(OGRE_SET_DISABLE_GLES2_CG_SUPPORT 0)
 set(OGRE_SET_DISABLE_GLES2_GLSL_OPTIMISER 0)
+set(OGRE_SET_DISABLE_GLES2_VAO_SUPPORT 0)
+set(OGRE_SET_DISABLE_GL_STATE_CACHE_SUPPORT 0)
+set(OGRE_SET_DISABLE_GLES3_SUPPORT 0)
+set(RTSHADER_SYSTEM_BUILD_CORE_SHADERS 0)
+set(RTSHADER_SYSTEM_BUILD_EXT_SHADERS 0)
 set(OGRE_STATIC_LIB 0)
 set(OGRE_SET_USE_BOOST 0)
 set(OGRE_SET_PROFILING 0)
-set(OGRE_SET_ENABLE_ETC1 0)
 if (OGRE_CONFIG_DOUBLE)
   set(OGRE_SET_DOUBLE 1)
 endif()
@@ -109,8 +119,14 @@ endif()
 if (NOT OGRE_CONFIG_ENABLE_PVRTC)
   set(OGRE_SET_DISABLE_PVRTC 1)
 endif()
+if (NOT OGRE_CONFIG_ENABLE_ETC)
+  set(OGRE_SET_DISABLE_ETC 1)
+endif()
 if (NOT OGRE_CONFIG_ENABLE_ZIP)
   set(OGRE_SET_DISABLE_ZIP 1)
+endif()
+if (NOT OGRE_CONFIG_ENABLE_LIBCPP_SUPPORT)
+  set(OGRE_SET_DISABLE_LIBCPP_SUPPORT 1)
 endif()
 if (NOT OGRE_CONFIG_ENABLE_VIEWPORT_ORIENTATIONMODE)
   set(OGRE_SET_DISABLE_VIEWPORT_ORIENTATIONMODE 1)
@@ -123,6 +139,12 @@ if (NOT OGRE_CONFIG_ENABLE_GLES2_GLSL_OPTIMISER)
 endif()
 if (NOT OGRE_CONFIG_ENABLE_GLES2_VAO_SUPPORT)
   set(OGRE_SET_DISABLE_GLES2_VAO_SUPPORT 1)
+endif()
+if (NOT OGRE_CONFIG_ENABLE_GL_STATE_CACHE_SUPPORT)
+  set(OGRE_SET_DISABLE_GL_STATE_CACHE_SUPPORT 1)
+endif()
+if (NOT OGRE_CONFIG_ENABLE_GLES3_SUPPORT)
+  set(OGRE_SET_DISABLE_GLES3_SUPPORT 1)
 endif()
 if (OGRE_STATIC)
   set(OGRE_STATIC_LIB 1)
@@ -140,24 +162,19 @@ else ()
   set(OGRE_CONFIG_LITTLE_ENDIAN 1)
 endif ()
 
-if (OGRE_CONFIG_ENABLE_ETC1)
-	set(OGRE_SET_ENABLE_ETC1 1)
+if (OGRE_BUILD_RTSHADERSYSTEM_CORE_SHADERS)
+	set(RTSHADER_SYSTEM_BUILD_CORE_SHADERS 1)
+else ()
+	set(RTSHADER_SYSTEM_BUILD_CORE_SHADERS 0)
 endif ()
 
-if (OGRE_BUILD_RTSHADERSYSTEM_EXT_SHADERS)	
+if (OGRE_BUILD_RTSHADERSYSTEM_EXT_SHADERS)
 	set(RTSHADER_SYSTEM_BUILD_EXT_SHADERS 1)
 else ()
 	set(RTSHADER_SYSTEM_BUILD_EXT_SHADERS 0)
 endif ()
 
-if (OGRE_BUILD_RTSHADERSYSTEM_EXT_SHADERS)	
-	set(RTSHADER_SYSTEM_BUILD_EXT_SHADERS 1)
-else ()
-	set(RTSHADER_SYSTEM_BUILD_EXT_SHADERS 0)
-endif ()
-
-
-# generate OgreBuildSettings.h 
+# generate OgreBuildSettings.h
 configure_file(${OGRE_TEMPLATES_DIR}/OgreBuildSettings.h.in ${OGRE_BINARY_DIR}/include/OgreBuildSettings.h @ONLY)
 install(FILES ${OGRE_BINARY_DIR}/include/OgreBuildSettings.h DESTINATION include/OGRE)
 
@@ -197,12 +214,12 @@ if (UNIX)
   install(FILES ${OGRE_BINARY_DIR}/pkgconfig/OGRE.pc DESTINATION ${OGRE_LIB_DIRECTORY}/pkgconfig)
 
   # configure additional packages
-  
+
   if (OGRE_BUILD_PLUGIN_PCZ)
     configure_file(${OGRE_TEMPLATES_DIR}/OGRE-PCZ.pc.in ${OGRE_BINARY_DIR}/pkgconfig/OGRE-PCZ.pc @ONLY)
     install(FILES ${OGRE_BINARY_DIR}/pkgconfig/OGRE-PCZ.pc DESTINATION ${OGRE_LIB_DIRECTORY}/pkgconfig)
   endif ()
-  
+
   if (OGRE_BUILD_COMPONENT_PAGING)
     configure_file(${OGRE_TEMPLATES_DIR}/OGRE-Paging.pc.in ${OGRE_BINARY_DIR}/pkgconfig/OGRE-Paging.pc @ONLY)
     install(FILES ${OGRE_BINARY_DIR}/pkgconfig/OGRE-Paging.pc DESTINATION ${OGRE_LIB_DIRECTORY}/pkgconfig)
@@ -226,7 +243,17 @@ if (UNIX)
     install(FILES ${OGRE_BINARY_DIR}/pkgconfig/OGRE-Property.pc DESTINATION ${OGRE_LIB_DIRECTORY}/pkgconfig)
   endif ()
 
-  if (CMAKE_CXX_COMPILER MATCHES ".*clang")
+  if (OGRE_BUILD_COMPONENT_OVERLAY)
+    configure_file(${OGRE_TEMPLATES_DIR}/OGRE-Overlay.pc.in ${OGRE_BINARY_DIR}/pkgconfig/OGRE-Overlay.pc @ONLY)
+    install(FILES ${OGRE_BINARY_DIR}/pkgconfig/OGRE-Overlay.pc DESTINATION ${OGRE_LIB_DIRECTORY}/pkgconfig)
+  endif ()
+
+  if (OGRE_BUILD_COMPONENT_VOLUME)
+    configure_file(${OGRE_TEMPLATES_DIR}/OGRE-Volume.pc.in ${OGRE_BINARY_DIR}/pkgconfig/OGRE-Volume.pc @ONLY)
+    install(FILES ${OGRE_BINARY_DIR}/pkgconfig/OGRE-Volume.pc DESTINATION ${OGRE_LIB_DIRECTORY}/pkgconfig)
+  endif ()
+
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_COMPILER_IS_CLANGXX 1)
   endif ()
 
@@ -259,4 +286,4 @@ endif(OGRE_CONFIG_STATIC_LINK_CRT)
 #   ${OGRE_BINARY_DIR}/cmake/OGREConfigVersion.cmake
 #   DESTINATION ${OGRE_CMAKE_DIR}
 # )
-# 
+#

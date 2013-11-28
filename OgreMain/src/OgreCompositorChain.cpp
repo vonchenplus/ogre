@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -99,8 +99,13 @@ void CompositorChain::createOriginalScene()
     };
     */
 
+    // If two viewports use the same scheme but differ in settings like visibility masks, shadows, etc we don't
+    // want compositors to share their technique.  Otherwise both compositors will have to recompile every time they
+    // render.  Thus we generate a unique compositor per viewport.
+	String compName("Ogre/Scene/");
+    compName += StringConverter::toString((size_t)mViewport);
+
 	mOriginalSceneScheme = mViewport->getMaterialScheme();
-	String compName = "Ogre/Scene/" + mOriginalSceneScheme;
 	CompositorPtr scene = CompositorManager::getSingleton().getByName(compName, ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
 	if (scene.isNull())
 	{
@@ -124,7 +129,7 @@ void CompositorChain::createOriginalScene()
 
 		/// Create base "original scene" compositor
 		scene = CompositorManager::getSingleton().load(compName,
-			ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
+			ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME).staticCast<Compositor>();
 
 
 
@@ -357,9 +362,6 @@ void CompositorChain::preTargetOperation(CompositorInstance::TargetOperation &op
 		mOurListener.notifyViewport(vp);
 		/// Register it
 		sm->addRenderQueueListener(&mOurListener);
-		/// Set visiblity mask
-		mOldVisibilityMask = sm->getVisibilityMask();
-		sm->setVisibilityMask(op.visibilityMask);
 		/// Set whether we find visibles
 		mOldFindVisibleObjects = sm->getFindVisibleObjects();
 		sm->setFindVisibleObjects(op.findVisibleObjects);
@@ -368,6 +370,9 @@ void CompositorChain::preTargetOperation(CompositorInstance::TargetOperation &op
 		cam->setLodBias(cam->getLodBias() * op.lodBias);
 	}
 
+    // Set the visibility mask
+    mOldVisibilityMask = vp->getVisibilityMask();
+    vp->setVisibilityMask(op.visibilityMask);
 	/// Set material scheme 
 	mOldMaterialScheme = vp->getMaterialScheme();
 	vp->setMaterialScheme(op.materialScheme);
@@ -388,11 +393,11 @@ void CompositorChain::postTargetOperation(CompositorInstance::TargetOperation &o
 		/// Unregister our listener
 		sm->removeRenderQueueListener(&mOurListener);
 		/// Restore default scene and camera settings
-		sm->setVisibilityMask(mOldVisibilityMask);
 		sm->setFindVisibleObjects(mOldFindVisibleObjects);
 		cam->setLodBias(mOldLodBias);
 	}
 
+    vp->setVisibilityMask(mOldVisibilityMask);
 	vp->setMaterialScheme(mOldMaterialScheme);
 	vp->setShadowsEnabled(mOldShadowsEnabled);
 }

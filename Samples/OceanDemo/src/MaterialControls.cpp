@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -38,7 +38,7 @@ void MaterialControls::addControl(const Ogre::String& params)
     if (vecparams.size() != 6)
     {
         Ogre::LogManager::getSingleton().logMessage(
-            "Incorrect number of parameters passed in params string for MaterialControls::addControl()" );
+            "Incorrect number of parameters passed in params string for MaterialControls::addControl()", Ogre::LML_CRITICAL);
 
         return;
     }
@@ -72,7 +72,7 @@ void loadMaterialControlsFile(MaterialControlsContainer& controlsContainer, cons
     try
     {
 
-        cf.load(filename, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, "\t;=", true);
+        cf.loadFromResourceSystem(filename, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, "\t;=", true);
 
         // Go through all sections & controls in the file
         Ogre::ConfigFile::SectionIterator seci = cf.getSectionIterator();

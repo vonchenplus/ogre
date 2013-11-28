@@ -5,7 +5,7 @@ This source file is part of OGRE
 For the latest info, see http://www.ogre3d.org/
 
 Copyright (c) 2008 Renato Araujo Oliveira Filho <renatox@gmail.com>
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -485,22 +485,26 @@ namespace Ogre {
                                               ::EGLContext shareList) const 
     {
         EGLint contextAttrs[] = {
+#if OGRE_NO_GLES3_SUPPORT == 0
+            EGL_CONTEXT_CLIENT_VERSION, 3,
+#else
             EGL_CONTEXT_CLIENT_VERSION, 2,
+#endif
             EGL_NONE, EGL_NONE
         };
-	::EGLContext context = ((::EGLContext) 0);
-	if (eglDisplay == ((EGLDisplay) 0))
-	{
-		context = eglCreateContext(mGLDisplay, glconfig, shareList, contextAttrs);
-        EGL_CHECK_ERROR
-	}
-	else
-	{
-		context = eglCreateContext(eglDisplay, glconfig, 0, contextAttrs);
-        EGL_CHECK_ERROR
-	}
+        ::EGLContext context = ((::EGLContext) 0);
+        if (eglDisplay == ((EGLDisplay) 0))
+        {
+            context = eglCreateContext(mGLDisplay, glconfig, shareList, contextAttrs);
+            EGL_CHECK_ERROR
+        }
+        else
+        {
+            context = eglCreateContext(eglDisplay, glconfig, 0, contextAttrs);
+            EGL_CHECK_ERROR
+        }
 
-	if (context == ((::EGLContext) 0))
+        if (context == ((::EGLContext) 0))
         {
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
                         "Fail to create New context",

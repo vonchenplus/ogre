@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "OgreTextureUnitState.h"
 #include "OgreGpuProgram.h"
 #include "OgreStringVector.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
 
@@ -79,21 +80,21 @@ namespace Ogre {
         Technique* technique;
         Pass* pass;
         TextureUnitState* textureUnit;
-        GpuProgramPtr program; // used when referencing a program, not when defining it
-        bool isVertexProgramShadowCaster; // when referencing, are we in context of shadow caster
-        bool isFragmentProgramShadowCaster; // when referencing, are we in context of shadow caster
-        bool isVertexProgramShadowReceiver; // when referencing, are we in context of shadow caster
-		bool isFragmentProgramShadowReceiver; // when referencing, are we in context of shadow caster
+        GpuProgramPtr program; /// Used when referencing a program, not when defining it
+        bool isVertexProgramShadowCaster; /// When referencing, are we in context of shadow caster
+        bool isFragmentProgramShadowCaster; /// When referencing, are we in context of shadow caster
+        bool isVertexProgramShadowReceiver; /// When referencing, are we in context of shadow caster
+		bool isFragmentProgramShadowReceiver; /// When referencing, are we in context of shadow caster
         GpuProgramParametersSharedPtr programParams;
 		ushort numAnimationParametrics;
-		MaterialScriptProgramDefinition* programDef; // this is used while defining a program
+		MaterialScriptProgramDefinition* programDef; /// This is used while defining a program
 
 		int techLev,	//Keep track of what tech, pass, and state level we are in
 			passLev,
 			stateLev;
         StringVector defaultParamLines;
 
-		// Error reporting state
+		/// Error reporting state
         size_t lineNo;
         String filename;
         AliasTextureNamePairList textureAliases;
@@ -106,7 +107,7 @@ namespace Ogre {
     {	
 	public:
 
-		// Material serizliae event.
+		// Material serialize event.
 		enum SerializeEvent
 		{
 			MSE_PRE_WRITE,
@@ -260,7 +261,7 @@ namespace Ogre {
 			const String& commandName, const String& identifier, 
 			const GpuProgramParameters::AutoConstantEntry* autoEntry, 
 			const GpuProgramParameters::AutoConstantEntry* defaultAutoEntry, 
-			bool isFloat, size_t physicalIndex, size_t physicalSize,
+			bool isFloat, bool isDouble, size_t physicalIndex, size_t physicalSize,
 			const GpuProgramParametersSharedPtr& params, GpuProgramParameters* defaultParams,
 			const unsigned short level, const bool useMainBuffer);
 		void writeTextureUnit(const TextureUnitState *pTex);
@@ -444,4 +445,7 @@ namespace Ogre {
 	/** @} */
 	/** @} */
 }
+
+#include "OgreHeaderSuffix.h"
+
 #endif

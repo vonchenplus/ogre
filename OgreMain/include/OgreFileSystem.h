@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,8 @@ THE SOFTWARE.
 
 #include "OgreArchive.h"
 #include "OgreArchiveFactory.h"
+#include "Threading/OgreThreadHeaders.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
 
@@ -62,9 +64,9 @@ namespace Ogre {
         void findFiles(const String& pattern, bool recursive, bool dirs,
             StringVector* simpleList, FileInfoList* detailList) const;
 
-        OGRE_AUTO_MUTEX
+        OGRE_AUTO_MUTEX;
     public:
-        FileSystemArchive(const String& name, const String& archType );
+        FileSystemArchive(const String& name, const String& archType, bool readOnly );
         ~FileSystemArchive();
 
         /// @copydoc Archive::isCaseSensitive
@@ -129,17 +131,19 @@ namespace Ogre {
         /// @copydoc FactoryObj::getType
         const String& getType(void) const;
         /// @copydoc FactoryObj::createInstance
-        Archive *createInstance( const String& name ) 
+        Archive *createInstance( const String& name, bool readOnly ) 
         {
-            return OGRE_NEW FileSystemArchive(name, "FileSystem");
+            return OGRE_NEW FileSystemArchive(name, "FileSystem", readOnly);
         }
         /// @copydoc FactoryObj::destroyInstance
-        void destroyInstance(Archive* ptr) { delete ptr; }
+        void destroyInstance(Archive* ptr) { OGRE_DELETE ptr; }
     };
 
     /** @} */
     /** @} */
 
 } // namespace Ogre
+
+#include "OgreHeaderSuffix.h"
 
 #endif // __FileSystem_H__

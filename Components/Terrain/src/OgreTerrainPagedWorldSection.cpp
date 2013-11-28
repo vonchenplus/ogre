@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,22 +30,50 @@ THE SOFTWARE.
 #include "OgreGrid2DPageStrategy.h"
 #include "OgrePagedWorld.h"
 #include "OgrePageManager.h"
+#include "OgreRoot.h"
 
 namespace Ogre
 {
+	const uint16 TerrainPagedWorldSection::WORKQUEUE_LOAD_TERRAIN_PAGE_REQUEST = 1;
+
 	//---------------------------------------------------------------------
 	TerrainPagedWorldSection::TerrainPagedWorldSection(const String& name, PagedWorld* parent, SceneManager* sm)
 		: PagedWorldSection(name, parent, sm)
 		, mTerrainGroup(0)
+		, mTerrainDefiner(0)
+		, mHasRunningTasks(false)
+		, mLoadingIntervalMs(900)
 	{
 		// we always use a grid strategy
 		setStrategy(parent->getManager()->getStrategy("Grid2D"));
 
+		WorkQueue* wq = Root::getSingleton().getWorkQueue();
+		mWorkQueueChannel = wq->getChannel("Ogre/TerrainPagedWorldSection");
+		wq->addRequestHandler(mWorkQueueChannel, this);
+		wq->addResponseHandler(mWorkQueueChannel, this);
+
+		mNextLoadingTime = Root::getSingletonPtr()->getTimer()->getMilliseconds();
 	}
 	//---------------------------------------------------------------------
 	TerrainPagedWorldSection::~TerrainPagedWorldSection()
 	{
+		//remove the pending tasks, but keep the front one, as it may have been in running
+		if(!mPagesInLoading.empty())
+			mPagesInLoading.erase( ++mPagesInLoading.begin(), mPagesInLoading.end() );
+
+		while(!mPagesInLoading.empty())
+		{
+			OGRE_THREAD_SLEEP(50);
+			Root::getSingleton().getWorkQueue()->processResponses();
+		}
+
+		WorkQueue* wq = Root::getSingleton().getWorkQueue();
+		wq->removeRequestHandler(mWorkQueueChannel, this);
+		wq->removeResponseHandler(mWorkQueueChannel, this);
+
 		OGRE_DELETE mTerrainGroup;
+		if(mTerrainDefiner)
+			OGRE_DELETE mTerrainDefiner;
 	}
 	//---------------------------------------------------------------------
 	void TerrainPagedWorldSection::init(TerrainGroup* grp)
@@ -162,6 +190,17 @@ namespace Ogre
 		return static_cast<Grid2DPageStrategyData*>(mStrategyData);
 	}
 	//---------------------------------------------------------------------
+	void TerrainPagedWorldSection::setLoadingIntervalMs(uint32 loadingIntervalMs)
+	{
+		mLoadingIntervalMs = loadingIntervalMs;
+	}
+	//---------------------------------------------------------------------
+	uint32 TerrainPagedWorldSection::getLoadingIntervalMs() const
+	{
+		return mLoadingIntervalMs;
+	}
+
+	//---------------------------------------------------------------------
 	void TerrainPagedWorldSection::loadSubtypeData(StreamSerialiser& ser)
 	{
 		// we load the TerrainGroup information from here
@@ -193,12 +232,20 @@ namespace Ogre
 		PageMap::iterator i = mPages.find(pageID);
 		if (i == mPages.end())
 		{
-			// trigger terrain load
-			long x, y;
-			// pageID is the same as a packed index
-			mTerrainGroup->unpackIndex(pageID, &x, &y);
-			mTerrainGroup->defineTerrain(x, y);
-			mTerrainGroup->loadTerrain(x, y, forceSynchronous);
+			std::list<PageID>::iterator it = find( mPagesInLoading.begin(), mPagesInLoading.end(), pageID);
+			if(it==mPagesInLoading.end())
+			{
+				mPagesInLoading.push_back(pageID);
+				mHasRunningTasks = true;
+			}
+			
+			// no running tasks, start the new one
+			if(mPagesInLoading.size()==1)
+			{
+				Root::getSingleton().getWorkQueue()->addRequest(
+					mWorkQueueChannel, WORKQUEUE_LOAD_TERRAIN_PAGE_REQUEST, 
+					Any(), 0, forceSynchronous);
+			}
 		}
 
 		PagedWorldSection::loadPage(pageID, forceSynchronous);
@@ -211,18 +258,77 @@ namespace Ogre
 
 		PagedWorldSection::unloadPage(pageID, forceSynchronous);
 
+		std::list<PageID>::iterator it = find( mPagesInLoading.begin(), mPagesInLoading.end(), pageID);
+		// hasn't been loaded, just remove from the queue
+		if(it!=mPagesInLoading.end())
+		{
+			mPagesInLoading.erase(it);
+		}
+		else
+		{
+			// trigger terrain unload
+			long x, y;
+			// pageID is the same as a packed index
+			mTerrainGroup->unpackIndex(pageID, &x, &y);
+			mTerrainGroup->unloadTerrain(x, y);
+		}
+	}
+	//---------------------------------------------------------------------
+	WorkQueue::Response* TerrainPagedWorldSection::handleRequest(const WorkQueue::Request* req, const WorkQueue* srcQ)
+	{
+		if(mPagesInLoading.empty())
+		{
+			mHasRunningTasks = false;
+			req->abortRequest();
+			return OGRE_NEW WorkQueue::Response(req, true, Any());
+		}
 
-		// trigger terrain unload
+		unsigned long currentTime = Root::getSingletonPtr()->getTimer()->getMilliseconds();
+		if(currentTime < mNextLoadingTime)
+		{
+			// Wait until the next page is to be loaded -> we are in background thread here
+			OGRE_THREAD_SLEEP(mNextLoadingTime - currentTime);
+		}
+
+		PageID pageID = mPagesInLoading.front();
+
+		// call the TerrainDefiner from the background thread
 		long x, y;
 		// pageID is the same as a packed index
 		mTerrainGroup->unpackIndex(pageID, &x, &y);
-		mTerrainGroup->unloadTerrain(x, y);
 
+		if(!mTerrainDefiner)
+			mTerrainDefiner = OGRE_NEW TerrainDefiner();
+		mTerrainDefiner->define(mTerrainGroup, x, y);
 
+		// continue loading in main thread
+		return OGRE_NEW WorkQueue::Response(req, true, Any());
 	}
 
+	//---------------------------------------------------------------------
+	void TerrainPagedWorldSection::handleResponse(const WorkQueue::Response* res, const WorkQueue* srcQ)
+	{
+		PageID pageID = mPagesInLoading.front();
 
+		// trigger terrain load
+		long x, y;
+		// pageID is the same as a packed index
+		mTerrainGroup->unpackIndex(pageID, &x, &y);
+		mTerrainGroup->loadTerrain(x, y, false);
+		mPagesInLoading.pop_front();
 
+		unsigned long currentTime = Root::getSingletonPtr()->getTimer()->getMilliseconds();
+		mNextLoadingTime = currentTime + mLoadingIntervalMs;
 
+		if(!mPagesInLoading.empty())
+		{
+			// Continue loading other pages
+			Root::getSingleton().getWorkQueue()->addRequest(
+					mWorkQueueChannel, WORKQUEUE_LOAD_TERRAIN_PAGE_REQUEST, 
+					Any(), 0, false);
+		}
+		else
+			mHasRunningTasks = false;
+	}
 }
 

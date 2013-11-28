@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,7 @@ THE SOFTWARE.
 #include "OgreFrustum.h"
 #include "OgreRay.h"
 #include "OgrePlaneBoundedVolume.h"
+#include "OgreHeaderPrefix.h"
 
 
 namespace Ogre {
@@ -135,7 +136,7 @@ namespace Ogre {
         /// Stored number of visible faces in the last render
         unsigned int mVisFacesLastRender;
 
-        /// Stored number of visible faces in the last render
+        /// Stored number of visible batches in the last render
         unsigned int mVisBatchesLastRender;
 
         /// Shared class-level name for Movable type
@@ -146,7 +147,7 @@ namespace Ogre {
         /// Tracking offset for fine tuning
         Vector3 mAutoTrackOffset;
 
-        // Scene LOD factor used to adjust overall LOD
+        /// Scene LOD factor used to adjust overall LOD
         Real mSceneLodFactor;
         /// Inverted scene LOD factor, can be used by Renderables to adjust their LOD
         Real mSceneLodFactorInv;
@@ -161,7 +162,7 @@ namespace Ogre {
         bool mWindowSet;
         /// Windowed viewport clip planes 
         mutable vector<Plane>::type mWindowClipPlanes;
-        // Was viewing window changed.
+        /// Was viewing window changed.
         mutable bool mRecalcWindow;
         /// The last viewport to be added using this camera
         Viewport* mLastViewport;
@@ -264,7 +265,7 @@ namespace Ogre {
         */
         void setDirection(const Vector3& vec);
 
-        /* Gets the camera's direction.
+        /** Gets the camera's direction.
         */
         Vector3 getDirection(void) const;
 
@@ -459,7 +460,7 @@ namespace Ogre {
         */
         Real getLodBias(void) const;
 
-        /** Get a pointer to the camera which should be used to determine 
+        /** Set a pointer to the camera which should be used to determine
             LOD settings. 
         @remarks
             Sometimes you don't want the LOD of a render to be based on the camera
@@ -483,7 +484,7 @@ namespace Ogre {
 
 
         /** Gets a world space ray as cast from the camera through a viewport position.
-        @param screenx, screeny The x and y position at which the ray should intersect the viewport, 
+        @param screenx, screeny The x and y position at which the ray should intersect the viewport,
             in normalised screen coordinates [0,1]
         */
         Ray getCameraToViewportRay(Real screenx, Real screeny) const;
@@ -650,7 +651,7 @@ namespace Ogre {
         const Quaternion& getOrientationForViewUpdate(void) const;
 
         /** @brief Sets whether to use min display size calculations.
-            When active objects who's size on the screen is less then a given number will not
+            When active, objects that derive from MovableObject whose size on the screen is less then a MovableObject::mMinPixelSize will not
             be rendered.
         */
         void setUseMinPixelSize(bool enable) { mUseMinPixelSize = enable; }
@@ -676,4 +677,7 @@ namespace Ogre {
     /** @} */
 
 } // namespace Ogre
+
+#include "OgreHeaderSuffix.h"
+
 #endif // __Camera_H__

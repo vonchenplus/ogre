@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -48,19 +48,22 @@ namespace Ogre {
 	}
 	// ------------------------------------------------------------------------
 	void ShadowCaster::generateShadowVolume(EdgeData* edgeData, 
-		const HardwareIndexBufferSharedPtr& indexBuffer, const Light* light,
-		ShadowRenderableList& shadowRenderables, unsigned long flags)
+		const HardwareIndexBufferSharedPtr& indexBuffer, size_t& indexBufferUsedSize, 
+		const Light* light, ShadowRenderableList& shadowRenderables, unsigned long flags)
 	{
 		// Edge groups should be 1:1 with shadow renderables
 		assert(edgeData->edgeGroups.size() == shadowRenderables.size());
 
+		Light::LightTypes lightType = light->getType();
+
 		// Whether to use the McGuire method, a triangle fan covering all silhouette
-		// this won't work properly with multiple separate edge groups
-		bool useMcGuire = edgeData->edgeGroups.size() <= 1;
+		// This won't work properly with multiple separate edge groups (should be one fan per group, not implemented)
+        // or when light position is inside light cap bound as extrusion could be in opposite directions
+        // and McGuire cap could intersect near clip plane of camera frustum without being noticed.
+		bool useMcGuire = edgeData->edgeGroups.size() <= 1 && 
+            (lightType == Light::LT_DIRECTIONAL || !getLightCapBounds().contains(light->getDerivedPosition()));
 		EdgeData::EdgeGroupList::const_iterator egi, egiend;
 		ShadowRenderableList::const_iterator si;
-
-		Light::LightTypes lightType = light->getType();
 
 		// pre-count the size of index data we need since it makes a big perf difference
 		// to GL in particular if we lock a smaller area of the index buffer
@@ -185,12 +188,16 @@ namespace Ogre {
 					"ShadowCaster::generateShadowVolume");
 			}
 		}
+		else if(indexBufferUsedSize + preCountIndexes > indexBuffer->getNumIndexes())
+		{
+			indexBufferUsedSize = 0;
+		}
 
 		// Lock index buffer for writing, just enough length as we need
 		unsigned short* pIdx = static_cast<unsigned short*>(
-			indexBuffer->lock(0, sizeof(unsigned short) * preCountIndexes, 
-			HardwareBuffer::HBL_DISCARD));
-		size_t numIndices = 0;
+			indexBuffer->lock(sizeof(unsigned short) * indexBufferUsedSize, sizeof(unsigned short) * preCountIndexes,
+			indexBufferUsedSize == 0 ? HardwareBuffer::HBL_DISCARD : HardwareBuffer::HBL_NO_OVERWRITE));
+		size_t numIndices = indexBufferUsedSize;
 		
 		// Iterate over the groups and form renderables for each based on their
 		// lightFacing
@@ -369,16 +376,16 @@ namespace Ogre {
 
 		}
 
-
 		// Unlock index buffer
 		indexBuffer->unlock();
 
 		// In debug mode, check we didn't overrun the index buffer
-		assert(numIndices == preCountIndexes);
+		assert(numIndices == indexBufferUsedSize + preCountIndexes);
 		assert(numIndices <= indexBuffer->getNumIndexes() &&
 			"Index buffer overrun while generating shadow volume!! "
 			"You must increase the size of the shadow index buffer.");
 
+		indexBufferUsedSize = numIndices;
 	}
 	// ------------------------------------------------------------------------
 	void ShadowCaster::extrudeVertices(

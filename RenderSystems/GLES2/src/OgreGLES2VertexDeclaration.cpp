@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -39,11 +39,9 @@ namespace Ogre {
         mIsInitialised(false)
 	{
 #if OGRE_NO_GLES2_VAO_SUPPORT == 0
-#   if GL_OES_vertex_array_object
-        glGenVertexArraysOES(1, &mVAO);
+#   if defined(GL_OES_vertex_array_object) || (OGRE_NO_GLES3_SUPPORT == 0)
+        OGRE_CHECK_GL_ERROR(glGenVertexArraysOES(1, &mVAO));
 //        LogManager::getSingleton().logMessage("Created VAO " + StringConverter::toString(mVAO));
-
-        GL_CHECK_ERROR
 
         if (!mVAO)
         {
@@ -59,10 +57,9 @@ namespace Ogre {
 	GLES2VertexDeclaration::~GLES2VertexDeclaration()
 	{
 #if OGRE_NO_GLES2_VAO_SUPPORT == 0
-#   if GL_OES_vertex_array_object
+#   if defined(GL_OES_vertex_array_object) || (OGRE_NO_GLES3_SUPPORT == 0)
 //        LogManager::getSingleton().logMessage("Deleting VAO " + StringConverter::toString(mVAO));
-        glDeleteVertexArraysOES(1, &mVAO);
-        GL_CHECK_ERROR
+        OGRE_CHECK_GL_ERROR(glDeleteVertexArraysOES(1, &mVAO));
 #   endif
 #endif
 	}
@@ -71,13 +68,10 @@ namespace Ogre {
     void GLES2VertexDeclaration::bind(void)
     {
 #if OGRE_NO_GLES2_VAO_SUPPORT == 0
-#   if GL_OES_vertex_array_object
+#   if defined(GL_OES_vertex_array_object) || (OGRE_NO_GLES3_SUPPORT == 0)
 //        LogManager::getSingleton().logMessage("Binding VAO " + StringConverter::toString(mVAO));
-        glBindVertexArrayOES(mVAO);
-        GL_CHECK_ERROR
+        OGRE_CHECK_GL_ERROR(glBindVertexArrayOES(mVAO));
 #   endif
 #endif
     }
 }
-
-

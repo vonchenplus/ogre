@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreRadixSort.h"
 #include "OgreCommon.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
     /** \addtogroup Core
@@ -142,7 +143,7 @@ namespace Ogre {
         /// Flag indicating whether the billboards has to be sorted
         bool mSortingEnabled;
 
-        // Use 'true' billboard to cam position facing, rather than camera direcion
+        /// Use 'true' billboard to cam position facing, rather than camera direcion
         bool mAccurateFacing;
 
         bool mAllDefaultRotation;
@@ -189,19 +190,18 @@ namespace Ogre {
         Vector3 mVOffset[4];
         /// Current camera
         Camera* mCurrentCamera;
-        // Parametric offsets of origin
+        /// Parametric offsets of origin
         Real mLeftOff, mRightOff, mTopOff, mBottomOff;
-        // Camera axes in billboard space
+        /// Camera axes in billboard space
         Vector3 mCamX, mCamY;
-        // Camera direction in billboard space
+        /// Camera direction in billboard space
         Vector3 mCamDir;
-        // Camera orientation in billboard space
+        /// Camera orientation in billboard space
         Quaternion mCamQ;
-        // Camera position in billboard space
+        /// Camera position in billboard space
         Vector3 mCamPos;
 
         /// The vertex index data for all billboards in this set (1 set only)
-        //unsigned short* mIndexes;
         IndexData* mIndexData;
 
         /// Flag indicating whether each billboard should be culled separately (default: false)
@@ -221,7 +221,7 @@ namespace Ogre {
         /// Internal method for culling individual billboards
         inline bool billboardVisible(Camera* cam, const Billboard& bill);
 
-        // Number of visible billboards (will be == getNumBillboards if mCullIndividual == false)
+        /// Number of visible billboards (will be == getNumBillboards if mCullIndividual == false)
         unsigned short mNumVisibleBillboards;
 
         /// Internal method for increasing pool size
@@ -337,7 +337,7 @@ namespace Ogre {
         /** Creates a new billboard and adds it to this set.
         @remarks
             Behaviour once the billboard pool has been exhausted depends on the
-            BillboardSet::setAutoextendPool option.
+            BillboardSet::setAutoextend option.
         @param position
             The position of the new billboard realtive to the certer of the set
         @param colour
@@ -346,7 +346,7 @@ namespace Ogre {
             On success, a pointer to a newly created Billboard is
             returned.
         @par
-            On failiure (i.e. no more space and can't autoextend),
+            On failure (i.e. no more space and can't autoextend),
             @c NULL is returned.
         @see
             BillboardSet::setAutoextend
@@ -358,7 +358,7 @@ namespace Ogre {
         /** Creates a new billboard and adds it to this set.
         @remarks
             Behaviour once the billboard pool has been exhausted depends on the
-            BillboardSet::setAutoextendPool option.
+            BillboardSet::setAutoextend option.
         @param x
             The @c x position of the new billboard relative to the center of the set
         @param y
@@ -875,5 +875,6 @@ namespace Ogre {
 
 } // namespace Ogre
 
+#include "OgreHeaderSuffix.h"
 
 #endif // __BillboardSet_H__

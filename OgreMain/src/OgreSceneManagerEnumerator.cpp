@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -93,6 +93,9 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
 	void SceneManagerEnumerator::removeFactory(SceneManagerFactory* fact)
 	{
+        if(!fact)
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Cannot remove a null SceneManagerFactory.", "SceneManagerEnumerator::removeFactory");
+
 		// destroy all instances for this factory
 		for (Instances::iterator i = mInstances.begin(); i != mInstances.end(); )
 		{
@@ -239,6 +242,9 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
 	void SceneManagerEnumerator::destroySceneManager(SceneManager* sm)
 	{
+        if(!sm)
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Cannot destroy a null SceneManager.", "SceneManagerEnumerator::destroySceneManager");
+
 		// Erase instance from map
 		mInstances.erase(sm->getName());
 

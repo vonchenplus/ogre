@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,10 @@ THE SOFTWARE.
 #include "OgrePageManager.h"
 #include "OgreGrid2DPageStrategy.h"
 
+#ifdef OGRE_STATIC_LIB
+#include "../../../../Samples/Common/include/OgreStaticPluginLoader.h"
+#endif
+
 using namespace Ogre; 
 
 class PageCoreTests : public CppUnit::TestFixture
@@ -44,6 +48,10 @@ class PageCoreTests : public CppUnit::TestFixture
 	Root* mRoot;
 	PageManager* mPageManager;
 	SceneManager* mSceneMgr;
+#ifdef OGRE_STATIC_LIB
+	StaticPluginLoader mStaticPluginLoader;
+#endif
+
 public:
 	void setUp();
 	void tearDown();

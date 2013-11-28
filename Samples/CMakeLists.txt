@@ -1,14 +1,11 @@
 # Configure Samples build
 
-if (OGRE_BUILD_SAMPLES AND NOT OIS_FOUND)
+if (OGRE_BUILD_SAMPLES AND NOT OIS_FOUND AND NOT ((OGRE_BUILD_PLATFORM_WINRT OR OGRE_BUILD_PLATFORM_WINDOWS_PHONE) AND OIS_INCLUDE_DIRS))
   message(STATUS "Could not find dependency: OIS")
   message(STATUS "Skipping samples build")
   set(OGRE_BUILD_SAMPLES 0)
-endif()
-if (APPLE AND NOT OGRE_BUILD_PLATFORM_APPLE_IOS AND OGRE_BUILD_SAMPLES AND NOT IOKit_FOUND)
-  message(STATUS "Could not find dependency: IOKit")
-  message(STATUS "Skipping samples build")
-  set(OGRE_BUILD_SAMPLES 0)
+ else()
+	include_directories(${OIS_INCLUDE_DIR})
 endif()
 
 if (OGRE_BUILD_SAMPLES)
@@ -34,13 +31,22 @@ if (OGRE_BUILD_SAMPLES)
   endif ()
   
   if (OGRE_BUILD_COMPONENT_RTSHADERSYSTEM)
-	add_definitions(-DUSE_RTSHADER_SYSTEM)
+	add_definitions(-DINCLUDE_RTSHADER_SYSTEM)
 	ogre_add_component_include_dir(RTShaderSystem)
   	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreRTShaderSystem)
   endif ()
   
+  if (OGRE_BUILD_COMPONENT_OVERLAY)
+	ogre_add_component_include_dir(Overlay)
+  	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreOverlay)
+  endif ()
+  
   if (OGRE_BUILD_COMPONENT_TERRAIN)
   	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreTerrain)
+  endif ()
+
+  if (OGRE_BUILD_COMPONENT_VOLUME)
+  	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} OgreVolume)
   endif ()
 
   if (OGRE_BUILD_RENDERSYSTEM_D3D9)
@@ -52,6 +58,9 @@ if (OGRE_BUILD_SAMPLES)
   if (OGRE_BUILD_RENDERSYSTEM_GL)
   	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} RenderSystem_GL)
   endif ()
+  if (OGRE_BUILD_RENDERSYSTEM_GL3PLUS)
+  	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} RenderSystem_GL3Plus)
+  endif ()
   if (OGRE_BUILD_RENDERSYSTEM_GLES)
   	set(SAMPLE_DEPENDENCIES ${SAMPLE_DEPENDENCIES} RenderSystem_GLES)
   endif ()
@@ -61,8 +70,6 @@ if (OGRE_BUILD_SAMPLES)
   if (APPLE)
     if (OGRE_BUILD_PLATFORM_APPLE_IOS)
       set(OGRE_LIBRARIES ${OGRE_LIBRARIES})
-    else ()
-      set(OGRE_LIBRARIES ${OGRE_LIBRARIES} IOKit)
     endif ()
   endif ()
 
@@ -77,13 +84,21 @@ if (OGRE_BUILD_SAMPLES)
   	include_directories(${OGRE_SOURCE_DIR}/RenderSystems/Direct3D9/include)
   	include_directories(${OGRE_SOURCE_DIR}/RenderSystems/Direct3D11/include)
   	include_directories(${OGRE_SOURCE_DIR}/RenderSystems/GLES/include)
-  	include_directories(${CMAKE_SOURCE_DIR}/RenderSystems/GLES2/include)
-  	include_directories(
-		${OGRE_SOURCE_DIR}/RenderSystems/GL/include
-		${OGRE_SOURCE_DIR}/RenderSystems/GL/src/GLSL/include
-		${OGRE_SOURCE_DIR}/RenderSystems/GL/src/atifs/include
-		${OGRE_SOURCE_DIR}/RenderSystems/GL/src/nvparse
-		)
+  	include_directories(${OGRE_SOURCE_DIR}/RenderSystems/GLES2/include)
+    if (OGRE_BUILD_RENDERSYSTEM_GL)
+      	include_directories(
+	    	${OGRE_SOURCE_DIR}/RenderSystems/GL/include
+		    ${OGRE_SOURCE_DIR}/RenderSystems/GL/src/GLSL/include
+    		${OGRE_SOURCE_DIR}/RenderSystems/GL/src/atifs/include
+	    	${OGRE_SOURCE_DIR}/RenderSystems/GL/src/nvparse
+		    )
+	endif()
+    if (OGRE_BUILD_RENDERSYSTEM_GL3PLUS)
+      	include_directories(
+	    	${OGRE_SOURCE_DIR}/RenderSystems/GL3Plus/include
+		    ${OGRE_SOURCE_DIR}/RenderSystems/GL3Plus/src/GLSL/include
+    		)
+    endif()
 
 	# Link to all enabled plugins
 	set(OGRE_LIBRARIES ${OGRE_LIBRARIES} ${SAMPLE_DEPENDENCIES})
@@ -102,8 +117,12 @@ if (OGRE_BUILD_SAMPLES)
 	if (OGRE_BUILD_COMPONENT_RTSHADERSYSTEM)	
   		set(OGRE_LIBRARIES ${OGRE_LIBRARIES} OgreRTShaderSystem)
 	endif () 
+	if (OGRE_BUILD_COMPONENT_OVERLAY)	
+  		set(OGRE_LIBRARIES ${OGRE_LIBRARIES} OgreOverlay)
+	endif () 
   endif ()
   
+#  add_subdirectory(AtomicCounters)
   add_subdirectory(BezierPatch)
   add_subdirectory(CameraTrack)
   add_subdirectory(Character)
@@ -114,12 +133,14 @@ if (OGRE_BUILD_SAMPLES)
   add_subdirectory(Grass)
   add_subdirectory(Instancing)
   add_subdirectory(Lighting)
+  add_subdirectory(MeshLod)
   add_subdirectory(NewInstancing)
   add_subdirectory(OceanDemo)
   add_subdirectory(ParticleFX)
+  add_subdirectory(PNTrianglesTessellation)
   if (OGRE_BUILD_COMPONENT_RTSHADERSYSTEM)
     add_subdirectory(ShaderSystem)
-    add_subdirectory(ShaderSystemTexturedFog)
+	add_subdirectory(ShaderSystemTexturedFog)
     add_subdirectory(ShaderSystemMultiLight)
   endif ()
   add_subdirectory(Shadows)
@@ -131,11 +152,17 @@ if (OGRE_BUILD_SAMPLES)
   add_subdirectory(SphereMapping)
 if (OGRE_BUILD_COMPONENT_TERRAIN)
   add_subdirectory(Terrain)
+  add_subdirectory(EndlessWorld)
 endif ()
+  add_subdirectory(Tessellation)
   add_subdirectory(TextureFX)
   add_subdirectory(TextureArray)
   add_subdirectory(Transparency)
   add_subdirectory(VolumeTex)
+if (OGRE_BUILD_COMPONENT_VOLUME)
+  add_subdirectory(VolumeCSG)
+  add_subdirectory(VolumeTerrain)
+endif ()
   add_subdirectory(Water)
 
 if (NOT OGRE_BUILD_RENDERSYSTEM_GLES OR OGRE_BUILD_RENDERSYSTEM_GLES2)
@@ -150,8 +177,18 @@ if (NOT OGRE_BUILD_RENDERSYSTEM_GLES OR OGRE_BUILD_RENDERSYSTEM_GLES2)
   add_subdirectory(SSAO)
 endif ()
 
+if (NOT (OGRE_BUILD_PLATFORM_WINRT OR OGRE_BUILD_PLATFORM_WINDOWS_PHONE))
   # Add browser last
   add_subdirectory(Browser)
+else ()
+  # create link to dependencies in well known place for SampleBrowserWinRT
+  if (NOT EXISTS "${OGRE_BINARY_DIR}/Dependencies" AND NOT OGRE_BINARY_DIR STREQUAL OGRE_SOURCE_DIR)
+    file(TO_NATIVE_PATH "${OGRE_BINARY_DIR}/Dependencies" OGRE_BINARY_DEPENDENCIES_DIR_NATIVE )
+	file(TO_NATIVE_PATH "${OGRE_DEPENDENCIES_DIR}" OGRE_DEPENDENCIES_DIR_NATIVE )
+	execute_process(COMMAND cmd /c mklink /J "${OGRE_BINARY_DEPENDENCIES_DIR_NATIVE}" "${OGRE_DEPENDENCIES_DIR_NATIVE}" )
+  endif ()
+endif ()
+
 endif ()
 
 

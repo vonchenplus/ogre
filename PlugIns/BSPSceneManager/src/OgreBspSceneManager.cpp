@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -105,14 +105,18 @@ namespace Ogre {
         strncpy(extension, filename.substr(pos + 1, filename.length() - pos).c_str(), 5);
 		extension[5] = 0;
 
-        if (stricmp(extension, "bsp"))
+#if  OGRE_COMPILER == OGRE_COMPILER_MSVC
+		if (_stricmp(extension, "bsp"))
+#else
+		if (stricmp(extension, "bsp"))
+#endif
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
 			"Unable to load world geometry. Invalid extension (must be .bsp).",
             "BspSceneManager::setWorldGeometry");
 
         // Load using resource manager
         mLevel = BspResourceManager::getSingleton().load(filename, 
-            ResourceGroupManager::getSingleton().getWorldResourceGroupName());
+            ResourceGroupManager::getSingleton().getWorldResourceGroupName()).staticCast<BspLevel>();
 
 		if (mLevel->isSkyEnabled())
 		{
@@ -154,7 +158,7 @@ namespace Ogre {
 
         // Load using resource manager
         mLevel = BspResourceManager::getSingleton().load(stream, 
-			ResourceGroupManager::getSingleton().getWorldResourceGroupName());
+			ResourceGroupManager::getSingleton().getWorldResourceGroupName()).staticCast<BspLevel>();
 
 		if (mLevel->isSkyEnabled())
 		{
@@ -383,7 +387,7 @@ namespace Ogre {
                     continue;
                 StaticFaceGroup* faceGroup = mLevel->mFaceGroups + realIndex;
                 // Get Material pointer by handle
-                pMat = MaterialManager::getSingleton().getByHandle(faceGroup->materialHandle);
+                pMat = MaterialManager::getSingleton().getByHandle(faceGroup->materialHandle).staticCast<Material>();
                 assert (!pMat.isNull());
                 // Check normal (manual culling)
                 ManualCullingMode cullMode = pMat->getTechnique(0)->getPass(0)->getManualCullingMode();
@@ -470,7 +474,7 @@ namespace Ogre {
         // indexes are sometimes reused to address different vertex chunks
         for (size_t elem = 0; elem < numIdx; ++elem)
         {
-            *pIndexes++ = *pSrc++ + vertexStart;
+            *pIndexes++ = *pSrc++ + static_cast<unsigned int>(vertexStart);
         }
         mLevel->mIndexes->unlock();
 
@@ -567,7 +571,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     ViewPoint BspSceneManager::getSuggestedViewpoint(bool random)
     {
-        if (mLevel.isNull() || mLevel->mPlayerStarts.size() == 0)
+        if (mLevel.isNull() || mLevel->mPlayerStarts.empty())
         {
             // No level, use default
             return SceneManager::getSuggestedViewpoint(random);
@@ -641,7 +645,7 @@ namespace Ogre {
     */
     //-----------------------------------------------------------------------
     RaySceneQuery* BspSceneManager::
-    createRayQuery(const Ray& ray, unsigned long mask)
+    createRayQuery(const Ray& ray, uint32 mask)
     {
         BspRaySceneQuery* q = OGRE_NEW BspRaySceneQuery(this);
         q->setRay(ray);
@@ -650,7 +654,7 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------
     IntersectionSceneQuery* BspSceneManager::
-    createIntersectionQuery(unsigned long mask)
+    createIntersectionQuery(uint32 mask)
     {
         BspIntersectionSceneQuery* q = OGRE_NEW BspIntersectionSceneQuery(this);
         q->setQueryMask(mask);

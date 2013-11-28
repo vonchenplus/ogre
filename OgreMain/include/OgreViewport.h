@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "OgreCommon.h"
 #include "OgreColourValue.h"
 #include "OgreFrustum.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
 	/** \addtogroup Core
@@ -182,13 +183,14 @@ namespace Ogre {
 
         /** Sets the dimensions (after creation).
             @param
-                left
+                left Left point of viewport.
             @param
-                top
+                top Top point of the viewport.
             @param
-                width
+                width Width of the viewport.
             @param
-                height Dimensions relative to the size of the target,
+                height Height of the viewport.
+            @note Dimensions relative to the size of the target,
                 represented as real values between 0 and 1. i.e. the full
                 target area is 0, 0, 1, 1.
         */
@@ -387,11 +389,11 @@ namespace Ogre {
     protected:
         Camera* mCamera;
         RenderTarget* mTarget;
-        // Relative dimensions, irrespective of target dimensions (0..1)
+        /// Relative dimensions, irrespective of target dimensions (0..1)
         float mRelLeft, mRelTop, mRelWidth, mRelHeight;
-        // Actual dimensions, based on target dimensions
+        /// Actual dimensions, based on target dimensions
         int mActLeft, mActTop, mActWidth, mActHeight;
-        /// ZOrder
+        /// Z-order
         int mZOrder;
         /// Background options
         ColourValue mBackColour;
@@ -422,5 +424,7 @@ namespace Ogre {
 	/** @} */
 
 }
+
+#include "OgreHeaderSuffix.h"
 
 #endif

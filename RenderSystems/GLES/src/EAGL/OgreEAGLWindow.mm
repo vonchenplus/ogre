@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,7 @@ namespace Ogre {
     {
         destroy();
 
-        if (mContext == NULL)
+        if (mContext != NULL)
         {
             OGRE_DELETE mContext;
         }
@@ -201,11 +201,6 @@ namespace Ogre {
             }
         }
 
-        if ((opt = mGLSupport->getConfigOptions().find("Content Scaling Factor")) != end)
-        {
-            mContentScalingFactor = StringConverter::parseReal(opt->second.currentValue);
-        }
-
         // Set us up with an external window, or create our own.
         if(!mIsExternal)
         {
@@ -311,6 +306,14 @@ namespace Ogre {
         mWidth = width;
         mHeight = height;
 
+        // Check the configuration. This may be overridden later by the value sent via miscParams
+        ConfigOptionMap::const_iterator configOpt;
+        ConfigOptionMap::const_iterator configEnd = mGLSupport->getConfigOptions().end();
+        if ((configOpt = mGLSupport->getConfigOptions().find("Content Scaling Factor")) != configEnd)
+        {
+            mContentScalingFactor = StringConverter::parseReal(configOpt->second.currentValue);
+        }
+
         if (miscParams)
         {
             NameValuePairList::const_iterator opt;
@@ -393,7 +396,7 @@ namespace Ogre {
 		mClosed = false;
     }
 
-    void EAGLWindow::swapBuffers(bool waitForVSync)
+    void EAGLWindow::swapBuffers()
     {
         if (mClosed)
         {
@@ -518,7 +521,7 @@ namespace Ogre {
         // Read pixel data from the framebuffer
         glPixelStorei(GL_PACK_ALIGNMENT, 4);
         GL_CHECK_ERROR
-		glReadPixels((GLint)dst.left, (GLint)dst.top,
+        glReadPixels((GLint)0, (GLint)(mHeight - dst.getHeight()),
                      (GLsizei)dst.getWidth(), (GLsizei)dst.getHeight(),
                      GL_RGBA, GL_UNSIGNED_BYTE, data);
         GL_CHECK_ERROR
@@ -548,7 +551,7 @@ namespace Ogre {
 
         // Retrieve the UIImage from the current context
         size_t rowSpan = dst.getWidth() * PixelUtil::getNumElemBytes(dst.format);
-        memcpy(dst.data, CGBitmapContextGetData(context), rowSpan * dst.getHeight());
+        memcpy(dst.data, CGBitmapContextGetData(context), rowSpan * dst.getHeight()); // TODO: support dst.rowPitch != dst.getWidth() case
         UIGraphicsEndImageContext();
 
         // Clean up

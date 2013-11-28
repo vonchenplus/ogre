@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -65,7 +65,7 @@ namespace Ogre {
     {
         // Have to call this here rather than in Resource destructor
         // since calling virtual methods in base destructors causes crash
-        unload(); 
+        unload();
     }
 	//-----------------------------------------------------------------------------
     void GLSLESGpuProgram::loadImpl(void)
@@ -170,6 +170,30 @@ namespace Ogre {
                 GLSLESLinkProgram* linkProgram = GLSLESLinkProgramManager::getSingleton().getActiveLinkProgram();
                 // Pass on parameters from params to program object uniforms
                 linkProgram->updateUniforms(params, mask, mType);
+            }
+		}
+		catch (Exception& e) {}
+	}
+    
+    //-----------------------------------------------------------------------------
+	void GLSLESGpuProgram::bindProgramSharedParameters(GpuProgramParametersSharedPtr params, uint16 mask)
+	{
+		// Link can throw exceptions, ignore them at this point
+		try
+		{
+            if(Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
+            {
+                // Activate the program pipeline object
+                GLSLESProgramPipeline* programPipeline = GLSLESProgramPipelineManager::getSingleton().getActiveProgramPipeline();
+                // Pass on parameters from params to program object uniforms
+                programPipeline->updateUniformBlocks(params, mask, mType);
+            }
+            else
+            {
+                // Activate the link program object
+                GLSLESLinkProgram* linkProgram = GLSLESLinkProgramManager::getSingleton().getActiveLinkProgram();
+                // Pass on parameters from params to program object uniforms
+                linkProgram->updateUniformBlocks(params, mask, mType);
             }
 		}
 		catch (Exception& e) {}

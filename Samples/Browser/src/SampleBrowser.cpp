@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2012 Torus Knot Software Ltd
+ Copyright (c) 2000-2013 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,10 @@
  */
 #include "OgrePlatform.h"
 
-#include "SampleBrowser.h"
+// Sadly we needed to add this #if to solve a NACL compiler bug...
+#if (OGRE_PLATFORM == OGRE_PLATFORM_NACL) 
+#include "ppapi/utility/completion_callback_factory.h"
+#endif
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -51,10 +54,12 @@ Ogre::Root* OgreAndroidBridge::mRoot = NULL;
 bool OgreAndroidBridge::mInit = false;
 
 #   ifdef OGRE_STATIC_LIB
-Ogre::StaticPluginLoader* OgreAndroidBridge::mStaticPluginLoader = NULL;
+StaticPluginLoader* OgreAndroidBridge::mStaticPluginLoader = NULL;
 #   endif
 
 #endif
+
+#include "SampleBrowser.h"
 
 #if OGRE_PLATFORM != OGRE_PLATFORM_NACL
 

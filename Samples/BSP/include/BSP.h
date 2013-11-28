@@ -2,7 +2,7 @@
 #define __BSP_H__
 
 #include "SdkSample.h"
-#include "FileSystemLayer.h"
+#include "OgreFileSystemLayer.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 #include "macUtils.h"
@@ -24,9 +24,19 @@ public:
 		mInfo["Category"] = "Geometry";
 	}
 
+    void testCapabilities(const RenderSystemCapabilities* caps)
+	{
+        if (!caps->hasCapability(RSC_VERTEX_PROGRAM) || !caps->hasCapability(RSC_FRAGMENT_PROGRAM))
+        {
+			OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your graphics card does not support vertex or fragment shaders, "
+                        "so you cannot run this sample. Sorry!", "Sample_BSP::testCapabilities");
+        }
+	}
+
 	StringVector getRequiredPlugins()
 	{
 		StringVector names;
+        names.push_back("Cg Program Manager");
 		names.push_back("BSP Scene Manager");
 		return names;
 	}
@@ -57,6 +67,11 @@ protected:
 	void createSceneManager()
 	{
 		mSceneMgr = mRoot->createSceneManager("BspSceneManager");   // the BSP scene manager is required for this sample
+#ifdef INCLUDE_RTSHADER_SYSTEM
+		mShaderGenerator->addSceneManager(mSceneMgr);
+#endif
+		if(mOverlaySystem)
+			mSceneMgr->addRenderQueueListener(mOverlaySystem);
 	}
 
 	void loadResources()

@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 Copyright (c) 2006 Matthias Fink, netAllied GmbH <matthias.fink@web.de>								
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -45,12 +45,12 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	ConvexBody::PolygonList ConvexBody::msFreePolygons;
 #if OGRE_THREAD_SUPPORT
-	OGRE_STATIC_MUTEX_INSTANCE(ConvexBody::msFreePolygonsMutex)
+    OGRE_STATIC_MUTEX_INSTANCE(ConvexBody::msFreePolygonsMutex);
 #endif
 	//-----------------------------------------------------------------------
 	void ConvexBody::_initialisePool()
 	{
-		OGRE_LOCK_MUTEX(msFreePolygonsMutex)
+            OGRE_LOCK_MUTEX(msFreePolygonsMutex);
 
 		if (msFreePolygons.empty())
 		{
@@ -67,7 +67,7 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	void ConvexBody::_destroyPool()
 	{
-		OGRE_LOCK_MUTEX(msFreePolygonsMutex)
+            OGRE_LOCK_MUTEX(msFreePolygonsMutex);
 		
 		for (PolygonList::iterator i = msFreePolygons.begin(); 
 			i != msFreePolygons.end(); ++i)
@@ -79,7 +79,7 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	Polygon* ConvexBody::allocatePolygon()
 	{
-		OGRE_LOCK_MUTEX(msFreePolygonsMutex)
+            OGRE_LOCK_MUTEX(msFreePolygonsMutex);
 
 		if (msFreePolygons.empty())
 		{
@@ -101,7 +101,7 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	void ConvexBody::freePolygon(Polygon* poly)
 	{
-		OGRE_LOCK_MUTEX(msFreePolygonsMutex)
+            OGRE_LOCK_MUTEX(msFreePolygonsMutex);
 		msFreePolygons.push_back(poly);
 	}
 	//-----------------------------------------------------------------------

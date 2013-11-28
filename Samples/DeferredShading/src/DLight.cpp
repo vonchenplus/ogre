@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -269,8 +269,8 @@ bool DLight::isCameraInsideLight(Ogre::Camera* camera)
 		Ogre::Real cosAngle = lightToCamDir.dotProduct(lightDir);
 		Ogre::Radian angle = Ogre::Math::ACos(cosAngle);
 		//Check whether we will see the cone from our current POV.
-		return (distanceFromLight <= (mParentLight->getAttenuationRange() + clipRangeFix.length()))
-			&& (angle <= attAngle);
+        return (distanceFromLight <= (mParentLight->getAttenuationRange() / cosAngle + clipRangeFix.length()))
+            && (angle <= attAngle);
 		}
 	default:
 		//Please the compiler
