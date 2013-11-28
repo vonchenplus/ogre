@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -56,6 +56,7 @@ CompositorInstance::CompositorInstance(CompositionTechnique *technique,
 		mEnabled(false),
 		mAlive(false)
 {
+	mEnabled = false;
 	const String& logicName = mTechnique->getCompositorLogicName();
 	if (!logicName.empty())
 	{
@@ -161,7 +162,7 @@ public:
 	virtual void execute(SceneManager *sm, RenderSystem *rs)
 	{
 		rs->setStencilCheckEnabled(stencilCheck);
-		rs->setStencilBufferParams(func, refValue, mask, stencilFailOp, depthFailOp, passOp, twoSidedOperation);
+		rs->setStencilBufferParams(func, refValue, mask, 0xFFFFFFFF, stencilFailOp, depthFailOp, passOp, twoSidedOperation);
 	}
 };
 
@@ -333,7 +334,7 @@ void CompositorInstance::collectPasses(TargetOperation &finalState, CompositionT
 				LogManager::getSingleton().logMessage("Warning in compilation of Compositor "
 					+mCompositor->getName()+": Attempt to render queue "+
 					StringConverter::toString(pass->getFirstRenderQueue())+" before "+
-					StringConverter::toString(finalState.currentQueueGroupID));
+					StringConverter::toString(finalState.currentQueueGroupID), LML_CRITICAL);
 			}
 
 			RSSetSchemeOperation* setSchemeOperation = 0;
@@ -370,7 +371,7 @@ void CompositorInstance::collectPasses(TargetOperation &finalState, CompositionT
             {
                 /// No material -- warn user
 				LogManager::getSingleton().logMessage("Warning in compilation of Compositor "
-					+mCompositor->getName()+": No material defined for composition pass");
+					+mCompositor->getName()+": No material defined for composition pass", LML_CRITICAL);
                 break;
             }
 			srcmat->load();
@@ -378,7 +379,7 @@ void CompositorInstance::collectPasses(TargetOperation &finalState, CompositionT
 			{
 				/// No supported techniques -- warn user
 				LogManager::getSingleton().logMessage("Warning in compilation of Compositor "
-					+mCompositor->getName()+": material "+srcmat->getName()+" has no supported techniques");
+					+mCompositor->getName()+": material "+srcmat->getName()+" has no supported techniques", LML_CRITICAL);
                 break;
 			}
 			srctech = srcmat->getBestTechnique(0);
@@ -407,7 +408,7 @@ void CompositorInstance::collectPasses(TargetOperation &finalState, CompositionT
 							/// Texture unit not there
 							LogManager::getSingleton().logMessage("Warning in compilation of Compositor "
 								+mCompositor->getName()+": material "+srcmat->getName()+" texture unit "
-								+StringConverter::toString(x)+" out of bounds");
+								+StringConverter::toString(x)+" out of bounds", LML_CRITICAL);
 						}
 					}
 				}
@@ -996,8 +997,14 @@ RenderTarget *CompositorInstance::getTargetForTex(const String &name)
  			CompositorInstance* refCompInst = mChain->getCompositor(texDef->refCompName);
  			if(refCompInst)
  			{
- 				refTexDef = refCompInst->getCompositor()->
-                getSupportedTechnique(refCompInst->getScheme())->getTextureDefinition(name);
+                refTexDef = refCompInst->getCompositor()->getSupportedTechnique(
+                    refCompInst->getScheme())->getTextureDefinition(texDef->refTexName);
+                // if the texture with the reference name can not be found, try the name
+                if (refTexDef == 0)
+                {
+ 				    refTexDef = refCompInst->getCompositor()->getSupportedTechnique(
+                        refCompInst->getScheme())->getTextureDefinition(name);
+                }
  			}
 			else
 			{
@@ -1009,7 +1016,7 @@ RenderTarget *CompositorInstance::getTargetForTex(const String &name)
  		if(refTexDef == 0)
   		{
  			//Still NULL. Try global search.
- 			const CompositorPtr &refComp = CompositorManager::getSingleton().getByName(texDef->refCompName);
+            const CompositorPtr &refComp = CompositorManager::getSingleton().getByName(texDef->refCompName);
  			if(!refComp.isNull())
  			{
  				refTexDef = refComp->getSupportedTechnique()->getTextureDefinition(name);
@@ -1029,6 +1036,7 @@ RenderTarget *CompositorInstance::getTargetForTex(const String &name)
   			{
   				//Find the instance and check if it is before us
   				CompositorInstance* refCompInst = 0;
+                OgreAssert(mChain, "Undefined compositor chain");
 				CompositorChain::InstanceIterator it = mChain->getCompositors();
 				bool beforeMe = true;
 				while (it.hasMoreElements())
@@ -1118,7 +1126,7 @@ const String &CompositorInstance::getSourceForTex(const String &name, size_t mrt
  		if(refTexDef == 0)
  		{
  			//Still NULL. Try global search.
- 			const CompositorPtr &refComp = CompositorManager::getSingleton().getByName(texDef->refCompName);
+            const CompositorPtr &refComp = CompositorManager::getSingleton().getByName(texDef->refCompName);
  			if(!refComp.isNull())
  			{
  				refTexDef = refComp->getSupportedTechnique()->getTextureDefinition(texDef->refTexName);
@@ -1138,6 +1146,7 @@ const String &CompositorInstance::getSourceForTex(const String &name, size_t mrt
   			{
   				//Find the instance and check if it is before us
   				CompositorInstance* refCompInst = 0;
+                OgreAssert(mChain, "Undefined compositor chain");
 				CompositorChain::InstanceIterator it = mChain->getCompositors();
 				bool beforeMe = true;
 				while (it.hasMoreElements())

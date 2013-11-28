@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,10 +28,11 @@ THE SOFTWARE.
 #include "OgreGLHardwareBufferManager.h"
 #include "OgreGLHardwareVertexBuffer.h"
 #include "OgreGLHardwareIndexBuffer.h"
+#include "OgreGLRenderSystem.h"
 #include "OgreGLRenderToVertexBuffer.h"
+#include "OgreGLUtil.h"
 #include "OgreHardwareBuffer.h"
 #include "OgreRoot.h"
-#include "OgreRenderSystem.h"
 #include "OgreRenderSystemCapabilities.h"
 
 namespace Ogre {
@@ -50,6 +51,8 @@ namespace Ogre {
     GLHardwareBufferManagerBase::GLHardwareBufferManagerBase() 
 		: mScratchBufferPool(NULL), mMapBufferThreshold(OGRE_GL_DEFAULT_MAP_BUFFER_THRESHOLD)
     {
+		mStateCacheManager = dynamic_cast<GLRenderSystem*>(Root::getSingleton().getRenderSystem())->getGLSupportRef()->getStateCacheManager();
+
 		// Init scratch pool
 		// TODO make it a configurable size?
 		// 32-bit aligned buffer
@@ -67,7 +70,7 @@ namespace Ogre {
 		// Win32 machines with ATI GPU are having issues glMapBuffer, looks like buffer corruption
 		// disable for now until we figure out where the problem lies			
 #	if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-		if (Root::getSingleton().getRenderSystem()->getCapabilities()->getVendor() == GPU_ATI) 
+		if (Root::getSingleton().getRenderSystem()->getCapabilities()->getVendor() == GPU_AMD)
 		{
 			mMapBufferThreshold = 0xffffffffUL  /* maximum unsigned long value */;
 		}
@@ -89,7 +92,7 @@ namespace Ogre {
 		GLHardwareVertexBuffer* buf = 
 			new GLHardwareVertexBuffer(this, vertexSize, numVerts, usage, useShadowBuffer);
 		{
-			OGRE_LOCK_MUTEX(mVertexBuffersMutex)
+                    OGRE_LOCK_MUTEX(mVertexBuffersMutex);
 			mVertexBuffers.insert(buf);
 		}
 		return HardwareVertexBufferSharedPtr(buf);
@@ -103,7 +106,7 @@ namespace Ogre {
 		GLHardwareIndexBuffer* buf = 
 			new GLHardwareIndexBuffer(this, itype, numIndexes, usage, useShadowBuffer);
 		{
-			OGRE_LOCK_MUTEX(mIndexBuffersMutex)
+                    OGRE_LOCK_MUTEX(mIndexBuffersMutex);
 			mIndexBuffers.insert(buf);
 		}
 		return HardwareIndexBufferSharedPtr(buf);
@@ -114,6 +117,24 @@ namespace Ogre {
 	{
         return RenderToVertexBufferSharedPtr(new GLRenderToVertexBuffer);
     }
+	//---------------------------------------------------------------------
+	HardwareUniformBufferSharedPtr 
+		GLHardwareBufferManagerBase::createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name)
+	{
+		OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
+                    "Uniform buffers not supported in OpenGL RenderSystem.",
+                    "GLHardwareBufferManagerBase::createUniformBuffer");
+	}
+    HardwareCounterBufferSharedPtr
+        GLHardwareBufferManagerBase::createCounterBuffer(size_t sizeBytes,
+                                                         HardwareBuffer::Usage usage,
+                                                         bool useShadowBuffer, const String& name)
+	{
+		OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
+                    "Counter buffers not supported in OpenGL RenderSystem.",
+                    "GLHardwareBufferManagerBase::createCounterBuffer");
+	}
+
     //---------------------------------------------------------------------
     GLenum GLHardwareBufferManagerBase::getGLUsage(unsigned int usage)
     {
@@ -162,7 +183,7 @@ namespace Ogre {
 		// simple forward link search based on alloc sizes
 		// not that fast but the list should never get that long since not many
 		// locks at once (hopefully)
-		OGRE_LOCK_MUTEX(mScratchMutex)
+            OGRE_LOCK_MUTEX(mScratchMutex);
 
 
 		// Alignment - round up the size to 32 bits
@@ -212,7 +233,7 @@ namespace Ogre {
 	//---------------------------------------------------------------------
 	void GLHardwareBufferManagerBase::deallocateScratch(void* ptr)
 	{
-		OGRE_LOCK_MUTEX(mScratchMutex)
+            OGRE_LOCK_MUTEX(mScratchMutex);
 
 		// Simple linear search dealloc
 		uint32 bufferPos = 0;

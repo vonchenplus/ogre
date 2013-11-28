@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2012 Torus Knot Software Ltd
+ Copyright (c) 2000-2013 Torus Knot Software Ltd
  Also see acknowledgements in Readme.html
  
  You may use this sample code for anything you like, it is not covered by the
@@ -253,12 +253,15 @@ protected:
 	}
 	String buildInstancedMaterial(const String &originalMaterialName)
 	{
-
 		// already instanced ?
 		if (StringUtil::endsWith (originalMaterialName, "/instanced"))
 			return originalMaterialName;
 
 		MaterialPtr originalMaterial = MaterialManager::getSingleton ().getByName (originalMaterialName);
+
+#if defined(INCLUDE_RTSHADER_SYSTEM)
+        originalMaterial->getBestTechnique()->setSchemeName(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+#endif
 
 		// if originalMat doesn't exists use "Instancing" material name
 		const String instancedMaterialName (originalMaterial.isNull() ? "Instancing" : originalMaterialName + "/Instanced");
@@ -405,12 +408,6 @@ protected:
 
 		setupControls();
 
-		const GpuProgramManager::SyntaxCodes &syntaxCodes = GpuProgramManager::getSingleton().getSupportedSyntax();
-		for (GpuProgramManager::SyntaxCodes::const_iterator iter = syntaxCodes.begin();iter != syntaxCodes.end();++iter)
-		{
-			LogManager::getSingleton().logMessage("supported syntax : "+(*iter));
-		}
-		
 		mNumMeshes = 160;
 		mNumRendered = 0;
 		mSelectedMesh = 0;

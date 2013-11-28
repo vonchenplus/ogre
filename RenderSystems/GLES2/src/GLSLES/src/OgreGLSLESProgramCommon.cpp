@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2012 Torus Knot Software Ltd
+ Copyright (c) 2000-2013 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,8 @@
 #include "OgreGLSLESProgramCommon.h"
 #include "OgreGLSLESGpuProgram.h"
 #include "OgreGpuProgramManager.h"
+#include "OgreGLES2Util.h"
+#include "OgreGLES2RenderSystem.h"
 #include "OgreRoot.h"
 
 namespace Ogre {
@@ -66,13 +68,18 @@ namespace Ogre {
                         "Attempted to create a shader program without both a vertex and fragment program.",
                         "GLSLESProgramCommon::GLSLESProgramCommon");
         }
+
+        // Initialise uniform cache
+		mUniformCache = new GLES2UniformCache();
 	}
     
 	//-----------------------------------------------------------------------
 	GLSLESProgramCommon::~GLSLESProgramCommon(void)
 	{
-		glDeleteProgram(mGLProgramHandle);
-        GL_CHECK_ERROR;
+		OGRE_CHECK_GL_ERROR(glDeleteProgram(mGLProgramHandle));
+
+        delete mUniformCache;
+        mUniformCache = 0;
 	}
     
 	//-----------------------------------------------------------------------
@@ -129,22 +136,20 @@ namespace Ogre {
 		if (res == NULL_CUSTOM_ATTRIBUTES_INDEX)
 		{
 			const char * attString = getAttributeSemanticString(semantic);
-			GLint attrib = glGetAttribLocation(mGLProgramHandle, attString);
-            GL_CHECK_ERROR;
+			GLint attrib;
+            OGRE_CHECK_GL_ERROR(attrib = glGetAttribLocation(mGLProgramHandle, attString));
 
 			// sadly position is a special case 
 			if (attrib == NOT_FOUND_CUSTOM_ATTRIBUTES_INDEX && semantic == VES_POSITION)
 			{
-				attrib = glGetAttribLocation(mGLProgramHandle, "position");
-                GL_CHECK_ERROR;
+				OGRE_CHECK_GL_ERROR(attrib = glGetAttribLocation(mGLProgramHandle, "position"));
 			}
 
 			// for uv and other case the index is a part of the name
 			if (attrib == NOT_FOUND_CUSTOM_ATTRIBUTES_INDEX)
 			{
 				String attStringWithSemantic = String(attString) + StringConverter::toString(index);
-				attrib = glGetAttribLocation(mGLProgramHandle, attStringWithSemantic.c_str());
-                GL_CHECK_ERROR;
+				OGRE_CHECK_GL_ERROR(attrib = glGetAttribLocation(mGLProgramHandle, attStringWithSemantic.c_str()));
 			}
 
 			// update mCustomAttributesIndexes with the index we found (or didn't find) 
@@ -161,8 +166,8 @@ namespace Ogre {
     //-----------------------------------------------------------------------
 	void GLSLESProgramCommon::getMicrocodeFromCache(void)
 	{
-		GpuProgramManager::Microcode cacheMicrocode = 
-        GpuProgramManager::getSingleton().getMicrocodeFromCache(getCombinedName());
+		GpuProgramManager::Microcode cacheMicrocode =
+            GpuProgramManager::getSingleton().getMicrocodeFromCache(getCombinedName());
 
 		// add to the microcode to the cache
 		String name;
@@ -176,20 +181,19 @@ namespace Ogre {
 		// get size of binary
 		cacheMicrocode->read(&binaryFormat, sizeof(GLenum));
 
-#if GL_OES_get_program_binary
-        GLint binaryLength = cacheMicrocode->size() - sizeof(GLenum);
+        if(getGLES2SupportRef()->checkExtension("GL_OES_get_program_binary") || gleswIsSupported(3, 0))
+        {
+            GLint binaryLength = static_cast<GLint>(cacheMicrocode->size() - sizeof(GLenum));
 
-        // load binary
-		glProgramBinaryOES( mGLProgramHandle, 
-                           binaryFormat, 
-                           cacheMicrocode->getPtr(),
-                           binaryLength
-                           );
-        GL_CHECK_ERROR;
-#endif
+            // load binary
+            OGRE_CHECK_GL_ERROR(glProgramBinaryOES(mGLProgramHandle,
+                               binaryFormat, 
+                               cacheMicrocode->getPtr(),
+                               binaryLength));
+        }
+
 		GLint success = 0;
-		glGetProgramiv(mGLProgramHandle, GL_LINK_STATUS, &success);
-        GL_CHECK_ERROR
+		OGRE_CHECK_GL_ERROR(glGetProgramiv(mGLProgramHandle, GL_LINK_STATUS, &success));
 		if (!success)
 		{
 			//

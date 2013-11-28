@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2012 Torus Knot Software Ltd
+ Copyright (c) 2000-2013 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,14 @@
  -----------------------------------------------------------------------------
  */
 #include "OgreStableHeaders.h"
+
+#if OGRE_NO_ZIP_ARCHIVE == 0
+
 #include "OgreDeflate.h"
 #include "OgreException.h"
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+#include "macUtils.h"
+#endif
 
 #include <zlib.h>
 
@@ -44,28 +50,45 @@ namespace Ogre
 	}
 	#define OGRE_DEFLATE_TMP_SIZE 16384
     //---------------------------------------------------------------------
-	DeflateStream::DeflateStream(const DataStreamPtr& compressedStream, const String& tmpFileName)
+	DeflateStream::DeflateStream(const DataStreamPtr& compressedStream, const String& tmpFileName, size_t avail_in)
 	: DataStream(compressedStream->getAccessMode())
 	, mCompressedStream(compressedStream)
     , mTempFileName(tmpFileName)
 	, mZStream(0)
 	, mCurrentPos(0)
+	, mAvailIn(avail_in)
 	, mTmp(0)
 	, mIsCompressedValid(true)
 	{
 		init();
 	}
     //---------------------------------------------------------------------
-	DeflateStream::DeflateStream(const String& name, const DataStreamPtr& compressedStream, const String& tmpFileName)		
+	DeflateStream::DeflateStream(const String& name, const DataStreamPtr& compressedStream, const String& tmpFileName, size_t avail_in)
 	: DataStream(name, compressedStream->getAccessMode())
 	, mCompressedStream(compressedStream)
     , mTempFileName(tmpFileName)
 	, mZStream(0)
 	, mCurrentPos(0)
+	, mAvailIn(avail_in)
 	, mTmp(0)
 	, mIsCompressedValid(true)
 	{
 		init();
+	}
+    //---------------------------------------------------------------------
+	size_t DeflateStream::getAvailInForSinglePass()
+	{
+		size_t ret = OGRE_DEFLATE_TMP_SIZE;
+
+		// if we are doing particial-uncompressing
+		if(mAvailIn>0)
+		{
+			if(mAvailIn<ret)
+				ret = mAvailIn;
+			mAvailIn -= ret;
+		}
+
+		return ret;
 	}
     //---------------------------------------------------------------------
 	void DeflateStream::init()
@@ -80,7 +103,7 @@ namespace Ogre
 			size_t restorePoint = mCompressedStream->tell();
 			// read early chunk
 			mZStream->next_in = mTmp;
-			mZStream->avail_in = mCompressedStream->read(mTmp, OGRE_DEFLATE_TMP_SIZE);
+			mZStream->avail_in = static_cast<uint>(mCompressedStream->read(mTmp, getAvailInForSinglePass()));
 			
 			if (inflateInit(mZStream) != Z_OK)
 			{
@@ -100,7 +123,7 @@ namespace Ogre
 				if (inflate(mZStream, Z_SYNC_FLUSH) != Z_OK)
 					mIsCompressedValid = false;
 				// restore for reading
-				mZStream->avail_in = savedIn;
+				mZStream->avail_in = static_cast<uint>(savedIn);
 				mZStream->next_in = mTmp;
 
 				inflateReset(mZStream);
@@ -119,9 +142,27 @@ namespace Ogre
             if(mTempFileName.empty())
             {
                 // Write to temp file
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+                char* tmpname = _tempnam(".", "ogre");
+                if (!tmpname)
+                {
+                    // Having no file name here will cause various problems later.
+                    OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Temporary file name generation failed.", "DeflateStream::init");
+                }
+                else
+                {
+                    mTempFileName = tmpname;
+                    free(tmpname);
+                }
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+                mTempFileName = macTempFileName();
+#else
                 char tmpname[L_tmpnam];
-                tmpnam(tmpname);
+                if (!tmpnam(tmpname))
+                    OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Temporary file name generation failed.", "DeflateStream::init");
+
                 mTempFileName = tmpname;
+#endif
             }
 
 			std::fstream *f = OGRE_NEW_T(std::fstream, MEMCATEGORY_GENERAL)();
@@ -171,7 +212,7 @@ namespace Ogre
 
 			if (cachereads < count)
 			{
-				mZStream->avail_out = count - cachereads;
+				mZStream->avail_out = static_cast<uint>(count - cachereads);
 				mZStream->next_out = (Bytef*)buf + cachereads;
 				
 				while (mZStream->avail_out)
@@ -179,7 +220,7 @@ namespace Ogre
 					// Pull next chunk of compressed data from the underlying stream
 					if (!mZStream->avail_in && !mCompressedStream->eof())
 					{
-						mZStream->avail_in = mCompressedStream->read(mTmp, OGRE_DEFLATE_TMP_SIZE);
+						mZStream->avail_in = static_cast<uint>(mCompressedStream->read(mTmp, getAvailInForSinglePass()));
 						mZStream->next_in = mTmp;
 					}
 					
@@ -285,7 +326,7 @@ namespace Ogre
 			/* done when last data in file processed */
 		} while (flush != Z_FINISH);
 		assert(ret == Z_STREAM_END);        /* stream will be complete */
-		
+                (void)ret;
 		deflateEnd(mZStream);
 
         inFile.close();
@@ -349,7 +390,7 @@ namespace Ogre
 				mCurrentPos = 0;
 				mZStream->next_in = mTmp;
 				mCompressedStream->seek(0);
-				mZStream->avail_in = mCompressedStream->read(mTmp, OGRE_DEFLATE_TMP_SIZE);			
+				mZStream->avail_in = static_cast<uint>(mCompressedStream->read(mTmp, getAvailInForSinglePass()));
 				inflateReset(mZStream);
 			}
 			else 
@@ -403,4 +444,4 @@ namespace Ogre
 	
 }
 
-
+#endif

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@ THE SOFTWARE.
  * Convert a box of pixel from one type to another. Who needs automatic code 
  * generation when we have C++ templates and the policy design pattern.
  * 
- * @param   U       Policy class to facilitate pixel-to-pixel conversion. This class
+ * @remarks Policy class to facilitate pixel-to-pixel conversion. This class
  *    has at least two typedefs: SrcType and DstType. SrcType is the source element type,
  *    dstType is the destination element type. It also has a static method, pixelConvert, that
  *    converts a srcType into a dstType.

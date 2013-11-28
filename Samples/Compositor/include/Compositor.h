@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -34,6 +34,7 @@ public:
 
     void setupContent(void);
     void cleanupContent(void);
+    StringVector getRequiredPlugins();
 
 	bool frameRenderingQueued(const FrameEvent& evt);
 	
@@ -68,11 +69,11 @@ protected:
 };
 
 /**
-    \file
+    @file
         Compositor.cpp
-    \brief
+    @brief
         Shows OGRE's Compositor feature
-	\author
+	@author
 		W.J. :wumpus: van der Laan
 			Ogre compositor framework
 		Manuel Bua
@@ -131,6 +132,13 @@ void Sample_Compositor::setupContent(void)
 	setDragLook(true);
 #endif
 }
+StringVector Sample_Compositor::getRequiredPlugins()
+{
+    StringVector names;
+    if (!GpuProgramManager::getSingleton().isSyntaxSupported("glsles") && !GpuProgramManager::getSingleton().isSyntaxSupported("glsl150"))
+        names.push_back("Cg Program Manager");
+    return names;
+}
 //-----------------------------------------------------------------------------------
 void Sample_Compositor::registerCompositors(void)
 {
@@ -171,7 +179,7 @@ void Sample_Compositor::registerCompositors(void)
 			Ogre::CompositorManager::getSingleton().setCompositorEnabled(vp, compositorName, false);
 		} catch (...) {
 			/// Warn user
-			LogManager::getSingleton().logMessage("Could not load compositor " + compositorName);
+			LogManager::getSingleton().logMessage("Could not load compositor " + compositorName, LML_CRITICAL);
 		}
     }
 
@@ -359,7 +367,7 @@ void Sample_Compositor::itemSelected(OgreBites::SelectMenu* menu)
 	}
 
 	mTrayMgr->getWidget("DebugRTTPanel")->show();
-	mTrayMgr->moveWidgetToTray("DebugRTTPanel", TL_TOPRIGHT, mTrayMgr->getNumWidgets(TL_TOPRIGHT) - 1);
+	mTrayMgr->moveWidgetToTray("DebugRTTPanel", TL_TOPRIGHT, static_cast<unsigned int>(mTrayMgr->getNumWidgets(TL_TOPRIGHT) - 1));
 	StringVector parts = StringUtil::split(menu->getSelectedItem(), ";");
 	mDebugTextureTUS->setContentType(TextureUnitState::CONTENT_COMPOSITOR);
 
@@ -648,39 +656,42 @@ void Sample_Compositor::createTextures(void)
 		TEX_TYPE_3D,
 		64,64,64,
 		0,
-		PF_A8
+		PF_L8, 
+		TU_DYNAMIC_WRITE_ONLY
 	);
 
-	HardwarePixelBufferSharedPtr ptr = tex->getBuffer(0,0);
-	ptr->lock(HardwareBuffer::HBL_DISCARD);
-	const PixelBox &pb = ptr->getCurrentLock();
-	Ogre::uint8 *data = static_cast<Ogre::uint8*>(pb.data);
+    if(!tex.isNull())
+    {
+        HardwarePixelBufferSharedPtr ptr = tex->getBuffer(0,0);
+        ptr->lock(HardwareBuffer::HBL_DISCARD);
+        const PixelBox &pb = ptr->getCurrentLock();
+        Ogre::uint8 *data = static_cast<Ogre::uint8*>(pb.data);
 
-	size_t height = pb.getHeight();
-	size_t width = pb.getWidth();
-	size_t depth = pb.getDepth();
-	size_t rowPitch = pb.rowPitch;
-	size_t slicePitch = pb.slicePitch;
+        size_t height = pb.getHeight();
+        size_t width = pb.getWidth();
+        size_t depth = pb.getDepth();
+        size_t rowPitch = pb.rowPitch;
+        size_t slicePitch = pb.slicePitch;
 
-	for (size_t z = 0; z < depth; ++z)
-	{
-		for (size_t y = 0; y < height; ++y)
-		{
-			for(size_t x = 0; x < width; ++x)
-			{
-				float fx = 32-(float)x+0.5f;
-				float fy = 32-(float)y+0.5f;
-				float fz = 32-((float)z)/3+0.5f;
-				float distanceSquare = fx*fx+fy*fy+fz*fz;
-				data[slicePitch*z + rowPitch*y + x] =  0x00;
-				if (distanceSquare < 1024.0f)
-					data[slicePitch*z + rowPitch*y + x] +=  0xFF;
-			}
-		}
-	}
-	ptr->unlock();
-
-	Ogre::Viewport *vp = mRoot->getAutoCreatedWindow()->getViewport(0); 
+        for (size_t z = 0; z < depth; ++z)
+        {
+            for (size_t y = 0; y < height; ++y)
+            {
+                for(size_t x = 0; x < width; ++x)
+                {
+                    float fx = 32-(float)x+0.5f;
+                    float fy = 32-(float)y+0.5f;
+                    float fz = 32-((float)z)/3+0.5f;
+                    float distanceSquare = fx*fx+fy*fy+fz*fz;
+                    data[slicePitch*z + rowPitch*y + x] =  0x00;
+                    if (distanceSquare < 1024.0f)
+                        data[slicePitch*z + rowPitch*y + x] +=  0xFF;
+                }
+            }
+        }
+        ptr->unlock();
+    }
+	Ogre::Viewport *vp = mWindow->getViewport(0); 
 
 	TexturePtr tex2 = TextureManager::getSingleton().createManual(
 		"DitherTex",
@@ -688,7 +699,8 @@ void Sample_Compositor::createTextures(void)
 		TEX_TYPE_2D,
 		vp->getActualWidth(),vp->getActualHeight(),1,
 		0,
-		PF_A8
+		PF_L8,
+        TU_DYNAMIC_WRITE_ONLY
 	);
 
 	HardwarePixelBufferSharedPtr ptr2 = tex2->getBuffer(0,0);

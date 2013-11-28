@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,12 @@ THE SOFTWARE.
 #include "OgreTexture.h"
 #include "OgreRenderTexture.h"
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 && !defined(_WIN32_WINNT_WIN8)
+    #ifndef USE_D3DX11_LIBRARY
+        #define USE_D3DX11_LIBRARY
+    #endif
+#endif
+
 namespace Ogre {
 	class D3D11Texture : public Texture
 	{
@@ -54,6 +60,29 @@ namespace Ogre {
 		ID3D11Resource 	*mpTex;		
 
 		ID3D11ShaderResourceView* mpShaderResourceView;
+
+		bool mAutoMipMapGeneration;
+
+		template<typename fromtype, typename totype>
+		void _queryInterface(fromtype *from, totype **to)
+		{
+			HRESULT hr = from->QueryInterface(__uuidof(totype), (void **)to);
+
+			if(FAILED(hr) || mDevice.isError())
+			{
+				this->freeInternalResources();
+				String errorDescription = mDevice.getErrorDescription();
+				OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Can't get base texture\nError Description:" + errorDescription, 
+					"D3D11Texture::_queryInterface" );
+			}
+		}
+
+#ifdef USE_D3DX11_LIBRARY		
+		void _loadDDS(DataStreamPtr &dstream);
+#endif
+        void _create1DResourceView();
+		void _create2DResourceView();
+		void _create3DResourceView();
 
 		// is dynamic
 		bool mIsDynamic; 
@@ -99,7 +128,7 @@ namespace Ogre {
 		/// internal method, set Texture class source image protected attributes
 		void _setSrcAttributes(unsigned long width, unsigned long height, unsigned long depth, PixelFormat format);
 		/// internal method, set Texture class final texture protected attributes
-		void _setFinalAttributes(unsigned long width, unsigned long height, unsigned long depth, PixelFormat format);
+		void _setFinalAttributes(unsigned long width, unsigned long height, unsigned long depth, PixelFormat format, UINT miscflags);
 
 		/// internal method, the cube map face name for the spec. face index
 		String _getCubeFaceName(unsigned char face) const
@@ -114,9 +143,9 @@ namespace Ogre {
         void prepareImpl(void);
         /// @copydoc Resource::unprepareImpl
         void unprepareImpl(void);
-		/// overriden from Resource
+		/// overridden from Resource
 		void loadImpl();
-		/// overriden from Resource
+		/// overridden from Resource
 		void postLoadImpl();
 
         /** Vector of pointers to streams that were pulled from disk by
@@ -135,9 +164,9 @@ namespace Ogre {
 		/// destructor
 		~D3D11Texture();
 
-		/// overriden from Texture
+		/// overridden from Texture
 		void copyToTexture( TexturePtr& target );
-		/// overriden from Texture
+		/// overridden from Texture
 		void loadImage( const Image &img );
 
 
@@ -169,77 +198,8 @@ namespace Ogre {
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC getShaderResourceViewDesc() const;
 
+		bool HasAutoMipMapGenerationEnabled() const { return mAutoMipMapGeneration; }
 
-	};
-
-	/** Specialisation of SharedPtr to allow SharedPtr to be assigned to D3D11TexturePtr 
-	@note Has to be a subclass since we need operator=.
-	We could templatise this instead of repeating per Resource subclass, 
-	except to do so requires a form VC6 does not support i.e.
-	ResourceSubclassPtr<T> : public SharedPtr<T>
-	*/
-	class D3D11TexturePtr : public SharedPtr<D3D11Texture> 
-	{
-	public:
-		D3D11TexturePtr() : SharedPtr<D3D11Texture>() {}
-		explicit D3D11TexturePtr(D3D11Texture* rep) : SharedPtr<D3D11Texture>(rep) {}
-		D3D11TexturePtr(const D3D11TexturePtr& r) : SharedPtr<D3D11Texture>(r) {} 
-		D3D11TexturePtr(const ResourcePtr& r) : SharedPtr<D3D11Texture>()
-		{
-			// lock & copy other mutex pointer
-			OGRE_MUTEX_CONDITIONAL(r.OGRE_AUTO_MUTEX_NAME)
-			{
-				OGRE_LOCK_MUTEX(*r.OGRE_AUTO_MUTEX_NAME)
-					OGRE_COPY_AUTO_SHARED_MUTEX(r.OGRE_AUTO_MUTEX_NAME)
-					pRep = static_cast<D3D11Texture*>(r.getPointer());
-				pUseCount = r.useCountPointer();
-				if (pUseCount)
-				{
-					++(*pUseCount);
-				}
-			}
-		}
-
-		/// Operator used to convert a ResourcePtr to a D3D11TexturePtr
-		D3D11TexturePtr& operator=(const ResourcePtr& r)
-		{
-			if (pRep == static_cast<D3D11Texture*>(r.getPointer()))
-				return *this;
-			release();
-			// lock & copy other mutex pointer
-			OGRE_MUTEX_CONDITIONAL(r.OGRE_AUTO_MUTEX_NAME)
-			{
-				OGRE_LOCK_MUTEX(*r.OGRE_AUTO_MUTEX_NAME)
-					OGRE_COPY_AUTO_SHARED_MUTEX(r.OGRE_AUTO_MUTEX_NAME)
-					pRep = static_cast<D3D11Texture*>(r.getPointer());
-				pUseCount = r.useCountPointer();
-				if (pUseCount)
-				{
-					++(*pUseCount);
-				}
-			}
-			return *this;
-		}
-		/// Operator used to convert a TexturePtr to a D3D11TexturePtr
-		D3D11TexturePtr& operator=(const TexturePtr& r)
-		{
-			if (pRep == static_cast<D3D11Texture*>(r.getPointer()))
-				return *this;
-			release();
-			// lock & copy other mutex pointer
-			OGRE_MUTEX_CONDITIONAL(r.OGRE_AUTO_MUTEX_NAME)
-			{
-				OGRE_LOCK_MUTEX(*r.OGRE_AUTO_MUTEX_NAME)
-					OGRE_COPY_AUTO_SHARED_MUTEX(r.OGRE_AUTO_MUTEX_NAME)
-					pRep = static_cast<D3D11Texture*>(r.getPointer());
-				pUseCount = r.useCountPointer();
-				if (pUseCount)
-				{
-					++(*pUseCount);
-				}
-			}
-			return *this;
-		}
 	};
 
 	/// RenderTexture implementation for D3D11

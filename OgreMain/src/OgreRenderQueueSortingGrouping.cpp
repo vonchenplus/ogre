@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -101,8 +101,8 @@ namespace Ogre {
         {
             if (mSplitNoShadowPasses &&
                 mParent->getShadowsEnabled() &&
-				((!pTech->getParent()->getReceiveShadows() ||
-				rend->getCastsShadows()) && mShadowCastersNotReceivers))
+                (!pTech->getParent()->getReceiveShadows() ||
+                 (rend->getCastsShadows() && mShadowCastersNotReceivers)))
             {
                 // Add solid renderable and add passes to no-shadow group
                 addSolidRenderable(pTech, rend, true);
@@ -216,7 +216,7 @@ namespace Ogre {
         // the list and can cause problems with future clones
 		{
 			// Hmm, a bit hacky but least obtrusive for now
-			OGRE_LOCK_MUTEX(Pass::msPassGraveyardMutex)
+                    OGRE_LOCK_MUTEX(Pass::msPassGraveyardMutex);
 			const Pass::PassSet& graveyardList = Pass::getPassGraveyard();
 			Pass::PassSet::const_iterator gi, giend;
 			giend = graveyardList.end();
@@ -231,7 +231,7 @@ namespace Ogre {
         // If we don't do this, the std::map will become inconsistent for new insterts
 		{
 			// Hmm, a bit hacky but least obtrusive for now
-			OGRE_LOCK_MUTEX(Pass::msDirtyHashListMutex)
+                    OGRE_LOCK_MUTEX(Pass::msDirtyHashListMutex);
 			const Pass::PassSet& dirtyList = Pass::getDirtyHashList();
 			Pass::PassSet::const_iterator di, diend;
 			diend = dirtyList.end();

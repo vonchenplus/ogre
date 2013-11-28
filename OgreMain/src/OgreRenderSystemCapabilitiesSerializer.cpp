@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -78,6 +78,10 @@ namespace Ogre
         file << "\t" << "vbo " << StringConverter::toString(caps->hasCapability(RSC_VBO)) << endl;
         file << "\t" << "vertex_program " << StringConverter::toString(caps->hasCapability(RSC_VERTEX_PROGRAM)) << endl;
         file << "\t" << "fragment_program " << StringConverter::toString(caps->hasCapability(RSC_FRAGMENT_PROGRAM)) << endl;
+        file << "\t" << "geometry_program " << StringConverter::toString(caps->hasCapability(RSC_GEOMETRY_PROGRAM)) << endl;
+        file << "\t" << "tessellation_hull_program " << StringConverter::toString(caps->hasCapability(RSC_TESSELLATION_HULL_PROGRAM)) << endl;
+        file << "\t" << "tessellation_domain_program " << StringConverter::toString(caps->hasCapability(RSC_TESSELLATION_DOMAIN_PROGRAM)) << endl;
+        file << "\t" << "compute_program " << StringConverter::toString(caps->hasCapability(RSC_COMPUTE_PROGRAM)) << endl;
         file << "\t" << "scissor_test " << StringConverter::toString(caps->hasCapability(RSC_SCISSOR_TEST)) << endl;
         file << "\t" << "two_sided_stencil " << StringConverter::toString(caps->hasCapability(RSC_TWO_SIDED_STENCIL)) << endl;
         file << "\t" << "stencil_wrap " << StringConverter::toString(caps->hasCapability(RSC_STENCIL_WRAP)) << endl;
@@ -89,14 +93,21 @@ namespace Ogre
         file << "\t" << "texture_float " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_FLOAT)) << endl;
         file << "\t" << "non_power_of_2_textures " << StringConverter::toString(caps->hasCapability(RSC_NON_POWER_OF_2_TEXTURES)) << endl;
         file << "\t" << "texture_3d " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_3D)) << endl;
+        file << "\t" << "texture_1d " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_1D)) << endl;
         file << "\t" << "point_sprites " << StringConverter::toString(caps->hasCapability(RSC_POINT_SPRITES)) << endl;
         file << "\t" << "point_extended_parameters " << StringConverter::toString(caps->hasCapability(RSC_POINT_EXTENDED_PARAMETERS)) << endl;
         file << "\t" << "vertex_texture_fetch " << StringConverter::toString(caps->hasCapability(RSC_VERTEX_TEXTURE_FETCH)) << endl;
         file << "\t" << "mipmap_lod_bias " << StringConverter::toString(caps->hasCapability(RSC_MIPMAP_LOD_BIAS)) << endl;
+        file << "\t" << "atomic_counters " << StringConverter::toString(caps->hasCapability(RSC_ATOMIC_COUNTERS)) << endl;
         file << "\t" << "texture_compression " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION)) << endl;
         file << "\t" << "texture_compression_dxt " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION_DXT)) << endl;
         file << "\t" << "texture_compression_vtc " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION_VTC)) << endl;
         file << "\t" << "texture_compression_pvrtc " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION_PVRTC)) << endl;
+        file << "\t" << "texture_compression_atc " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION_ATC)) << endl;
+        file << "\t" << "texture_compression_etc1 " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION_ETC1)) << endl;
+        file << "\t" << "texture_compression_etc2 " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION_ETC2)) << endl;
+		file << "\t" << "texture_compression_bc4_bc5 " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION_BC4_BC5)) << endl;
+        file << "\t" << "texture_compression_bc6h_bc7 " << StringConverter::toString(caps->hasCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7)) << endl;
         file << "\t" << "gl1_5_novbo " << StringConverter::toString(caps->hasCapability(RSC_GL1_5_NOVBO)) << endl;
         file << "\t" << "fbo " << StringConverter::toString(caps->hasCapability(RSC_FBO)) << endl;
         file << "\t" << "fbo_arb " << StringConverter::toString(caps->hasCapability(RSC_FBO_ARB)) << endl;
@@ -137,6 +148,15 @@ namespace Ogre
         file << "\t" << "geometry_program_constant_float_count " << StringConverter::toString(caps->getGeometryProgramConstantFloatCount()) << endl;
         file << "\t" << "geometry_program_constant_int_count " << StringConverter::toString(caps->getGeometryProgramConstantIntCount()) << endl;
         file << "\t" << "geometry_program_constant_bool_count " << StringConverter::toString(caps->getGeometryProgramConstantBoolCount()) << endl;
+        file << "\t" << "tessellation_hull_program_constant_float_count " << StringConverter::toString(caps->getTessellationHullProgramConstantFloatCount()) << endl;
+        file << "\t" << "tessellation_hull_program_constant_int_count " << StringConverter::toString(caps->getTessellationHullProgramConstantIntCount()) << endl;
+        file << "\t" << "tessellation_hull_program_constant_bool_count " << StringConverter::toString(caps->getTessellationHullProgramConstantBoolCount()) << endl;
+        file << "\t" << "tessellation_domain_program_constant_float_count " << StringConverter::toString(caps->getTessellationDomainProgramConstantFloatCount()) << endl;
+        file << "\t" << "tessellation_domain_program_constant_int_count " << StringConverter::toString(caps->getTessellationDomainProgramConstantIntCount()) << endl;
+        file << "\t" << "tessellation_domain_program_constant_bool_count " << StringConverter::toString(caps->getTessellationDomainProgramConstantBoolCount()) << endl;
+        file << "\t" << "compute_program_constant_float_count " << StringConverter::toString(caps->getComputeProgramConstantFloatCount()) << endl;
+        file << "\t" << "compute_program_constant_int_count " << StringConverter::toString(caps->getComputeProgramConstantIntCount()) << endl;
+        file << "\t" << "compute_program_constant_bool_count " << StringConverter::toString(caps->getComputeProgramConstantBoolCount()) << endl;
         file << "\t" << "num_vertex_texture_units " << StringConverter::toString(caps->getNumVertexTextureUnits()) << endl;
 
         file << endl;
@@ -344,6 +364,15 @@ namespace Ogre
         addKeywordType("geometry_program_constant_float_count", SET_INT_METHOD);
         addKeywordType("geometry_program_constant_int_count", SET_INT_METHOD);
         addKeywordType("geometry_program_constant_bool_count", SET_INT_METHOD);
+        addKeywordType("tessellation_hull_program_constant_float_count", SET_INT_METHOD);
+        addKeywordType("tessellation_hull_program_constant_int_count", SET_INT_METHOD);
+        addKeywordType("tessellation_hull_program_constant_bool_count", SET_INT_METHOD);
+        addKeywordType("tessellation_domain_program_constant_float_count", SET_INT_METHOD);
+        addKeywordType("tessellation_domain_program_constant_int_count", SET_INT_METHOD);
+        addKeywordType("tessellation_domain_program_constant_bool_count", SET_INT_METHOD);
+        addKeywordType("compute_program_constant_float_count", SET_INT_METHOD);
+        addKeywordType("compute_program_constant_int_count", SET_INT_METHOD);
+        addKeywordType("compute_program_constant_bool_count", SET_INT_METHOD);
         addKeywordType("num_vertex_texture_units", SET_INT_METHOD);
 
         // initialize int setters
@@ -361,6 +390,15 @@ namespace Ogre
         addSetIntMethod("geometry_program_constant_float_count", &RenderSystemCapabilities::setGeometryProgramConstantFloatCount);
         addSetIntMethod("geometry_program_constant_int_count", &RenderSystemCapabilities::setGeometryProgramConstantIntCount);
         addSetIntMethod("geometry_program_constant_bool_count", &RenderSystemCapabilities::setGeometryProgramConstantBoolCount);
+        addSetIntMethod("tessellation_hull_program_constant_float_count", &RenderSystemCapabilities::setTessellationHullProgramConstantFloatCount);
+        addSetIntMethod("tessellation_hull_program_constant_int_count", &RenderSystemCapabilities::setTessellationHullProgramConstantIntCount);
+        addSetIntMethod("tessellation_hull_program_constant_bool_count", &RenderSystemCapabilities::setTessellationHullProgramConstantBoolCount);
+        addSetIntMethod("tessellation_domain_program_constant_float_count", &RenderSystemCapabilities::setTessellationDomainProgramConstantFloatCount);
+        addSetIntMethod("tessellation_domain_program_constant_int_count", &RenderSystemCapabilities::setTessellationDomainProgramConstantIntCount);
+        addSetIntMethod("tessellation_domain_program_constant_bool_count", &RenderSystemCapabilities::setTessellationDomainProgramConstantBoolCount);
+        addSetIntMethod("compute_program_constant_float_count", &RenderSystemCapabilities::setComputeProgramConstantFloatCount);
+        addSetIntMethod("compute_program_constant_int_count", &RenderSystemCapabilities::setComputeProgramConstantIntCount);
+        addSetIntMethod("compute_program_constant_bool_count", &RenderSystemCapabilities::setComputeProgramConstantBoolCount);
         addSetIntMethod("num_vertex_texture_units", &RenderSystemCapabilities::setNumVertexTextureUnits);
 
         // initialize bool types
@@ -392,6 +430,9 @@ namespace Ogre
         addKeywordType("vertex_program", SET_CAPABILITY_ENUM_BOOL);
 		addKeywordType("geometry_program", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("fragment_program", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("tessellation_hull_program", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("tessellation_domain_program", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("compute_program", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("scissor_test", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("two_sided_stencil", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("stencil_wrap", SET_CAPABILITY_ENUM_BOOL);
@@ -402,15 +443,22 @@ namespace Ogre
         addKeywordType("hwrender_to_texture", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("texture_float", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("non_power_of_2_textures", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("texture_1d", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("texture_3d", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("point_sprites", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("point_extended_parameters", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("vertex_texture_fetch", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("mipmap_lod_bias", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("atomic_counters", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("texture_compression", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("texture_compression_dxt", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("texture_compression_vtc", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("texture_compression_pvrtc", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("texture_compression_atc", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("texture_compression_etc1", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("texture_compression_etc2", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("texture_compression_bc4_bc5", SET_CAPABILITY_ENUM_BOOL);
+        addKeywordType("texture_compression_bc6h_bc7", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("gl1_5_novbo", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("fbo", SET_CAPABILITY_ENUM_BOOL);
         addKeywordType("fbo_arb", SET_CAPABILITY_ENUM_BOOL);
@@ -432,6 +480,9 @@ namespace Ogre
         addCapabilitiesMapping("vertex_program", RSC_VERTEX_PROGRAM);
 		addCapabilitiesMapping("geometry_program", RSC_GEOMETRY_PROGRAM);
         addCapabilitiesMapping("fragment_program", RSC_FRAGMENT_PROGRAM);
+        addCapabilitiesMapping("tessellation_hull_program", RSC_TESSELLATION_HULL_PROGRAM);
+        addCapabilitiesMapping("tessellation_domain_program", RSC_TESSELLATION_DOMAIN_PROGRAM);
+        addCapabilitiesMapping("compute_program", RSC_COMPUTE_PROGRAM);
         addCapabilitiesMapping("scissor_test", RSC_SCISSOR_TEST);
         addCapabilitiesMapping("two_sided_stencil", RSC_TWO_SIDED_STENCIL);
         addCapabilitiesMapping("stencil_wrap", RSC_STENCIL_WRAP);
@@ -443,14 +494,21 @@ namespace Ogre
 		addCapabilitiesMapping("texture_float", RSC_TEXTURE_FLOAT);
         addCapabilitiesMapping("non_power_of_2_textures", RSC_NON_POWER_OF_2_TEXTURES);
         addCapabilitiesMapping("texture_3d", RSC_TEXTURE_3D);
+		addCapabilitiesMapping("texture_1d", RSC_TEXTURE_1D);
         addCapabilitiesMapping("point_sprites", RSC_POINT_SPRITES);
         addCapabilitiesMapping("point_extended_parameters", RSC_POINT_EXTENDED_PARAMETERS);
         addCapabilitiesMapping("vertex_texture_fetch", RSC_VERTEX_TEXTURE_FETCH);
         addCapabilitiesMapping("mipmap_lod_bias", RSC_MIPMAP_LOD_BIAS);
+        addCapabilitiesMapping("atomic_counters", RSC_ATOMIC_COUNTERS);
         addCapabilitiesMapping("texture_compression", RSC_TEXTURE_COMPRESSION);
         addCapabilitiesMapping("texture_compression_dxt", RSC_TEXTURE_COMPRESSION_DXT);
         addCapabilitiesMapping("texture_compression_vtc", RSC_TEXTURE_COMPRESSION_VTC);
         addCapabilitiesMapping("texture_compression_pvrtc", RSC_TEXTURE_COMPRESSION_PVRTC);
+        addCapabilitiesMapping("texture_compression_atc", RSC_TEXTURE_COMPRESSION_ATC);
+        addCapabilitiesMapping("texture_compression_etc1", RSC_TEXTURE_COMPRESSION_ETC1);
+        addCapabilitiesMapping("texture_compression_etc2", RSC_TEXTURE_COMPRESSION_ETC2);
+        addCapabilitiesMapping("texture_compression_bc4_bc5", RSC_TEXTURE_COMPRESSION_BC4_BC5);
+        addCapabilitiesMapping("texture_compression_bc6h_bc7", RSC_TEXTURE_COMPRESSION_BC6H_BC7);
 		addCapabilitiesMapping("hwrender_to_vertex_buffer", RSC_HWRENDER_TO_VERTEX_BUFFER);
         addCapabilitiesMapping("gl1_5_novbo", RSC_GL1_5_NOVBO);
         addCapabilitiesMapping("fbo", RSC_FBO);
@@ -459,6 +517,7 @@ namespace Ogre
         addCapabilitiesMapping("pbuffer", RSC_PBUFFER);
         addCapabilitiesMapping("gl1_5_nohwocclusion", RSC_GL1_5_NOHWOCCLUSION);
         addCapabilitiesMapping("perstageconstant", RSC_PERSTAGECONSTANT);
+        addCapabilitiesMapping("vao", RSC_VAO);
         addCapabilitiesMapping("separate_shader_objects", RSC_SEPARATE_SHADER_OBJECTS);
 
     }

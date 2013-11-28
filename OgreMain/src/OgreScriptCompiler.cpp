@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -233,7 +233,7 @@ namespace Ogre
 			Ogre::StringConverter::toString(line) + ")";
 		if(!msg.empty())
 			str = str + ": " + msg;
-		Ogre::LogManager::getSingleton().logMessage(str);
+		Ogre::LogManager::getSingleton().logMessage(str, LML_CRITICAL);
 	}
 
 	bool ScriptCompilerListener::handleEvent(ScriptCompiler *compiler, ScriptCompilerEvent *evt, void *retval)
@@ -465,7 +465,7 @@ namespace Ogre
 				Ogre::StringConverter::toString(line) + ")";
 			if(!msg.empty())
 				str = str + ": " + msg;
-			Ogre::LogManager::getSingleton().logMessage(str);
+			Ogre::LogManager::getSingleton().logMessage(str, LML_CRITICAL);
 		}
 
 		mErrors.push_back(err);
@@ -639,7 +639,7 @@ namespace Ogre
 				ObjectAbstractNode *obj = (ObjectAbstractNode*)(*i).get();
 
 				// Overlay base classes in order.
-                for (std::vector<String>::const_iterator baseIt = obj->bases.begin(), end_it = obj->bases.end(); baseIt != end_it; ++baseIt)
+                for (vector<String>::const_iterator baseIt = obj->bases.begin(), end_it = obj->bases.end(); baseIt != end_it; ++baseIt)
 				{
                     const String& base = *baseIt;
 					// Check the top level first, then check the import table
@@ -993,12 +993,18 @@ namespace Ogre
 		mIds["vertex_program"] = ID_VERTEX_PROGRAM;
 		mIds["geometry_program"] = ID_GEOMETRY_PROGRAM;
 		mIds["fragment_program"] = ID_FRAGMENT_PROGRAM;
+		mIds["tessellation_hull_program"] = ID_TESSELLATION_HULL_PROGRAM;
+		mIds["tessellation_domain_program"] = ID_TESSELLATION_DOMAIN_PROGRAM;
+		mIds["compute_program"] = ID_COMPUTE_PROGRAM;
 		mIds["technique"] = ID_TECHNIQUE;
 		mIds["pass"] = ID_PASS;
 		mIds["texture_unit"] = ID_TEXTURE_UNIT;
 		mIds["vertex_program_ref"] = ID_VERTEX_PROGRAM_REF;
 		mIds["geometry_program_ref"] = ID_GEOMETRY_PROGRAM_REF;
 		mIds["fragment_program_ref"] = ID_FRAGMENT_PROGRAM_REF;
+		mIds["tessellation_hull_program_ref"] = ID_TESSELLATION_HULL_PROGRAM_REF;
+		mIds["tessellation_domain_program_ref"] = ID_TESSELLATION_DOMAIN_PROGRAM_REF;
+		mIds["compute_program_ref"] = ID_COMPUTE_PROGRAM_REF;
 		mIds["shadow_caster_vertex_program_ref"] = ID_SHADOW_CASTER_VERTEX_PROGRAM_REF;
 		mIds["shadow_caster_fragment_program_ref"] = ID_SHADOW_CASTER_FRAGMENT_PROGRAM_REF;
 		mIds["shadow_receiver_vertex_program_ref"] = ID_SHADOW_RECEIVER_VERTEX_PROGRAM_REF;
@@ -1118,6 +1124,7 @@ namespace Ogre
         mIds["3d"] = ID_3D;
         mIds["cubic"] = ID_CUBIC;
         mIds["unlimited"] = ID_UNLIMITED;
+		mIds["2darray"] = ID_2DARRAY;
         mIds["alpha"] = ID_ALPHA;
         mIds["gamma"] = ID_GAMMA;
 		mIds["anim_texture"] = ID_ANIM_TEXTURE;
@@ -1135,6 +1142,8 @@ namespace Ogre
         mIds["bilinear"] = ID_BILINEAR;
         mIds["trilinear"] = ID_TRILINEAR;
         mIds["anisotropic"] = ID_ANISOTROPIC;
+		mIds["compare_test"] = ID_CMPTEST;
+		mIds["compare_func"] = ID_CMPFUNC;
 		mIds["max_anisotropy"] = ID_MAX_ANISOTROPY;
 		mIds["mipmap_bias"] = ID_MIPMAP_BIAS;
 		mIds["colour_op"] = ID_COLOUR_OP;
@@ -1189,6 +1198,10 @@ namespace Ogre
 		mIds["binding_type"] = ID_BINDING_TYPE;
         mIds["vertex"] = ID_VERTEX;
         mIds["fragment"] = ID_FRAGMENT;
+		mIds["geometry"] = ID_GEOMETRY;
+		mIds["tessellation_hull"] = ID_TESSELLATION_HULL;
+		mIds["tessellation_domain"] = ID_TESSELLATION_DOMAIN;
+		mIds["compute"] = ID_COMPUTE;
 		mIds["content_type"] = ID_CONTENT_TYPE;
         mIds["named"] = ID_NAMED;
         mIds["shadow"] = ID_SHADOW;
@@ -1266,6 +1279,8 @@ namespace Ogre
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
 		mIds["rtshader_system"] = ID_RT_SHADER_SYSTEM;
 #endif
+
+		mIds["subroutine"] = ID_SUBROUTINE;
 	}
 
 	// AbstractTreeeBuilder
@@ -1554,7 +1569,7 @@ namespace Ogre
 	ScriptCompilerManager::ScriptCompilerManager()
 		:mListener(0), OGRE_THREAD_POINTER_INIT(mScriptCompiler)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+            OGRE_LOCK_AUTO_MUTEX;
 		mScriptPatterns.push_back("*.program");
 		mScriptPatterns.push_back("*.material");
 		mScriptPatterns.push_back("*.particle");
@@ -1576,7 +1591,7 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	void ScriptCompilerManager::setListener(ScriptCompilerListener *listener)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+            OGRE_LOCK_AUTO_MUTEX;
 		mListener = listener;
 	}
 	//-----------------------------------------------------------------------
@@ -1587,13 +1602,13 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	void ScriptCompilerManager::addTranslatorManager(Ogre::ScriptTranslatorManager *man)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+            OGRE_LOCK_AUTO_MUTEX;
 		mManagers.push_back(man);
 	}
 	//-----------------------------------------------------------------------
 	void ScriptCompilerManager::removeTranslatorManager(Ogre::ScriptTranslatorManager *man)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+            OGRE_LOCK_AUTO_MUTEX;
 		
 		for(vector<ScriptTranslatorManager*>::type::iterator i = mManagers.begin(); i != mManagers.end(); ++i)
 		{
@@ -1614,7 +1629,7 @@ namespace Ogre
 	{
 		ScriptTranslator *translator = 0;
 		{
-			OGRE_LOCK_AUTO_MUTEX
+                    OGRE_LOCK_AUTO_MUTEX;
 			
 			// Start looking from the back
 			for(vector<ScriptTranslatorManager*>::type::reverse_iterator i = mManagers.rbegin(); i != mManagers.rend(); ++i)
@@ -1656,7 +1671,7 @@ namespace Ogre
 #endif
 		// Set the listener on the compiler before we continue
 		{
-			OGRE_LOCK_AUTO_MUTEX
+                    OGRE_LOCK_AUTO_MUTEX;
 			OGRE_THREAD_POINTER_GET(mScriptCompiler)->setListener(mListener);
 		}
         OGRE_THREAD_POINTER_GET(mScriptCompiler)->compile(stream->getAsString(), stream->getName(), groupName);

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,8 @@ THE SOFTWARE.
 #include "OgreSkeletonSerializer.h"
 #include "OgreXMLPrerequisites.h"
 #include "OgreDefaultHardwareBufferManager.h"
-#include "OgreProgressiveMesh.h"
+#include "OgreProgressiveMeshGenerator.h"
+#include "OgreDistanceLodStrategy.h"
 #include <iostream>
 #include <sys/stat.h>
 
@@ -55,6 +56,8 @@ struct XmlOptions
     Real lodPercent;
     size_t lodFixed;
     size_t nuextremityPoints;
+	size_t mergeTexcoordResult;
+	size_t mergeTexcoordToDestroy;
     bool usePercent;
     bool generateEdgeLists;
     bool generateTangents;
@@ -84,6 +87,10 @@ void help(void)
     cout << "-s lodstrategy = LOD strategy to use for this mesh" << endl;
     cout << "-p lodpercent  = Percentage triangle reduction amount per LOD" << endl;
     cout << "-f lodnumtris  = Fixed vertex reduction per LOD" << endl;
+	cout << "-merge [n0,n1] = Merge texcoordn0 with texcoordn1. The , separator must be" << endl;
+	cout << "                 present, otherwise only n0 is provided assuming n1 = n0+1;" << endl;
+	cout << "                 n0 and n1 must be in the same buffer source & adjacent" << endl;
+	cout << "                 to each other for the merge to work." << endl;
     cout << "-e             = DON'T generate edge lists (for stencil shadows)" << endl;
     cout << "-r             = DON'T reorganise vertex buffers to OGRE recommended format." << endl;
     cout << "-t             = Generate tangents (for normal mapping)" << endl;
@@ -120,6 +127,8 @@ XmlOptions parseArgs(int numArgs, char **args)
     opts.lodPercent = 20;
     opts.numLods = 0;
     opts.nuextremityPoints = 0;
+	opts.mergeTexcoordResult = 0;
+	opts.mergeTexcoordToDestroy = 0;
     opts.usePercent = true;
     opts.generateEdgeLists = true;
     opts.generateTangents = false;
@@ -161,6 +170,7 @@ XmlOptions parseArgs(int numArgs, char **args)
     binOpt["-log"] = "OgreXMLConverter.log";
 	binOpt["-td"] = "";
 	binOpt["-ts"] = "";
+	binOpt["-merge"] = "0,0";
 
     int startIndex = findCommandLineOpts(numArgs, args, unOpt, binOpt);
     UnaryOptionList::iterator ui;
@@ -259,6 +269,37 @@ XmlOptions parseArgs(int numArgs, char **args)
             opts.lodPercent = StringConverter::parseReal(bi->second);
             opts.usePercent = true;
         }
+
+		bi = binOpt.find("-merge");
+        if (!bi->second.empty())
+        {
+			String::size_type separator = bi->second.find_first_of( "," );
+			if( separator == String::npos )
+			{
+				//Input format was "-merge 2"
+				//Assume we want to merge 2 with 3
+				opts.mergeTexcoordResult	= StringConverter::parseInt( bi->second, 0 );
+				opts.mergeTexcoordToDestroy	= opts.mergeTexcoordResult + 1;
+			}
+			else if( separator + 1 < bi->second.size() )
+			{
+				//Input format was "-merge 1,2"
+				//We want to merge 1 with 2
+				opts.mergeTexcoordResult	= StringConverter::parseInt(
+																bi->second.substr( 0, separator ), 0 );
+				opts.mergeTexcoordToDestroy = StringConverter::parseInt(
+																bi->second.substr( separator+1,
+																bi->second.size() ), 1 );
+			}
+        }
+		else
+		{
+			//Very rare to reach here.
+			//Input format was "-merge"
+			//Assume we want to merge 0 with 1
+			opts.mergeTexcoordResult = 0;
+			opts.mergeTexcoordResult = 1;
+		}
 
 
         bi = binOpt.find("-f");
@@ -437,6 +478,8 @@ void meshToXML(XmlOptions opts)
    
     xmlMeshSerializer->exportMesh(mesh.getPointer(), opts.dest);
 
+    // Clean up the conversion mesh
+    MeshManager::getSingleton().remove("conversion");
 }
 
 void XMLToBinary(XmlOptions opts)
@@ -470,7 +513,7 @@ void XMLToBinary(XmlOptions opts)
 		newMesh->_determineAnimationTypes();
         if (opts.reorganiseBuffers)
         {
-            logMgr->logMessage("Reorganising vertex buffers to automatic layout..");
+            logMgr->logMessage("Reorganising vertex buffers to automatic layout...");
             // Shared geometry
             if (newMesh->sharedVertexData)
             {
@@ -533,7 +576,7 @@ void XMLToBinary(XmlOptions opts)
             if (newMesh->getNumLodLevels() > 1)
             {
                 std::cout << "\nXML already contains level-of detail information.\n"
-                    "Do you want to: (u)se it, (r)eplace it, or (d)rop it?";
+                    "Do you want to: (u)se it, (r)eplace it, or (d)rop it? ";
                 while (response == "")
                 {
                     cin >> response;
@@ -561,7 +604,7 @@ void XMLToBinary(XmlOptions opts)
             }
             else // no existing LOD
             {
-                std::cout << "\nWould you like to generate LOD information? (y/n)";
+                std::cout << "\nWould you like to generate LOD information? (y/n) ";
                 while (response == "")
                 {
                     cin >> response;
@@ -587,87 +630,92 @@ void XMLToBinary(XmlOptions opts)
         if (genLod)
         {
             unsigned short numLod;
-            ProgressiveMesh::VertexReductionQuota quota = ProgressiveMesh::VRQ_PROPORTIONAL;
-            Real reduction;
-            Mesh::LodValueList valueList;
+            LodConfig lodConfig;
+            lodConfig.levels.clear();
+            lodConfig.mesh = newMesh->clone(newMesh->getName());
+            lodConfig.strategy = DistanceLodSphereStrategy::getSingletonPtr();
+
+            LodLevel lodLevel;
+            lodLevel.reductionMethod = LodLevel::VRM_PROPORTIONAL;
 
             if (askLodDtls)
             {
-                cout << "\nHow many extra LOD levels would you like to generate?";
+                cout << "\nHow many extra LOD levels would you like to generate? ";
                 cin >> numLod;
 
-                cout << "\nWhat lod strategy should be used?";
+                cout << "\nWhat LOD strategy should be used? ";
                 cin >> opts.lodStrategy;
 
                 cout << "\nWhat unit of reduction would you like to use:" <<
-                    "\n(f)ixed or (p)roportional?";
+                    "\n(f)ixed or (p)roportional? ";
                 response = "";
                 while (response == "") {
                     cin >> response;
                     StringUtil::toLowerCase(response);
                     if (response == "f")
                     {
-                        quota = ProgressiveMesh::VRQ_CONSTANT;
-                        cout << "\nHow many vertices should be removed at each LOD?";
+                        lodLevel.reductionMethod = LodLevel::VRM_CONSTANT;
+                        cout << "\nHow many vertices should be removed at each LOD? ";
                     }
                     else if (response == "p")
                     {
-                        quota = ProgressiveMesh::VRQ_PROPORTIONAL;
+                        lodLevel.reductionMethod = LodLevel::VRM_PROPORTIONAL;
                         cout << "\nWhat percentage of remaining vertices should be removed "
-                            "\at each LOD (e.g. 50)?";
+                            "\at each LOD (e.g. 50)? ";
                     }
                     else {
                             std::cout << "Did not understand \"" << response << "\" please try again:" << std::endl;
                             response = "";
                     }
                 }
-                cin >> reduction;
-                if (quota == ProgressiveMesh::VRQ_PROPORTIONAL)
+                cin >> lodLevel.reductionValue;
+                if (lodLevel.reductionMethod == LodLevel::VRM_PROPORTIONAL)
                 {
                     // Percentage -> parametric
-                    reduction = reduction * 0.01f;
+                    lodLevel.reductionValue *= 0.01f;
                 }
 
-                cout << "\nEnter the distance for each LOD to come into effect.";
+                cout << "\nEnter the distance for each LOD to come into effect. ";
 
-                Real distance;
                 for (unsigned short iLod = 0; iLod < numLod; ++iLod)
                 {
-                    cout << "\nLOD Level " << (iLod+1) << ":";
-                    cin >> distance;
-                    valueList.push_back(distance);
+                    cout << "\nLOD Level " << (iLod+1) << ": ";
+                    cin >> lodLevel.distance;
+                    lodConfig.levels.push_back(lodLevel);
                 }
             }
             else
             {
                 numLod = opts.numLods;
-                quota = opts.usePercent? 
-                    ProgressiveMesh::VRQ_PROPORTIONAL : ProgressiveMesh::VRQ_CONSTANT;
+                lodLevel.reductionMethod = opts.usePercent? 
+                    LodLevel::VRM_PROPORTIONAL : LodLevel::VRM_CONSTANT;
                 if (opts.usePercent)
                 {
-                    reduction = opts.lodPercent * 0.01f;
+                    lodLevel.reductionValue = opts.lodPercent * 0.01f;
                 }
                 else
                 {
-                    reduction = opts.lodFixed;
+                    lodLevel.reductionValue = (Ogre::Real)opts.lodFixed;
                 }
                 Real currDist = 0;
                 for (unsigned short iLod = 0; iLod < numLod; ++iLod)
                 {
                     currDist += opts.lodValue;
                     Real currDistSq = Ogre::Math::Sqr(currDist);
-                    valueList.push_back(currDistSq);
+                    lodLevel.distance = currDistSq;
+                    lodConfig.levels.push_back(lodLevel);
                 }
 
             }
 
             newMesh->setLodStrategy(LodStrategyManager::getSingleton().getStrategy(opts.lodStrategy));
-			ProgressiveMesh::generateLodLevels(newMesh.get(), valueList, quota, reduction);
+            ProgressiveMeshGenerator pm;
+            pm.generateLodLevels(lodConfig);
         }
 
         if (opts.interactiveMode)
         {
-            std::cout << "\nWould you like to include edge lists to enable stencil shadows with this mesh? (y/n)";
+            std::cout << "\nWould you like to include edge lists to enable stencil shadows with this mesh? (y/n) ";
             while (response == "")
             {
                 cin >> response;
@@ -688,7 +736,7 @@ void XMLToBinary(XmlOptions opts)
             }
 
 
-            std::cout << "\nWould you like to generate tangents to enable normal mapping with this mesh? (y/n)";
+            std::cout << "\nWould you like to generate tangents to enable normal mapping with this mesh? (y/n) ";
             while (response == "")
             {
                 cin >> response;
@@ -770,6 +818,11 @@ void XMLToBinary(XmlOptions opts)
             }
         }
 
+		if( opts.mergeTexcoordResult != opts.mergeTexcoordToDestroy )
+		{
+			newMesh->mergeAdjacentTexcoords( opts.mergeTexcoordResult, opts.mergeTexcoordToDestroy );
+		}
+
         if (opts.nuextremityPoints)
         {
             Mesh::SubMeshIterator smIt = newMesh->getSubMeshIterator();
@@ -781,6 +834,9 @@ void XMLToBinary(XmlOptions opts)
         }
 
         meshSerializer->exportMesh(newMesh.getPointer(), opts.dest, opts.endian);
+
+        // Clean up the conversion mesh
+        MeshManager::getSingleton().remove("conversion");
     }
     else if (!stricmp(root->Value(), "skeleton"))
     {
@@ -793,6 +849,9 @@ void XMLToBinary(XmlOptions opts)
 			newSkel->optimiseAllAnimations();
 		}
         skeletonSerializer->exportSkeleton(newSkel.getPointer(), opts.dest, SKELETON_VERSION_LATEST, opts.endian);
+
+        // Clean up the conversion skeleton
+        SkeletonManager::getSingleton().remove("conversion");
     }
     else
     {
@@ -821,6 +880,8 @@ void skeletonToXML(XmlOptions opts)
    
     xmlSkeletonSerializer->exportSkeleton(skel.getPointer(), opts.dest);
 
+    // Clean up the conversion skeleton
+    SkeletonManager::getSingleton().remove("conversion");
 }
 
 int main(int numargs, char** args)
@@ -887,6 +948,8 @@ int main(int numargs, char** args)
 		cerr << "ABORTING!" << std::endl;
 		retCode = 1;
 	}
+
+    Pass::processPendingPassUpdates(); // make sure passes are cleaned up
 
     delete xmlSkeletonSerializer;
     delete skeletonSerializer;

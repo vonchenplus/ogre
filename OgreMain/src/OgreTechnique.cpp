@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -60,6 +60,20 @@ namespace Ogre {
     bool Technique::isSupported(void) const
     {
         return mIsSupported;
+    }
+    //-----------------------------------------------------------------------------
+    size_t Technique::calculateSize(void) const
+    {
+        size_t memSize = 0;
+
+        // Tally up passes
+        Passes::const_iterator i, iend;
+        iend = mPasses.end();
+        for (i = mPasses.begin(); i != iend; ++i)
+        {
+            memSize += (*i)->calculateSize();
+        }
+        return memSize;
     }
     //-----------------------------------------------------------------------------
     String Technique::_compile(bool autoManageTextureUnits)
@@ -129,7 +143,24 @@ namespace Ogre {
 					}
 				}
 			}
+			if (currPass->hasComputeProgram())
+			{
+				// Check fragment program version
+				if (!currPass->getComputeProgram()->isSupported())
+				{
+					// Can't do this one
+					compileErrors << "Pass " << passNum << 
+						": Compute program " << currPass->getComputeProgram()->getName()
+						<< " cannot be used - ";
+					if (currPass->getComputeProgram()->hasCompileError())
+						compileErrors << "compile error.";
+					else
+						compileErrors << "not supported.";
 
+					compileErrors << std::endl;
+					return false;
+				}
+			}
 			if (currPass->hasVertexProgram())
 			{
 				// Check vertex program version
@@ -140,6 +171,42 @@ namespace Ogre {
 						": Vertex program " << currPass->getVertexProgram()->getName()
 						<< " cannot be used - ";
 					if (currPass->getVertexProgram()->hasCompileError())
+						compileErrors << "compile error.";
+					else
+						compileErrors << "not supported.";
+
+					compileErrors << std::endl;
+					return false;
+				}
+			}
+			if (currPass->hasTessellationHullProgram())
+			{
+				// Check tessellation control program version
+				if (!currPass->getTessellationHullProgram()->isSupported() )
+				{
+					// Can't do this one
+					compileErrors << "Pass " << passNum << 
+						": Tessellation Hull program " << currPass->getTessellationHullProgram()->getName()
+						<< " cannot be used - ";
+					if (currPass->getTessellationHullProgram()->hasCompileError())
+						compileErrors << "compile error.";
+					else
+						compileErrors << "not supported.";
+
+					compileErrors << std::endl;
+					return false;
+				}
+			}
+			if (currPass->hasTessellationDomainProgram())
+			{
+				// Check tessellation control program version
+				if (!currPass->getTessellationDomainProgram()->isSupported() )
+				{
+					// Can't do this one
+					compileErrors << "Pass " << passNum << 
+						": Tessellation Domain program " << currPass->getTessellationDomainProgram()->getName()
+						<< " cannot be used - ";
+					if (currPass->getTessellationDomainProgram()->hasCompileError())
 						compileErrors << "compile error.";
 					else
 						compileErrors << "not supported.";
@@ -611,7 +678,8 @@ namespace Ogre {
 		{
 			// in case we could not get material as it wasn't yet parsed/existent at that time.
 			mShadowCasterMaterial = MaterialManager::getSingleton().getByName(mShadowCasterMaterialName);
-			mShadowCasterMaterial->load();
+            if (!mShadowCasterMaterial.isNull())
+			    mShadowCasterMaterial->load();
 		}
 		if (!mShadowReceiverMaterial.isNull())
 		{
@@ -621,7 +689,8 @@ namespace Ogre {
 		{
 			// in case we could not get material as it wasn't yet parsed/existent at that time.
 			mShadowReceiverMaterial = MaterialManager::getSingleton().getByName(mShadowReceiverMaterialName);
-			mShadowReceiverMaterial->load();
+            if (!mShadowReceiverMaterial.isNull())
+			    mShadowReceiverMaterial->load();
 		}
     }
     //-----------------------------------------------------------------------------
@@ -1258,7 +1327,7 @@ namespace Ogre {
 	void  Technique::setShadowCasterMaterial(const Ogre::String &name) 
 	{ 
 		mShadowCasterMaterialName = name;
-		mShadowCasterMaterial = MaterialManager::getSingleton().getByName(name); 
+		mShadowCasterMaterial = MaterialManager::getSingleton().getByName(name);
 	}
 	//-----------------------------------------------------------------------
 	Ogre::MaterialPtr  Technique::getShadowReceiverMaterial() const 
@@ -1283,7 +1352,7 @@ namespace Ogre {
 	void  Technique::setShadowReceiverMaterial(const Ogre::String &name)  
 	{ 
 		mShadowReceiverMaterialName = name;
-		mShadowReceiverMaterial = MaterialManager::getSingleton().getByName(name); 
+		mShadowReceiverMaterial = MaterialManager::getSingleton().getByName(name);
 	}
 	//---------------------------------------------------------------------
 	void Technique::addGPUVendorRule(GPUVendor vendor, Technique::IncludeOrExclude includeOrExclude)

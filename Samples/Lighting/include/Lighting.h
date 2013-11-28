@@ -86,15 +86,6 @@ public:
 
 protected:
 
-    void testCapabilities( const RenderSystemCapabilities* caps )
-    {
-        if (Ogre::Root::getSingletonPtr()->getRenderSystem()->getName().find("OpenGL ES 1") != String::npos)
-        {
-            OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "This sample uses 1D textures which are not supported in OpenGL ES 1.1, "
-                "so you cannot run this sample. Sorry!", "Sample_Lighting::testCapabilities");
-        }
-    }
-
 	void setupContent()
 	{
 		// Set our camera to orbit around the origin at a suitable distance
@@ -146,7 +137,7 @@ protected:
 
 		if (mUseOcclusionQuery == false)
 		{
-			LogManager::getSingleton().logMessage("Sample_Lighting - Error: failed to create hardware occlusion query");
+			LogManager::getSingleton().logMessage("Sample_Lighting - Error: failed to create hardware occlusion query", LML_CRITICAL);
 		}
 		
 		// Create the materials to be used by the objects used fo the occlusion query

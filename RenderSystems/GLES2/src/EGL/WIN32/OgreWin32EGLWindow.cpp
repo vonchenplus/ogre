@@ -5,7 +5,7 @@ This source file is part of OGRE
 For the latest info, see http://www.ogre3d.org/
 
 Copyright (c) 2008 Renato Araujo Oliveira Filho <renatox@gmail.com>
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -81,9 +81,9 @@ namespace Ogre {
 		HINSTANCE hInst = GetModuleHandle( NULL );
 #else
 #  if OGRE_DEBUG_MODE == 1
-		HINSTANCE hInst = GetModuleHandle("RenderSystem_GLES_d.dll");
+		HINSTANCE hInst = GetModuleHandle("RenderSystem_GLES2_d.dll");
 #  else
-		HINSTANCE hInst = GetModuleHandle("RenderSystem_GLES.dll");
+		HINSTANCE hInst = GetModuleHandle("RenderSystem_GLES2.dll");
 #  endif
 #endif
 
@@ -219,7 +219,7 @@ namespace Ogre {
 			// register class and create window
 			WNDCLASS wc = { CS_OWNDC, WindowEventUtilities::_WndProc, 0, 0, hInst,
 				LoadIcon(NULL, IDI_APPLICATION), LoadCursor(NULL, IDC_ARROW),
-				(HBRUSH)GetStockObject(BLACK_BRUSH), NULL, "OgreGLWindow" };
+				(HBRUSH)GetStockObject(BLACK_BRUSH), NULL, "OgreGLES2Window" };
 			RegisterClass(&wc);
 
 			if (mIsFullScreen)
@@ -249,7 +249,7 @@ namespace Ogre {
 
 			}
 			// Pass pointer to self as WM_CREATE parameter
-			mWindow = CreateWindowEx(dwStyleEx, "OgreGLWindow", title.c_str(),
+			mWindow = CreateWindowEx(dwStyleEx, "OgreGLES2Window", title.c_str(),
 				dwStyle, mLeft, mTop, mWidth, mHeight, parent, 0, hInst, this);
 
 			WindowEventUtilities::_addRenderWindow(this);
@@ -281,6 +281,8 @@ namespace Ogre {
 		}
 		
 		eglInitialize(mEglDisplay, NULL, NULL);
+
+        eglBindAPI(EGL_OPENGL_ES_API);
 
 		mGLSupport->setGLDisplay(mEglDisplay);
 		mEglSurface = createSurfaceFromWindow(mEglDisplay, mWindow);
@@ -416,6 +418,9 @@ namespace Ogre {
                 EGL_LEVEL, 0,
                 EGL_DEPTH_SIZE, 16,
                 EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		        EGL_RENDERABLE_TYPE,	EGL_OPENGL_ES2_BIT,
+		        EGL_NATIVE_RENDERABLE,	EGL_FALSE,
+        		EGL_DEPTH_SIZE,			EGL_DONT_CARE,
                 EGL_NONE
             };
 
@@ -446,7 +451,7 @@ namespace Ogre {
 		}
 
 		mContext = createEGLContext();
-
+		mContext->setCurrent();
         ::EGLSurface oldDrawableDraw = eglGetCurrentSurface(EGL_DRAW);
         ::EGLSurface oldDrawableRead = eglGetCurrentSurface(EGL_READ);
         ::EGLContext oldContext  = eglGetCurrentContext();

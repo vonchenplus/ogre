@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,7 @@ namespace Ogre {
 		, mNumVertexBlendMatrices(0)
 		, mNumMultiRenderTargets(1)
 		, mNonPOW2TexturesLimited(false)
+		, mMaxSupportedAnisotropy(0)
 	{
 
 		for(int i = 0; i < CAPS_CATEGORY_COUNT; i++)
@@ -64,6 +65,7 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
 	void RenderSystemCapabilities::log(Log* pLog)
 	{
+#if OGRE_PLATFORM != OGRE_PLATFORM_WINRT
 		pLog->logMessage("RenderSystem capabilities");
 		pLog->logMessage("-------------------------");
 		pLog->logMessage("RenderSystem Name: " + getRenderSystemName());
@@ -141,6 +143,42 @@ namespace Ogre {
 		pLog->logMessage(
              " * Number of boolean constants for geometry programs: "
              + StringConverter::toString(mGeometryProgramConstantBoolCount));
+		pLog->logMessage(
+			" * Tessellation Hull programs: "
+			+ StringConverter::toString(hasCapability(RSC_TESSELLATION_HULL_PROGRAM), true));
+		pLog->logMessage(
+             " * Number of floating-point constants for tessellation hull programs: "
+             + StringConverter::toString(mTessellationHullProgramConstantFloatCount));
+		pLog->logMessage(
+             " * Number of integer constants for tessellation hull programs: "
+             + StringConverter::toString(mTessellationHullProgramConstantIntCount));
+		pLog->logMessage(
+             " * Number of boolean constants for tessellation hull programs: "
+             + StringConverter::toString(mTessellationHullProgramConstantBoolCount));
+		pLog->logMessage(
+			" * Tessellation Domain programs: "
+			+ StringConverter::toString(hasCapability(RSC_TESSELLATION_DOMAIN_PROGRAM), true));
+		pLog->logMessage(
+             " * Number of floating-point constants for tessellation domain programs: "
+             + StringConverter::toString(mTessellationDomainProgramConstantFloatCount));
+		pLog->logMessage(
+             " * Number of integer constants for tessellation domain programs: "
+             + StringConverter::toString(mTessellationDomainProgramConstantIntCount));
+		pLog->logMessage(
+             " * Number of boolean constants for tessellation domain programs: "
+             + StringConverter::toString(mTessellationDomainProgramConstantBoolCount));
+		pLog->logMessage(
+			" * Compute programs: "
+			+ StringConverter::toString(hasCapability(RSC_COMPUTE_PROGRAM), true));
+		pLog->logMessage(
+             " * Number of floating-point constants for compute programs: "
+             + StringConverter::toString(mComputeProgramConstantFloatCount));
+		pLog->logMessage(
+             " * Number of integer constants for compute programs: "
+             + StringConverter::toString(mComputeProgramConstantIntCount));
+		pLog->logMessage(
+             " * Number of boolean constants for compute programs: "
+             + StringConverter::toString(mComputeProgramConstantBoolCount));
 		String profileList = "";
 		for(ShaderProfiles::iterator iter = mSupportedShaderProfiles.begin(), end = mSupportedShaderProfiles.end();
 			iter != end; ++iter)
@@ -163,6 +201,21 @@ namespace Ogre {
 			pLog->logMessage(
                  "   - PVRTC: "
                  + StringConverter::toString(hasCapability(RSC_TEXTURE_COMPRESSION_PVRTC), true));
+			pLog->logMessage(
+                 "   - ATC: "
+                 + StringConverter::toString(hasCapability(RSC_TEXTURE_COMPRESSION_ATC), true));
+			pLog->logMessage(
+                 "   - ETC1: "
+                 + StringConverter::toString(hasCapability(RSC_TEXTURE_COMPRESSION_ETC1), true));
+			pLog->logMessage(
+                 "   - ETC2: "
+                 + StringConverter::toString(hasCapability(RSC_TEXTURE_COMPRESSION_ETC2), true));
+			pLog->logMessage(
+                 "   - BC4/BC5: "
+                 + StringConverter::toString(hasCapability(RSC_TEXTURE_COMPRESSION_BC4_BC5), true));
+			pLog->logMessage(
+                 "   - BC6H/BC7: "
+                 + StringConverter::toString(hasCapability(RSC_TEXTURE_COMPRESSION_BC6H_BC7), true));
 		}
 
 		pLog->logMessage(
@@ -190,6 +243,9 @@ namespace Ogre {
 			" * Non-power-of-two textures: "
 			+ StringConverter::toString(hasCapability(RSC_NON_POWER_OF_2_TEXTURES), true)
 			+ (mNonPOW2TexturesLimited ? " (limited)" : ""));
+		pLog->logMessage(
+			" * 1d textures: "
+			+ StringConverter::toString(hasCapability(RSC_TEXTURE_1D), true));
 		pLog->logMessage(
 			" * Volume textures: "
 			+ StringConverter::toString(hasCapability(RSC_TEXTURE_3D), true));
@@ -238,6 +294,9 @@ namespace Ogre {
 		pLog->logMessage(
 			" * Render to Vertex Buffer : "
 			+ StringConverter::toString(hasCapability(RSC_HWRENDER_TO_VERTEX_BUFFER), true));
+        pLog->logMessage(
+            " * Hardware Atomic Counters: "
+            + StringConverter::toString(hasCapability(RSC_ATOMIC_COUNTERS), true));
 
 		if (mCategoryRelevant[CAPS_CATEGORY_GL])
 		{
@@ -274,7 +333,7 @@ namespace Ogre {
 				" * DirectX per stage constants: "
 				+ StringConverter::toString(hasCapability(RSC_PERSTAGECONSTANT), true));
 		}
-
+#endif
 	}
 	//---------------------------------------------------------------------
 	StringVector RenderSystemCapabilities::msGPUVendorStrings;
@@ -313,7 +372,7 @@ namespace Ogre {
 			msGPUVendorStrings.resize(GPU_VENDOR_COUNT);
 			msGPUVendorStrings[GPU_UNKNOWN] = "unknown";
 			msGPUVendorStrings[GPU_NVIDIA] = "nvidia";
-			msGPUVendorStrings[GPU_ATI] = "ati";
+			msGPUVendorStrings[GPU_AMD] = "amd";
 			msGPUVendorStrings[GPU_INTEL] = "intel";
 			msGPUVendorStrings[GPU_3DLABS] = "3dlabs";
 			msGPUVendorStrings[GPU_S3] = "s3";
@@ -321,6 +380,11 @@ namespace Ogre {
 			msGPUVendorStrings[GPU_SIS] = "sis";
 			msGPUVendorStrings[GPU_IMAGINATION_TECHNOLOGIES] = "imagination technologies";
 			msGPUVendorStrings[GPU_APPLE] = "apple";    // iOS Simulator
+			msGPUVendorStrings[GPU_NOKIA] = "nokia";
+			msGPUVendorStrings[GPU_MS_SOFTWARE] = "microsoft"; // Microsoft software device
+			msGPUVendorStrings[GPU_MS_WARP] = "ms warp";
+			msGPUVendorStrings[GPU_ARM] = "arm";
+			msGPUVendorStrings[GPU_QUALCOMM] = "qualcomm";
 		}
 	}
 

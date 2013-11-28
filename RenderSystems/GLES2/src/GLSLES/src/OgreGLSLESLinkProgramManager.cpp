@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,12 +30,6 @@ THE SOFTWARE.
 #include "OgreGLSLESGpuProgram.h"
 #include "OgreStringConverter.h"
 #include "OgreGLSLESProgram.h"
-
-// Apple doesn't define this in their extension.  We'll do it just for convenience.
-// Using the value from desktop GL
-#if GL_EXT_shadow_samplers
-#define GL_SAMPLER_2D_SHADOW_EXT 0x8B62
-#endif
 
 namespace Ogre {
 

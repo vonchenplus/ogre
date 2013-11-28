@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,7 @@ THE SOFTWARE.
 #include "OgreNode.h"
 #include "OgreRay.h"
 #include "OgreSphere.h"
+#include "OgreDeflate.h"
 
 namespace Ogre
 {
@@ -415,7 +416,7 @@ namespace Ogre
 		Chunk* c = OGRE_NEW Chunk();
 		c->id = id;
 		c->version = version;
-		c->offset = mStream->tell();
+		c->offset = static_cast<uint32>(mStream->tell());
 		c->length = 0;
 
 		mChunkStack.push_back(c);
@@ -667,7 +668,7 @@ namespace Ogre
 	{
 		for (size_t i = 0; i < count; ++i, ++aabb)
 		{
-			bool infinite;
+			bool infinite = false;
 			read(&infinite);
 			Vector3 tmpMin, tmpMax;
 			read(&tmpMin);
@@ -779,10 +780,9 @@ namespace Ogre
 		for (size_t c = 0; c < count; ++c)
 		{
 			void *pData = (void *)((intptr_t)pBase + (c * size));
-			char swapByte;
 			for(size_t byteIndex = 0; byteIndex < size/2; byteIndex++)
 			{
- 				swapByte = *(char *)((intptr_t)pData + byteIndex);
+ 				char swapByte = *(char *)((intptr_t)pData + byteIndex);
  				*(char *)((intptr_t)pData + byteIndex) = 
  					*(char *)((intptr_t)pData + size - byteIndex - 1);
  				*(char *)((intptr_t)pData + size - byteIndex - 1) = swapByte;
@@ -831,9 +831,29 @@ namespace Ogre
 		return c;
 
 	}
-
-
-
+	void StreamSerialiser::startDeflate(size_t avail_in)
+	{
+#if OGRE_NO_ZIP_ARCHIVE == 0
+		assert( mOriginalStream.isNull() && "Don't start (un)compressing twice!" );
+		DataStreamPtr deflateStream(OGRE_NEW DeflateStream(mStream,"",avail_in));
+		mOriginalStream = mStream;
+		mStream = deflateStream;
+#else
+        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED,
+                    "Ogre was not built with Zip file support!", "StreamSerialiser::startDeflate");
+#endif
+	}
+	void StreamSerialiser::stopDeflate()
+	{
+#if OGRE_NO_ZIP_ARCHIVE == 0
+		assert( !mOriginalStream.isNull() && "Must start (un)compressing first!" );
+		mStream = mOriginalStream;
+		mOriginalStream.setNull();
+#else
+        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED,
+                    "Ogre was not built with Zip file support!", "StreamSerialiser::stopDeflate");
+#endif
+	}
 }
 
 

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -56,14 +56,14 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     ParticleSystemManager::ParticleSystemManager()
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
 		mFactory = OGRE_NEW ParticleSystemFactory();
 		Root::getSingleton().addMovableObjectFactory(mFactory);
     }
     //-----------------------------------------------------------------------
     ParticleSystemManager::~ParticleSystemManager()
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
 
         // Destroy all templates
         ParticleTemplateMap::iterator t;
@@ -108,7 +108,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystemManager::addEmitterFactory(ParticleEmitterFactory* factory)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         String name = factory->getName();
         mEmitterFactories[name] = factory;
         LogManager::getSingleton().logMessage("Particle Emitter Type '" + name + "' registered");
@@ -116,7 +116,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystemManager::addAffectorFactory(ParticleAffectorFactory* factory)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         String name = factory->getName();
         mAffectorFactories[name] = factory;
         LogManager::getSingleton().logMessage("Particle Affector Type '" + name + "' registered");
@@ -124,7 +124,7 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
 	void ParticleSystemManager::addRendererFactory(ParticleSystemRendererFactory* factory)
 	{
-		OGRE_LOCK_AUTO_MUTEX 
+            OGRE_LOCK_AUTO_MUTEX ;
 		String name = factory->getType();
         mRendererFactories[name] = factory;
         LogManager::getSingleton().logMessage("Particle Renderer Type '" + name + "' registered");
@@ -132,7 +132,7 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
     void ParticleSystemManager::addTemplate(const String& name, ParticleSystem* sysTemplate)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
 		// check name
 		if (mSystemTemplates.find(name) != mSystemTemplates.end())
 		{
@@ -146,7 +146,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystemManager::removeTemplate(const String& name, bool deleteTemplate)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         ParticleTemplateMap::iterator itr = mSystemTemplates.find(name);
         if (itr == mSystemTemplates.end())
             OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND,
@@ -161,7 +161,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystemManager::removeAllTemplates(bool deleteTemplate)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         if (deleteTemplate)
         {
             ParticleTemplateMap::iterator itr;
@@ -174,7 +174,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystemManager::removeTemplatesByResourceGroup(const String& resourceGroup)
     {
-        OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
 		
 		ParticleTemplateMap::iterator i = mSystemTemplates.begin();
 		while (i != mSystemTemplates.end())
@@ -192,13 +192,18 @@ namespace Ogre {
     ParticleSystem* ParticleSystemManager::createTemplate(const String& name, 
         const String& resourceGroup)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
 		// check name
 		if (mSystemTemplates.find(name) != mSystemTemplates.end())
 		{
+#if OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+			LogManager::getSingleton().logMessage("ParticleSystem template with name '" + name + "' already exists.");
+			return NULL;
+#else
 			OGRE_EXCEPT(Exception::ERR_DUPLICATE_ITEM, 
 				"ParticleSystem template with name '" + name + "' already exists.", 
 				"ParticleSystemManager::createTemplate");
+#endif
 		}
 
         ParticleSystem* tpl = OGRE_NEW ParticleSystem(name, resourceGroup);
@@ -209,7 +214,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     ParticleSystem* ParticleSystemManager::getTemplate(const String& name)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         ParticleTemplateMap::iterator i = mSystemTemplates.find(name);
         if (i != mSystemTemplates.end())
         {
@@ -255,7 +260,7 @@ namespace Ogre {
     ParticleEmitter* ParticleSystemManager::_createEmitter(
         const String& emitterType, ParticleSystem* psys)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         // Locate emitter type
         ParticleEmitterFactoryMap::iterator pFact = mEmitterFactories.find(emitterType);
 
@@ -270,7 +275,10 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystemManager::_destroyEmitter(ParticleEmitter* emitter)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        if(!emitter)
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Cannot destroy a null ParticleEmitter.", "ParticleSystemManager::_destroyEmitter");
+
+        OGRE_LOCK_AUTO_MUTEX;
         // Destroy using the factory which created it
         ParticleEmitterFactoryMap::iterator pFact = mEmitterFactories.find(emitter->getType());
 
@@ -286,7 +294,7 @@ namespace Ogre {
     ParticleAffector* ParticleSystemManager::_createAffector(
         const String& affectorType, ParticleSystem* psys)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         // Locate affector type
         ParticleAffectorFactoryMap::iterator pFact = mAffectorFactories.find(affectorType);
 
@@ -302,7 +310,10 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystemManager::_destroyAffector(ParticleAffector* affector)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        if(!affector)
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Cannot destroy a null ParticleAffector.", "ParticleSystemManager::_destroyAffector");
+
+        OGRE_LOCK_AUTO_MUTEX;
         // Destroy using the factory which created it
         ParticleAffectorFactoryMap::iterator pFact = mAffectorFactories.find(affector->getType());
 
@@ -317,7 +328,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     ParticleSystemRenderer* ParticleSystemManager::_createRenderer(const String& rendererType)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         // Locate affector type
         ParticleSystemRendererFactoryMap::iterator pFact = mRendererFactories.find(rendererType);
 
@@ -332,7 +343,10 @@ namespace Ogre {
 	//-----------------------------------------------------------------------
     void ParticleSystemManager::_destroyRenderer(ParticleSystemRenderer* renderer)
 	{
-		OGRE_LOCK_AUTO_MUTEX
+        if(!renderer)
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Cannot destroy a null ParticleSystemRenderer.", "ParticleSystemManager::_destroyRenderer");
+
+        OGRE_LOCK_AUTO_MUTEX;
         // Destroy using the factory which created it
         ParticleSystemRendererFactoryMap::iterator pFact = mRendererFactories.find(renderer->getType());
 
@@ -347,7 +361,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystemManager::_initialise(void)
     {
-		OGRE_LOCK_AUTO_MUTEX
+        OGRE_LOCK_AUTO_MUTEX;
         // Create Billboard renderer factory
         mBillboardRendererFactory = OGRE_NEW BillboardParticleRendererFactory();
         addRendererFactory(mBillboardRendererFactory);
@@ -428,14 +442,14 @@ namespace Ogre {
                 if (!renderer->setParameter(vecparams[0], vecparams[1]))
                 {
                     LogManager::getSingleton().logMessage("Bad particle system attribute line: '"
-                        + line + "' in " + sys->getName() + " (tried renderer)");
+                        + line + "' in " + sys->getName() + " (tried renderer)", LML_CRITICAL);
                 }
             }
             else
             {
                 // BAD command. BAD!
                 LogManager::getSingleton().logMessage("Bad particle system attribute line: '"
-                    + line + "' in " + sys->getName() + " (no renderer)");
+                    + line + "' in " + sys->getName() + " (no renderer)", LML_CRITICAL);
             }
         }
     }
@@ -450,7 +464,7 @@ namespace Ogre {
         {
             // BAD command. BAD!
             LogManager::getSingleton().logMessage("Bad particle emitter attribute line: '"
-                + line + "' for emitter " + emit->getType());
+                + line + "' for emitter " + emit->getType(), LML_CRITICAL);
         }
     }
     //-----------------------------------------------------------------------
@@ -464,7 +478,7 @@ namespace Ogre {
         {
             // BAD command. BAD!
             LogManager::getSingleton().logMessage("Bad particle affector attribute line: '"
-                + line + "' for affector " + aff->getType());
+                + line + "' for affector " + aff->getType(), LML_CRITICAL);
         }
     }
     //-----------------------------------------------------------------------

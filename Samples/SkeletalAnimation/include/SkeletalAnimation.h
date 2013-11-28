@@ -59,10 +59,10 @@ protected:
 	void setupContent()
 	{
 
-/*#if defined(USE_RTSHADER_SYSTEM) && defined(RTSHADER_SYSTEM_BUILD_EXT_SHADERS)
+/*#if defined(INCLUDE_RTSHADER_SYSTEM) && defined(RTSHADER_SYSTEM_BUILD_EXT_SHADERS)
 		//To make glsles work the program will need to be provided with proper
 		//shadow caster materials
-		if (mShaderGenerator->getTargetLanguage() != "glsles")
+		if (mShaderGenerator->getTargetLanguage() != "glsles" && mShaderGenerator->getTargetLanguage() != "glsl")
 		{
 			//Add the hardware skinning to the shader generator default render state
 			mSrsHardwareSkinning = mShaderGenerator->createSubRenderState(Ogre::RTShader::HardwareSkinning::Type);
@@ -155,20 +155,17 @@ protected:
 			// create and attach a jaiqua entity
 			ent = mSceneMgr->createEntity("Jaiqua" + StringConverter::toString(i + 1), "jaiqua.mesh");
 
-/*#ifdef USE_RTSHADER_SYSTEM
-			if (mShaderGenerator->getTargetLanguage() == "glsles")*/
+#ifdef INCLUDE_RTSHADER_SYSTEM
             if (mShaderGenerator->getTargetLanguage() == "glsles")
             {
                 MaterialPtr mat = MaterialManager::getSingleton().getByName("jaiqua");
                 mat->getTechnique(0)->getPass(0)->setShadowCasterFragmentProgram("Ogre/BasicFragmentPrograms/PassthroughFpGLSLES");
             }
-                ent->setMaterialName("jaiqua");
-/*            else
 #endif
-                ent->setMaterialName("jaiquaDualQuatTest");*/
+            ent->setMaterialName("jaiqua"); //"jaiquaDualQuatTest"
 			sn->attachObject(ent);
 
-/*#if defined(USE_RTSHADER_SYSTEM) && defined(RTSHADER_SYSTEM_BUILD_EXT_SHADERS)
+/*#if defined(INCLUDE_RTSHADER_SYSTEM) && defined(RTSHADER_SYSTEM_BUILD_EXT_SHADERS)
 			//To make glsles work the program will need to be provided with proper
 			//shadow caster materials
 			if (mShaderGenerator->getTargetLanguage() != "glsles")
@@ -227,7 +224,7 @@ protected:
 	{
 		// get the skeleton, animation, and the node track iterator
 		SkeletonPtr skel = SkeletonManager::getSingleton().load("jaiqua.skeleton",
-			ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+			ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME).staticCast<Skeleton>();
 		Animation* anim = skel->getAnimation("Sneak");
 		Animation::NodeTrackIterator tracks = anim->getNodeTrackIterator();
 
@@ -274,8 +271,9 @@ protected:
 		mAnimStates.clear();
 		mAnimSpeeds.clear();
 		MeshManager::getSingleton().remove("floor");
+        mSceneMgr->destroyEntity("Jaiqua");
 
-/*#if defined(USE_RTSHADER_SYSTEM) && defined(RTSHADER_SYSTEM_BUILD_EXT_SHADERS)
+/*#if defined(INCLUDE_RTSHADER_SYSTEM) && defined(RTSHADER_SYSTEM_BUILD_EXT_SHADERS)
 		//To make glsles work the program will need to be provided with proper
 		//shadow caster materials
 		if (mShaderGenerator->getTargetLanguage() != "glsles")

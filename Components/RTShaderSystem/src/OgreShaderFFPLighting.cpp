@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -74,7 +74,7 @@ int	FFPLighting::getExecutionOrder() const
 void FFPLighting::updateGpuProgramsParams(Renderable* rend, Pass* pass, const AutoParamDataSource* source, 
 										  const LightList* pLightList)
 {		
-	if (mLightParamsList.size() == 0)
+	if (mLightParamsList.empty())
 		return;
 
 	const Matrix4& matView = source->getViewMatrix();
@@ -183,12 +183,12 @@ void FFPLighting::updateGpuProgramsParams(Renderable* rend, Pass* pass, const Au
 		// Update diffuse colour.
 		if ((mTrackVertexColourType & TVC_DIFFUSE) == 0)
 		{
-			colour = srcLight->getDiffuseColour() * pass->getDiffuse();
+			colour = srcLight->getDiffuseColour() * pass->getDiffuse() * srcLight->getPowerScale();
 			curParams.mDiffuseColour->setGpuParameter(colour);					
 		}
 		else
 		{					
-			colour = srcLight->getDiffuseColour();
+			colour = srcLight->getDiffuseColour() * srcLight->getPowerScale();
 			curParams.mDiffuseColour->setGpuParameter(colour);	
 		}
 
@@ -198,12 +198,12 @@ void FFPLighting::updateGpuProgramsParams(Renderable* rend, Pass* pass, const Au
 			// Update diffuse colour.
 			if ((mTrackVertexColourType & TVC_SPECULAR) == 0)
 			{
-				colour = srcLight->getSpecularColour() * pass->getSpecular();
+				colour = srcLight->getSpecularColour() * pass->getSpecular() * srcLight->getPowerScale();
 				curParams.mSpecularColour->setGpuParameter(colour);					
 			}
 			else
 			{					
-				colour = srcLight->getSpecularColour();
+				colour = srcLight->getSpecularColour() * srcLight->getPowerScale();
 				curParams.mSpecularColour->setGpuParameter(colour);	
 			}
 		}																			
@@ -666,7 +666,7 @@ bool FFPLighting::preAddToRenderState(const RenderState* renderState, Pass* srcP
 		else
 		{
 			OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
-				"Using iterative lighting method with RT Shader System requires specifieng explicit light type.",
+				"Using iterative lighting method with RT Shader System requires specifying explicit light type.",
 				"FFPLighting::preAddToRenderState");			
 		}
 	}

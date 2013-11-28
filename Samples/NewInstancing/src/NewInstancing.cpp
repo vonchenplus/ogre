@@ -129,10 +129,19 @@ void Sample_NewInstancing::setupContent()
 
 	checkHardwareSupport();
 
-	mSceneMgr->setShadowTechnique( SHADOWTYPE_TEXTURE_ADDITIVE_INTEGRATED );
-	mSceneMgr->setShadowTextureConfig( 0, 2048, 2048, PF_FLOAT32_R );
+    mSceneMgr->setShadowTechnique( SHADOWTYPE_TEXTURE_ADDITIVE_INTEGRATED );
 	mSceneMgr->setShadowTextureSelfShadow( true );
 	mSceneMgr->setShadowCasterRenderBackFaces( true );
+
+    if (Ogre::Root::getSingletonPtr()->getRenderSystem()->getName().find("OpenGL ES 2") == String::npos)
+    {
+        mSceneMgr->setShadowTextureConfig( 0, 2048, 2048, PF_FLOAT32_R );
+    }
+    else
+    {
+        // Use a smaller texture for GL ES 3.0
+        mSceneMgr->setShadowTextureConfig( 0, 512, 512, PF_FLOAT32_R );
+    }
 
 	//LiSPSMShadowCameraSetup *shadowCameraSetup = new LiSPSMShadowCameraSetup();
 	FocusedShadowCameraSetup *shadowCameraSetup = new FocusedShadowCameraSetup();
@@ -703,9 +712,15 @@ void Sample_NewInstancing::testCapabilities( const RenderSystemCapabilities* cap
 	}
 
 	if (!GpuProgramManager::getSingleton().isSyntaxSupported("glsl") &&
+#if OGRE_NO_GLES3_SUPPORT == 0
+		!GpuProgramManager::getSingleton().isSyntaxSupported("glsles") &&
+#endif
 		!GpuProgramManager::getSingleton().isSyntaxSupported("fp40") &&
 		!GpuProgramManager::getSingleton().isSyntaxSupported("ps_2_0") &&
-		!GpuProgramManager::getSingleton().isSyntaxSupported("ps_3_0") )
+		!GpuProgramManager::getSingleton().isSyntaxSupported("ps_3_0") &&
+		!GpuProgramManager::getSingleton().isSyntaxSupported("ps_4_0") &&
+		!GpuProgramManager::getSingleton().isSyntaxSupported("ps_4_1") &&
+		!GpuProgramManager::getSingleton().isSyntaxSupported("ps_5_0"))
 	{
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your card does not support the shader model needed for this sample, "
                     "so you cannot run this sample. Sorry!", "NewInstancing::testCapabilities");

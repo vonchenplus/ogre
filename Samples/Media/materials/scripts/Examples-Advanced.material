@@ -44,17 +44,45 @@ fragment_program Ogre/CelShadingFPGLSLES glsles
 	profiles glsles
 }
 
+vertex_program Ogre/CelShadingVPGLSL glsl
+{
+	source Example_CelShadingVp.glsl
+	syntax glsl150
+
+	default_params
+	{
+		param_named_auto lightPosition light_position_object_space 0
+		param_named_auto eyePosition camera_position_object_space
+		param_named_auto worldViewProj worldviewproj_matrix
+		param_named shininess float 10 
+	}
+}
+
+fragment_program Ogre/CelShadingFPGLSL glsl
+{
+	source Example_CelShadingFp.glsl
+	syntax glsl150
+}
+
 fragment_program Ogre/CelShadingFP unified
 {
+	delegate Ogre/CelShadingFPGLSL
 	delegate Ogre/CelShadingFPGLSLES
 	delegate Ogre/CelShadingFPCg
 }
 
 vertex_program Ogre/CelShadingVP unified
 {
+	delegate Ogre/CelShadingVPGLSL
 	delegate Ogre/CelShadingVPGLSLES
 	delegate Ogre/CelShadingVPCg
 }
+
+//shared_params lighting
+//{
+//    shared_param_named diffuse float4 0 0.5 0 1
+//    shared_param_named specular float4 0.3 0.5 0.3 1.0
+//}
 
 material Examples/CelShading
 {
@@ -69,6 +97,7 @@ material Examples/CelShading
 			}
 			fragment_program_ref Ogre/CelShadingFP
 			{
+//    			shared_params_ref lighting
 				// map diffuse from custom renderable param 2
 				param_named_auto diffuse custom 2
 				// map specular from custom renderable param 3
@@ -117,19 +146,49 @@ vertex_program Examples/BumpMapVPGLSLES glsles
 	profiles glsles
 }
 
+vertex_program Examples/BumpMapVPGLSL glsl
+{
+	source Example_BumpMappingVp.glsl
+	syntax glsl150
+}
+
 vertex_program Examples/BumpMapVP unified
 {
+	delegate Examples/BumpMapVPGLSL
 	delegate Examples/BumpMapVPGLSLES
 	delegate Examples/BumpMapVPCg
 }
 
 // Bump map vertex program, with tangent parity support for this is required
-vertex_program Examples/BumpMapVPTangentParity cg
+vertex_program Examples/BumpMapVPTangentParityCg cg
 {
 	source Example_BumpMapping.cg
 	entry_point main_vp
 	profiles vs_1_1 arbvp1
 	compile_arguments -DTANGENTS_HAVE_PARITY=1
+}
+
+// Bump map vertex program, with tangent parity support for this is required
+vertex_program Examples/BumpMapVPTangentParityGLSLES glsles
+{
+	source BumpMapVPTangentParity.glsles
+}
+
+vertex_program Examples/BumpMapVPTangentParityGLSL glsl
+{
+	source BumpMapVPTangentParity.glsl
+	syntax glsl150
+	default_params
+	{
+        param_named_auto lightDiffuse light_diffuse_colour 0 
+    }
+}
+
+vertex_program Examples/BumpMapVPTangentParity unified
+{
+	delegate Examples/BumpMapVPTangentParityGLSL
+	delegate Examples/BumpMapVPTangentParityGLSLES
+	delegate Examples/BumpMapVPTangentParityCg
 }
 
 // Bump map fragment program, support for this is optional
@@ -151,8 +210,20 @@ fragment_program Examples/BumpMapFPGLSLES glsles
 	}
 }
 
+fragment_program Examples/BumpMapFPGLSL glsl
+{
+	source Example_BumpMappingFp.glsl
+	syntax glsl150
+	default_params
+	{
+		// assign samplers as required by GLSL
+		param_named normalMap int 0
+	}
+}
+
 fragment_program Examples/BumpMapFP unified
 {
+	delegate Examples/BumpMapFPGLSL
 	delegate Examples/BumpMapFPGLSLES
 	delegate Examples/BumpMapFPCg
 }
@@ -172,8 +243,15 @@ vertex_program Examples/BumpMapVPShadowRcvGLSLES glsles
 	profiles glsles
 }
 
+vertex_program Examples/BumpMapVPShadowRcvGLSL glsl
+{
+	source Example_BumpMappingShadowRcvVp.glsl
+	syntax glsl150
+}
+
 vertex_program Examples/BumpMapVPShadowRcv unified
 {
+	delegate Examples/BumpMapVPShadowRcvGLSL
 	delegate Examples/BumpMapVPShadowRcvGLSLES
 	delegate Examples/BumpMapVPShadowRcvCg
 }
@@ -199,8 +277,21 @@ fragment_program Examples/BumpMapFPShadowRcvGLSLES glsles
 	}
 }
 
+fragment_program Examples/BumpMapFPShadowRcvGLSL glsl
+{
+	source Example_BumpMappingShadowRcvFp.glsl
+	syntax glsl150
+	default_params
+	{
+		// assign samplers as required by GLSL
+		param_named shadowMap int 0
+		param_named normalMap int 1
+	}
+}
+
 fragment_program Examples/BumpMapFPShadowRcv unified
 {
+	delegate Examples/BumpMapFPShadowRcvGLSL
 	delegate Examples/BumpMapFPShadowRcvGLSLES
 	delegate Examples/BumpMapFPShadowRcvCg
 }
@@ -220,8 +311,15 @@ vertex_program Examples/BumpMapVPSpecularGLSLES glsles
 	profiles glsles
 }
 
+vertex_program Examples/BumpMapVPSpecularGLSL glsl
+{
+	source Example_BumpMappingSpecularVp.glsl
+	syntax glsl150
+}
+
 vertex_program Examples/BumpMapVPSpecular unified
 {
+	delegate Examples/BumpMapVPSpecularGLSL
 	delegate Examples/BumpMapVPSpecularGLSLES
 	delegate Examples/BumpMapVPSpecularCg
 }
@@ -246,8 +344,20 @@ fragment_program Examples/BumpMapFPSpecularGLSLES glsles
 	}
 }
 
+fragment_program Examples/BumpMapFPSpecularGLSL glsl
+{
+	source Example_BumpMappingSpecularFp.glsl
+	syntax glsl150
+	default_params
+	{
+		// assign samplers as required by GLSL
+		param_named normalMap int 0
+	}
+}
+
 fragment_program Examples/BumpMapFPSpecular unified
 {
+	delegate Examples/BumpMapFPSpecularGLSL
 	delegate Examples/BumpMapFPSpecularGLSLES
 	delegate Examples/BumpMapFPSpecularCg
 }
@@ -506,9 +616,15 @@ vertex_program Examples/FresnelRefractReflectVPGLSLES glsles
 	entry_point main
 	profiles glsles
 }
+vertex_program Examples/FresnelRefractReflectVPGLSL glsl
+{
+	source Example_FresnelVp.glsl
+	syntax glsl150
+}
 
 vertex_program Examples/FresnelRefractReflectVP unified
 {
+	delegate Examples/FresnelRefractReflectVPGLSL
 	delegate Examples/FresnelRefractReflectVPGLSLES
 	delegate Examples/FresnelRefractReflectVPCg
 }
@@ -542,8 +658,22 @@ fragment_program Examples/FresnelRefractReflectFPGLSLES glsles
 	}
 }
 
+fragment_program Examples/FresnelRefractReflectFPGLSL glsl
+{
+	source Example_FresnelFp.glsl
+	syntax glsl150
+	default_params
+	{
+		// assign samplers as required by GLSL
+		param_named noiseMap int 0
+		param_named reflectMap int 1
+		param_named refractMap int 2
+	}
+}
+
 fragment_program Examples/FresnelRefractReflectFP unified
 {
+	delegate Examples/FresnelRefractReflectFPGLSL
 	delegate Examples/FresnelRefractReflectFPGLSLES
 	delegate Examples/FresnelRefractReflectFPCg
 }
@@ -601,58 +731,59 @@ material Examples/FresnelReflectionRefraction
 			
 	}
 
+        // Please test this code on OpenGL before reenabling it
 	// ATI 8500 +
-	technique
-	{
-		pass
-		{
-			vertex_program_ref Examples/FresnelRefractReflectVPold
-			{
-				param_named_auto worldViewProjMatrix worldviewproj_matrix
-				param_named_auto eyePosition camera_position_object_space
-				param_named fresnelBias float -0.3
-				param_named fresnelScale float 1.4
-				param_named fresnelPower float 8
-				param_named_auto timeVal time_0_1 20
-				param_named scroll float 1 
-				param_named scale float 4 
-				param_named noise float 1
-				// scroll and noisePos will need updating per frame
-			}
+	// technique
+	// {
+	// 	pass
+	// 	{
+	// 		vertex_program_ref Examples/FresnelRefractReflectVPold
+	// 		{
+	// 			param_named_auto worldViewProjMatrix worldviewproj_matrix
+	// 			param_named_auto eyePosition camera_position_object_space
+	// 			param_named fresnelBias float -0.3
+	// 			param_named fresnelScale float 1.4
+	// 			param_named fresnelPower float 8
+	// 			param_named_auto timeVal time_0_1 20
+	// 			param_named scroll float 1 
+	// 			param_named scale float 4 
+	// 			param_named noise float 1
+	// 			// scroll and noisePos will need updating per frame
+	// 		}
 
-			// for ATI RADEON 8500 - 9200
-			fragment_program_ref Examples/FresnelRefractReflectPS
-			{
-				// distortionRange
-				param_indexed 0  float 0.025  
-				// tintColour
-				param_indexed 1  float4 0.05 0.12 0.15 1
-			}
+	// 		// for ATI RADEON 8500 - 9200
+	// 		fragment_program_ref Examples/FresnelRefractReflectPS
+	// 		{
+	// 			// distortionRange
+	// 			param_indexed 0  float 0.025  
+	// 			// tintColour
+	// 			param_indexed 1  float4 0.05 0.12 0.15 1
+	// 		}
 
-			// Noise
-			texture_unit
-			{
-				// Perlin noise volume
-				texture perlinvolume.dds 3d
-				// min / mag filtering, no mip
-				filtering linear linear none
-			}
-			// Reflection
-			texture_unit
-			{
-				// Will be filled in at runtime
-				texture Reflection
-				tex_address_mode clamp
-			}
-			// Refraction
-			texture_unit
-			{
-				// Will be filled in at runtime
-				texture Refraction
-				tex_address_mode clamp
-			}
-		}
-	}
+	// 		// Noise
+	// 		texture_unit
+	// 		{
+	// 			// Perlin noise volume
+	// 			texture perlinvolume.dds 3d
+	// 			// min / mag filtering, no mip
+	// 			filtering linear linear none
+	// 		}
+	// 		// Reflection
+	// 		texture_unit
+	// 		{
+	// 			// Will be filled in at runtime
+	// 			texture Reflection
+	// 			tex_address_mode clamp
+	// 		}
+	// 		// Refraction
+	// 		texture_unit
+	// 		{
+	// 			// Will be filled in at runtime
+	// 			texture Refraction
+	// 			tex_address_mode clamp
+	// 		}
+	// 	}
+	// }
 
 }
 
@@ -777,6 +908,26 @@ fragment_program Examples/TextureArrayPSglsl glsl
 	}
 }
 
+vertex_program Examples/TextureArrayVSglsles glsles
+{
+	source Example_TextureArrayVS.glsles
+
+	default_params
+	{
+		param_named_auto worldViewProj worldviewproj_matrix
+	}
+}
+
+fragment_program Examples/TextureArrayPSglsles glsles
+{
+	source Example_TextureArrayPS.glsles
+
+	default_params
+	{
+		param_named TextureArrayTex int 0
+	}
+}
+
 fragment_program Examples/TextureArrayPShlsl4 hlsl
 {
 	entry_point textureArray_p
@@ -827,6 +978,27 @@ material Examples/TextureArray
 			}
 
 			fragment_program_ref Examples/TextureArrayPSglsl
+			{
+			}
+
+			texture_unit
+			{
+				// Will be filled in at runtime
+				texture TextureArrayTex
+				tex_address_mode clamp
+			}
+		}
+	}
+
+	technique GLSLES
+	{
+		pass
+		{
+			vertex_program_ref Examples/TextureArrayVSglsles
+			{
+			}
+
+			fragment_program_ref Examples/TextureArrayPSglsles
 			{
 			}
 

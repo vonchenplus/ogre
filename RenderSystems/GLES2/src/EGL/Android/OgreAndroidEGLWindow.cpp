@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,13 @@ THE SOFTWARE.
 
 namespace Ogre {
 	AndroidEGLWindow::AndroidEGLWindow(AndroidEGLSupport *glsupport)
-		: EGLWindow(glsupport)
+		: EGLWindow(glsupport),
+		  mMaxBufferSize(32),
+		  mMinBufferSize(16),
+		  mMaxDepthSize(16),
+		  mMaxStencilSize(0),
+		  mMSAA(0),
+		  mCSAA(0)
 	{
 	}
 
@@ -83,10 +89,16 @@ namespace Ogre {
 
 	void AndroidEGLWindow::windowMovedOrResized()
 	{
-        // Notify viewports of resize
-        ViewportList::iterator it = mViewportList.begin();
-        while( it != mViewportList.end() )
-            (*it++).second->_updateDimensions();
+        if(mActive)
+        {
+            eglQuerySurface(mEglDisplay, mEglSurface, EGL_WIDTH, (EGLint*)&mWidth);
+            eglQuerySurface(mEglDisplay, mEglSurface, EGL_HEIGHT, (EGLint*)&mHeight);
+            
+            // Notify viewports of resize
+            ViewportList::iterator it = mViewportList.begin();
+            while( it != mViewportList.end() )
+                (*it++).second->_updateDimensions();
+        }
 	}
 	
     void AndroidEGLWindow::switchFullScreen(bool fullscreen)
@@ -143,6 +155,37 @@ namespace Ogre {
                 mIsExternalGLControl = true;
                 ctxHandle = Ogre::StringConverter::parseInt(opt->second);
             }
+			
+			if((opt = miscParams->find("maxColourBufferSize")) != end)
+            {
+                mMaxBufferSize = Ogre::StringConverter::parseInt(opt->second);
+            }
+			
+			if((opt = miscParams->find("maxDepthBufferSize")) != end)
+            {
+                mMaxDepthSize = Ogre::StringConverter::parseInt(opt->second);
+            }
+			
+			if((opt = miscParams->find("maxStencilBufferSize")) != end)
+            {
+                mMaxStencilSize = Ogre::StringConverter::parseInt(opt->second);
+            }
+
+			if((opt = miscParams->find("minColourBufferSize")) != end)
+            {
+                mMinBufferSize = Ogre::StringConverter::parseInt(opt->second);
+                if (mMinBufferSize > mMaxBufferSize) mMinBufferSize = mMaxBufferSize;
+            }
+
+			if((opt = miscParams->find("MSAA")) != end)
+            {
+                mMSAA = Ogre::StringConverter::parseInt(opt->second);
+            }
+			
+			if((opt = miscParams->find("CSAA")) != end)
+            {
+                mCSAA = Ogre::StringConverter::parseInt(opt->second);
+            }
         }
         
         initNativeCreatedWindow(miscParams);
@@ -169,13 +212,17 @@ namespace Ogre {
         
         if (!mEglConfig)
         {
-
-            _createInternalResources(mWindow, config);
+			_createInternalResources(mWindow, config);
             mHwGamma = false;
         }
         
         mContext = createEGLContext();
-        
+        mContext->setCurrent();
+		       
+        eglQuerySurface(mEglDisplay, mEglSurface, EGL_WIDTH, (EGLint*)&mWidth);
+        eglQuerySurface(mEglDisplay, mEglSurface, EGL_HEIGHT, (EGLint*)&mHeight);
+        EGL_CHECK_ERROR
+
 		mActive = true;
 		mVisible = true;
 		mClosed = false;
@@ -206,20 +253,82 @@ namespace Ogre {
         
         int minAttribs[] = {
             EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-            EGL_BLUE_SIZE, 5, 
-            EGL_GREEN_SIZE, 6, 
-            EGL_RED_SIZE, 5,
-            EGL_DEPTH_SIZE, 16, 
-            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+            EGL_BUFFER_SIZE, mMinBufferSize,
+            EGL_DEPTH_SIZE, 16,
             EGL_NONE
         };
         
         int maxAttribs[] = {
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+			EGL_BUFFER_SIZE, mMaxBufferSize,
+            EGL_DEPTH_SIZE, mMaxDepthSize,
+            EGL_STENCIL_SIZE, mMaxStencilSize,
             EGL_NONE
         };
+
+		bool bAASuccess = false;
+		if (mCSAA)
+		{
+			try
+			{
+				int CSAAminAttribs[] = {
+					EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+					EGL_BUFFER_SIZE, mMinBufferSize,
+					EGL_DEPTH_SIZE, 16,
+					EGL_COVERAGE_BUFFERS_NV, 1,
+					EGL_COVERAGE_SAMPLES_NV, mCSAA,
+					EGL_NONE
+				};
+				int CSAAmaxAttribs[] = {
+					EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+					EGL_BUFFER_SIZE, mMaxBufferSize,
+					EGL_DEPTH_SIZE, mMaxDepthSize,
+					EGL_STENCIL_SIZE, mMaxStencilSize,
+					EGL_COVERAGE_BUFFERS_NV, 1,
+					EGL_COVERAGE_SAMPLES_NV, mCSAA,
+					EGL_NONE
+				};
+				mEglConfig = mGLSupport->selectGLConfig(CSAAminAttribs, CSAAmaxAttribs);
+				bAASuccess = true;
+			}
+			catch (Exception& e)
+			{
+				LogManager::getSingleton().logMessage("AndroidEGLWindow::_createInternalResources: setting CSAA failed");
+			}
+		}
+
+		if (mMSAA && !bAASuccess)
+		{
+			try
+			{
+				int MSAAminAttribs[] = {
+					EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+					EGL_BUFFER_SIZE, mMinBufferSize,
+					EGL_DEPTH_SIZE, 16,
+					EGL_SAMPLE_BUFFERS, 1,
+					EGL_SAMPLES, mMSAA,
+					EGL_NONE
+				};
+				int MSAAmaxAttribs[] = {
+					EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+					EGL_BUFFER_SIZE, mMaxBufferSize,
+					EGL_DEPTH_SIZE, mMaxDepthSize,
+					EGL_STENCIL_SIZE, mMaxStencilSize,
+					EGL_SAMPLE_BUFFERS, 1,
+					EGL_SAMPLES, mMSAA,
+					EGL_NONE
+				};
+				mEglConfig = mGLSupport->selectGLConfig(MSAAminAttribs, MSAAmaxAttribs);
+				bAASuccess = true;
+			}
+			catch (Exception& e)
+			{
+				LogManager::getSingleton().logMessage("AndroidEGLWindow::_createInternalResources: setting MSAA failed");
+			}
+		}
         
         mEglDisplay = mGLSupport->getGLDisplay();
-        mEglConfig = mGLSupport->selectGLConfig(minAttribs, maxAttribs);
+        if (!bAASuccess) mEglConfig = mGLSupport->selectGLConfig(minAttribs, maxAttribs);
         
         EGLint format;
         eglGetConfigAttrib(mEglDisplay, mEglConfig, EGL_NATIVE_VISUAL_ID, &format);
@@ -234,10 +343,6 @@ namespace Ogre {
             bool isLandscape = (int)AConfiguration_getOrientation(config) == 2;
             mGLSupport->setConfigOption("Orientation", isLandscape ? "Landscape" : "Portrait");
         }
-        
-        eglQuerySurface(mEglDisplay, mEglSurface, EGL_WIDTH, (EGLint*)&mWidth);
-        eglQuerySurface(mEglDisplay, mEglSurface, EGL_HEIGHT, (EGLint*)&mHeight);
-        EGL_CHECK_ERROR
         
         if(mContext)
         {

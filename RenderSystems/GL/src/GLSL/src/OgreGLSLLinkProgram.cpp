@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreGpuProgramManager.h"
 
 namespace Ogre {
+    namespace GLSL {
 
 	//  a  builtin				custom attrib name
 	// ----------------------------------------------
@@ -116,8 +117,9 @@ namespace Ogre {
 		, mUniformRefsBuilt(false)
         , mLinked(false)
 		, mTriedToLinkAndFailed(false)
-        , mColumnMajorMatrices(true)
 	{
+        // Initialise uniform cache
+		mUniformCache = new GLUniformCache();
 	}
 
 	//-----------------------------------------------------------------------
@@ -125,6 +127,8 @@ namespace Ogre {
 	{
 		glDeleteObjectARB(mGLHandle);
 
+        delete mUniformCache;
+        mUniformCache = 0;
 	}
 
 	//-----------------------------------------------------------------------
@@ -133,25 +137,6 @@ namespace Ogre {
 		if (!mLinked && !mTriedToLinkAndFailed)
 		{			
 			glGetError(); //Clean up the error. Otherwise will flood log.
-
-            // test if all linked programs use the same matrix ordering
-            bool vertexOrder = true, fragmentOrder = true, geometryOrder = true;
-            if (mVertexProgram)
-                vertexOrder = mVertexProgram->getGLSLProgram()->getColumnMajorMatrices();
-            if (mFragmentProgram)
-                fragmentOrder = mFragmentProgram->getGLSLProgram()->getColumnMajorMatrices();
-            if (mGeometryProgram)
-                geometryOrder = mGeometryProgram->getGLSLProgram()->getColumnMajorMatrices();
-            if ((mVertexProgram && mFragmentProgram && vertexOrder != fragmentOrder) || 
-                (mVertexProgram && mGeometryProgram && vertexOrder != geometryOrder) ||
-                (mFragmentProgram && mGeometryProgram && fragmentOrder != geometryOrder))
-            {
-                mTriedToLinkAndFailed = true;
-                OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
-                    "Trying to link GLSL programs with different matrix ordering.", 
-                    "GLSLLinkProgram::activate");
-            }
-            mColumnMajorMatrices = vertexOrder;
 
 			mGLHandle = glCreateProgramObjectARB();
 
@@ -205,12 +190,11 @@ namespace Ogre {
 		glProgramBinary(mGLHandle, 
 						binaryFormat, 
 						programBuffer,
-						sizeOfBuffer
+						static_cast<GLsizei>(sizeOfBuffer)
 						);
 
-		GLint   success = 0;
-        glGetProgramiv(mGLHandle, GL_LINK_STATUS, &success);
-        if (!success)
+        glGetProgramiv(mGLHandle, GL_LINK_STATUS, &mLinked);
+        if (!mLinked)
         {
             //
             // Something must have changed since the program binaries
@@ -282,6 +266,15 @@ namespace Ogre {
 		GLUniformReferenceIterator currentUniform = mGLUniformReferences.begin();
 		GLUniformReferenceIterator endUniform = mGLUniformReferences.end();
 
+        // determine if we need to transpose matrices when binding
+        int transpose = GL_TRUE;
+        if ((fromProgType == GPT_FRAGMENT_PROGRAM && mVertexProgram && (!mVertexProgram->getGLSLProgram()->getColumnMajorMatrices())) ||
+            (fromProgType == GPT_VERTEX_PROGRAM && mFragmentProgram && (!mFragmentProgram->getGLSLProgram()->getColumnMajorMatrices())) ||
+            (fromProgType == GPT_GEOMETRY_PROGRAM && mGeometryProgram && (!mGeometryProgram->getGLSLProgram()->getColumnMajorMatrices())))
+        {
+            transpose = GL_FALSE;
+        }
+
 		for (;currentUniform != endUniform; ++currentUniform)
 		{
 			// Only pull values from buffer it's supposed to be in (vertex or fragment)
@@ -294,7 +287,35 @@ namespace Ogre {
 				{
 
 					GLsizei glArraySize = (GLsizei)def->arraySize;
-                    int transpose = mColumnMajorMatrices ? GL_TRUE : GL_FALSE;
+
+                    bool shouldUpdate = true;
+
+                    switch (def->constType)
+                    {
+                        case GCT_INT1:
+                        case GCT_INT2:
+                        case GCT_INT3:
+                        case GCT_INT4:
+                        case GCT_SAMPLER1D:
+                        case GCT_SAMPLER1DSHADOW:
+                        case GCT_SAMPLER2D:
+                        case GCT_SAMPLER2DSHADOW:
+                        case GCT_SAMPLER3D:
+                        case GCT_SAMPLERCUBE:
+                            shouldUpdate = mUniformCache->updateUniform(currentUniform->mLocation,
+                                                                        params->getIntPointer(def->physicalIndex),
+                                                                        static_cast<GLsizei>(def->elementSize * def->arraySize * sizeof(int)));
+                            break;
+                        default:
+                            shouldUpdate = mUniformCache->updateUniform(currentUniform->mLocation,
+                                                                        params->getFloatPointer(def->physicalIndex),
+                                                                        static_cast<GLsizei>(def->elementSize * def->arraySize * sizeof(float)));
+                            break;
+
+                    }
+
+                    if(!shouldUpdate)
+                        continue;
 
 					// get the index in the parameter real list
 					switch (def->constType)
@@ -397,6 +418,7 @@ namespace Ogre {
 							(GLint*)params->getIntPointer(def->physicalIndex));
 						break;
                     case GCT_UNKNOWN:
+                    default:
                         break;
 
 					} // end switch
@@ -428,9 +450,12 @@ namespace Ogre {
 				// get the index in the parameter real list
 				if (index == currentUniform->mConstantDef->physicalIndex)
 				{
-					glUniform1fvARB( currentUniform->mLocation, 1, params->getFloatPointer(index));
-					// there will only be one multipass entry
-					return;
+                    if(!mUniformCache->updateUniform(currentUniform->mLocation,
+                                                     params->getFloatPointer(index),
+                                                     static_cast<GLsizei>(currentUniform->mConstantDef->elementSize *
+                                                     currentUniform->mConstantDef->arraySize *
+                                                     sizeof(float))))
+                        return;
 				}
 			}
 		}
@@ -509,7 +534,7 @@ namespace Ogre {
                             foundAttr = true;
                         }
 					}
-                    // Find the position of the next occurance if needed
+                    // Find the position of the next occurrence if needed
                     pos = vpSource.find(a.name, pos + a.name.length());
 				}
 			}
@@ -529,25 +554,15 @@ namespace Ogre {
 			//Don't set adjacency flag. We handle it internally and expose "false"
 
 			RenderOperation::OperationType inputOperationType = mGeometryProgram->getGLSLProgram()->getInputOperationType();
-			glProgramParameteriEXT(mGLHandle,GL_GEOMETRY_INPUT_TYPE_EXT,
+			glProgramParameteriEXT(mGLHandle, GL_GEOMETRY_INPUT_TYPE_EXT,
 				getGLGeometryInputPrimitiveType(inputOperationType, mGeometryProgram->isAdjacencyInfoRequired()));
 
 			RenderOperation::OperationType outputOperationType = mGeometryProgram->getGLSLProgram()->getOutputOperationType();
-			switch (outputOperationType)
-			{
-			case RenderOperation::OT_POINT_LIST:
-			case RenderOperation::OT_LINE_STRIP:
-			case RenderOperation::OT_TRIANGLE_STRIP:
-			case RenderOperation::OT_LINE_LIST:
-			case RenderOperation::OT_TRIANGLE_LIST:
-			case RenderOperation::OT_TRIANGLE_FAN:
-				break;
 
-			}
-			glProgramParameteriEXT(mGLHandle,GL_GEOMETRY_OUTPUT_TYPE_EXT,
+			glProgramParameteriEXT(mGLHandle, GL_GEOMETRY_OUTPUT_TYPE_EXT,
 				getGLGeometryOutputPrimitiveType(outputOperationType));
 
-			glProgramParameteriEXT(mGLHandle,GL_GEOMETRY_VERTICES_OUT_EXT,
+			glProgramParameteriEXT(mGLHandle, GL_GEOMETRY_VERTICES_OUT_EXT,
 				mGeometryProgram->getGLSLProgram()->getMaxOutputVertices());
 		}
 
@@ -615,4 +630,5 @@ namespace Ogre {
 		}
 	}
 	//-----------------------------------------------------------------------
+} // namespace GLSL
 } // namespace Ogre

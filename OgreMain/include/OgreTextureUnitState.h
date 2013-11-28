@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreIteratorWrappers.h"
 #include "OgreString.h"
 #include "OgreTexture.h"
+#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
     /** \addtogroup Core
@@ -131,7 +132,9 @@ namespace Ogre {
             /// Texture clamps at 1.0.
             TAM_CLAMP,
             /// Texture coordinates outside the range [0.0, 1.0] are set to the border colour.
-            TAM_BORDER
+            TAM_BORDER,
+            /// Unknown
+            TAM_UNKNOWN = 99
         };
 
         /** Texture addressing mode for each texture coordinate. */
@@ -469,7 +472,15 @@ namespace Ogre {
             /** Vertex processing unit - indicates this unit will be used for 
                 a vertex texture fetch.
             */
-            BT_VERTEX = 1
+            BT_VERTEX = 1,			
+			/// Geometry processing unit		
+			BT_GEOMETRY = 2,
+			/// Tessellation control processing unit
+			BT_TESSELLATION_HULL = 3,
+			/// Tessellation evaluation processing unit
+			BT_TESSELLATION_DOMAIN = 4,
+			/// Compute processing unit
+			BT_COMPUTE = 5
         };
         /** Enum identifying the type of content this texture unit contains.
         */
@@ -551,6 +562,11 @@ namespace Ogre {
         */
         bool getIsAlpha(void) const;
 
+        /// @copydoc Texture::getGamma
+        Real getGamma() const { return mGamma; }
+        /// @copydoc Texture::setGamma
+        void setGamma(Real gamma) { mGamma = gamma; }
+
         /// @copydoc Texture::setHardwareGammaEnabled
         void setHardwareGammaEnabled(bool enabled);
         /// @copydoc Texture::isHardwareGammaEnabled
@@ -558,7 +574,7 @@ namespace Ogre {
 
         /** Gets the index of the set of texture co-ords this layer uses.
         @note
-            Applies to both fixed-function and programmable pipeline.
+        Only applies to the fixed function pipeline and has no effect if a fragment program is used.
         */
         unsigned int getTextureCoordSet(void) const;
 
@@ -567,7 +583,7 @@ namespace Ogre {
             Default is 0 for all layers. Only change this if you have provided multiple texture co-ords per
             vertex.
         @note
-            Applies to both fixed-function and programmable pipeline.
+        Only applies to the fixed function pipeline and has no effect if a fragment program is used.
         */
         void setTextureCoordSet(unsigned int set);
 
@@ -683,6 +699,9 @@ namespace Ogre {
         /** Sets the texture addressing mode, i.e. what happens at uv values above 1.0.
         @note
             The default is TAM_WRAP i.e. the texture repeats over values of 1.0.
+		@note This is a shortcut method which sets the addressing mode for all
+			coordinates at once; you can also call the more specific method
+			to set the addressing mode per coordinate.
         @note
             This is a shortcut method which sets the addressing mode for all
             coordinates at once; you can also call the more specific method
@@ -910,7 +929,7 @@ namespace Ogre {
             is a 'fish-eye' lens view of a scene, or a 3D cubic environment map which requires 6 textures
             for each side of the inside of a cube. The type depends on what texture you set up - if you use the
             setTextureName method then a 2D fisheye lens texture is required, whereas if you used setCubicTextureName
-            then a cubic environemnt map will be used.
+            then a cubic environment map will be used.
         @par
             This effect works best if the object has lots of gradually changing normals. The texture also
             has to be designed for this effect - see the example spheremap.png included with the sample
@@ -922,9 +941,8 @@ namespace Ogre {
             generated coordinates rather than static model texture coordinates.
         @param enable
             True to enable, false to disable
-        @param planar
-            If set to @c true, instead of being based on normals the environment effect is based on
-            vertex positions. This is good for planar surfaces.
+        @param envMapType
+            The type of environment mapping to perform. Planar, curved, reflection or normal. @see EnvMapType
         @note
             This option has no effect in the programmable pipeline.
         */
@@ -1065,6 +1083,12 @@ namespace Ogre {
         /// Get the texture filtering for the given type.
         FilterOptions getTextureFiltering(FilterType ftpye) const;
 
+		void setTextureCompareEnabled(bool enabled);
+		bool getTextureCompareEnabled() const;
+	
+		void setTextureCompareFunction(CompareFunction function);
+		CompareFunction getTextureCompareFunction() const;
+
         /** Sets the anisotropy level to be used for this texture level.
         @param maxAniso
             The maximal anisotropy level, should be between 2 and the maximum
@@ -1180,6 +1204,8 @@ namespace Ogre {
         /** Set the texture pointer for a given frame (internal use only!). */
         void _setTexturePtr(const TexturePtr& texptr, size_t frame);
 
+		size_t calculateSize(void) const;
+
         /** Gets the animation controller (as created because of setAnimatedTexture)
             if it exists.
         */
@@ -1191,11 +1217,11 @@ protected:
 
         /// Duration of animation in seconds.
         Real mAnimDuration;
-        bool mCubic; ///< Is this a series of 6 2D textures to make up a cube?
+        bool mCubic; /// Is this a series of 6 2D textures to make up a cube?
         
         TextureType mTextureType; 
         PixelFormat mDesiredFormat;
-        int mTextureSrcMipmaps; ///< Request number of mipmaps.
+        int mTextureSrcMipmaps; /// Request number of mipmaps.
 
         unsigned int mTextureCoordSetIndex;
         UVWAddressingMode mAddressMode;
@@ -1209,6 +1235,7 @@ protected:
         mutable bool mTextureLoadFailed;
         bool mIsAlpha;
         bool mHwGamma;
+        Real mGamma;
 
         mutable bool mRecalcTexMatrix;
         Real mUMod, mVMod;
@@ -1222,6 +1249,10 @@ protected:
         FilterOptions mMagFilter;
         /// Texture filtering - mipmapping.
         FilterOptions mMipFilter;
+
+		bool mCompareEnabled;
+		CompareFunction mCompareFunc;
+
         /// Texture anisotropy.
         unsigned int mMaxAniso;
         /// Mipmap bias (always float, not Real).
@@ -1283,5 +1314,7 @@ protected:
     /** @} */
 
 } // namespace Ogre
+
+#include "OgreHeaderSuffix.h"
 
 #endif // __TextureUnitState_H__

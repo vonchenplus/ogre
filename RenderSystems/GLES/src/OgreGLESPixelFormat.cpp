@@ -5,7 +5,7 @@ This source file is part of OGRE
 For the latest info, see http://www.ogre3d.org
 
 Copyright (c) 2008 Renato Araujo Oliveira Filho <renatox@gmail.com>
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,13 @@ THE SOFTWARE.
 #include "OgreRoot.h"
 #include "OgreRenderSystem.h"
 #include "OgreBitwise.h"
+
+/* GL_AMD_compressed_ATC_texture */
+#if OGRE_NO_ETC_CODEC == 0 
+#	define ATC_RGB_AMD						  							0x8C92
+#	define ATC_RGBA_EXPLICIT_ALPHA_AMD		  							0x8C93
+#	define ATC_RGBA_INTERPOLATED_ALPHA_AMD	  							0x87EE
+#endif
 
 
 namespace Ogre  {
@@ -71,6 +78,47 @@ namespace Ogre  {
             case PF_B8G8R8:
                 return GL_RGB;
 
+#if OGRE_NO_ETC_CODEC == 0 
+#	ifdef GL_OES_compressed_ETC1_RGB8_texture
+            case PF_ETC1_RGB8:
+                return GL_ETC1_RGB8_OES;
+#	endif
+#	ifdef GL_AMD_compressed_ATC_texture
+			case PF_ATC_RGB:
+				return ATC_RGB_AMD;
+			case PF_ATC_RGBA_EXPLICIT_ALPHA:
+				return ATC_RGBA_EXPLICIT_ALPHA_AMD;
+			case PF_ATC_RGBA_INTERPOLATED_ALPHA:
+				return ATC_RGBA_INTERPOLATED_ALPHA_AMD;
+#	endif
+#endif
+
+#if GL_EXT_texture_compression_dxt1
+            case PF_DXT1:
+                return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+#endif
+
+#if GL_EXT_texture_compression_s3tc
+            case PF_DXT3:
+                return GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+#endif
+
+#if GL_EXT_texture_compression_s3tc
+            case PF_DXT5:
+                return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+#endif
+
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+            case PF_A1R5G5B5:
+                return GL_BGRA;
+            case PF_A4R4G4B4:
+            case PF_X8R8G8B8:
+            case PF_A8R8G8B8:
+            case PF_B8G8R8A8:
+            case PF_X8B8G8R8:
+            case PF_A8B8G8R8:
+                return GL_RGBA;
+#else
 			case PF_X8R8G8B8:
 			case PF_A8R8G8B8:
             case PF_A8B8G8R8:
@@ -82,7 +130,7 @@ namespace Ogre  {
 			case PF_R8G8B8A8:
             case PF_A2B10G10R10:
                 return GL_RGBA;
-
+#endif
             default:
                 return 0;
         }
@@ -154,7 +202,37 @@ namespace Ogre  {
             case PF_PVRTC_RGBA4:
                 return GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG;
 #endif
-                
+   
+#if OGRE_NO_ETC_CODEC == 0 
+#	ifdef GL_OES_compressed_ETC1_RGB8_texture
+            case PF_ETC1_RGB8:
+                return GL_ETC1_RGB8_OES;
+#	endif
+#	ifdef GL_AMD_compressed_ATC_texture
+			case PF_ATC_RGB:
+				return ATC_RGB_AMD;
+			case PF_ATC_RGBA_EXPLICIT_ALPHA:
+				return ATC_RGBA_EXPLICIT_ALPHA_AMD;
+			case PF_ATC_RGBA_INTERPOLATED_ALPHA:
+				return ATC_RGBA_INTERPOLATED_ALPHA_AMD;
+#	endif
+#endif
+  
+#if GL_EXT_texture_compression_dxt1
+            case PF_DXT1:
+                return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+#endif
+
+#if GL_EXT_texture_compression_s3tc
+            case PF_DXT3:
+                return GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+#endif
+
+#if GL_EXT_texture_compression_s3tc
+            case PF_DXT5:
+                return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+#endif
+  
             case PF_R8G8B8:
             case PF_B8G8R8:
                 return GL_RGB;
@@ -205,6 +283,34 @@ namespace Ogre  {
             case GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG:
                 return PF_PVRTC_RGBA4;
 #endif
+
+#if OGRE_NO_ETC_CODEC == 0 
+#	ifdef GL_OES_compressed_ETC1_RGB8_texture
+            case GL_ETC1_RGB8_OES:
+                return PF_ETC1_RGB8;
+#	endif
+#	ifdef GL_AMD_compressed_ATC_texture
+			case ATC_RGB_AMD:
+				return PF_ATC_RGB;
+			case ATC_RGBA_EXPLICIT_ALPHA_AMD:
+				return PF_ATC_RGBA_EXPLICIT_ALPHA;
+			case ATC_RGBA_INTERPOLATED_ALPHA_AMD:
+				return PF_ATC_RGBA_INTERPOLATED_ALPHA;
+#	endif
+#endif
+
+#if GL_EXT_texture_compression_dxt1
+            case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
+            case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
+                return PF_DXT1;
+#endif
+#if GL_EXT_texture_compression_s3tc
+            case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
+                return PF_DXT3;
+            case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
+                return PF_DXT5;
+#endif
+
             case GL_LUMINANCE:
                 return PF_L8;
             case GL_ALPHA:
@@ -248,7 +354,7 @@ namespace Ogre  {
                                       PixelFormat format)
     {
 		size_t count = 0;
-        if((width > 0) && (height > 0))
+        if((width > 0) && (height > 0) && (depth > 0))
         {
             do {
                 if(width>1)		width = width/2;

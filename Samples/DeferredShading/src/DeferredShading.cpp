@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -59,7 +59,7 @@ DeferredShadingSystem::DeferredShadingSystem(
 	mSceneMgr->setShadowTextureCount(1);
 	mSceneMgr->setShadowFarDistance(150);
 	//Use a value of "2" to use a different depth buffer pool and avoid sharing this with the Backbuffer's
-	mSceneMgr->setShadowTextureConfig( 0, 512, 512, PF_FLOAT16_R, 2 );
+	mSceneMgr->setShadowTextureConfig( 0, 512, 512, PF_FLOAT16_R, 0, 2 );
 	mSceneMgr->setShadowDirectionalLightExtrusionDistance(75);
 }
 

@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -64,7 +64,7 @@ namespace Ogre
 		rend = mResources.end();
 		for (r = mResources.begin(); r != rend; ++r)
 		{
-			D3D11TexturePtr t = r->second;
+			D3D11TexturePtr t = r->second.staticCast<D3D11Texture>();
 			if (t->releaseIfDefaultPool())
 				count++;
 		}
@@ -81,7 +81,7 @@ namespace Ogre
 		rend = mResources.end();
 		for (r = mResources.begin(); r != rend; ++r)
 		{
-			D3D11TexturePtr t = r->second;
+			D3D11TexturePtr t = r->second.staticCast<D3D11Texture>();
 			if(t->recreateIfDefaultPool(mDevice))
 				count++;
 		}

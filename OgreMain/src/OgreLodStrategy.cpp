@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -49,13 +49,13 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Real LodStrategy::getValue(const MovableObject *movableObject, const Camera *camera) const
     {
-        // Just return implementation with lod camera
+        // Just return implementation with LOD camera
         return getValueImpl(movableObject, camera->getLodCamera());
     }
     //-----------------------------------------------------------------------
     void LodStrategy::assertSorted(const Mesh::LodValueList &values) const
     {
-        assert(isSorted(values) && "The lod values must be sorted");
+        assert(isSorted(values) && "The LOD values must be sorted");
     }
     //---------------------------------------------------------------------
     bool LodStrategy::isSortedAscending(const Mesh::LodValueList& values)
@@ -93,7 +93,7 @@ namespace Ogre {
     {
         bool operator() (const MeshLodUsage& mesh1, const MeshLodUsage& mesh2)
         {
-            // sort ascending
+            // Sort ascending
             return mesh1.value < mesh2.value;
         }
     };
@@ -108,7 +108,7 @@ namespace Ogre {
     {
         bool operator() (const MeshLodUsage& mesh1, const MeshLodUsage& mesh2)
         {
-            // sort decending
+            // Sort descending
             return mesh1.value > mesh2.value;
         }
     };

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -58,9 +58,10 @@ namespace Ogre {
         // This means CULL clockwise vertices, i.e. front of poly is counter-clockwise
         // This makes it the same as OpenGL and other right-handed systems
         , mCullingMode(CULL_CLOCKWISE)
-        , mVSync(true)
-		, mVSyncInterval(1)
 		, mWBuffer(false)
+        , mBatchCount(0)
+        , mFaceCount(0)
+        , mVertexCount(0)
         , mInvertVertexWinding(false)
         , mDisabledTexUnitsFrom(0)
         , mCurrentPassIterationCount(0)
@@ -71,15 +72,18 @@ namespace Ogre {
         , mDerivedDepthBiasSlopeScale(0.0f)
         , mGlobalInstanceVertexBufferVertexDeclaration(NULL)
         , mGlobalNumberOfInstances(1)
-#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
 		, mEnableFixedPipeline(true)
-#endif
+        , mVertexProgramBound(false)
 		, mGeometryProgramBound(false)
         , mFragmentProgramBound(false)
+		, mTessellationHullProgramBound(false)
+		, mTessellationDomainProgramBound(false)
+		, mComputeProgramBound(false)
 		, mClipPlanesDirty(true)
 		, mRealCapabilities(0)
 		, mCurrentCapabilities(0)
 		, mUseCustomCapabilities(false)
+        , mNativeShadingLanguageVersion(0)
 		, mTexProjRelative(false)
 		, mTexProjRelativeOrigin(Vector3::ZERO)
     {
@@ -123,7 +127,7 @@ namespace Ogre {
 		}
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_swapAllRenderTargetBuffers(bool waitForVSync)
+    void RenderSystem::_swapAllRenderTargetBuffers()
     {
         // Update all in order of priority
         // This ensures render-to-texture targets get updated before render windows
@@ -132,7 +136,7 @@ namespace Ogre {
 		for( itarg = mPrioritisedRenderTargets.begin(); itarg != itargend; ++itarg )
 		{
 			if( itarg->second->isActive() && itarg->second->isAutoUpdated())
-				itarg->second->swapBuffers(waitForVSync);
+				itarg->second->swapBuffers();
 		}
     }
     //-----------------------------------------------------------------------
@@ -154,6 +158,9 @@ namespace Ogre {
         mVertexProgramBound = false;
 		mGeometryProgramBound = false;
         mFragmentProgramBound = false;
+		mTessellationHullProgramBound = false;
+		mTessellationDomainProgramBound = false;
+		mComputeProgramBound = false;
 
         return 0;
     }
@@ -340,6 +347,11 @@ namespace Ogre {
         // Set texture coordinate set
         _setTextureCoordSet(texUnit, tl.getTextureCoordSet());
 
+		//Set texture layer compare state and function 
+		_setTextureUnitCompareEnabled(texUnit,tl.getTextureCompareEnabled());
+		_setTextureUnitCompareFunction(texUnit,tl.getTextureCompareFunction());
+
+
         // Set texture layer filtering
         _setTextureUnitFiltering(texUnit, 
             tl.getTextureFiltering(FT_MIN), 
@@ -494,12 +506,6 @@ namespace Ogre {
         return mCullingMode;
     }
     //-----------------------------------------------------------------------
-    bool RenderSystem::getWaitForVerticalBlank(void) const
-    {
-        return mVSync;
-    }
-    //-----------------------------------------------------------------------
-#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
     bool RenderSystem::getFixedPipelineEnabled(void) const
     {
         return mEnableFixedPipeline;
@@ -509,7 +515,6 @@ namespace Ogre {
     {
         mEnableFixedPipeline = enabled;
     }
-#endif
     //-----------------------------------------------------------------------
 	void RenderSystem::setDepthBufferFor( RenderTarget *renderTarget )
 	{
@@ -542,14 +547,9 @@ namespace Ogre {
 			}
 			else
 				LogManager::getSingleton().logMessage( "WARNING: Couldn't create a suited DepthBuffer"
-													   "for RT: " + renderTarget->getName() );
+													   "for RT: " + renderTarget->getName() , LML_CRITICAL);
 		}
 	}
-    //-----------------------------------------------------------------------
-    void RenderSystem::setWaitForVerticalBlank(bool enabled)
-    {
-        mVSync = enabled;
-    }
     bool RenderSystem::getWBufferEnabled(void) const
     {
         return mWBuffer;
@@ -634,7 +634,7 @@ namespace Ogre {
         else
             val = op.vertexData->vertexCount;
 
-		int trueInstanceNum = std::max<size_t>(op.numberOfInstances,1);
+		size_t trueInstanceNum = std::max<size_t>(op.numberOfInstances,1);
 		val *= trueInstanceNum;
 
         // account for a pass having multiple iterations
@@ -654,6 +654,38 @@ namespace Ogre {
 	    case RenderOperation::OT_POINT_LIST:
 	    case RenderOperation::OT_LINE_LIST:
 	    case RenderOperation::OT_LINE_STRIP:
+        case RenderOperation::OT_PATCH_1_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_2_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_3_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_4_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_5_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_6_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_7_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_8_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_9_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_10_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_11_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_12_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_13_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_14_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_15_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_16_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_17_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_18_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_19_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_20_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_21_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_22_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_23_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_24_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_25_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_26_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_27_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_28_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_29_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_30_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_31_CONTROL_POINT:
+        case RenderOperation::OT_PATCH_32_CONTROL_POINT:
 	        break;
 	    }
 
@@ -742,6 +774,21 @@ namespace Ogre {
             mActiveFragmentGpuProgramParameters->incPassIterationNumber();
             bindGpuProgramPassIterationParameters(GPT_FRAGMENT_PROGRAM);
         }
+		if (!mActiveTessellationHullGpuProgramParameters.isNull())
+        {
+            mActiveTessellationHullGpuProgramParameters->incPassIterationNumber();
+			bindGpuProgramPassIterationParameters(GPT_HULL_PROGRAM);
+        }
+		if (!mActiveTessellationDomainGpuProgramParameters.isNull())
+        {
+            mActiveTessellationDomainGpuProgramParameters->incPassIterationNumber();
+			bindGpuProgramPassIterationParameters(GPT_DOMAIN_PROGRAM);
+        }
+		if (!mActiveComputeGpuProgramParameters.isNull())
+        {
+            mActiveComputeGpuProgramParameters->incPassIterationNumber();
+            bindGpuProgramPassIterationParameters(GPT_COMPUTE_PROGRAM);
+        }
         return true;
     }
 
@@ -793,6 +840,15 @@ namespace Ogre {
         case GPT_FRAGMENT_PROGRAM:
             mFragmentProgramBound = true;
 	        break;
+		case GPT_HULL_PROGRAM:
+			mTessellationHullProgramBound = true;
+	        break;
+		case GPT_DOMAIN_PROGRAM:
+			mTessellationDomainProgramBound = true;
+	        break;
+		case GPT_COMPUTE_PROGRAM:
+            mComputeProgramBound = true;
+	        break;
 	    }
 	}
 	//-----------------------------------------------------------------------
@@ -812,6 +868,15 @@ namespace Ogre {
         case GPT_FRAGMENT_PROGRAM:
             mFragmentProgramBound = false;
 	        break;
+		case GPT_HULL_PROGRAM:
+			mTessellationHullProgramBound = false;
+	        break;
+		case GPT_DOMAIN_PROGRAM:
+			mTessellationDomainProgramBound = false;
+	        break;
+		case GPT_COMPUTE_PROGRAM:
+            mComputeProgramBound = false;
+	        break;
 	    }
 	}
 	//-----------------------------------------------------------------------
@@ -825,6 +890,12 @@ namespace Ogre {
             return mGeometryProgramBound;
         case GPT_FRAGMENT_PROGRAM:
             return mFragmentProgramBound;
+		case GPT_HULL_PROGRAM:
+			return mTessellationHullProgramBound;
+		case GPT_DOMAIN_PROGRAM:
+			return mTessellationDomainProgramBound;
+		case GPT_COMPUTE_PROGRAM:
+            return mComputeProgramBound;
 	    }
         // Make compiler happy
         return false;
@@ -870,9 +941,9 @@ namespace Ogre {
         return mGlobalInstanceVertexBuffer;
     }
 	//---------------------------------------------------------------------
-    void RenderSystem::setGlobalInstanceVertexBuffer( const HardwareVertexBufferSharedPtr val )
+    void RenderSystem::setGlobalInstanceVertexBuffer( const HardwareVertexBufferSharedPtr &val )
     {
-        if ( !val.isNull() && !val->getIsInstanceData() )
+        if ( !val.isNull() && !val->isInstanceData() )
         {
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
                         "A none instance data vertex buffer was set to be the global instance vertex buffer.",
@@ -901,5 +972,9 @@ namespace Ogre {
         mGlobalInstanceVertexBufferVertexDeclaration = val;
     }
     //---------------------------------------------------------------------
+	void RenderSystem::getCustomAttribute(const String& name, void* pData)
+    {
+        OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Attribute not found.", "RenderSystem::getCustomAttribute");
+    }
 }
 

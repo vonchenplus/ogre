@@ -269,16 +269,16 @@ bool Sample_ShaderSystem::frameRenderingQueued( const FrameEvent& evt )
 
 
 //-----------------------------------------------------------------------
-void Sample_ShaderSystem::setupView()
-{	
-	// setup default viewport layout and camera
-	mCamera = mSceneMgr->createCamera("MainCamera");
-	mViewport = mWindow->addViewport(mCamera);
-	mCamera->setAspectRatio((Ogre::Real)mViewport->getActualWidth() / (Ogre::Real)mViewport->getActualHeight());
-	mCamera->setNearClipDistance(5);
-
-	mCameraMan = new SdkCameraMan(mCamera);   // create a default camera controller
-}
+//void Sample_ShaderSystem::setupView()
+//{	
+//	// setup default viewport layout and camera
+//	mCamera = mSceneMgr->createCamera("MainCamera");
+//	mViewport = mWindow->addViewport(mCamera);
+//	mCamera->setAspectRatio((Ogre::Real)mViewport->getActualWidth() / (Ogre::Real)mViewport->getActualHeight());
+//	mCamera->setNearClipDistance(5);
+//
+//	mCameraMan = new SdkCameraMan(mCamera);   // create a default camera controller
+//}
 
 //-----------------------------------------------------------------------
 void Sample_ShaderSystem::setupContent()
@@ -400,10 +400,12 @@ void Sample_ShaderSystem::setupContent()
 	childNode->setPosition(-300.0, 100.0, -100.0);
 	childNode->attachObject(entity);
 
-    // OpenGL ES 2.0 does not support texture atlases
+    // OpenGL ES 2.0 does not support texture atlases. But ES 3.0 does!
+#if OGRE_NO_GLES3_SUPPORT == 1
 	if (Ogre::Root::getSingletonPtr()->getRenderSystem()->getName().find("OpenGL ES 2") == String::npos)
+#endif
     {
-        RTShader::RenderState* pMainRenderState = 
+        RTShader::RenderState* pMainRenderState =
             RTShader::ShaderGenerator::getSingleton().createOrRetrieveRenderState(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME).first;
         pMainRenderState->addTemplateSubRenderState(
             Ogre::RTShader::ShaderGenerator::getSingleton().createSubRenderState(
@@ -555,7 +557,8 @@ void Sample_ShaderSystem::setupUI()
 	mModifierValueSlider = mTrayMgr->createThickSlider(TL_RIGHT, MODIFIER_VALUE_SLIDER, "Modifier", 240, 80, 0, 1, 100);
 	mModifierValueSlider->setValue(0.0,false);	
 	// Update the caption.
-	updateLayerBlendingCaption(mLayerBlendSubRS->getBlendMode(1));
+	if(mLayerBlendSubRS)
+		updateLayerBlendingCaption(mLayerBlendSubRS->getBlendMode(1));
 
 #endif
 
@@ -917,7 +920,7 @@ void Sample_ShaderSystem::addModelToScene(const String &  modelName)
 	    mLotsOfModelsNodes.push_back(childNode);
 	    childNode->setPosition(mNumberOfModelsAdded * scaleFactor, 15,  i * scaleFactor);
 	    childNode->attachObject(entity);
-        MeshPtr modelMesh = MeshManager::getSingleton().getByName(modelName);
+		MeshPtr modelMesh = MeshManager::getSingleton().getByName(modelName);
         Vector3 modelSize = modelMesh->getBounds().getSize();
         childNode->scale(1 / modelSize.x * scaleFactor, 
                          1 / modelSize.y * scaleFactor, 

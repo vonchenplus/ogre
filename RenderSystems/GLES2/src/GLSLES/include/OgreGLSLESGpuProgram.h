@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2012 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,6 @@ THE SOFTWARE.
 // Precompiler options
 #include "OgreGLSLESExtSupport.h"
 #include "OgreGLES2GpuProgram.h"
-
 
 namespace Ogre {
 
@@ -71,6 +70,8 @@ namespace Ogre {
 		void unbindProgram(void);
 		/// Execute the param binding functions for this program
 		void bindProgramParameters(GpuProgramParametersSharedPtr params, uint16 mask);
+		/// Execute the shared param binding functions for this program
+		void bindProgramSharedParameters(GpuProgramParametersSharedPtr params, uint16 mask);
 		/// Execute the pass iteration param binding functions for this program
 		void bindProgramPassIterationParameters(GpuProgramParametersSharedPtr params);
 
