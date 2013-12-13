@@ -62,12 +62,7 @@ namespace Ogre {
         e.g. SceneNode, Bone
     */
 	class _OgreExport Node : public NodeAlloc, public IdObject
-    {
-		/** Actually we just need Bone::updateAllTransforms and Bone::updateFromParentImpl
-			to be friends, but I don't see how to that without including OgreBone.h :(
-		*/
-		friend class Bone;
-
+	{
     public:
         /** Enumeration denoting the spaces which a transform can be relative to.
         */
@@ -107,6 +102,12 @@ namespace Ogre {
             virtual void nodeDetached(const Node*) {}
         };
 
+		class _OgreExport MemoryChangelistener
+		{
+		public:
+			virtual void memoryChanged( Node *changedNode ) = 0;
+		};
+
         /** Inner class for displaying debug renderable for Node. */
         class DebugRenderable : public Renderable, public NodeAlloc
         {
@@ -140,9 +141,17 @@ namespace Ogre {
 		/// Friendly name of this node, can be empty
         String mName;
 
-        /// Only available internally - notification of parent. Can't be null
+		/** Listeners that get called when our Transform's memory layout changes
+			(i.e. during cleanups, change of depth, etc)
+		@todo
+			I (dark_sylinc) don't like the fact that we use ~12 bytes for
+			a listener vector on EVERY node, even though it's only needed
+			when sketally animated movable objects get attached.
+		*/
+		vector<MemoryChangelistener*>::type mMemoryChangeListeners;
+
+        /// Only available internally - notification of parent.
         void setParent( Node* parent );
-		void unsetParent(void);
 
 		/// Notification from parent that we need to migrate to a different depth level
 		void parentDepthLevelChanged(void);
@@ -153,7 +162,7 @@ namespace Ogre {
             to update it's complete transformation based on it's parents
             derived transform.
         */
-        virtual void _updateFromParent(void);
+		void _updateFromParent(void);
 
         /** Class-specific implementation of _updateFromParent.
         @remarks
@@ -772,6 +781,21 @@ namespace Ogre {
 			hard copies but only the destructor must release the mTransform only slots once.
 		*/
 		void _setNullNodeMemoryManager(void)					{ mNodeMemoryManager = 0; }
+
+		/** Adds a memory listener, to monitor when the pointers to Transform change.
+			Throws if already registered. @See mMemoryChangeListeners
+		*/
+		void addMemoryChangeListener( MemoryChangelistener *listener );
+
+		/// Removes an existing listener. Throws if listener wasn't added.
+		void removeMemoryChangeListener( MemoryChangelistener *listener );
+
+		/// Internal use, causes all registered memory listeners to
+		void _callMemoryChangeListeners(void);
+
+#ifndef NDEBUG
+		bool isCachedTransformOutOfDate(void) const				{ return mCachedTransformOutOfDate; }
+#endif
     };
     /** @} */
     /** @} */

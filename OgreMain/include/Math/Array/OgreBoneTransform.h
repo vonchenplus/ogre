@@ -25,25 +25,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#ifndef __Transform_H__
-#define __Transform_H__
+#ifndef _BoneTransform_H_
+#define _BoneTransform_H_
 
-#include "OgreArrayMatrix4.h"
+#include "OgreArrayMatrixAf4x3.h"
 #include "OgreArrayMemoryManager.h"
 
 namespace Ogre
 {
 	/** Represents the transform of a single object, arranged in SoA (Structure of Arrays) */
-	struct Transform
+	struct BoneTransform
 	{
 		/// Which of the packed values is ours. Value in range [0; 4) for SSE2
 		unsigned char	mIndex;
 
-		/// Holds the pointers to each parent. Ours is mParents[mIndex]
-		Node			**mParents;
-
-		/// The Node that owns this Transform. Ours is mOwner[mIndex]
-		Node			**mOwner;
+		/// The Bone that owns this BoneTransform. Ours is mOwner[mIndex]
+		Bone			**mOwner;
 
 		/// Stores the position/translation of a node relative to its parent.
 		ArrayVector3	* RESTRICT_ALIAS	mPosition;
@@ -54,17 +51,11 @@ namespace Ogre
 		/// Stores the scaling factor applied to a node
 		ArrayVector3	* RESTRICT_ALIAS	mScale;
 
-		/// Caches the combined position from all parent nodes.
-		ArrayVector3	* RESTRICT_ALIAS	mDerivedPosition;
+		/// Points to the parent's pointer.
+		SimpleMatrixAf4x3 const * * RESTRICT_ALIAS mParentTransform;
 
-		/// Caches the combined orientation from all parent nodes.
-		ArrayQuaternion	* RESTRICT_ALIAS	mDerivedOrientation;
-
-		/// Caches the combined scale from all parent nodes.
-		ArrayVector3	* RESTRICT_ALIAS	mDerivedScale;
-
-		/// Caches the full transform into a 4x4 matrix. Note it's not Array form! (It's AoS)
-		Matrix4			* RESTRICT_ALIAS	mDerivedTransform;
+		/// Caches the full transform into an affine 4x4 matrix. Note it's not Array form! (It's AoS)
+		SimpleMatrixAf4x3 * RESTRICT_ALIAS	mDerivedTransform;
 
 		/// Stores whether this node inherits orientation from it's parent.
 		/// Ours is mInheritOrientation[mIndex]
@@ -74,16 +65,13 @@ namespace Ogre
 		/// Ours is mInheritScale[mIndex]
 		bool	* RESTRICT_ALIAS mInheritScale;
 
-		Transform() :
+		BoneTransform() :
 			mIndex( 0 ),
-			mParents( 0 ),
 			mOwner( 0 ),
 			mPosition( 0 ),
 			mOrientation( 0 ),
 			mScale( 0 ),
-			mDerivedPosition( 0 ),
-			mDerivedOrientation( 0 ),
-			mDerivedScale( 0 ),
+			mParentTransform( 0 ),
 			mDerivedTransform( 0 ),
 			mInheritOrientation( 0 ),
 			mInheritScale( 0 )
@@ -92,7 +80,7 @@ namespace Ogre
 
 		/** Copies all the scalar data from the parameter into this
 		@remarks
-			A normal "=" operator, or an assignment constructor Transform( Transform & )
+			A normal "=" operator, or an assignment constructor BoneTransform( BoneTransform & )
 			wouldn't work. This is because ArrayVector3 & co. would try to copy all the
 			packed values, while we just want the scalar ones.
 
@@ -102,9 +90,8 @@ namespace Ogre
 
 			Note that we do NOT copy the mIndex member.
 		*/
-		void copy( const Transform &copy )
+		void copy( const BoneTransform &copy )
 		{
-			mParents[mIndex]	= copy.mParents[copy.mIndex];
 			mOwner[mIndex]		= copy.mOwner[copy.mIndex];
 
 			Vector3 tmp;
@@ -122,58 +109,11 @@ namespace Ogre
 			copy.mScale->getAsVector3( tmp, copy.mIndex );
 			mScale->setFromVector3( tmp, mIndex );
 
-			//Derived position
-			copy.mDerivedPosition->getAsVector3( tmp, copy.mIndex );
-			mDerivedPosition->setFromVector3( tmp, mIndex );
-
-			//Derived orientation
-			copy.mDerivedOrientation->getAsQuaternion( qTmp, copy.mIndex );
-			mDerivedOrientation->setFromQuaternion( qTmp, mIndex );
-
-			//Derived scale
-			copy.mDerivedScale->getAsVector3( tmp, copy.mIndex );
-			mDerivedScale->setFromVector3( tmp, mIndex );
-
-			mDerivedTransform[mIndex] = copy.mDerivedTransform[mIndex];
+			mParentTransform[mIndex]	= copy.mParentTransform[mIndex];
+			mDerivedTransform[mIndex]	= copy.mDerivedTransform[mIndex];
 
 			mInheritOrientation[mIndex]	= copy.mInheritOrientation[copy.mIndex];
 			mInheritScale[mIndex]		= copy.mInheritScale[copy.mIndex];
-		}
-
-		/** Rebases all the pointers from our SoA structs so that they point to a new location
-			calculated from a base pointer, and a difference offset. The index (i.e.
-			mPosition._getIndex()) is assumed to stay the same
-		@remarks
-			@See RebaseListener This function is intended to be used when the pool memory is growing
-			hence the memory base address may change, so we need to reallocate and update all pointers
-			accordingly
-		*/
-		void rebasePtrs( const MemoryPoolVec &newBasePtrs, const ptrdiff_t diff )
-		{
-			mParents	= reinterpret_cast<Node**>( newBasePtrs[NodeArrayMemoryManager::Parent] + diff );
-			mOwner		= reinterpret_cast<Node**>( newBasePtrs[NodeArrayMemoryManager::Owner] + diff );
-
-			mPosition			= reinterpret_cast<ArrayVector3*>(
-									newBasePtrs[NodeArrayMemoryManager::Position] + diff );
-			mOrientation		= reinterpret_cast<ArrayQuaternion*>(
-									newBasePtrs[NodeArrayMemoryManager::Orientation] + diff );
-			mScale				= reinterpret_cast<ArrayVector3*>(
-									newBasePtrs[NodeArrayMemoryManager::Scale] + diff );
-
-			mDerivedPosition	= reinterpret_cast<ArrayVector3*>(
-									newBasePtrs[NodeArrayMemoryManager::DerivedPosition] + diff );
-			mDerivedOrientation	= reinterpret_cast<ArrayQuaternion*>(
-									newBasePtrs[NodeArrayMemoryManager::DerivedOrientation] + diff );
-			mDerivedScale		= reinterpret_cast<ArrayVector3*>(
-									newBasePtrs[NodeArrayMemoryManager::DerivedScale] + diff );
-
-			mDerivedTransform	= reinterpret_cast<Matrix4*>(
-									newBasePtrs[NodeArrayMemoryManager::WorldMat] + diff );
-
-			mInheritOrientation = reinterpret_cast<bool*>(
-									newBasePtrs[NodeArrayMemoryManager::InheritOrientation] + diff );
-			mInheritScale		= reinterpret_cast<bool*>(
-									newBasePtrs[NodeArrayMemoryManager::InheritScale] + diff );
 		}
 
 		/** Advances all pointers to the next pack, i.e. if we're processing 4 elements at a time, move to
@@ -181,14 +121,11 @@ namespace Ogre
 		*/
 		void advancePack()
 		{
-			mParents			+= ARRAY_PACKED_REALS;
 			mOwner				+= ARRAY_PACKED_REALS;
 			++mPosition;
 			++mOrientation;
 			++mScale;
-			++mDerivedPosition;
-			++mDerivedOrientation;
-			++mDerivedScale;
+			mParentTransform	+= ARRAY_PACKED_REALS;
 			mDerivedTransform	+= ARRAY_PACKED_REALS;
 			mInheritOrientation	+= ARRAY_PACKED_REALS;
 			mInheritScale		+= ARRAY_PACKED_REALS;
@@ -196,14 +133,11 @@ namespace Ogre
 
 		void advancePack( size_t numAdvance )
 		{
-			mParents			+= ARRAY_PACKED_REALS * numAdvance;
 			mOwner				+= ARRAY_PACKED_REALS * numAdvance;
 			mPosition			+= numAdvance;
 			mOrientation		+= numAdvance;
 			mScale				+= numAdvance;
-			mDerivedPosition	+= numAdvance;
-			mDerivedOrientation	+= numAdvance;
-			mDerivedScale		+= numAdvance;
+			mParentTransform	+= ARRAY_PACKED_REALS * numAdvance;
 			mDerivedTransform	+= ARRAY_PACKED_REALS * numAdvance;
 			mInheritOrientation	+= ARRAY_PACKED_REALS * numAdvance;
 			mInheritScale		+= ARRAY_PACKED_REALS * numAdvance;
