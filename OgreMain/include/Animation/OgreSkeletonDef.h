@@ -36,7 +36,7 @@ THE SOFTWARE.
 
 namespace Ogre
 {
-	class SkeletonDef : public MovableAlloc
+	class _OgreExport SkeletonDef : public MovableAlloc
 	{
 		friend class SkeletonInstance;
 	public:
@@ -83,8 +83,8 @@ namespace Ogre
 		BoneNameMap				mBoneIndexByName;
 		SkeletonAnimationDefVec mAnimationDefs;
 
-		RawSimdUniquePtr<KfTransform, MEMCATEGORY_ANIMATION> mBindPose;
-		RawSimdUniquePtr<KfTransform, MEMCATEGORY_ANIMATION> mReverseBindPose;
+		RawSimdUniquePtr<KfTransform, MEMCATEGORY_ANIMATION>		mBindPose;
+		RawSimdUniquePtr<ArrayMatrixAf4x3, MEMCATEGORY_ANIMATION>	mReverseBindPose;
 
 		DepthLevelInfoVec		mDepthLevelInfoVec;
 
@@ -92,6 +92,8 @@ namespace Ogre
 		size_t					mNumUnusedSlots;
 
 		vector<list<size_t>::type>::type mBonesPerDepth;
+
+		String					mName;
 
 	public:
 		/** Constructs this Skeleton based on the old format's Skeleton. The frameRate parameter
@@ -101,6 +103,8 @@ namespace Ogre
 			If the framerate information has been lost, set it to 1.
 		*/
 		SkeletonDef( const Skeleton *originalSkeleton, Real frameRate );
+
+		const String& getName(void) const								{ return mName; }
 
 		const BoneDataVec& getBones(void) const							{ return mBones; }
 		const SkeletonAnimationDefVec& getAnimationDefs(void) const		{ return mAnimationDefs; }

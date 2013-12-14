@@ -25,53 +25,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#ifndef _KfTransformArrayMemoryManager_H_
-#define _KfTransformArrayMemoryManager_H_
+#ifndef _ArrayMatrixAf4x3_H_
+#define _ArrayMatrixAf4x3_H_
 
-#include "OgreArrayMemoryManager.h"
+//This file is a proxy, it redirects to the proper file depending on platform
+#include "OgreArrayConfig.h"
 
-namespace Ogre
-{
-	struct KfTransform;
-
-	/** Implementation to create the KfTransform variables needed by SkeletonTrack
-		@See SkeletonAnimationDef and @see SkeletonTrack
-	@author
-		Matias N. Goldberg
-	@version
-		1.0
-	*/
-	class _OgreExport KfTransformArrayMemoryManager : public ArrayMemoryManager
-	{
-	public:
-		enum MemoryTypes
-		{
-			KfTransformType = 0,
-			NumMemoryTypes
-		};
-
-		static const size_t ElementsMemSize[NumMemoryTypes];
-
-		/// @copydoc ArrayMemoryManager::ArrayMemoryManager
-		KfTransformArrayMemoryManager( uint16 depthLevel, size_t hintMaxNodes,
-								size_t cleanupThreshold=100, size_t maxHardLimit=MAX_MEMORY_SLOTS,
-								RebaseListener *rebaseListener=0 );
-
-        virtual ~KfTransformArrayMemoryManager() {}
-
-		/** Requests memory for a new KfTransofrm (for the Array vectors & matrices)
-		@remarks
-			Uses all slots.
-			Deletion is assumed to take place when the memory manager is destroyed;
-			as this manager is run in a controlled environment.
-		@param outTransform
-			Out: The transform with filled memory pointers
-		*/
-		void createNewNode( KfTransform **outTransform );
-	};
-
-	/** @} */
-	/** @} */
-}
+#if OGRE_CPU == OGRE_CPU_X86 && OGRE_USE_SIMD == 1
+	#if OGRE_DOUBLE_PRECISION == 1
+		#include "SSE2/Double/OgreArrayMatrixAf4x3.h"
+	#else
+		#include "SSE2/Single/OgreArrayMatrixAf4x3.h"
+	#endif
+#elif OGRE_CPU == OGRE_CPU_ARM && OGRE_USE_SIMD == 1
+    #if OGRE_DOUBLE_PRECISION == 1
+        #error Double precision with SIMD on ARM is not supported
+    #else
+		#include "NEON/Single/OgreArrayMatrixAf4x3.h"
+    #endif
+#else
+	#include "C/OgreArrayMatrixAf4x3.h"
+#endif
 
 #endif

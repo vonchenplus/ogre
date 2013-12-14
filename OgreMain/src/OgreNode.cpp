@@ -132,6 +132,7 @@ namespace Ogre {
 		{
 			mNodeMemoryManager->migrateTo( mTransform, mDepthLevel, mNodeMemoryManager->getTwin() );
 			mNodeMemoryManager = mNodeMemoryManager->getTwin();
+			_callMemoryChangeListeners();
 			retVal = true;
 		}
 
@@ -169,6 +170,8 @@ namespace Ogre {
 					(*itor)->parentDepthLevelChanged();
 					++itor;
 				}
+
+				_callMemoryChangeListeners();
 			}
 		}
     }
@@ -198,6 +201,8 @@ namespace Ogre {
 					(*itor)->parentDepthLevelChanged();
 					++itor;
 				}
+
+				_callMemoryChangeListeners();
 			}
 
 			mParent = 0;
@@ -444,13 +449,12 @@ namespace Ogre {
 #ifndef NDEBUG
 		mCachedTransformOutOfDate = true;
 #endif
-    }
-    //-----------------------------------------------------------------------
-    void Node::setPosition(Real x, Real y, Real z)
-    {
-        Vector3 v(x,y,z);
-        setPosition(v);
-    }
+	}
+	//-----------------------------------------------------------------------
+	void Node::setPosition(Real x, Real y, Real z)
+	{
+		setPosition( Vector3( x, y, z ) );
+	}
     //-----------------------------------------------------------------------
     Vector3 Node::getPosition(void) const
     {
@@ -808,7 +812,7 @@ namespace Ogre {
 
         // NB use squared length rather than real depth to avoid square root
         return diff.squaredLength();
-    }
+	}
 	//---------------------------------------------------------------------
 	Node::DebugRenderable* Node::getDebugRenderable(Real scaling)
 	{
