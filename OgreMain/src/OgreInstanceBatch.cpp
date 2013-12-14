@@ -137,6 +137,7 @@ namespace Ogre
 		return true;
 	}
 	//-----------------------------------------------------------------------
+#ifdef OGRE_LEGACY_ANIMATIONS
 	void InstanceBatch::_updateAnimations(void)
 	{
 		InstancedEntityArray::const_iterator itor = mAnimatedEntities.begin();
@@ -148,6 +149,7 @@ namespace Ogre
 			++itor;
 		}
 	}
+#endif
 	//-----------------------------------------------------------------------
 	void InstanceBatch::_updateEntitiesBoundsThread( size_t threadIdx )
 	{
@@ -239,7 +241,9 @@ namespace Ogre
 	{
 		mInstancedEntities.reserve( mInstancesPerBatch );
 		mUnusedEntities.reserve( mInstancesPerBatch );
+#ifdef OGRE_LEGACY_ANIMATIONS
 		mAnimatedEntities.reserve( mInstancesPerBatch );
+#endif
 
 		for( size_t i=0; i<mInstancesPerBatch; ++i )
 		{
@@ -252,7 +256,11 @@ namespace Ogre
 	InstancedEntity* InstanceBatch::generateInstancedEntity(size_t num)
 	{
 		return OGRE_NEW InstancedEntity( Id::generateNewId<InstancedEntity>(),
-										 &mLocalObjectMemoryManager, this, static_cast<uint32>(num) );
+										 &mLocalObjectMemoryManager, this, static_cast<uint32>(num)
+								 #ifndef OGRE_LEGACY_ANIMATIONS
+										 , 0
+								 #endif
+										 );
 	}
 	//-----------------------------------------------------------------------
 	void InstanceBatch::deleteAllInstancedEntities()
@@ -350,6 +358,7 @@ namespace Ogre
 			mCreator->_removeFromDynamicBatchList( this );
 	}
 	//-----------------------------------------------------------------------
+#ifdef OGRE_LEGACY_ANIMATIONS
 	void InstanceBatch::_addAnimatedInstance( InstancedEntity *instancedEntity )
 	{
 		assert( std::find( mAnimatedEntities.begin(), mAnimatedEntities.end(), instancedEntity ) ==
@@ -367,6 +376,7 @@ namespace Ogre
 		if( itor != mAnimatedEntities.end() )
 			efficientVectorRemove( mAnimatedEntities, itor );
 	}
+#endif
 	//-----------------------------------------------------------------------
 	void InstanceBatch::getInstancedEntitiesInUse( InstancedEntityVec &outEntities,
 													CustomParamsVec &outParams )
@@ -509,7 +519,9 @@ namespace Ogre
 		assert( (signed)(mInstancesPerBatch) - (signed)(mInstancedEntities.size()) >= 0 );
 		mInstancedEntities.reserve( mInstancesPerBatch );
 		mUnusedEntities.reserve( mInstancesPerBatch );
+#ifdef OGRE_LEGACY_ANIMATIONS
 		mAnimatedEntities.reserve( mInstancesPerBatch );
+#endif
 		mCustomParams.reserve( mCreator->getNumCustomParams() * mInstancesPerBatch );
 		for( size_t i=mInstancedEntities.size(); i<mInstancesPerBatch; ++i )
 		{

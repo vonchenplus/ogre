@@ -2354,7 +2354,9 @@ void SceneManager::updateSceneGraph()
 	_applySceneAnimations();
 	updateAllAnimations();
 	updateAllTransforms();
+#ifdef OGRE_USE_LEGACY_ANIMATIONS
 	updateInstanceManagerAnimations();
+#endif
 	updateInstanceManagers();
 	updateAllBounds( mEntitiesMemoryManagerUpdateList );
 	updateAllBounds( mLightsMemoryManagerCulledList );
@@ -4615,6 +4617,7 @@ void SceneManager::destroyInstancedEntity( InstancedEntity *instancedEntity )
 	instancedEntity->_getOwner()->removeInstancedEntity( instancedEntity );
 }
 //---------------------------------------------------------------------
+#ifdef OGRE_USE_LEGACY_ANIMATIONS
 void SceneManager::updateInstanceManagerAnimations(void)
 {
 	InstanceManagerVec::const_iterator itor = mInstanceManagers.begin();
@@ -4626,6 +4629,7 @@ void SceneManager::updateInstanceManagerAnimations(void)
 		++itor;
 	}
 }
+#endif
 //---------------------------------------------------------------------
 void SceneManager::updateInstanceManagersThread( size_t threadIdx )
 {
