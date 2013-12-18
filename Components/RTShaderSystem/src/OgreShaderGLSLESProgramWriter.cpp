@@ -35,7 +35,6 @@ THE SOFTWARE.
 #include "OgreShaderFunctionAtom.h"
 #include "OgreResourceGroupManager.h"
 #include "OgreRoot.h"
-
 namespace Ogre {
     namespace RTShader {
 

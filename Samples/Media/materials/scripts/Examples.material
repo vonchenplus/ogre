@@ -2374,6 +2374,24 @@ material Examples/EnvMappedRustySteel
 	}
 }
 
+material Examples/TransparentBlue50
+{
+  technique
+  {
+    pass
+    {
+      scene_blend alpha_blend
+      depth_write off
+
+      texture_unit
+      {
+        colour_op_ex source1 src_manual src_current 0 0 1
+        alpha_op_ex source1 src_manual src_current 0.5
+      }
+    }
+  }
+}
+
 // material Examples/Passthrough
 // {
 //     technique

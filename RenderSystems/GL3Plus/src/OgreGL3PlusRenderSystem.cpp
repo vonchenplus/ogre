@@ -437,24 +437,24 @@ namespace Ogre {
         // Tessellation Program Properties
         if (mGLSupport->checkExtension("GL_ARB_tessellation_shader") || gl3wIsSupported(4, 0))
         {
-            rsc->setCapability(RSC_TESSELATION_HULL_PROGRAM);
-            rsc->setCapability(RSC_TESSELATION_DOMAIN_PROGRAM);
+            rsc->setCapability(RSC_TESSELLATION_HULL_PROGRAM);
+            rsc->setCapability(RSC_TESSELLATION_DOMAIN_PROGRAM);
 
             OGRE_CHECK_GL_ERROR(glGetFloatv(GL_MAX_TESS_CONTROL_UNIFORM_COMPONENTS, &floatConstantCount));
             // 16 boolean params allowed
-            rsc->setTesselationHullProgramConstantBoolCount(floatConstantCount);
+            rsc->setTessellationHullProgramConstantBoolCount(floatConstantCount);
             // 16 integer params allowed, 4D
-            rsc->setTesselationHullProgramConstantIntCount(floatConstantCount);
+            rsc->setTessellationHullProgramConstantIntCount(floatConstantCount);
             // float params, always 4D
-            rsc->setTesselationHullProgramConstantFloatCount(floatConstantCount);
+            rsc->setTessellationHullProgramConstantFloatCount(floatConstantCount);
 
             OGRE_CHECK_GL_ERROR(glGetFloatv(GL_MAX_TESS_EVALUATION_UNIFORM_COMPONENTS, &floatConstantCount));
             // 16 boolean params allowed
-            rsc->setTesselationDomainProgramConstantBoolCount(floatConstantCount);
+            rsc->setTessellationDomainProgramConstantBoolCount(floatConstantCount);
             // 16 integer params allowed, 4D
-            rsc->setTesselationDomainProgramConstantIntCount(floatConstantCount);
+            rsc->setTessellationDomainProgramConstantIntCount(floatConstantCount);
             // float params, always 4D
-            rsc->setTesselationDomainProgramConstantFloatCount(floatConstantCount);
+            rsc->setTessellationDomainProgramConstantFloatCount(floatConstantCount);
         }
 
         // Compute Program Properties
@@ -2532,13 +2532,13 @@ namespace Ogre {
         }
         else if (gptype == GPT_HULL_PROGRAM && mCurrentHullShader)
         {
-            mActiveTesselationHullGpuProgramParameters.setNull();
+			mActiveTessellationHullGpuProgramParameters.setNull();
             mCurrentHullShader->unbind();
             mCurrentHullShader = 0;
         }
         else if (gptype == GPT_DOMAIN_PROGRAM && mCurrentDomainShader)
         {
-            mActiveTesselationDomainGpuProgramParameters.setNull();
+			mActiveTessellationDomainGpuProgramParameters.setNull();
             mCurrentDomainShader->unbind();
             mCurrentDomainShader = 0;
         }
@@ -2576,11 +2576,11 @@ namespace Ogre {
             mCurrentGeometryShader->bindSharedParameters(params, mask);
             break;
         case GPT_HULL_PROGRAM:
-            mActiveTesselationHullGpuProgramParameters = params;
+                    mActiveTessellationHullGpuProgramParameters = params;
             mCurrentHullShader->bindSharedParameters(params, mask);
             break;
         case GPT_DOMAIN_PROGRAM:
-            mActiveTesselationDomainGpuProgramParameters = params;
+                    mActiveTessellationDomainGpuProgramParameters = params;
             mCurrentDomainShader->bindSharedParameters(params, mask);
             break;
         case GPT_COMPUTE_PROGRAM:
@@ -2608,11 +2608,11 @@ namespace Ogre {
             mCurrentGeometryShader->bindParameters(params, mask);
             break;
         case GPT_HULL_PROGRAM:
-            mActiveTesselationHullGpuProgramParameters = params;
+                    mActiveTessellationHullGpuProgramParameters = params;
             mCurrentHullShader->bindParameters(params, mask);
             break;
         case GPT_DOMAIN_PROGRAM:
-            mActiveTesselationDomainGpuProgramParameters = params;
+                    mActiveTessellationDomainGpuProgramParameters = params;
             mCurrentDomainShader->bindParameters(params, mask);
             break;
         case GPT_COMPUTE_PROGRAM:
