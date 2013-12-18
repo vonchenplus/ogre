@@ -3307,6 +3307,7 @@ namespace Ogre
 		mScriptContext.techLev = -1;
 		mScriptContext.passLev = -1;
 		mScriptContext.stateLev = -1;
+        mDefaults = false;
 
         mBuffer.clear();
     }
@@ -4463,6 +4464,7 @@ namespace Ogre
         case TextureUnitState::TAM_MIRROR:
             return "mirror";
         case TextureUnitState::TAM_WRAP:
+        case TextureUnitState::TAM_UNKNOWN:
             return "wrap";
         }
 

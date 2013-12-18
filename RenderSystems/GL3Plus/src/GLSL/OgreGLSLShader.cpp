@@ -697,16 +697,22 @@ namespace Ogre {
         {
         case GPT_VERTEX_PROGRAM:
             return GL_VERTEX_SHADER;
+            break;
         case GPT_HULL_PROGRAM:
             return GL_TESS_CONTROL_SHADER;
+            break;
         case GPT_DOMAIN_PROGRAM:
             return GL_TESS_EVALUATION_SHADER;
+            break;
         case GPT_GEOMETRY_PROGRAM:
             return GL_GEOMETRY_SHADER;
+            break;
         case GPT_FRAGMENT_PROGRAM:
             return GL_FRAGMENT_SHADER;
+            break;
         case GPT_COMPUTE_PROGRAM:
             return GL_COMPUTE_SHADER;
+            break;
         }
     }
 
@@ -716,16 +722,22 @@ namespace Ogre {
         {
         case GPT_VERTEX_PROGRAM:
             return "vertex";
+            break;
         case GPT_DOMAIN_PROGRAM:
             return "tessellation evaluation";
+            break;
         case GPT_HULL_PROGRAM:
             return "tessellation control";
+            break;
         case GPT_GEOMETRY_PROGRAM:
             return "geometry";
+            break;
         case GPT_FRAGMENT_PROGRAM:
             return "fragment";
+            break;
         case GPT_COMPUTE_PROGRAM:
             return "compute";
+            break;
         }
     }
 

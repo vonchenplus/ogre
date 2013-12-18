@@ -40,10 +40,10 @@ namespace Ogre {
     
     GLSLProgramManager::GLSLProgramManager(void) :
         mActiveVertexShader(NULL),
-        mActiveGeometryShader(NULL),
-        mActiveFragmentShader(NULL),
         mActiveHullShader(NULL),
         mActiveDomainShader(NULL),
+        mActiveGeometryShader(NULL),
+        mActiveFragmentShader(NULL),
         mActiveComputeShader(NULL)
     {
         // Fill in the relationship between type names and enums
