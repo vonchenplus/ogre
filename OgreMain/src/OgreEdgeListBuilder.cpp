@@ -470,7 +470,18 @@ namespace Ogre {
         // unlock the buffer
         positionBuffer->unlock();
     }
-    //---------------------------------------------------------------------
+	//---------------------------------------------------------------------
+	EdgeData* EdgeData::clone()
+	{
+		EdgeData* newEdgeData = OGRE_NEW EdgeData();
+		newEdgeData->triangles = triangles;
+		newEdgeData->triangleFaceNormals = triangleFaceNormals;
+		newEdgeData->triangleLightFacings = triangleLightFacings;
+		newEdgeData->edgeGroups = edgeGroups;
+		newEdgeData->isClosed = isClosed;
+		return newEdgeData;
+	}
+	//---------------------------------------------------------------------
     void EdgeListBuilder::log(Log* l)
     {
         l->logMessage("EdgeListBuilder Log");
@@ -538,10 +549,10 @@ namespace Ogre {
                     if (mGeometryList[i].opType == RenderOperation::OT_TRIANGLE_LIST
                         || j == 0)
                     {
-		    	unsigned int n1 = *p32Idx++;
-		    	unsigned int n2 = *p32Idx++;
-		    	unsigned int n3 = *p32Idx++;
-                        l->logMessage("Triangle " + StringConverter::toString(j) + 
+                        unsigned int n1 = *p32Idx++;
+                        unsigned int n2 = *p32Idx++;
+                        unsigned int n3 = *p32Idx++;
+                        l->logMessage("Triangle " + StringConverter::toString(j) +
                             ": (" + StringConverter::toString(n1) + 
                             ", " + StringConverter::toString(n2) + 
                             ", " + StringConverter::toString(n3) + ")");
@@ -559,10 +570,10 @@ namespace Ogre {
                     if (mGeometryList[i].opType == RenderOperation::OT_TRIANGLE_LIST
                         || j == 0)
                     {
-		    	unsigned short n1 = *p16Idx++;
-		    	unsigned short n2 = *p16Idx++;
-		    	unsigned short n3 = *p16Idx++;
-                        l->logMessage("Index " + StringConverter::toString(j) + 
+                        unsigned short n1 = *p16Idx++;
+                        unsigned short n2 = *p16Idx++;
+                        unsigned short n3 = *p16Idx++;
+                        l->logMessage("Index " + StringConverter::toString(j) +
                             ": (" + StringConverter::toString(n1) + 
                             ", " + StringConverter::toString(n2) + 
                             ", " + StringConverter::toString(n3) + ")");

@@ -896,7 +896,7 @@ namespace Ogre {
         public:
             ShadowCasterSceneQueryListener(SceneManager* sm) : mSceneMgr(sm),
 				mCasterList(0), mIsLightInFrustum(false), mLightClipVolumeList(0), 
-                mCamera(0) {}
+                mCamera(0), mFarDistSquared(0) {}
             // Prepare the listener for use with a set of parameters  
             void prepare(bool lightInFrustum, 
                 const PlaneBoundedVolumeList* lightClipVolumes, 
@@ -1913,7 +1913,7 @@ namespace Ogre {
             @param xsegments, ysegments
                 Determines the number of segments the plane will have to it. This
                 is most important when you are bowing the plane, but may also be useful
-                if you need tesselation on the plane to perform per-vertex effects.
+                if you need tessellation on the plane to perform per-vertex effects.
             @param groupName
                 The name of the resource group to which to assign the plane mesh.
         */
@@ -1963,7 +1963,7 @@ namespace Ogre {
             @param xsegments, ysegments
                 Determines the number of segments the plane will have to it. This
                 is most important when you are bowing the plane, but may also be useful
-                if you need tesselation on the plane to perform per-vertex effects.
+                if you need tessellation on the plane to perform per-vertex effects.
             @param groupName
                 The name of the resource group to which to assign the plane mesh.
         */        

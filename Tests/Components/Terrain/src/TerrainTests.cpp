@@ -99,6 +99,7 @@ void TerrainTests::tearDown()
 {
 	OGRE_DELETE mTerrainOpts;
 	OGRE_DELETE mRoot;
+	OGRE_DELETE mLogManager;
 }
 
 void TerrainTests::testCreate()

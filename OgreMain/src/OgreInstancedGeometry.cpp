@@ -75,10 +75,7 @@ namespace Ogre {
 	InstancedGeometry::~InstancedGeometry()
 	{
 		reset();
-		if(mSkeletonInstance)
-			OGRE_DELETE mSkeletonInstance;
-
-			
+        OGRE_DELETE mSkeletonInstance;
 	}
 	//--------------------------------------------------------------------------
 	InstancedGeometry::BatchInstance*InstancedGeometry::getInstancedGeometryInstance(void)
@@ -320,7 +317,7 @@ namespace Ogre {
 
 		const MeshPtr& msh = ent->getMesh();
 		// Validate
-		if (msh->isLodManual())
+		if (msh->hasManualLodLevel())
 		{
 			LogManager::getSingleton().logMessage(
 				"WARNING (InstancedGeometry): Manual LOD is not supported. "
@@ -377,7 +374,7 @@ namespace Ogre {
 		// Otherwise, we have to create a new one
 		SubMeshLodGeometryLinkList* lodList = OGRE_NEW_T(SubMeshLodGeometryLinkList, MEMCATEGORY_GEOMETRY)();
 		mSubMeshGeometryLookup[sm] = lodList;
-		ushort numLods = sm->parent->isLodManual() ? 1 :
+		ushort numLods = sm->parent->hasManualLodLevel() ? 1 :
 			sm->parent->getNumLodLevels();
 		lodList->resize(numLods);
 		for (ushort lod = 0; lod < numLods; ++lod)
@@ -961,12 +958,12 @@ namespace Ogre {
 		OGRE_FREE(mBoneWorldMatrices, MEMCATEGORY_ANIMATION);
 	}
 	//--------------------------------------------------------------------------
-	void InstancedGeometry::InstancedObject::addBucketToList(GeometryBucket*bucket)
+	void InstancedGeometry::InstancedObject::addBucketToList(GeometryBucket *bucket)
 	{
 		mGeometryBucketList.push_back(bucket);
 	}
 	//--------------------------------------------------------------------------
-	void InstancedGeometry::InstancedObject::setPosition( Vector3  position)
+	void InstancedGeometry::InstancedObject::setPosition( const Vector3 &position)
 	{
 
 		mPosition=position;
@@ -982,7 +979,7 @@ namespace Ogre {
 		needUpdate();
 	}
 	//--------------------------------------------------------------------------
-	void InstancedGeometry::InstancedObject::translate(const Matrix3 & axes,const Vector3 &move)
+	void InstancedGeometry::InstancedObject::translate(const Matrix3 &axes, const Vector3 &move)
 	{
 		Vector3 derived = axes * move;
         translate(derived);
@@ -1008,21 +1005,21 @@ namespace Ogre {
 		return mPosition;
 	}
 	//--------------------------------------------------------------------------
-	void InstancedGeometry::InstancedObject::yaw(const Radian&angle)
+	void InstancedGeometry::InstancedObject::yaw(const Radian &angle)
 	{
 		Quaternion q;
         q.FromAngleAxis(angle,Vector3::UNIT_Y);
         rotate(q);
 	}
 	//--------------------------------------------------------------------------
-	void InstancedGeometry::InstancedObject::pitch(const Radian&angle)
+	void InstancedGeometry::InstancedObject::pitch(const Radian &angle)
 	{
 		Quaternion q;
         q.FromAngleAxis(angle,Vector3::UNIT_X);
         rotate(q);
 	}
 	//--------------------------------------------------------------------------
-	void InstancedGeometry::InstancedObject::roll(const Radian&angle)
+	void InstancedGeometry::InstancedObject::roll(const Radian &angle)
 	{
 		Quaternion q;
         q.FromAngleAxis(angle,Vector3::UNIT_Z);
@@ -1030,7 +1027,7 @@ namespace Ogre {
 
 	}
 	//--------------------------------------------------------------------------
-	void InstancedGeometry::InstancedObject::setScale(const Vector3&scale)
+	void InstancedGeometry::InstancedObject::setScale(const Vector3 &scale)
 	{
 		mScale=scale;
 		needUpdate();
@@ -1055,7 +1052,7 @@ namespace Ogre {
 		needUpdate();
 	}
 	//--------------------------------------------------------------------------
-	void InstancedGeometry::InstancedObject::setPositionAndOrientation(Vector3 p, const Quaternion& q)
+	void InstancedGeometry::InstancedObject::setPositionAndOrientation(const Vector3 &p, const Quaternion& q)
 	{	
 		mPosition = p;
         mOrientation = q;

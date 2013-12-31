@@ -1,29 +1,29 @@
 /*
------------------------------------------------------------------------------
-This source file is part of OGRE
-(Object-oriented Graphics Rendering Engine)
-For the latest info, see http://www.ogre3d.org
+  -----------------------------------------------------------------------------
+  This source file is part of OGRE
+  (Object-oriented Graphics Rendering Engine)
+  For the latest info, see http://www.ogre3d.org
 
 Copyright (c) 2000-2014 Torus Knot Software Ltd
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
------------------------------------------------------------------------------
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+  THE SOFTWARE.
+  -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
 #include "OgreEntity.h"
@@ -57,211 +57,237 @@ THE SOFTWARE.
 namespace Ogre {
     //-----------------------------------------------------------------------
     Entity::Entity ()
-		: mAnimationState(NULL),
+        : mAnimationState(NULL),
+          mTempSkelAnimInfo(),
           mSkelAnimVertexData(0),
-		  mSoftwareVertexAnimVertexData(0),
-		  mHardwareVertexAnimVertexData(0),
+          mTempVertexAnimInfo(),
+          mSoftwareVertexAnimVertexData(0),
+          mHardwareVertexAnimVertexData(0),
           mVertexAnimationAppliedThisFrame(false),
           mPreparedForShadowVolumes(false),
           mBoneWorldMatrices(NULL),
           mBoneMatrices(NULL),
           mNumBoneMatrices(0),
-		  mFrameAnimationLastUpdated(std::numeric_limits<unsigned long>::max()),
+          mFrameAnimationLastUpdated(std::numeric_limits<unsigned long>::max()),
           mFrameBonesLastUpdated(NULL),
-		  mSharedSkeletonEntities(NULL),
-		  mDisplaySkeleton(false),
-		  mCurrentHWAnimationState(false),
-	      mHardwarePoseCount(0),
-		  mVertexProgramInUse(false),
-		  mSoftwareAnimationRequests(0),
-		  mSoftwareAnimationNormalsRequests(0),
-          mSkipAnimStateUpdates(false),
-		  mAlwaysUpdateMainSkeleton(false),
-		  mMeshLodIndex(0),
-		  mMeshLodFactorTransformed(1.0f),
-		  mMinMeshLodIndex(99),
-		  mMaxMeshLodIndex(0),		// Backwards, remember low value = high detail
-          mMaterialLodFactor(1.0f),
-          mMaterialLodFactorTransformed(1.0f),
-		  mMinMaterialLodIndex(99),
-		  mMaxMaterialLodIndex(0), 		// Backwards, remember low value = high detail
-          mSkeletonInstance(0),
-		  mInitialised(false),
-		  mLastParentXform(Matrix4::ZERO),
-		  mMeshStateCount(0),
-          mFullBoundingBox()
+          mSharedSkeletonEntities(NULL),
+          mDisplaySkeleton(false),
+        mCurrentHWAnimationState(false),
+        mHardwarePoseCount(0),
+        mVertexProgramInUse(false),
+        mSoftwareAnimationRequests(0),
+        mSoftwareAnimationNormalsRequests(0),
+        mSkipAnimStateUpdates(false),
+        mAlwaysUpdateMainSkeleton(false),
+          mUpdateBoundingBoxFromSkeleton(false),
+        mMeshLodIndex(0),
+        mMeshLodFactorTransformed(1.0f),
+        mMinMeshLodIndex(99),
+        mMaxMeshLodIndex(0),		// Backwards, remember low value = high detail
+        mMaterialLodFactor(1.0f),
+        mMaterialLodFactorTransformed(1.0f),
+        mMinMaterialLodIndex(99),
+        mMaxMaterialLodIndex(0), 		// Backwards, remember low value = high detail
+        mSkeletonInstance(0),
+        mInitialised(false),
+        mLastParentXform(Matrix4::ZERO),
+        mMeshStateCount(0),
+        mFullBoundingBox()
     {
     }
     //-----------------------------------------------------------------------
     Entity::Entity( const String& name, const MeshPtr& mesh) :
-		MovableObject(name),
+        MovableObject(name),
         mMesh(mesh),
         mAnimationState(NULL),
-		mSkelAnimVertexData(0),
-		mSoftwareVertexAnimVertexData(0),
-		mHardwareVertexAnimVertexData(0),
+        mSkelAnimVertexData(0),
+        mSoftwareVertexAnimVertexData(0),
+        mHardwareVertexAnimVertexData(0),
         mVertexAnimationAppliedThisFrame(false),
         mPreparedForShadowVolumes(false),
         mBoneWorldMatrices(NULL),
         mBoneMatrices(NULL),
         mNumBoneMatrices(0),
-		mFrameAnimationLastUpdated(std::numeric_limits<unsigned long>::max()),
+        mFrameAnimationLastUpdated(std::numeric_limits<unsigned long>::max()),
         mFrameBonesLastUpdated(NULL),
         mSharedSkeletonEntities(NULL),
-		mDisplaySkeleton(false),
-		mCurrentHWAnimationState(false),
-		mVertexProgramInUse(false),
-		mSoftwareAnimationRequests(0),
-		mSoftwareAnimationNormalsRequests(0),
+        mDisplaySkeleton(false),
+        mCurrentHWAnimationState(false),
+        mVertexProgramInUse(false),
+        mSoftwareAnimationRequests(0),
+        mSoftwareAnimationNormalsRequests(0),
         mSkipAnimStateUpdates(false),
-		mAlwaysUpdateMainSkeleton(false),
-		mMeshLodIndex(0),
-		mMeshLodFactorTransformed(1.0f),
-		mMinMeshLodIndex(99),
-		mMaxMeshLodIndex(0),		// Backwards, remember low value = high detail
+        mAlwaysUpdateMainSkeleton(false),
+        mUpdateBoundingBoxFromSkeleton(false),
+        mMeshLodIndex(0),
+        mMeshLodFactorTransformed(1.0f),
+        mMinMeshLodIndex(99),
+        mMaxMeshLodIndex(0),		// Backwards, remember low value = high detail
         mMaterialLodFactor(1.0f),
         mMaterialLodFactorTransformed(1.0f),
-		mMinMaterialLodIndex(99),
-		mMaxMaterialLodIndex(0), 		// Backwards, remember low value = high detail
-		mSkeletonInstance(0),
-		mInitialised(false),
-		mLastParentXform(Matrix4::ZERO),
-		mMeshStateCount(0),
+        mMinMaterialLodIndex(99),
+        mMaxMaterialLodIndex(0), 		// Backwards, remember low value = high detail
+        mSkeletonInstance(0),
+        mInitialised(false),
+        mLastParentXform(Matrix4::ZERO),
+        mMeshStateCount(0),
         mFullBoundingBox()
-	{
-		_initialise();
+    {
+        _initialise();
     }
-	//-----------------------------------------------------------------------
-	void Entity::backgroundLoadingComplete(Resource* res)
-	{
-		if (res == mMesh.get())
-		{
-			// mesh loading has finished, we can construct ourselves now
-			_initialise();
-		}
-	}
-	//-----------------------------------------------------------------------
-	void Entity::_initialise(bool forceReinitialise)
-	{
-		if (forceReinitialise)
-			_deinitialise();
+    //-----------------------------------------------------------------------
+    void Entity::backgroundLoadingComplete(Resource* res)
+    {
+        if (res == mMesh.get())
+        {
+            // mesh loading has finished, we can construct ourselves now
+            _initialise();
+        }
+    }
+    //-----------------------------------------------------------------------
+    void Entity::_initialise(bool forceReinitialise)
+    {
+        if (forceReinitialise)
+            _deinitialise();
 
-		if (mInitialised)
-			return;
+        if (mInitialised)
+            return;
 
-		if (mMesh->isBackgroundLoaded() && !mMesh->isLoaded())
-		{
-			// register for a callback when mesh is finished loading
-			// do this before asking for load to happen to avoid race
-			mMesh->addListener(this);
-		}
+        if (mMesh->isBackgroundLoaded() && !mMesh->isLoaded())
+        {
+            // register for a callback when mesh is finished loading
+            // do this before asking for load to happen to avoid race
+            mMesh->addListener(this);
+        }
 		
-		// On-demand load
-		mMesh->load();
-		// If loading failed, or deferred loading isn't done yet, defer
-		// Will get a callback in the case of deferred loading
-		// Skeletons are cascade-loaded so no issues there
-		if (!mMesh->isLoaded())
-			return;
+        // On-demand load
+        mMesh->load();
+        // If loading failed, or deferred loading isn't done yet, defer
+        // Will get a callback in the case of deferred loading
+        // Skeletons are cascade-loaded so no issues there
+        if (!mMesh->isLoaded())
+            return;
 
-		// Is mesh skeletally animated?
-		if (mMesh->hasSkeleton() && !mMesh->getSkeleton().isNull())
-		{
-			mSkeletonInstance = OGRE_NEW SkeletonInstance(mMesh->getSkeleton());
-			mSkeletonInstance->load();
-		}
+        // Is mesh skeletally animated?
+        if (mMesh->hasSkeleton() && !mMesh->getSkeleton().isNull())
+        {
+            mSkeletonInstance = OGRE_NEW SkeletonInstance(mMesh->getSkeleton());
+            mSkeletonInstance->load();
+            // if mUpdateBoundingBoxFromSkeleton was turned on before the mesh was loaded, and mesh hasn't computed the boneBoundingRadius yet,
+            if ( mUpdateBoundingBoxFromSkeleton && mMesh->getBoneBoundingRadius() == Real(0))
+            {
+                mMesh->_computeBoneBoundingRadius();
+            }
+        }
 
-		// Build main subentity list
-		buildSubEntityList(mMesh, &mSubEntityList);
+        // Build main subentity list
+        buildSubEntityList(mMesh, &mSubEntityList);
+#if !OGRE_NO_MESHLOD
+        // Check if mesh is using manual LOD
+		if (mMesh->hasManualLodLevel())
+        {
+            ushort i, numLod;
+            numLod = mMesh->getNumLodLevels();
+            // NB skip LOD 0 which is the original
+            for (i = 1; i < numLod; ++i)
+            {
+                const MeshLodUsage& usage = mMesh->getLodLevel(i);
+				Entity* lodEnt;
+				if(!usage.manualName.empty()){
+					// Disabled to prevent recursion when a.mesh has manualLod to b.mesh and b.mesh has manualLod to a.mesh.
+					OgreAssert(usage.manualMesh->getNumLodLevels() == 1, "Manual Lod Mesh can't have Lod levels!");
 
-		// Check if mesh is using manual LOD
-		if (mMesh->isLodManual())
-		{
-			ushort i, numLod;
-			numLod = mMesh->getNumLodLevels();
-			// NB skip LOD 0 which is the original
-			for (i = 1; i < numLod; ++i)
-			{
-				const MeshLodUsage& usage = mMesh->getLodLevel(i);
-				// Manually create entity
-				Entity* lodEnt = OGRE_NEW Entity(mName + "Lod" + StringConverter::toString(i),
-					usage.manualMesh);
-				mLodEntityList.push_back(lodEnt);
+					if(usage.manualMesh->getNumLodLevels() != 1) {
+						// To prevent crash in release builds, we will remove Lod levels.
+						usage.manualMesh->removeLodLevels();
+					}
+
+					// Manually create entity
+					lodEnt = OGRE_NEW Entity(mName + "Lod" + StringConverter::toString(i),
+						usage.manualMesh);
+				} else {
+					// Autogenerated lod uses original entity
+					lodEnt = this;
+				}
+                mLodEntityList.push_back(lodEnt);
+            }
+        }
+#endif
+
+        // Initialise the AnimationState, if Mesh has animation
+        if (hasSkeleton())
+        {
+            mFrameBonesLastUpdated = OGRE_NEW_T(unsigned long, MEMCATEGORY_ANIMATION)(std::numeric_limits<unsigned long>::max());
+            mNumBoneMatrices = mSkeletonInstance->getNumBones();
+            mBoneMatrices = static_cast<Matrix4*>(OGRE_MALLOC_SIMD(sizeof(Matrix4) * mNumBoneMatrices, MEMCATEGORY_ANIMATION));
+        }
+        if (hasSkeleton() || hasVertexAnimation())
+        {
+            mAnimationState = OGRE_NEW AnimationStateSet();
+            mMesh->_initAnimationState(mAnimationState);
+            prepareTempBlendBuffers();
+        }
+
+        reevaluateVertexProcessing();
+		
+        // Update of bounds of the parent SceneNode, if Entity already attached
+        // this can happen if Mesh is loaded in background or after reinitialisation
+        if( mParentNode )
+        {
+            getParentSceneNode()->needUpdate();
+        }
+
+        mInitialised = true;
+        mMeshStateCount = mMesh->getStateCount();
+
+    }
+    //-----------------------------------------------------------------------
+    void Entity::_deinitialise(void)
+    {
+        if (!mInitialised)
+            return;
+
+        // Delete submeshes
+        SubEntityList::iterator i, iend;
+        iend = mSubEntityList.end();
+        for (i = mSubEntityList.begin(); i != iend; ++i)
+        {
+            // Delete SubEntity
+            OGRE_DELETE *i;
+            *i = 0;
+        }
+        mSubEntityList.clear();
+
+#if !OGRE_NO_MESHLOD
+        // Delete LOD entities
+        LODEntityList::iterator li, liend;
+        liend = mLodEntityList.end();
+        for (li = mLodEntityList.begin(); li != liend; ++li)
+        {
+			if(*li != this) {
+				// Delete
+				OGRE_DELETE *li;
+				*li = 0;
 			}
 		}
-
-
-		// Initialise the AnimationState, if Mesh has animation
-		if (hasSkeleton())
-		{
-			mFrameBonesLastUpdated = OGRE_NEW_T(unsigned long, MEMCATEGORY_ANIMATION)(std::numeric_limits<unsigned long>::max());
-			mNumBoneMatrices = mSkeletonInstance->getNumBones();
-			mBoneMatrices = static_cast<Matrix4*>(OGRE_MALLOC_SIMD(sizeof(Matrix4) * mNumBoneMatrices, MEMCATEGORY_ANIMATION));
-		}
-		if (hasSkeleton() || hasVertexAnimation())
-		{
-			mAnimationState = OGRE_NEW AnimationStateSet();
-			mMesh->_initAnimationState(mAnimationState);
-			prepareTempBlendBuffers();
-		}
-
-		reevaluateVertexProcessing();
-		
-		// Update of bounds of the parent SceneNode, if Entity already attached
-		// this can happen if Mesh is loaded in background or after reinitialisation
-		if( mParentNode )
-		{
-			getParentSceneNode()->needUpdate();
-		}
-
-		mInitialised = true;
-		mMeshStateCount = mMesh->getStateCount();
-
-	}
-	//-----------------------------------------------------------------------
-	void Entity::_deinitialise(void)
-	{
-		if (!mInitialised)
-			return;
-
-		// Delete submeshes
-		SubEntityList::iterator i, iend;
-		iend = mSubEntityList.end();
-		for (i = mSubEntityList.begin(); i != iend; ++i)
-		{
-			// Delete SubEntity
-			OGRE_DELETE *i;
-            *i = 0;
-		}
-		mSubEntityList.clear();
-		
-		// Delete LOD entities
-		LODEntityList::iterator li, liend;
-		liend = mLodEntityList.end();
-		for (li = mLodEntityList.begin(); li != liend; ++li)
-		{
-			// Delete
-			OGRE_DELETE *li;
-            *li = 0;
-		}
         mLodEntityList.clear();
-        
-		// Delete shadow renderables
-		ShadowRenderableList::iterator si, siend;
-		siend = mShadowRenderables.end();
-		for (si = mShadowRenderables.begin(); si != siend; ++si)
-		{
-			OGRE_DELETE *si;
+#endif
+        // Delete shadow renderables
+        ShadowRenderableList::iterator si, siend;
+        siend = mShadowRenderables.end();
+        for (si = mShadowRenderables.begin(); si != siend; ++si)
+        {
+            OGRE_DELETE *si;
             *si = 0;
-		}
+        }
         mShadowRenderables.clear();
         
-		// Detach all child objects, do this manually to avoid needUpdate() call
-		// which can fail because of deleted items
-		detachAllObjectsImpl();
+        // Detach all child objects, do this manually to avoid needUpdate() call
+        // which can fail because of deleted items
+        detachAllObjectsImpl();
 
-		if (mSkeletonInstance) {
-			OGRE_FREE_SIMD(mBoneWorldMatrices, MEMCATEGORY_ANIMATION);
+        if (mSkeletonInstance) {
+            OGRE_FREE_SIMD(mBoneWorldMatrices, MEMCATEGORY_ANIMATION);
             mBoneWorldMatrices = 0;
 
             if (mSharedSkeletonEntities) {
@@ -274,44 +300,44 @@ namespace Ogre {
                 else if (mSharedSkeletonEntities->empty())
                 {
                     OGRE_DELETE_T(mSharedSkeletonEntities, EntitySet, MEMCATEGORY_ANIMATION); mSharedSkeletonEntities = 0;
-					// using OGRE_FREE since unsigned long is not a destructor
+                    // using OGRE_FREE since unsigned long is not a destructor
                     OGRE_FREE(mFrameBonesLastUpdated, MEMCATEGORY_ANIMATION); mFrameBonesLastUpdated = 0;
                     OGRE_DELETE mSkeletonInstance; mSkeletonInstance = 0;
                     OGRE_FREE_SIMD(mBoneMatrices, MEMCATEGORY_ANIMATION); mBoneMatrices = 0;
                     OGRE_DELETE mAnimationState; mAnimationState = 0;
                 }
             } else {
-				// using OGRE_FREE since unsigned long is not a destructor
-				OGRE_FREE(mFrameBonesLastUpdated, MEMCATEGORY_ANIMATION); mFrameBonesLastUpdated = 0;
+                // using OGRE_FREE since unsigned long is not a destructor
+                OGRE_FREE(mFrameBonesLastUpdated, MEMCATEGORY_ANIMATION); mFrameBonesLastUpdated = 0;
                 OGRE_DELETE mSkeletonInstance; mSkeletonInstance = 0;
                 OGRE_FREE_SIMD(mBoneMatrices, MEMCATEGORY_ANIMATION); mBoneMatrices = 0;
                 OGRE_DELETE mAnimationState; mAnimationState = 0;
             }
         }
-		else if (hasVertexAnimation())
-		{
-			OGRE_DELETE mAnimationState;
+        else if (hasVertexAnimation())
+        {
+            OGRE_DELETE mAnimationState;
             mAnimationState = 0;
-		}
+        }
 
-		OGRE_DELETE mSkelAnimVertexData; mSkelAnimVertexData = 0;
-		OGRE_DELETE mSoftwareVertexAnimVertexData; mSoftwareVertexAnimVertexData = 0;
-		OGRE_DELETE mHardwareVertexAnimVertexData; mHardwareVertexAnimVertexData = 0;
+        OGRE_DELETE mSkelAnimVertexData; mSkelAnimVertexData = 0;
+        OGRE_DELETE mSoftwareVertexAnimVertexData; mSoftwareVertexAnimVertexData = 0;
+        OGRE_DELETE mHardwareVertexAnimVertexData; mHardwareVertexAnimVertexData = 0;
 
-		mInitialised = false;
-	}
+        mInitialised = false;
+    }
     //-----------------------------------------------------------------------
     Entity::~Entity()
     {
-		_deinitialise();
-		// Unregister our listener
-		mMesh->removeListener(this);
+        _deinitialise();
+        // Unregister our listener
+        mMesh->removeListener(this);
     }
-	//-----------------------------------------------------------------------
-	bool Entity::hasVertexAnimation(void) const
-	{
-		return mMesh->hasVertexAnimation();
-	}
+    //-----------------------------------------------------------------------
+    bool Entity::hasVertexAnimation(void) const
+    {
+        return mMesh->hasVertexAnimation();
+    }
     //-----------------------------------------------------------------------
     const MeshPtr& Entity::getMesh(void) const
     {
@@ -322,8 +348,8 @@ namespace Ogre {
     {
         if (index >= mSubEntityList.size())
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
-            "Index out of bounds.",
-            "Entity::getSubEntity");
+                        "Index out of bounds.",
+                        "Entity::getSubEntity");
         return mSubEntityList[index];
     }
     //-----------------------------------------------------------------------
@@ -340,29 +366,29 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Entity* Entity::clone( const String& newName) const
     {
-   		if (!mManager)
-		{
-			OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
-				"Cannot clone an Entity that wasn't created through a "
-				"SceneManager", "Entity::clone");
-		}
-	    Entity* newEnt = mManager->createEntity(newName, getMesh()->getName() );
+        if (!mManager)
+        {
+            OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
+                        "Cannot clone an Entity that wasn't created through a "
+                        "SceneManager", "Entity::clone");
+        }
+        Entity* newEnt = mManager->createEntity(newName, getMesh()->getName() );
 
-		if (mInitialised)
-		{
-			// Copy material settings
-			SubEntityList::const_iterator i;
-			unsigned int n = 0;
-			for (i = mSubEntityList.begin(); i != mSubEntityList.end(); ++i, ++n)
-			{
-				newEnt->getSubEntity(n)->setMaterialName((*i)->getMaterialName());
-			}
-			if (mAnimationState)
-			{
-				OGRE_DELETE newEnt->mAnimationState;
-				newEnt->mAnimationState = OGRE_NEW AnimationStateSet(*mAnimationState);
-			}
-		}
+        if (mInitialised)
+        {
+            // Copy material settings
+            SubEntityList::const_iterator i;
+            unsigned int n = 0;
+            for (i = mSubEntityList.begin(); i != mSubEntityList.end(); ++i, ++n)
+            {
+                newEnt->getSubEntity(n)->setMaterialName((*i)->getMaterialName());
+            }
+            if (mAnimationState)
+            {
+                OGRE_DELETE newEnt->mAnimationState;
+                newEnt->mAnimationState = OGRE_NEW AnimationStateSet(*mAnimationState);
+            }
+        }
 
         return newEnt;
     }
@@ -379,25 +405,26 @@ namespace Ogre {
     }
 
 
-	void Entity::setMaterial( const MaterialPtr& material )
-	{
-		// Set for all subentities
-		SubEntityList::iterator i;
-		for (i = mSubEntityList.begin(); i != mSubEntityList.end(); ++i)
-		{
-			(*i)->setMaterial(material);
-		}
-	}
+    void Entity::setMaterial( const MaterialPtr& material )
+    {
+        // Set for all subentities
+        SubEntityList::iterator i;
+        for (i = mSubEntityList.begin(); i != mSubEntityList.end(); ++i)
+        {
+            (*i)->setMaterial(material);
+        }
+    }
 
     //-----------------------------------------------------------------------
     void Entity::_notifyCurrentCamera(Camera* cam)
     {
-		MovableObject::_notifyCurrentCamera(cam);
+        MovableObject::_notifyCurrentCamera(cam);
 
         // Calculate the LOD
         if (mParentNode)
         {
-            // Get mesh LOD strategy
+#if !OGRE_NO_MESHLOD
+            // Get mesh lod strategy
             const LodStrategy *meshStrategy = mMesh->getLodStrategy();
             // Get the appropriate LOD value
             Real lodValue = meshStrategy->getValue(this, cam);
@@ -408,9 +435,9 @@ namespace Ogre {
             // Get the index at this biased depth
             ushort newMeshLodIndex = mMesh->getLodIndex(biasedMeshLodValue);
             // Apply maximum detail restriction (remember lower = higher detail)
-            newMeshLodIndex = std::max(mMaxMeshLodIndex, newMeshLodIndex);
+            newMeshLodIndex = std::max<ushort>(mMaxMeshLodIndex, newMeshLodIndex);
             // Apply minimum detail restriction (remember higher = lower detail)
-            newMeshLodIndex = std::min(mMinMeshLodIndex, newMeshLodIndex);
+            newMeshLodIndex = std::min<ushort>(mMinMeshLodIndex, newMeshLodIndex);
 
             // Construct event object
             EntityMeshLodChangedEvent evt;
@@ -428,13 +455,14 @@ namespace Ogre {
 
             // Now do material LOD
             lodValue *= mMaterialLodFactorTransformed;
-
+#endif
 
 
             SubEntityList::iterator i, iend;
             iend = mSubEntityList.end();
             for (i = mSubEntityList.begin(); i != iend; ++i)
             {
+#if !OGRE_NO_MESHLOD
                 // Get sub-entity material
                 const MaterialPtr& material = (*i)->getMaterial();
                 
@@ -468,9 +496,9 @@ namespace Ogre {
 
                 // Change LOD index
                 (*i)->mMaterialLodIndex = subEntEvt.newLodIndex;
-
-				// Also invalidate any camera distance cache
-				(*i)->_invalidateCameraCache ();
+#endif
+                // Also invalidate any camera distance cache
+                (*i)->_invalidateCameraCache ();
             }
 
 
@@ -484,18 +512,99 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
+    void Entity::setUpdateBoundingBoxFromSkeleton(bool update)
+    {
+        mUpdateBoundingBoxFromSkeleton = update;
+        if (mMesh->isLoaded() && mMesh->getBoneBoundingRadius() == Real(0))
+        {
+            mMesh->_computeBoneBoundingRadius();
+        }
+    }
+    //-----------------------------------------------------------------------
     const AxisAlignedBox& Entity::getBoundingBox(void) const
     {
-		// Get from Mesh
-		if (mMesh->isLoaded())
-		{
-			mFullBoundingBox = mMesh->getBounds();
-			mFullBoundingBox.merge(getChildObjectsBoundingBox());
-
-			// Don't scale here, this is taken into account when world BBox calculation is done
-		}
-		else
-			mFullBoundingBox.setNull();
+        // Get from Mesh
+        if (mMesh->isLoaded())
+        {
+            if ( mUpdateBoundingBoxFromSkeleton && hasSkeleton() )
+            {
+                // get from skeleton
+                // self bounding box without children
+                AxisAlignedBox bbox;
+                bbox.setNull();
+                Real maxScale = Real(0);
+                bool boneHasVerts[ OGRE_MAX_NUM_BONES ];
+                size_t numBones = mSkeletonInstance->getNumBones();
+                for (size_t iBone = 0; iBone < numBones; ++iBone)
+                {
+                    boneHasVerts[ iBone ] = false;
+                }
+                // for each bone that has vertices weighted to it,
+                for (size_t iBlend = 0; iBlend < mMesh->sharedBlendIndexToBoneIndexMap.size(); ++iBlend)
+                {
+                    // record which bones have vertices assigned
+                    size_t iBone = mMesh->sharedBlendIndexToBoneIndexMap[ iBlend ];
+                    boneHasVerts[ iBone ] = true;
+                }
+                // for each submesh,
+                for (size_t iSubMesh = 0; iSubMesh < mMesh->getNumSubMeshes(); ++iSubMesh)
+                {
+                    SubMesh* submesh = mMesh->getSubMesh( iSubMesh );
+                    // if the submesh has own vertices,
+                    if ( ! submesh->useSharedVertices )
+                    {
+                        // record which bones have vertices assigned
+                        for (size_t iBlend = 0; iBlend < submesh->blendIndexToBoneIndexMap.size(); ++iBlend)
+                        {
+                            size_t iBone = submesh->blendIndexToBoneIndexMap[ iBlend ];
+                            boneHasVerts[ iBone ] = true;
+                        }
+                    }
+                }
+                // for each bone that has vertices weighted to it,
+                for (size_t iBone = 0; iBone < numBones; ++iBone)
+                {
+                    if ( boneHasVerts[ iBone ] )
+                    {
+                        const Bone* bone = mSkeletonInstance->getBone( iBone );
+                        Vector3 scaleVec = bone->_getDerivedScale();
+                        Real scale = std::max( std::max( Math::Abs(scaleVec.x), Math::Abs(scaleVec.y)), Math::Abs(scaleVec.z) );
+                        maxScale = std::max( maxScale, scale );
+                        // only include bones that aren't scaled to zero
+                        if (scale > Real(0))
+                        {
+                            bbox.merge( bone->_getDerivedPosition() );
+                        }
+                    }
+                }
+                // unless all bones were scaled to zero,
+                if (! bbox.isNull())
+                {
+                    // inflate the bounding box
+                    float r = mMesh->getBoneBoundingRadius() * maxScale;  // adjust bone bounding radius by max scale of any bone
+                    Vector3 expansion(r, r, r);
+                    bbox.setExtents( bbox.getMinimum() - expansion, bbox.getMaximum() + expansion );
+                }
+                bbox.merge(getChildObjectsBoundingBox());
+                // if bounding box has changed,
+                if (bbox != mFullBoundingBox)
+                {
+                    mFullBoundingBox = bbox;
+                    Node::queueNeedUpdate( mParentNode );  // inform the parent node to update its AABB (without this, changes to the bbox won't propagate to the scene node)
+                }
+            }
+            else
+            {
+                // Get from Mesh
+                mFullBoundingBox = mMesh->getBounds();
+                mFullBoundingBox.merge(getChildObjectsBoundingBox());
+            }
+            // Don't scale here, this is taken into account when world BBox calculation is done
+        }
+        else
+        {
+            mFullBoundingBox.setNull();
+        }
 
         return mFullBoundingBox;
     }
@@ -520,72 +629,75 @@ namespace Ogre {
 
         return full_aa_box;
     }
-	//-----------------------------------------------------------------------
-	const AxisAlignedBox& Entity::getWorldBoundingBox(bool derive) const
-	{
-		if (derive)
-		{
-			// derive child bounding boxes
-			ChildObjectList::const_iterator child_itr = mChildObjectList.begin();
-			ChildObjectList::const_iterator child_itr_end = mChildObjectList.end();
+    //-----------------------------------------------------------------------
+    const AxisAlignedBox& Entity::getWorldBoundingBox(bool derive) const
+    {
+        if (derive)
+        {
+            // derive child bounding boxes
+            ChildObjectList::const_iterator child_itr = mChildObjectList.begin();
+            ChildObjectList::const_iterator child_itr_end = mChildObjectList.end();
 			for( ; child_itr != child_itr_end; ++child_itr)
-			{
-				child_itr->second->getWorldBoundingBox(true);
-			}
-		}
-		return MovableObject::getWorldBoundingBox(derive);
-	}
-	//-----------------------------------------------------------------------
-	const Sphere& Entity::getWorldBoundingSphere(bool derive) const
-	{
-		if (derive)
-		{
-			// derive child bounding boxes
-			ChildObjectList::const_iterator child_itr = mChildObjectList.begin();
-			ChildObjectList::const_iterator child_itr_end = mChildObjectList.end();
+            {
+                child_itr->second->getWorldBoundingBox(true);
+            }
+        }
+        return MovableObject::getWorldBoundingBox(derive);
+    }
+    //-----------------------------------------------------------------------
+    const Sphere& Entity::getWorldBoundingSphere(bool derive) const
+    {
+        if (derive)
+        {
+            // derive child bounding boxes
+            ChildObjectList::const_iterator child_itr = mChildObjectList.begin();
+            ChildObjectList::const_iterator child_itr_end = mChildObjectList.end();
 			for( ; child_itr != child_itr_end; ++child_itr)
-			{
-				child_itr->second->getWorldBoundingSphere(true);
-			}
-		}
-		return MovableObject::getWorldBoundingSphere(derive);
+            {
+                child_itr->second->getWorldBoundingSphere(true);
+            }
+        }
+        return MovableObject::getWorldBoundingSphere(derive);
 
-	}
+    }
     //-----------------------------------------------------------------------
     void Entity::_updateRenderQueue(RenderQueue* queue)
     {
-		// Do nothing if not initialised yet
-		if (!mInitialised)
-			return;
+        // Do nothing if not initialised yet
+        if (!mInitialised)
+            return;
 
-		// Check mesh state count, will be incremented if reloaded
-		if (mMesh->getStateCount() != mMeshStateCount)
-		{
-			// force reinitialise
-			_initialise(true);
-		}
+        // Check mesh state count, will be incremented if reloaded
+        if (mMesh->getStateCount() != mMeshStateCount)
+        {
+            // force reinitialise
+            _initialise(true);
+        }
 
         Entity* displayEntity = this;
-		// Check we're not using a manual LOD
-        if (mMeshLodIndex > 0 && mMesh->isLodManual())
+#if !OGRE_NO_MESHLOD
+        // Check we're not using a manual LOD
+        if (mMeshLodIndex > 0 && mMesh->hasManualLodLevel())
         {
             // Use alternate entity
             assert( static_cast< size_t >( mMeshLodIndex - 1 ) < mLodEntityList.size() &&
-                "No LOD EntityList - did you build the manual LODs after creating the entity?");
+                    "No LOD EntityList - did you build the manual LODs after creating the entity?");
             // index - 1 as we skip index 0 (original LOD)
-            if (hasSkeleton() && mLodEntityList[mMeshLodIndex - 1]->hasSkeleton())
-            {
-                // Copy the animation state set to LOD entity, we assume the LOD
-                // entity only has a subset animation states
-                AnimationStateSet* targetState = mLodEntityList[mMeshLodIndex - 1]->mAnimationState;
-				if (mAnimationState != targetState) // only copy if LODs use different skeleton instances
-				{
-					if (mAnimationState->getDirtyFrameNumber() != targetState->getDirtyFrameNumber()) // only copy if animation was updated
-						mAnimationState->copyMatchingState(targetState);
-				}
-            }
-            displayEntity = mLodEntityList[mMeshLodIndex - 1];
-        }
+			displayEntity = mLodEntityList[mMeshLodIndex-1];
+
+			if (displayEntity != this && hasSkeleton() && displayEntity->hasSkeleton())
+			{
+				// Copy the animation state set to lod entity, we assume the lod
+				// entity only has a subset animation states
+				AnimationStateSet* targetState = displayEntity->mAnimationState;
+                if (mAnimationState != targetState) // only copy if LODs use different skeleton instances
+                {
+                    if (mAnimationState->getDirtyFrameNumber() != targetState->getDirtyFrameNumber()) // only copy if animation was updated
+                        mAnimationState->copyMatchingState(targetState);
+                }
+			}
+		}
+#endif
 
         // Add each visible SubEntity to the queue
         SubEntityList::iterator i, iend;
@@ -599,42 +711,42 @@ namespace Ogre {
                 //        finally fall back on default queue settings
                 if((*i)->isRenderQueuePrioritySet())
                 {
-					assert((*i)->isRenderQueueGroupSet() == true);
+                    assert((*i)->isRenderQueueGroupSet() == true);
                     queue->addRenderable(*i, (*i)->getRenderQueueGroup(), (*i)->getRenderQueuePriority());
                 }
                 else if((*i)->isRenderQueueGroupSet())
                 {
                     queue->addRenderable(*i, (*i)->getRenderQueueGroup());
                 }
-				else if (mRenderQueuePrioritySet)
-				{
-					assert(mRenderQueueIDSet == true);
-					queue->addRenderable(*i, mRenderQueueID, mRenderQueuePriority);
-				}
+                else if (mRenderQueuePrioritySet)
+                {
+                    assert(mRenderQueueIDSet == true);
+                    queue->addRenderable(*i, mRenderQueueID, mRenderQueuePriority);
+                }
                 else if(mRenderQueueIDSet)
                 {
                     queue->addRenderable(*i, mRenderQueueID);
-				}
+                }
                 else
                 {
                     queue->addRenderable(*i);
                 }
             }
         }
-
-		if (getAlwaysUpdateMainSkeleton() && hasSkeleton() && (mMeshLodIndex > 0))
-		{
-			//check if an update was made
-			if (cacheBoneMatrices())
-			{
-				getSkeleton()->_updateTransforms();
-				//We will mark the skeleton as dirty. Otherwise, if in the same frame the entity will 
-				//be rendered first with a low LOD and then with a high LOD the system wont know that
-				//the bone matrices has changed and there for will not update the vertex buffers
-				getSkeleton()->_notifyManualBonesDirty();
-			}
-		}
-
+#if !OGRE_NO_MESHLOD
+        if (getAlwaysUpdateMainSkeleton() && hasSkeleton() && (mMeshLodIndex > 0))
+        {
+            //check if an update was made
+            if (cacheBoneMatrices())
+            {
+                getSkeleton()->_updateTransforms();
+                //We will mark the skeleton as dirty. Otherwise, if in the same frame the entity will 
+                //be rendered first with a low LOD and then with a high LOD the system wont know that
+                //the bone matrices has changed and there for will not update the vertex buffers
+                getSkeleton()->_notifyManualBonesDirty();
+            }
+        }
+#endif
         // Since we know we're going to be rendered, take this opportunity to
         // update the animation
         if (displayEntity->hasSkeleton() || displayEntity->hasVertexAnimation())
@@ -677,18 +789,18 @@ namespace Ogre {
             for (unsigned short b = 0; b < numBones; ++b)
             {
                 Bone* bone = mSkeletonInstance->getBone(b);
-				if (mRenderQueuePrioritySet)
-				{
-					assert(mRenderQueueIDSet == true);
-					queue->addRenderable(bone->getDebugRenderable(1), mRenderQueueID, mRenderQueuePriority);
-				}
-				else if(mRenderQueueIDSet)
+                if (mRenderQueuePrioritySet)
                 {
-                     queue->addRenderable(bone->getDebugRenderable(1), mRenderQueueID);
+                    assert(mRenderQueueIDSet == true);
+                    queue->addRenderable(bone->getDebugRenderable(1), mRenderQueueID, mRenderQueuePriority);
+                }
+                else if(mRenderQueueIDSet)
+                {
+                    queue->addRenderable(bone->getDebugRenderable(1), mRenderQueueID);
                 } 
-				else 
-				{
-                     queue->addRenderable(bone->getDebugRenderable(1));
+                else 
+                {
+                    queue->addRenderable(bone->getDebugRenderable(1));
                 }
             }
         }
@@ -699,10 +811,10 @@ namespace Ogre {
         if (!mAnimationState)
         {
             OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, "Entity is not animated",
-                "Entity::getAnimationState");
+                        "Entity::getAnimationState");
         }
 
-		return mAnimationState->getAnimationState(name);
+        return mAnimationState->getAnimationState(name);
     }
     //-----------------------------------------------------------------------
     bool Entity::hasAnimationState(const String& name) const
@@ -717,30 +829,30 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     const String& Entity::getMovableType(void) const
     {
-		return EntityFactory::FACTORY_TYPE_NAME;
+        return EntityFactory::FACTORY_TYPE_NAME;
     }
-	//-----------------------------------------------------------------------
-	bool Entity::tempVertexAnimBuffersBound(void) const
-	{
-		// Do we still have temp buffers for software vertex animation bound?
-		bool ret = true;
-		if (mMesh->sharedVertexData && mMesh->getSharedVertexDataAnimationType() != VAT_NONE)
-		{
-			ret = ret && mTempVertexAnimInfo.buffersCheckedOut(true, mMesh->getSharedVertexDataAnimationIncludesNormals());
-		}
-		for (SubEntityList::const_iterator i = mSubEntityList.begin();
-			i != mSubEntityList.end(); ++i)
-		{
-			SubEntity* sub = *i;
-			if (!sub->getSubMesh()->useSharedVertices
-				&& sub->getSubMesh()->getVertexAnimationType() != VAT_NONE)
-			{
-				ret = ret && sub->_getVertexAnimTempBufferInfo()->buffersCheckedOut(
-					true, sub->getSubMesh()->getVertexAnimationIncludesNormals());
-			}
-		}
-		return ret;
-	}
+    //-----------------------------------------------------------------------
+    bool Entity::tempVertexAnimBuffersBound(void) const
+    {
+        // Do we still have temp buffers for software vertex animation bound?
+        bool ret = true;
+        if (mMesh->sharedVertexData && mMesh->getSharedVertexDataAnimationType() != VAT_NONE)
+        {
+            ret = ret && mTempVertexAnimInfo.buffersCheckedOut(true, mMesh->getSharedVertexDataAnimationIncludesNormals());
+        }
+        for (SubEntityList::const_iterator i = mSubEntityList.begin();
+             i != mSubEntityList.end(); ++i)
+        {
+            SubEntity* sub = *i;
+            if (!sub->getSubMesh()->useSharedVertices
+                && sub->getSubMesh()->getVertexAnimationType() != VAT_NONE)
+            {
+                ret = ret && sub->_getVertexAnimTempBufferInfo()->buffersCheckedOut(
+                    true, sub->getSubMesh()->getVertexAnimationIncludesNormals());
+            }
+        }
+        return ret;
+    }
     //-----------------------------------------------------------------------
     bool Entity::tempSkelAnimBuffersBound(bool requestNormals) const
     {
@@ -751,7 +863,7 @@ namespace Ogre {
                 return false;
         }
         for (SubEntityList::const_iterator i = mSubEntityList.begin();
-            i != mSubEntityList.end(); ++i)
+             i != mSubEntityList.end(); ++i)
         {
             SubEntity* sub = *i;
             if (sub->isVisible() && sub->mSkelAnimVertexData)
@@ -765,144 +877,144 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Entity::updateAnimation(void)
     {
-		// Do nothing if not initialised yet
-		if (!mInitialised)
-			return;
+        // Do nothing if not initialised yet
+        if (!mInitialised)
+            return;
 
-		Root& root = Root::getSingleton();
-		bool hwAnimation = isHardwareAnimationEnabled();
-		bool isNeedUpdateHardwareAnim = hwAnimation && !mCurrentHWAnimationState;
-		bool forcedSwAnimation = getSoftwareAnimationRequests()>0;
-		bool forcedNormals = getSoftwareAnimationNormalsRequests()>0;
-		bool stencilShadows = false;
-		if (getCastShadows() && hasEdgeList() && root._getCurrentSceneManager())
-			stencilShadows =  root._getCurrentSceneManager()->isShadowTechniqueStencilBased();
-		bool softwareAnimation = !hwAnimation || stencilShadows || forcedSwAnimation;
-		// Blend normals in s/w only if we're not using h/w animation,
-		// since shadows only require positions
-		bool blendNormals = !hwAnimation || forcedNormals;
+        Root& root = Root::getSingleton();
+        bool hwAnimation = isHardwareAnimationEnabled();
+        bool isNeedUpdateHardwareAnim = hwAnimation && !mCurrentHWAnimationState;
+        bool forcedSwAnimation = getSoftwareAnimationRequests()>0;
+        bool forcedNormals = getSoftwareAnimationNormalsRequests()>0;
+        bool stencilShadows = false;
+        if (getCastShadows() && hasEdgeList() && root._getCurrentSceneManager())
+            stencilShadows =  root._getCurrentSceneManager()->isShadowTechniqueStencilBased();
+        bool softwareAnimation = !hwAnimation || stencilShadows || forcedSwAnimation;
+        // Blend normals in s/w only if we're not using h/w animation,
+        // since shadows only require positions
+        bool blendNormals = !hwAnimation || forcedNormals;
         // Animation dirty if animation state modified or manual bones modified
         bool animationDirty =
             (mFrameAnimationLastUpdated != mAnimationState->getDirtyFrameNumber()) ||
             (hasSkeleton() && getSkeleton()->getManualBonesDirty());
 		
-		//update the current hardware animation state
-		mCurrentHWAnimationState = hwAnimation;
+        //update the current hardware animation state
+        mCurrentHWAnimationState = hwAnimation;
 
-		// We only do these tasks if animation is dirty
-		// Or, if we're using a skeleton and manual bones have been moved
-		// Or, if we're using software animation and temp buffers are unbound
+        // We only do these tasks if animation is dirty
+        // Or, if we're using a skeleton and manual bones have been moved
+        // Or, if we're using software animation and temp buffers are unbound
         if (animationDirty ||
-			(softwareAnimation && hasVertexAnimation() && !tempVertexAnimBuffersBound()) ||
-			(softwareAnimation && hasSkeleton() && !tempSkelAnimBuffersBound(blendNormals)))
+            (softwareAnimation && hasVertexAnimation() && !tempVertexAnimBuffersBound()) ||
+            (softwareAnimation && hasSkeleton() && !tempSkelAnimBuffersBound(blendNormals)))
         {
-			if (hasVertexAnimation())
-			{
-				if (softwareAnimation)
-				{
-					// grab & bind temporary buffer for positions (& normals if they are included)
-					if (mSoftwareVertexAnimVertexData
-						&& mMesh->getSharedVertexDataAnimationType() != VAT_NONE)
-					{
-						bool useNormals = mMesh->getSharedVertexDataAnimationIncludesNormals();
-						mTempVertexAnimInfo.checkoutTempCopies(true, useNormals);
-						// NB we suppress hardware upload while doing blend if we're
-						// hardware animation, because the only reason for doing this
-						// is for shadow, which need only be uploaded then
-						mTempVertexAnimInfo.bindTempCopies(mSoftwareVertexAnimVertexData,
-							hwAnimation);
-					}
-					SubEntityList::iterator i, iend;
-					iend = mSubEntityList.end();
-					for (i = mSubEntityList.begin(); i != iend; ++i)
-					{
-						// Blend dedicated geometry
-						SubEntity* se = *i;
-						if (se->isVisible() && se->mSoftwareVertexAnimVertexData
-							&& se->getSubMesh()->getVertexAnimationType() != VAT_NONE)
-						{
-							bool useNormals = se->getSubMesh()->getVertexAnimationIncludesNormals();
-							se->mTempVertexAnimInfo.checkoutTempCopies(true, useNormals);
-							se->mTempVertexAnimInfo.bindTempCopies(se->mSoftwareVertexAnimVertexData,
-								hwAnimation);
-						}
+            if (hasVertexAnimation())
+            {
+                if (softwareAnimation)
+                {
+                    // grab & bind temporary buffer for positions (& normals if they are included)
+                    if (mSoftwareVertexAnimVertexData
+                        && mMesh->getSharedVertexDataAnimationType() != VAT_NONE)
+                    {
+                        bool useNormals = mMesh->getSharedVertexDataAnimationIncludesNormals();
+                        mTempVertexAnimInfo.checkoutTempCopies(true, useNormals);
+                        // NB we suppress hardware upload while doing blend if we're
+                        // hardware animation, because the only reason for doing this
+                        // is for shadow, which need only be uploaded then
+                        mTempVertexAnimInfo.bindTempCopies(mSoftwareVertexAnimVertexData,
+                                                           hwAnimation);
+                    }
+                    SubEntityList::iterator i, iend;
+                    iend = mSubEntityList.end();
+                    for (i = mSubEntityList.begin(); i != iend; ++i)
+                    {
+                        // Blend dedicated geometry
+                        SubEntity* se = *i;
+                        if (se->isVisible() && se->mSoftwareVertexAnimVertexData
+                            && se->getSubMesh()->getVertexAnimationType() != VAT_NONE)
+                        {
+                            bool useNormals = se->getSubMesh()->getVertexAnimationIncludesNormals();
+                            se->mTempVertexAnimInfo.checkoutTempCopies(true, useNormals);
+                            se->mTempVertexAnimInfo.bindTempCopies(se->mSoftwareVertexAnimVertexData,
+                                                                   hwAnimation);
+                        }
 
-					}
-				}
-				applyVertexAnimation(hwAnimation, stencilShadows);
-			}
+                    }
+                }
+                applyVertexAnimation(hwAnimation, stencilShadows);
+            }
 
-			if (hasSkeleton())
-			{
-				cacheBoneMatrices();
+            if (hasSkeleton())
+            {
+                cacheBoneMatrices();
 
-				// Software blend?
-				if (softwareAnimation)
-				{
+                // Software blend?
+                if (softwareAnimation)
+                {
                     const Matrix4* blendMatrices[256];
 
-					// Ok, we need to do a software blend
-					// Firstly, check out working vertex buffers
-					if (mSkelAnimVertexData)
-					{
-						// Blend shared geometry
-						// NB we suppress hardware upload while doing blend if we're
-						// hardware animation, because the only reason for doing this
-						// is for shadow, which need only be uploaded then
-						mTempSkelAnimInfo.checkoutTempCopies(true, blendNormals);
-						mTempSkelAnimInfo.bindTempCopies(mSkelAnimVertexData,
-							hwAnimation);
+                    // Ok, we need to do a software blend
+                    // Firstly, check out working vertex buffers
+                    if (mSkelAnimVertexData)
+                    {
+                        // Blend shared geometry
+                        // NB we suppress hardware upload while doing blend if we're
+                        // hardware animation, because the only reason for doing this
+                        // is for shadow, which need only be uploaded then
+                        mTempSkelAnimInfo.checkoutTempCopies(true, blendNormals);
+                        mTempSkelAnimInfo.bindTempCopies(mSkelAnimVertexData,
+                                                         hwAnimation);
                         // Prepare blend matrices, TODO: Move out of here
                         Mesh::prepareMatricesForVertexBlend(blendMatrices,
-                            mBoneMatrices, mMesh->sharedBlendIndexToBoneIndexMap);
-						// Blend, taking source from either mesh data or morph data
-						Mesh::softwareVertexBlend(
-							(mMesh->getSharedVertexDataAnimationType() != VAT_NONE) ?
-								mSoftwareVertexAnimVertexData :	mMesh->sharedVertexData,
-							mSkelAnimVertexData,
-							blendMatrices, mMesh->sharedBlendIndexToBoneIndexMap.size(),
-							blendNormals);
-					}
-					SubEntityList::iterator i, iend;
-					iend = mSubEntityList.end();
-					for (i = mSubEntityList.begin(); i != iend; ++i)
-					{
-						// Blend dedicated geometry
-						SubEntity* se = *i;
-						if (se->isVisible() && se->mSkelAnimVertexData)
-						{
-							se->mTempSkelAnimInfo.checkoutTempCopies(true, blendNormals);
-							se->mTempSkelAnimInfo.bindTempCopies(se->mSkelAnimVertexData,
-								hwAnimation);
+                                                            mBoneMatrices, mMesh->sharedBlendIndexToBoneIndexMap);
+                        // Blend, taking source from either mesh data or morph data
+                        Mesh::softwareVertexBlend(
+                            (mMesh->getSharedVertexDataAnimationType() != VAT_NONE) ?
+                            mSoftwareVertexAnimVertexData :	mMesh->sharedVertexData,
+                            mSkelAnimVertexData,
+                            blendMatrices, mMesh->sharedBlendIndexToBoneIndexMap.size(),
+                            blendNormals);
+                    }
+                    SubEntityList::iterator i, iend;
+                    iend = mSubEntityList.end();
+                    for (i = mSubEntityList.begin(); i != iend; ++i)
+                    {
+                        // Blend dedicated geometry
+                        SubEntity* se = *i;
+                        if (se->isVisible() && se->mSkelAnimVertexData)
+                        {
+                            se->mTempSkelAnimInfo.checkoutTempCopies(true, blendNormals);
+                            se->mTempSkelAnimInfo.bindTempCopies(se->mSkelAnimVertexData,
+                                                                 hwAnimation);
                             // Prepare blend matrices, TODO: Move out of here
                             Mesh::prepareMatricesForVertexBlend(blendMatrices,
-                                mBoneMatrices, se->mSubMesh->blendIndexToBoneIndexMap);
-							// Blend, taking source from either mesh data or morph data
-							Mesh::softwareVertexBlend(
-								(se->getSubMesh()->getVertexAnimationType() != VAT_NONE)?
-									se->mSoftwareVertexAnimVertexData : se->mSubMesh->vertexData,
-								se->mSkelAnimVertexData,
-								blendMatrices, se->mSubMesh->blendIndexToBoneIndexMap.size(),
-								blendNormals);
-						}
+                                                                mBoneMatrices, se->mSubMesh->blendIndexToBoneIndexMap);
+                            // Blend, taking source from either mesh data or morph data
+                            Mesh::softwareVertexBlend(
+                                (se->getSubMesh()->getVertexAnimationType() != VAT_NONE)?
+                                se->mSoftwareVertexAnimVertexData : se->mSubMesh->vertexData,
+                                se->mSkelAnimVertexData,
+                                blendMatrices, se->mSubMesh->blendIndexToBoneIndexMap.size(),
+                                blendNormals);
+                        }
 
-					}
+                    }
 
-				}
-			}
+                }
+            }
 
             // Trigger update of bounding box if necessary
             if (!mChildObjectList.empty())
                 mParentNode->needUpdate();
 
-			mFrameAnimationLastUpdated = mAnimationState->getDirtyFrameNumber();
+            mFrameAnimationLastUpdated = mAnimationState->getDirtyFrameNumber();
         }
 
         // Need to update the child object's transforms when animation dirty
         // or parent node transform has altered.
-		if (hasSkeleton() && 
+        if (hasSkeleton() && 
             (isNeedUpdateHardwareAnim || 
-			animationDirty || mLastParentXform != _getParentNodeFullTransform()))
+             animationDirty || mLastParentXform != _getParentNodeFullTransform()))
         {
             // Cache last parent transform for next frame use too.
             mLastParentXform = _getParentNodeFullTransform();
@@ -935,57 +1047,57 @@ namespace Ogre {
             }
         }
     }
-	//-----------------------------------------------------------------------
-	ushort Entity::initHardwareAnimationElements(VertexData* vdata,
-		ushort numberOfElements, bool animateNormals)
-	{
-		ushort elemsSupported = numberOfElements;
-		if (vdata->hwAnimationDataList.size() < numberOfElements)
-		{
-			elemsSupported = 
-				vdata->allocateHardwareAnimationElements(numberOfElements, animateNormals);
-		}
-		// Initialise parametrics incase we don't use all of them
-		for (size_t i = 0; i < vdata->hwAnimationDataList.size(); ++i)
-		{
-			vdata->hwAnimationDataList[i].parametric = 0.0f;
-		}
-		// reset used count
-		vdata->hwAnimDataItemsUsed = 0;
+    //-----------------------------------------------------------------------
+    ushort Entity::initHardwareAnimationElements(VertexData* vdata,
+                                                 ushort numberOfElements, bool animateNormals)
+    {
+        ushort elemsSupported = numberOfElements;
+        if (vdata->hwAnimationDataList.size() < numberOfElements)
+        {
+            elemsSupported = 
+                vdata->allocateHardwareAnimationElements(numberOfElements, animateNormals);
+        }
+        // Initialise parametrics in case we don't use all of them
+        for (size_t i = 0; i < vdata->hwAnimationDataList.size(); ++i)
+        {
+            vdata->hwAnimationDataList[i].parametric = 0.0f;
+        }
+        // reset used count
+        vdata->hwAnimDataItemsUsed = 0;
 				
-		return elemsSupported;
+        return elemsSupported;
 
-	}
-	//-----------------------------------------------------------------------
-	void Entity::applyVertexAnimation(bool hardwareAnimation, bool stencilShadows)
-	{
-		const MeshPtr& msh = getMesh();
-		bool swAnim = !hardwareAnimation || stencilShadows || (mSoftwareAnimationRequests>0);
+    }
+    //-----------------------------------------------------------------------
+    void Entity::applyVertexAnimation(bool hardwareAnimation, bool stencilShadows)
+    {
+        const MeshPtr& msh = getMesh();
+        bool swAnim = !hardwareAnimation || stencilShadows || (mSoftwareAnimationRequests>0);
 
-		// make sure we have enough hardware animation elements to play with
-		if (hardwareAnimation)
-		{
-			if (mHardwareVertexAnimVertexData
-				&& msh->getSharedVertexDataAnimationType() != VAT_NONE)
-			{
-				ushort supportedCount =
-				  initHardwareAnimationElements(mHardwareVertexAnimVertexData,
-					(msh->getSharedVertexDataAnimationType() == VAT_POSE)
-					? mHardwarePoseCount : 1, 
-					msh->getSharedVertexDataAnimationIncludesNormals());
+        // make sure we have enough hardware animation elements to play with
+        if (hardwareAnimation)
+        {
+            if (mHardwareVertexAnimVertexData
+                && msh->getSharedVertexDataAnimationType() != VAT_NONE)
+            {
+                ushort supportedCount =
+                    initHardwareAnimationElements(mHardwareVertexAnimVertexData,
+                                                  (msh->getSharedVertexDataAnimationType() == VAT_POSE)
+                                                  ? mHardwarePoseCount : 1, 
+                                                  msh->getSharedVertexDataAnimationIncludesNormals());
 				
-				if (msh->getSharedVertexDataAnimationType() == VAT_POSE && 
-					supportedCount < mHardwarePoseCount)
-				{
-					LogManager::getSingleton().stream() <<
-					  "Vertex program assigned to Entity '" << mName << 
-					  "' claimed to support " << mHardwarePoseCount << 
-					  " morph/pose vertex sets, but in fact only " << supportedCount <<
-					  " were able to be supported in the shared mesh data.";
-					mHardwarePoseCount = supportedCount;
-				}
+                if (msh->getSharedVertexDataAnimationType() == VAT_POSE && 
+                    supportedCount < mHardwarePoseCount)
+                {
+                    LogManager::getSingleton().stream() <<
+                        "Vertex program assigned to Entity '" << mName << 
+                        "' claimed to support " << mHardwarePoseCount << 
+                        " morph/pose vertex sets, but in fact only " << supportedCount <<
+                        " were able to be supported in the shared mesh data.";
+                    mHardwarePoseCount = supportedCount;
+                }
 					
-			}
+}
 			for (SubEntityList::iterator si = mSubEntityList.begin();
 				si != mSubEntityList.end(); ++si)
 			{
@@ -1372,34 +1484,44 @@ namespace Ogre {
         return mDisplaySkeleton;
     }
     //-----------------------------------------------------------------------
-    Entity* Entity::getManualLodLevel(size_t index) const
-    {
-        assert(index < mLodEntityList.size());
-
-        return mLodEntityList[index];
-    }
-    //-----------------------------------------------------------------------
     size_t Entity::getNumManualLodLevels(void) const
     {
-        return mLodEntityList.size();
+#if !OGRE_NO_MESHLOD
+		return mLodEntityList.size();
+#else
+		return 0;
+#endif
     }
+
+	//-----------------------------------------------------------------------
+	Entity* Entity::getManualLodLevel(size_t index) const
+	{
+#if !OGRE_NO_MESHLOD
+		assert(index < mLodEntityList.size());
+
+		return mLodEntityList[index];
+#else
+		OgreAssert(0, "This feature is disabled in ogre configuration!");
+		return NULL;
+#endif
+	}
+#if !OGRE_NO_MESHLOD
     //-----------------------------------------------------------------------
     void Entity::setMeshLodBias(Real factor, ushort maxDetailIndex, ushort minDetailIndex)
     {
-        mMeshLodFactorTransformed = mMesh->getLodStrategy()->transformBias(factor);
-        mMaxMeshLodIndex = maxDetailIndex;
-        mMinMeshLodIndex = minDetailIndex;
-
+		mMeshLodFactorTransformed = mMesh->getLodStrategy()->transformBias(factor);
+		mMaxMeshLodIndex = maxDetailIndex;
+		mMinMeshLodIndex = minDetailIndex;
     }
     //-----------------------------------------------------------------------
     void Entity::setMaterialLodBias(Real factor, ushort maxDetailIndex, ushort minDetailIndex)
     {
-        mMaterialLodFactor = factor;
-        mMaterialLodFactorTransformed = mMesh->getLodStrategy()->transformBias(factor);
-        mMaxMaterialLodIndex = maxDetailIndex;
-        mMinMaterialLodIndex = minDetailIndex;
-
+		mMaterialLodFactor = factor;
+		mMaterialLodFactorTransformed = mMesh->getLodStrategy()->transformBias(factor);
+		mMaxMaterialLodIndex = maxDetailIndex;
+		mMinMaterialLodIndex = minDetailIndex;
     }
+#endif
     //-----------------------------------------------------------------------
     void Entity::buildSubEntityList(MeshPtr& mesh, SubEntityList* sublist)
     {
@@ -1676,12 +1798,18 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     EdgeData* Entity::getEdgeList(void)
     {
+#if OGRE_NO_MESHLOD
+		unsigned short mMeshLodIndex = 0;
+#endif
         // Get from Mesh
         return mMesh->getEdgeList(mMeshLodIndex);
     }
 	//-----------------------------------------------------------------------
     bool Entity::hasEdgeList(void)
     {
+#if OGRE_NO_MESHLOD
+		unsigned short mMeshLodIndex = 0;
+#endif
         // check if mesh has an edge list attached
         // give mesh a chance to built it if scheduled
         return (mMesh->getEdgeList(mMeshLodIndex) != NULL);
@@ -1832,6 +1960,7 @@ namespace Ogre {
 
 		return hasHardwareAnimation;
     }
+
     //-----------------------------------------------------------------------
     Real Entity::_getMeshLodFactorTransformed() const
     {
@@ -1847,30 +1976,34 @@ namespace Ogre {
         assert(indexBuffer && "Only external index buffers are supported right now");
         assert((*indexBuffer)->getType() == HardwareIndexBuffer::IT_16BIT &&
             "Only 16-bit indexes supported for now");
-
+#if !OGRE_NO_MESHLOD
         // Potentially delegate to LOD entity
-        if (mMesh->isLodManual() && mMeshLodIndex > 0)
+        if (mMesh->hasManualLodLevel() && mMeshLodIndex > 0)
         {
             // Use alternate entity
             assert( static_cast< size_t >( mMeshLodIndex - 1 ) < mLodEntityList.size() &&
                 "No LOD EntityList - did you build the manual LODs after creating the entity?");
-            // delegate, we're using manual LOD and not the top LOD index
-            if (hasSkeleton() && mLodEntityList[mMeshLodIndex - 1]->hasSkeleton())
-            {
-                // Copy the animation state set to LOD entity, we assume the lod
-                // entity only has a subset animation states
-                AnimationStateSet* targetState = mLodEntityList[mMeshLodIndex - 1]->mAnimationState;
-				if (mAnimationState != targetState) // only copy if lods have different skeleton instances
-				{
-					if (mAnimationState->getDirtyFrameNumber() != targetState->getDirtyFrameNumber()) // only copy if animation was updated
-						mAnimationState->copyMatchingState(targetState);
-				}
-            }
-            return mLodEntityList[mMeshLodIndex-1]->getShadowVolumeRenderableIterator(
-                shadowTechnique, light, indexBuffer, indexBufferUsedSize,
-                extrude, extrusionDistance, flags);
-        }
 
+			Entity* requiredEntity = mLodEntityList[mMeshLodIndex-1];
+			if (requiredEntity != this) {
+				// delegate, we're using manual LOD and not the top lod index
+				if (hasSkeleton() && mLodEntityList[mMeshLodIndex-1]->hasSkeleton())
+				{
+					// Copy the animation state set to lod entity, we assume the lod
+					// entity only has a subset animation states
+					AnimationStateSet* targetState = mLodEntityList[mMeshLodIndex-1]->mAnimationState;
+					if (mAnimationState != targetState) // only copy if lods have different skeleton instances
+					{
+						if (mAnimationState->getDirtyFrameNumber() != targetState->getDirtyFrameNumber()) // only copy if animation was updated
+							mAnimationState->copyMatchingState(targetState);
+					}
+				}
+				return mLodEntityList[mMeshLodIndex-1]->getShadowVolumeRenderableIterator(
+					shadowTechnique, light, indexBuffer, indexBufferUsedSize,
+					extrusionDistance, flags);
+			}
+        }
+#endif
 
         // Prepare temp buffers if required
         if (!mPreparedForShadowVolumes)
@@ -2081,14 +2214,16 @@ namespace Ogre {
     void Entity::_notifyAttached(Node* parent, bool isTagPoint)
     {
         MovableObject::_notifyAttached(parent, isTagPoint);
+#if !OGRE_NO_MESHLOD
         // Also notify LOD entities
         LODEntityList::iterator i, iend;
         iend = mLodEntityList.end();
         for (i = mLodEntityList.begin(); i != iend; ++i)
         {
-            (*i)->_notifyAttached(parent, isTagPoint);
+			if(*i != this)
+				(*i)->_notifyAttached(parent, isTagPoint);
         }
-
+#endif
     }
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
@@ -2201,33 +2336,37 @@ namespace Ogre {
     void Entity::setRenderQueueGroup(uint8 queueID)
     {
         MovableObject::setRenderQueueGroup(queueID);
-
+#if !OGRE_NO_MESHLOD
         // Set render queue for all manual LOD entities
-        if (mMesh->isLodManual())
+        if (mMesh->hasManualLodLevel())
         {
             LODEntityList::iterator li, liend;
             liend = mLodEntityList.end();
             for (li = mLodEntityList.begin(); li != liend; ++li)
             {
-                (*li)->setRenderQueueGroup(queueID);
+				if(*li != this)
+					(*li)->setRenderQueueGroup(queueID);
             }
         }
+#endif
     }
 	//-----------------------------------------------------------------------
 	void Entity::setRenderQueueGroupAndPriority(uint8 queueID, ushort priority)
 	{
 		MovableObject::setRenderQueueGroupAndPriority(queueID, priority);
-
+#if !OGRE_NO_MESHLOD
 		// Set render queue for all manual LOD entities
-		if (mMesh->isLodManual())
+		if (mMesh->hasManualLodLevel())
 		{
 			LODEntityList::iterator li, liend;
 			liend = mLodEntityList.end();
 			for (li = mLodEntityList.begin(); li != liend; ++li)
 			{
-				(*li)->setRenderQueueGroupAndPriority(queueID, priority);
+				if(*li != this)
+					(*li)->setRenderQueueGroupAndPriority(queueID, priority);
 			}
 		}
+#endif
 	}
     //-----------------------------------------------------------------------
     void Entity::shareSkeletonInstanceWith(Entity* entity)
@@ -2391,19 +2530,21 @@ namespace Ogre {
 		{
 			visitor->visit(*i, 0, false);
 		}
+#if !OGRE_NO_MESHLOD
 		// if manual LOD is in use, visit those too
 		ushort lodi = 1;
 		for (LODEntityList::iterator e = mLodEntityList.begin(); 
 			e != mLodEntityList.end(); ++e, ++lodi)
 		{
-			
-			uint nsub = (*e)->getNumSubEntities();
-			for (uint s = 0; s < nsub; ++s)
-			{
-				visitor->visit((*e)->getSubEntity(s), lodi, false);
+			if(*e != this) {
+				uint nsub = (*e)->getNumSubEntities();
+				for (uint s = 0; s < nsub; ++s)
+				{
+					visitor->visit((*e)->getSubEntity(s), lodi, false);
+				}
 			}
 		}
-
+#endif
 	}
 	//-----------------------------------------------------------------------
 	//-----------------------------------------------------------------------

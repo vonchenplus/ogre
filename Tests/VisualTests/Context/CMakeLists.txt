@@ -41,6 +41,7 @@ endif()
 ogre_add_component_include_dir(Terrain)
 ogre_add_component_include_dir(Paging)
 ogre_add_component_include_dir(RTShaderSystem)
+ogre_add_component_include_dir(MeshLodGenerator)
 ogre_add_component_include_dir(Overlay)
 ogre_add_component_include_dir(Volume)
 
@@ -76,7 +77,7 @@ endif ()
 if (OGRE_BUILD_RENDERSYSTEM_GL)
     add_dependencies(TestContext RenderSystem_GL)
 endif ()
-if (OGRE_BUILD_RENDERSYSTEM_GLPLUS)
+if (OGRE_BUILD_RENDERSYSTEM_GL3PLUS)
     add_dependencies(TestContext RenderSystem_GL3Plus)
 endif ()
 if (OGRE_BUILD_RENDERSYSTEM_GLES)
@@ -121,6 +122,8 @@ if (APPLE)
 		COMMAND mkdir ARGS -p ${OGRE_TESTCONTEXT_CONTENTS_PATH}/Frameworks
 		COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/${OGRE_OSX_BUILD_CONFIGURATION}/Ogre.framework
 		${OGRE_TESTCONTEXT_CONTENTS_PATH}/Frameworks/
+		COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/${OGRE_OSX_BUILD_CONFIGURATION}/OgreMeshLodGenerator.framework
+		${OGRE_TESTCONTEXT_CONTENTS_PATH}/Frameworks/
 		COMMAND ln ARGS -s -f ${Cg_LIBRARY_REL}
 		${OGRE_TESTCONTEXT_CONTENTS_PATH}/Frameworks/
 		)
@@ -140,6 +143,14 @@ if (APPLE)
         COMMAND ditto
 		${OGRE_SOURCE_DIR}/Samples/Common/misc/SampleBrowser_OSX.icns ${OGRE_TESTCONTEXT_CONTENTS_PATH}/Resources
 		)
+
+  add_custom_command(TARGET TestContext POST_BUILD
+		COMMAND mkdir ARGS -p ${OGRE_TESTCONTEXT_CONTENTS_PATH}/Plugins
+		COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/${OGRE_OSX_BUILD_CONFIGURATION}/PlayPenTests.dylib 
+		${OGRE_TESTCONTEXT_CONTENTS_PATH}/Plugins/
+		COMMAND ln ARGS -s -f ${OGRE_BINARY_DIR}/lib/${OGRE_OSX_BUILD_CONFIGURATION}/VTests.dylib 
+		${OGRE_TESTCONTEXT_CONTENTS_PATH}/Plugins/
+	)
 
 	# now plugins
 	if (OGRE_BUILD_RENDERSYSTEM_GL OR OGRE_SDK_BUILD)
@@ -227,4 +238,10 @@ if (APPLE)
 			)
 	endif()
 	endif()
+endif()
+
+# In Windows TestContext cannot be run from the build directory
+# and thus must be installed to be useful.
+if (WIN32)
+    ogre_install_target(TestContext "" FALSE)
 endif()

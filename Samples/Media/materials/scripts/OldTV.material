@@ -53,7 +53,6 @@ material Ogre/Compositor/OldTV
 		{
 			depth_check off
             polygon_mode_overrideable false
-
 			vertex_program_ref Ogre/Compositor/StdQuad_Tex2a_vp
 			{
 			}

@@ -997,9 +997,9 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 			}
 			// Set fixed-function vertex parameters
 		}
-		if (pass->hasTesselationHullProgram())
+		if (pass->hasTessellationHullProgram())
 		{
-			bindGpuProgram(pass->getTesselationHullProgram()->_getBindingDelegate());
+			bindGpuProgram(pass->getTessellationHullProgram()->_getBindingDelegate());
 			// bind parameters later
 		}
 		else
@@ -1009,12 +1009,12 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 			{
 				mDestRenderSystem->unbindGpuProgram(GPT_HULL_PROGRAM);
 			}
-			// Set fixed-function tesselation control parameters
+			// Set fixed-function tessellation control parameters
 		}
 
-		if (pass->hasTesselationDomainProgram())
+		if (pass->hasTessellationDomainProgram())
 		{
-			bindGpuProgram(pass->getTesselationDomainProgram()->_getBindingDelegate());
+			bindGpuProgram(pass->getTessellationDomainProgram()->_getBindingDelegate());
 			// bind parameters later
 		}
 		else
@@ -1024,9 +1024,23 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 			{
 				mDestRenderSystem->unbindGpuProgram(GPT_DOMAIN_PROGRAM);
 			}
-			// Set fixed-function tesselation evaluation parameters
+			// Set fixed-function tessellation evaluation parameters
 		}
 
+                if (pass->hasComputeProgram())
+		{
+                    bindGpuProgram(pass->getComputeProgram()->_getBindingDelegate());
+                    // bind parameters later
+		}
+		else
+		{
+                    // Unbind program?
+                    if (mDestRenderSystem->isGpuProgramBound(GPT_COMPUTE_PROGRAM))
+                    {
+                        mDestRenderSystem->unbindGpuProgram(GPT_COMPUTE_PROGRAM);
+                    }
+                    // Set fixed-function compute parameters
+		}
 
 		if (passSurfaceAndLightParams)
 		{
@@ -1824,7 +1838,6 @@ void SceneManager::_setSkyBox(
         for (uint16 i = 0; i < 6; ++i)
         {
 			Plane plane;
-			String meshName;
 			Vector3 middle;
 			Vector3 up, right;
 
@@ -6404,10 +6417,7 @@ SceneManager::RenderContext* SceneManager::_pauseRendering()
 //---------------------------------------------------------------------
 void SceneManager::_resumeRendering(SceneManager::RenderContext* context) 
 {
-	if (mRenderQueue != 0) 
-	{
-		delete mRenderQueue;
-	}
+    delete mRenderQueue;
 	mRenderQueue = context->renderQueue;
 	_setActiveCompositorChain(context->activeChain);
 	Ogre::Viewport* vp = context->viewport;
@@ -7277,17 +7287,23 @@ void SceneManager::updateGpuProgramParameters(const Pass* pass)
 				pass->getFragmentProgramParameters(), mGpuParamsDirty);
 		}
 
-		if (pass->hasTesselationHullProgram())
+		if (pass->hasTessellationHullProgram())
 		{
 			mDestRenderSystem->bindGpuProgramParameters(GPT_HULL_PROGRAM, 
-				pass->getTesselationHullProgramParameters(), mGpuParamsDirty);
+				pass->getTessellationHullProgramParameters(), mGpuParamsDirty);
 		}
 
-		if (pass->hasTesselationHullProgram())
+		if (pass->hasTessellationDomainProgram())
 		{
 			mDestRenderSystem->bindGpuProgramParameters(GPT_DOMAIN_PROGRAM, 
-				pass->getTesselationDomainProgramParameters(), mGpuParamsDirty);
+				pass->getTessellationDomainProgramParameters(), mGpuParamsDirty);
 		}
+
+                // if (pass->hasComputeProgram())
+		// {
+                //     mDestRenderSystem->bindGpuProgramParameters(GPT_COMPUTE_PROGRAM, 
+                //                                                 pass->getComputeProgramParameters(), mGpuParamsDirty);
+		// }
 
 		mGpuParamsDirty = 0;
 	}

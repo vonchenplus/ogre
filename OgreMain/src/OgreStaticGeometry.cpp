@@ -285,7 +285,7 @@ namespace Ogre {
 	{
 		const MeshPtr& msh = ent->getMesh();
 		// Validate
-		if (msh->isLodManual())
+		if (msh->hasManualLodLevel())
 		{
 			LogManager::getSingleton().logMessage(
 				"WARNING (StaticGeometry): Manual LOD is not supported. "
@@ -329,7 +329,7 @@ namespace Ogre {
 		// Otherwise, we have to create a new one
 		SubMeshLodGeometryLinkList* lodList = OGRE_NEW_T(SubMeshLodGeometryLinkList, MEMCATEGORY_GEOMETRY)();
 		mSubMeshGeometryLookup[sm] = lodList;
-		ushort numLods = sm->parent->isLodManual() ? 1 :
+		ushort numLods = sm->parent->hasManualLodLevel() ? 1 :
 			sm->parent->getNumLodLevels();
 		lodList->resize(numLods);
 		for (ushort lod = 0; lod < numLods; ++lod)
@@ -713,7 +713,7 @@ namespace Ogre {
 		SceneManager* mgr, uint32 regionID, const Vector3& centre)
 		: MovableObject(name), mParent(parent), mSceneMgr(mgr), mNode(0),
 		mRegionID(regionID), mCentre(centre), mBoundingRadius(0.0f),
-		mCurrentLod(0), mLodStrategy(0)
+		mCurrentLod(0), mLodStrategy(0), mCamera(0), mSquaredViewDepth(0)
 	{
 	}
 	//--------------------------------------------------------------------------

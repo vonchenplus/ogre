@@ -26,13 +26,6 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#include "OgreBuildSettings.h"
-
-#if defined(OGRE_BUILD_RENDERSYSTEM_GLES2) || defined(OGRE_BUILD_RENDERSYSTEM_GL3PLUS) || defined(OGRE_BUILD_RENDERSYSTEM_D3D11)
-#  define INCLUDE_RTSHADER_SYSTEM
-#endif
-
-//#define _RTSS_WRITE_SHADERS_TO_DISK
 
 #include "TestContext.h"
 #include "SamplePlugin.h"
@@ -63,7 +56,7 @@ TestContext::TestContext(int argc, char** argv) : mTimestep(0.01f), mOutputDir(S
     Ogre::UnaryOptionList unOpt;
     Ogre::BinaryOptionList binOpt;
 
-    // prepopulate expected options
+    // Prepopulate expected options.
     unOpt["-r"] = false;        // generate reference set
     unOpt["--no-html"] = false; // whether or not to generate HTML
     unOpt["-d"] = false;        // force config dialog
@@ -79,7 +72,7 @@ TestContext::TestContext(int argc, char** argv) : mTimestep(0.01f), mOutputDir(S
     binOpt["-rs"] = "SAVED";    // rendersystem to use (default: use name from the config file/dialog)
     binOpt["-o"] = "NONE";      // path to output a summary file to (default: don't output a file)
 
-    // parse
+    // Parse.
     Ogre::findCommandLineOpts(argc, argv, unOpt, binOpt);
 
     mReferenceSet = unOpt["-r"];
@@ -98,6 +91,11 @@ TestContext::TestContext(int argc, char** argv) : mTimestep(0.01f), mOutputDir(S
 
     if(mReferenceSetPath == StringUtil::BLANK)
         mReferenceSetPath = mOutputDir;
+    
+#ifdef INCLUDE_RTSHADER_SYSTEM
+    mShaderGenerator     = NULL;
+    mMaterialMgrListener = NULL;
+#endif // INCLUDE_RTSHADER_SYSTEM
 }
 //-----------------------------------------------------------------------
 
@@ -110,7 +108,7 @@ TestContext::~TestContext()
 
 void TestContext::setup()
 {
-    // standard setup
+    // Standard setup.
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
     CGSize modeSize = [[UIScreen mainScreen] currentMode].size;
     uint w = modeSize.width / [UIScreen mainScreen].scale;
@@ -131,10 +129,11 @@ void TestContext::setup()
 
     mWindow->setDeactivateOnFocusChange(false);
 
-    // grab input, since moving the window seemed to change the results (in Linux anyways)
+    // Grab input, since moving the window seemed to change the results (in Linux anyways).
     setupInput(mNoGrabMouse);
-
+    
     locateResources();
+
     createDummyScene();
 #ifdef INCLUDE_RTSHADER_SYSTEM
     if (mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION) == false)
@@ -151,7 +150,7 @@ void TestContext::setup()
     Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
 #endif
 
-    // get the path and list of test plugins from the config file
+    // Get the path and list of test plugins from the config file.
     Ogre::ConfigFile testConfig;
     testConfig.load(mFSLayer->getConfigFilePath("tests.cfg"));
     mPluginDirectory = testConfig.getSetting("TestFolder");
@@ -173,7 +172,7 @@ void TestContext::setup()
 
     Ogre::ConfigFile::SectionIterator sections = testConfig.getSectionIterator();
 
-    // parse for the test sets and plugins that they're made up of
+    // Parse for the test sets and plugins that they're made up of.
     for (; sections.hasMoreElements(); sections.moveNext())
     {
         Ogre::String setName = sections.peekNextKey();
@@ -198,7 +197,7 @@ void TestContext::setup()
     char temp[25];
     strftime(temp, 19, "%Y_%m_%d_%H%M_%S", gmtime(&raw));
 
-    // a nicer formatted version for display
+    // A nicer formatted version for display.
     strftime(temp, 20, "%Y-%m-%d %H:%M:%S", gmtime(&raw));
     Ogre::String timestamp = Ogre::String(temp);
 
@@ -214,10 +213,10 @@ void TestContext::setup()
             batchName = mBatchName;
     }
 
-    // set up output directories
+    // Set up output directories.
     setupDirectories(batchName);
 
-    // an object storing info about this set
+    // An object storing info about this set.
     mBatch = new TestBatch(batchName, mTestSetName, timestamp,
                            mWindow->getWidth(), mWindow->getHeight(), mOutputDir + batchName + "/");
     mBatch->comment = mComment;
@@ -410,7 +409,8 @@ void TestContext::runSample(OgreBites::Sample* s)
 
     OgreBites::Sample* sampleToRun = s;
 
-    // if a valid test is passed, then run it, if null, grab the next one from the deque
+    // If a valid test is passed, then run it
+    // If null, grab the next one from the deque
     if (!sampleToRun && !mTests.empty())
     {
         mTests.pop_front();
@@ -418,10 +418,10 @@ void TestContext::runSample(OgreBites::Sample* s)
             sampleToRun = mTests.front();
     }
 
-    // check if this is a VisualTest
+    // Check if this is a VisualTest
     mCurrentTest = static_cast<VisualTest*>(sampleToRun);
 
-    // set things up to be deterministic
+    // Set things up to be deterministic
     if (mCurrentTest)
     {
         // Seed rand with a predictable value
@@ -429,10 +429,8 @@ void TestContext::runSample(OgreBites::Sample* s)
 
         // Give a fixed timestep for particles and other time-dependent things in OGRE
         Ogre::ControllerManager::getSingleton().setFrameDelay(mTimestep);
-    }
-
-    if (mCurrentTest)
         LogManager::getSingleton().logMessage("----- Running Visual Test " + mCurrentTest->getInfo()["Title"] + " -----");
+    }
 
 #ifdef INCLUDE_RTSHADER_SYSTEM
     if (sampleToRun) {

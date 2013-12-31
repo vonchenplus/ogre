@@ -64,7 +64,6 @@ THE SOFTWARE.
 #include "OgrePlatformInformation.h"
 #include "OgreConvexBody.h"
 #include "Threading/OgreDefaultWorkQueue.h"
-#include "OgreQueuedProgressiveMeshGenerator.h"
 
 #if OGRE_NO_FREEIMAGE == 0
 #include "OgreFreeImageCodec.h"
@@ -206,12 +205,6 @@ namespace Ogre {
         // LOD strategy manager
         mLodStrategyManager = OGRE_NEW LodStrategyManager();
 
-        // Queued Progressive Mesh Generator Worker
-        mPMWorker = OGRE_NEW PMWorker();
-
-        // Queued Progressive Mesh Generator Injector
-        mPMInjector = OGRE_NEW PMInjector();
-
 #if OGRE_PROFILING
         // Profiler
         mProfiler = OGRE_NEW Profiler();
@@ -312,8 +305,6 @@ namespace Ogre {
 #endif
 
 		OGRE_DELETE mLodStrategyManager;
-		OGRE_DELETE mPMWorker;
-		OGRE_DELETE mPMInjector;
 
         OGRE_DELETE mArchiveManager;
 
@@ -327,10 +318,8 @@ namespace Ogre {
         OGRE_DELETE mMeshManager;
         OGRE_DELETE mParticleManager;
 
-        if( mControllerManager )
-            OGRE_DELETE mControllerManager;
-        if (mHighLevelGpuProgramManager)
-            OGRE_DELETE mHighLevelGpuProgramManager;
+        OGRE_DELETE mControllerManager;
+        OGRE_DELETE mHighLevelGpuProgramManager;
 
         unloadPlugins();
         OGRE_DELETE mMaterialManager;
@@ -813,11 +802,11 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Root::_syncAddedRemovedFrameListeners()
     {
-        for (set<FrameListener*>::type::iterator i = mRemovedFrameListeners.begin(); i != mRemovedFrameListeners.end(); i++)
+        for (set<FrameListener*>::type::iterator i = mRemovedFrameListeners.begin(); i != mRemovedFrameListeners.end(); ++i)
             mFrameListeners.erase(*i);
         mRemovedFrameListeners.clear();
 
-        for (set<FrameListener*>::type::iterator i = mAddedFrameListeners.begin(); i != mAddedFrameListeners.end(); i++)
+        for (set<FrameListener*>::type::iterator i = mAddedFrameListeners.begin(); i != mAddedFrameListeners.end(); ++i)
             mFrameListeners.insert(*i);
         mAddedFrameListeners.clear();
     }
@@ -1204,6 +1193,12 @@ namespace Ogre {
 	RenderWindow* Root::createRenderWindow(const String &name, unsigned int width, unsigned int height,
 			bool fullScreen, const NameValuePairList *miscParams)
 	{
+		if (!mIsInitialised)
+		{
+			OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
+			"Cannot create window - Root has not been initialised! "
+			"Make sure to call Root::initialise before creating a window.", "Root::createRenderWindow");
+		}
         if (!mActiveRenderer)
         {
             OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
@@ -1227,6 +1222,12 @@ namespace Ogre {
 	bool Root::createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
 		RenderWindowList& createdWindows)
 	{
+		if (!mIsInitialised)
+		{
+			OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
+			"Cannot create window - Root has not been initialised! "
+			"Make sure to call Root::initialise before creating a window.", "Root::createRenderWindows");
+		}
 		if (!mActiveRenderer)
 		{
 			OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
