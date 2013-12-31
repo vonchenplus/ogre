@@ -29,6 +29,9 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 
 #include "Compositor/Pass/PassClear/OgreCompositorPassClear.h"
+#include "Compositor/OgreCompositorNode.h"
+#include "Compositor/OgreCompositorWorkspace.h"
+#include "Compositor/OgreCompositorWorkspaceListener.h"
 
 #include "OgreSceneManager.h"
 #include "OgreViewport.h"
@@ -37,8 +40,9 @@ THE SOFTWARE.
 namespace Ogre
 {
 	CompositorPassClear::CompositorPassClear( const CompositorPassClearDef *definition,
-												SceneManager *sceneManager, RenderTarget *target ) :
-				CompositorPass( definition, target ),
+												SceneManager *sceneManager, RenderTarget *target,
+												CompositorNode *parentNode ) :
+				CompositorPass( definition, target, parentNode ),
 				mSceneManager( sceneManager ),
 				mDefinition( definition )
 	{
@@ -56,6 +60,12 @@ namespace Ogre
 
 		//TODO: Implement mDiscardOnly
 		mSceneManager->_setViewport( mViewport );
+
+		//Fire the listener in case it wants to change anything
+		CompositorWorkspaceListener *listener = mParentNode->getWorkspace()->getListener();
+		if( listener )
+			listener->passPreExecute( this );
+
 		mViewport->clear( mDefinition->mClearBufferFlags, mDefinition->mColourValue,
 							mDefinition->mDepthValue, mDefinition->mStencilValue );
 	}

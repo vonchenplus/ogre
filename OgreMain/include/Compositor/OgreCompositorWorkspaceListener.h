@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2014 Torus Knot Software Ltd
+Copyright (c) 2000-2013 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,18 +26,15 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#ifndef __CompositorPassStencil_H__
-#define __CompositorPassStencil_H__
+#ifndef _OgreCompositorWorkspaceListener_H_
+#define _OgreCompositorWorkspaceListener_H_
 
 #include "OgreHeaderPrefix.h"
-
-#include "Compositor/Pass/OgreCompositorPass.h"
-#include "Compositor/Pass/PassStencil/OgreCompositorPassStencilDef.h"
+#include "Compositor/OgreCompositorCommon.h"
+#include "Compositor/Pass/OgreCompositorPassDef.h"
 
 namespace Ogre
 {
-	class RenderTarget;
-
 	/** \addtogroup Core
 	*  @{
 	*/
@@ -45,26 +42,13 @@ namespace Ogre
 	*  @{
 	*/
 
-	/** Implementation of CompositorPass
-		This implementation will clear the RenderTarget using the parameters from definition
-		(rectangle area, which buffers, what values, etc)
-    @author
-		Matias N. Goldberg
-    @version
-        1.0
-    */
-	class _OgreExport CompositorPassStencil : public CompositorPass
+	class CompositorWorkspaceListener
 	{
-		CompositorPassStencilDef const *mDefinition;
-
-	protected:
-		RenderSystem *mRenderSystem;
-
 	public:
-		CompositorPassStencil( const CompositorPassStencilDef *definition, RenderTarget *target,
-								CompositorNode *parentNode, RenderSystem *renderSystem );
-
-		virtual void execute( const Camera *lodCamera );
+		/** Called when each pass is about to be executed.
+			Warning: calling pass->execute can result in recursive calls.
+		*/
+		virtual void passPreExecute( CompositorPass *pass ) = 0;
 	};
 
 	/** @} */
