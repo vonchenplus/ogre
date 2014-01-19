@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,6 @@ Ogre-dependent is in the visualization/logging routines and the use of the Timer
 
 #include "OgrePrerequisites.h"
 #include "OgreSingleton.h"
-#include "OgreString.h"
 #include "OgreHeaderPrefix.h"
 
 #if OGRE_PROFILING == 1

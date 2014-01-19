@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,12 +28,9 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 
 #include "OgreMeshSerializer.h"
-#include "OgreMeshFileFormat.h"
 #include "OgreMesh.h"
-#include "OgreSubMesh.h"
 #include "OgreException.h"
 #include "OgreLogManager.h"
-#include "OgreSkeleton.h"
 
 
 namespace Ogre {
@@ -47,8 +44,11 @@ namespace Ogre {
 		// String identifiers have not always been 100% unified with OGRE version
 		
 		// Note MUST be added in reverse order so latest is first in the list
+
+        // This one is a little ugly, 1.10 is used for version 1.1 legacy meshes.
+        // So bump up to 1.100
 		mVersionData.push_back(OGRE_NEW MeshVersionData(
-			MESH_VERSION_1_10, "[MeshSerializer_v1.10]", 
+			MESH_VERSION_1_10, "[MeshSerializer_v1.100]", 
 			OGRE_NEW MeshSerializerImpl()));
 
 		mVersionData.push_back(OGRE_NEW MeshVersionData(

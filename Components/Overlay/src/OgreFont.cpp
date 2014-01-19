@@ -4,7 +4,7 @@ This source file is a part of OGRE
 
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -28,16 +28,11 @@ THE SOFTWARE
 #include "OgreMaterialManager.h"
 #include "OgreTextureManager.h"
 #include "OgreTexture.h"
-#include "OgreResourceGroupManager.h"
 #include "OgreLogManager.h"
 #include "OgreStringConverter.h"
-#include "OgreRenderWindow.h"
 #include "OgreException.h"
-#include "OgreBlendMode.h"
 #include "OgreTextureUnitState.h"
 #include "OgreTechnique.h"
-#include "OgrePass.h"
-#include "OgreMaterial.h"
 #include "OgreBitwise.h"
 
 #define generic _generic	// keyword for C++/CX
@@ -516,7 +511,7 @@ namespace Ogre
 	{
 		const Font* f = static_cast<const Font*>(target);
 		const CodePointRangeList& rangeList = f->getCodePointRangeList();
-		StringUtil::StrStreamType str;
+		StringStream str;
 		for (CodePointRangeList::const_iterator i = rangeList.begin(); i != rangeList.end(); ++i)
 		{
 			str << i->first << "-" << i->second << " ";

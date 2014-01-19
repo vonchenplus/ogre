@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,17 +26,17 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
+#include "OgreCompositor.h"
 #include "OgreCompositorChain.h"
 #include "OgreCompositionTechnique.h"
 #include "OgreCompositorInstance.h"
 #include "OgreCompositionTargetPass.h"
 #include "OgreCompositionPass.h"
 #include "OgreCamera.h"
-#include "OgreRenderTarget.h"
-#include "OgreLogManager.h"
 #include "OgreCompositorManager.h"
 #include "OgreSceneManager.h"
-#include "OgreRenderQueueInvocation.h"
+#include "OgreRenderTarget.h"
+#include "OgreLogManager.h"
 #include "OgreMaterialManager.h"
 
 namespace Ogre {
@@ -111,7 +111,7 @@ void CompositorChain::createOriginalScene()
 	{
 		scene = CompositorManager::getSingleton().create(compName, ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
 		CompositionTechnique *t = scene->createTechnique();
-		t->setSchemeName(StringUtil::BLANK);
+		t->setSchemeName(BLANKSTRING);
 		CompositionTargetPass *tp = t->getOutputTargetPass();
 		tp->setVisibilityMask(0xFFFFFFFF);
 		{

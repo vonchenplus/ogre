@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,6 @@ THE SOFTWARE.
 #include "OgrePlatform.h"
 #include "OgrePrerequisites.h"
 #include "OgreMemoryTracker.h"
-#include "OgreString.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 #   include <windows.h>
@@ -108,7 +107,7 @@ namespace Ogre
 	{	
 		if (mRecordEnable)
 		{
-			StringUtil::StrStreamType os;
+			StringStream os;
 
 			if (mAllocations.empty())
 			{

@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -21,8 +21,10 @@ Description: Utility class to load plugins statically
 #ifndef __StaticPluginLoader_H__
 #define __StaticPluginLoader_H__
 
-#include "Ogre.h"
+#include "OgrePrerequisites.h"
+#include "OgreRoot.h"
 #include "OgreConfigFile.h"
+
 // Static plugin headers
 #ifdef OGRE_STATIC_CgProgramManager
 #  include "OgreCgPlugin.h"

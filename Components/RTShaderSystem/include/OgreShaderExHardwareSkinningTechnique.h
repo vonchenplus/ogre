@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -30,15 +30,10 @@ THE SOFTWARE.
 #include "OgreShaderPrerequisites.h"
 
 #ifdef RTSHADER_SYSTEM_BUILD_EXT_SHADERS
-#include "OgreShaderSubRenderState.h"
-#include "OgreShaderParameter.h"
-#include "OgreRenderSystem.h"
 #include "OgreShaderFunctionAtom.h"
 
 namespace Ogre {
 namespace RTShader {
-
-class HardwareSkinningFactory;
 
 /** \addtogroup Core
 *  @{

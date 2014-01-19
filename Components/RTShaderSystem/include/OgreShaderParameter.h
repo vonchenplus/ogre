@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -28,11 +28,9 @@ THE SOFTWARE.
 #define _ShaderParameter_
 
 #include "OgreShaderPrerequisites.h"
-#include "OgreGpuProgram.h"
 #include "OgreVector2.h"
-#include "OgreVector3.h"
-#include "OgreVector4.h"
 #include "OgreMatrix4.h"
+#include "OgreGpuProgramParams.h"
 
 namespace Ogre {
 namespace RTShader {
@@ -366,8 +364,6 @@ protected:
 	
 };
 
-typedef SharedPtr<Parameter>					ParameterPtr; 
-typedef vector<ParameterPtr>::type				ShaderParameterList;
 typedef ShaderParameterList::iterator 			ShaderParameterIterator;
 typedef ShaderParameterList::const_iterator		ShaderParameterConstIterator;
 
@@ -565,7 +561,6 @@ protected:
 	size_t mPhysicalIndex;
 };
 
-typedef SharedPtr<UniformParameter>				UniformParameterPtr; 
 typedef vector<UniformParameterPtr>::type		UniformParameterList;
 typedef UniformParameterList::iterator 			UniformParameterIterator;
 typedef UniformParameterList::const_iterator	UniformParameterConstIterator;

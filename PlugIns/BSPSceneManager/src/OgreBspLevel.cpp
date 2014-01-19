@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@ THE SOFTWARE.
 #include "OgrePass.h"
 #include "OgreTextureUnitState.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreHardwarePixelBuffer.h"
 
 namespace Ogre {
 
@@ -325,7 +326,7 @@ namespace Ogre {
             if (progressCountdown == NUM_FACES_PER_PROGRESS_REPORT)
             {
                 ++progressCount;
-                StringUtil::StrStreamType str;
+                StringStream str;
                 str << "Loading materials (phase " << progressCount << ")"; 
                 rgm._notifyWorldGeometryStageStarted(str.str());
             }
@@ -340,7 +341,7 @@ namespace Ogre {
             // Check to see if existing material
             // Format shader#lightmap
             int shadIdx = q3lvl.mFaces[face].shader;
-			StringUtil::StrStreamType tmp;
+			StringStream tmp;
 			tmp << q3lvl.mShaders[shadIdx].name << "#" << q3lvl.mFaces[face].lm_texture;
 			shaderName = tmp.str();
 
@@ -391,7 +392,7 @@ namespace Ogre {
                     if (q3lvl.mFaces[face].lm_texture >= 0)
                     {
                         // Add lightmap, additive blending
-						StringUtil::StrStreamType lightmapName;
+						StringStream lightmapName;
                         lightmapName << "@lightmap" << q3lvl.mFaces[face].lm_texture;
                         tex = shadPass->createTextureUnitState(lightmapName.str());
                         // Blend
@@ -511,7 +512,7 @@ namespace Ogre {
             if (progressCountdown == NUM_NODES_PER_PROGRESS_REPORT)
             {
                 ++progressCount;
-                StringUtil::StrStreamType str;
+                StringStream str;
                 str << "Loading nodes (phase " << progressCount << ")"; 
                     rgm._notifyWorldGeometryStageStarted(str.str());
             }
@@ -587,7 +588,7 @@ namespace Ogre {
             if (progressCountdown == NUM_BRUSHES_PER_PROGRESS_REPORT)
             {
                 ++progressCount;
-                StringUtil::StrStreamType str;
+                StringStream str;
                 str << "Loading brushes (phase " << progressCount << ")"; 
                     rgm._notifyWorldGeometryStageStarted(str.str());
             }
@@ -644,7 +645,7 @@ namespace Ogre {
             if (progressCountdown == NUM_LEAVES_PER_PROGRESS_REPORT)
             {
                 ++progressCount;
-                StringUtil::StrStreamType str;
+                StringStream str;
                 str << "Loading leaves (phase " << progressCount << ")"; 
                     rgm._notifyWorldGeometryStageStarted(str.str());
             }
