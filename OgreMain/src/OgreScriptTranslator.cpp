@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,6 @@ THE SOFTWARE.
 
 #include "OgreStableHeaders.h"
 #include "OgreScriptTranslator.h"
-#include "OgreScriptCompiler.h"
 #include "OgreLogManager.h"
 #include "OgreMaterialManager.h"
 #include "OgreTechnique.h"
@@ -39,6 +38,7 @@ THE SOFTWARE.
 #include "OgreParticleSystemRenderer.h"
 #include "OgreParticleEmitter.h"
 #include "OgreParticleAffector.h"
+#include "OgreCompositor.h"
 #include "OgreCompositorManager.h"
 #include "OgreCompositionTechnique.h"
 #include "OgreCompositionTargetPass.h"
@@ -47,7 +47,9 @@ THE SOFTWARE.
 #include "OgreLodStrategyManager.h"
 #include "OgreDistanceLodStrategy.h"
 #include "OgreDepthBuffer.h"
+#include "OgreParticleSystem.h"
 #include "OgreRoot.h"
+#include "OgreHighLevelGpuProgram.h"
 
 namespace Ogre{
 

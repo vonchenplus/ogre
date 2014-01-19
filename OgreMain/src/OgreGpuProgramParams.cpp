@@ -4,7 +4,7 @@
   (Object-oriented Graphics Rendering Engine)
   For the latest info, see http://www.ogre3d.org
 
-  Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -27,19 +27,12 @@
 */
 #include "OgreStableHeaders.h"
 #include "OgreGpuProgramParams.h"
-#include "OgreHighLevelGpuProgram.h"
 #include "OgreGpuProgramManager.h"
 #include "OgreVector3.h"
 #include "OgreVector4.h"
 #include "OgreDualQuaternion.h"
-#include "OgreAutoParamDataSource.h"
-#include "OgreLight.h"
 #include "OgreRoot.h"
-#include "OgreRenderSystem.h"
-#include "OgreRenderSystemCapabilities.h"
-#include "OgreStringConverter.h"
-#include "OgreLogManager.h"
-
+#include "OgreRenderTarget.h"
 
 namespace Ogre
 {

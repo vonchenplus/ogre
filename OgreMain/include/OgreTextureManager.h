@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -299,7 +299,7 @@ namespace Ogre {
         virtual TexturePtr createManual(const String & name, const String& group,
             TextureType texType, uint width, uint height, uint depth, 
 			int numMipmaps, PixelFormat format, int usage = TU_DEFAULT, ManualResourceLoader* loader = 0,
-			bool hwGammaCorrection = false, uint fsaa = 0, const String& fsaaHint = StringUtil::BLANK);
+			bool hwGammaCorrection = false, uint fsaa = 0, const String& fsaaHint = BLANKSTRING);
 			
         /** Create a manual texture with a depth of 1 (not loaded from a file).
             @param
@@ -348,7 +348,7 @@ namespace Ogre {
         TexturePtr createManual(const String & name, const String& group,
             TextureType texType, uint width, uint height, int numMipmaps,
             PixelFormat format, int usage = TU_DEFAULT, ManualResourceLoader* loader = 0,
-			bool hwGammaCorrection = false, uint fsaa = 0, const String& fsaaHint = StringUtil::BLANK)
+			bool hwGammaCorrection = false, uint fsaa = 0, const String& fsaaHint = BLANKSTRING)
 		{
 			return createManual(name, group, texType, width, height, 1, 
 				numMipmaps, format, usage, loader, hwGammaCorrection, fsaa, fsaaHint);

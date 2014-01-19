@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -320,7 +320,7 @@ static const size_t depthBits[] =
             if(fmt == GL_NONE || status == GL_FRAMEBUFFER_COMPLETE_EXT)
             {
                 mProps[x].valid = true;
-				StringUtil::StrStreamType str;
+				StringStream str;
 				str << "FBO " << PixelUtil::getFormatName((PixelFormat)x) 
 					<< " depth/stencil support: ";
 
@@ -333,7 +333,7 @@ static const size_t depthBits[] =
 
                         for (size_t stencil = 0; stencil < STENCILFORMAT_COUNT; ++stencil)
                         {
-                            //StringUtil::StrStreamType l;
+                            //StringStream l;
                             //l << "Trying " << PixelUtil::getFormatName((PixelFormat)x) 
                             //	<< " D" << depthBits[depth] 
                             //	<< "S" << stencilBits[stencil];

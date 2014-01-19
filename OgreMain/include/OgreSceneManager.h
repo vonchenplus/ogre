@@ -4,7 +4,7 @@ This source file is a part of OGRE
 
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -33,8 +33,6 @@ Torus Knot Software Ltd.
 // Precompiler options
 #include "OgrePrerequisites.h"
 
-#include "OgreString.h"
-#include "OgreSceneNode.h"
 #include "OgrePlane.h"
 #include "OgreQuaternion.h"
 #include "OgreColourValue.h"
@@ -44,17 +42,11 @@ Torus Knot Software Ltd.
 #include "OgreAnimationState.h"
 #include "OgreRenderQueue.h"
 #include "OgreRenderQueueSortingGrouping.h"
-#include "OgreRectangle2D.h"
-#include "OgrePixelFormat.h"
 #include "OgreResourceGroupManager.h"
-#include "OgreTexture.h"
-#include "OgreShadowCameraSetup.h"
 #include "OgreShadowTextureManager.h"
-#include "OgreCamera.h"
-#include "OgreInstancedGeometry.h"
-#include "OgreLodListener.h"
 #include "OgreInstanceManager.h"
 #include "OgreRenderSystem.h"
+#include "OgreLodListener.h"
 #include "OgreHeaderPrefix.h"
 #include "OgreNameGenerator.h"
 
@@ -74,11 +66,13 @@ namespace Ogre {
     };
 
 	// Forward declarations
-	class DefaultIntersectionSceneQuery;
-	class DefaultRaySceneQuery;
-	class DefaultSphereSceneQuery;
-	class DefaultAxisAlignedBoxSceneQuery;
 	class CompositorChain;
+    class InstancedGeometry;
+    class Rectangle2D;
+    class LodListener;
+    struct MovableObjectLodChangedEvent;
+    struct EntityMeshLodChangedEvent;
+    struct EntityMaterialLodChangedEvent;
 
 	/** Structure collecting together information about the visible objects
 	that have been discovered in a scene.
@@ -1649,7 +1643,7 @@ namespace Ogre {
 				supports one type of world geometry.
         */
 		virtual void prepareWorldGeometry(DataStreamPtr& stream, 
-			const String& typeName = StringUtil::BLANK);
+			const String& typeName = BLANKSTRING);
 
         /** Sets the source of the 'world' geometry, i.e. the large, mainly static geometry
             making up the world e.g. rooms, landscape etc.
@@ -1681,7 +1675,7 @@ namespace Ogre {
 				supports one type of world geometry.
         */
 		virtual void setWorldGeometry(DataStreamPtr& stream, 
-			const String& typeName = StringUtil::BLANK);
+			const String& typeName = BLANKSTRING);
 
         /** Estimate the number of loading stages required to load the named
             world geometry. 
@@ -1711,7 +1705,7 @@ namespace Ogre {
 			supports one type of world geometry.
 		*/		
         virtual size_t estimateWorldGeometry(DataStreamPtr& stream, 
-			const String& typeName = StringUtil::BLANK)
+			const String& typeName = BLANKSTRING)
         { (void)stream; (void)typeName; return 0; }
 
         /** Asks the SceneManager to provide a suggested viewpoint from which the scene should be viewed.

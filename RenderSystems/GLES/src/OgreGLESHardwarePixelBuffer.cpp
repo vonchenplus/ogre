@@ -5,7 +5,7 @@ This source file is part of OGRE
 For the latest info, see http://www.ogre3d.org/
 
 Copyright (c) 2008 Renato Araujo Oliveira Filho <renatox@gmail.com>
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -722,7 +722,7 @@ namespace Ogre {
         GL_CHECK_ERROR;
 
         // GL texture buffer
-        GLESTextureBuffer tex(StringUtil::BLANK, target, id, width, height, format, src.format,
+        GLESTextureBuffer tex(BLANKSTRING, target, id, width, height, format, src.format,
                               0, 0, (Usage)(TU_AUTOMIPMAP|HBU_STATIC_WRITE_ONLY), false, false, 0);
         
         // Upload data to 0,0,0 in temporary texture

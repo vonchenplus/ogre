@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,6 @@ THE SOFTWARE.
 #include "OgreException.h"
 #include "OgreControllerManager.h"
 #include "OgreLogManager.h"
-#include "OgreMath.h"
 #include "OgreDynLibManager.h"
 #include "OgreDynLib.h"
 #include "OgreConfigFile.h"
@@ -46,9 +45,7 @@ THE SOFTWARE.
 #include "OgreParticleSystemManager.h"
 #include "OgreSkeletonManager.h"
 #include "OgreProfiler.h"
-#include "OgreErrorDialog.h"
 #include "OgreConfigDialog.h"
-#include "OgreStringConverter.h"
 #include "OgreArchiveManager.h"
 #include "OgrePlugin.h"
 #include "OgreFileSystem.h"
@@ -63,6 +60,9 @@ THE SOFTWARE.
 #include "OgreRenderQueueInvocation.h"
 #include "OgrePlatformInformation.h"
 #include "OgreConvexBody.h"
+#include "OgreTimer.h"
+#include "OgreFrameListener.h"
+#include "OgreLodStrategyManager.h"
 #include "Threading/OgreDefaultWorkQueue.h"
 
 #if OGRE_NO_FREEIMAGE == 0
@@ -82,8 +82,8 @@ THE SOFTWARE.
 #include "OgreScriptCompiler.h"
 #include "OgreWindowEventUtilities.h"
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-#  include "macUtils.h"
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+#include "macUtils.h"
 #endif
 #if OGRE_NO_PVRTC_CODEC == 0
 #  include "OgrePVRTCCodec.h"
@@ -644,7 +644,7 @@ namespace Ogre {
         // .rendercaps manager
         RenderSystemCapabilitiesManager& rscManager = RenderSystemCapabilitiesManager::getSingleton();
         // caller wants to load custom RenderSystemCapabilities form a config file
-        if(customCapabilitiesConfig != StringUtil::BLANK)
+        if(customCapabilitiesConfig != BLANKSTRING)
         {
             ConfigFile cfg;
             cfg.load(customCapabilitiesConfig, "\t:=", false);
@@ -655,7 +655,18 @@ namespace Ogre {
             while(iter.hasMoreElements())
             {
                 String archType = iter.peekNextKey();
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
                 String filename = iter.getNext();
+
+                // Only adjust relative directories
+                if (!StringUtil::startsWith(filename, "/", false))
+                {
+                    filename = StringUtil::replaceAll(filename, "../", "");
+                    filename = String(macBundlePath() + "/Contents/Resources/" + filename);
+                }
+#else
+                String filename = iter.getNext();
+#endif
 
                 rscManager.parseCapabilitiesFromArchive(filename, archType, true);
             }

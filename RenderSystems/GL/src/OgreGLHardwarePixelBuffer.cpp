@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -850,7 +850,7 @@ void GLTextureBuffer::blitFromMemory(const PixelBox &src_orig, const Image::Box 
         glTexImage2D(target, 0, format, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
     /// GL texture buffer
-    GLTextureBuffer tex(mGLSupport, StringUtil::BLANK, target, id, 0, 0, (Usage)(TU_AUTOMIPMAP|HBU_STATIC_WRITE_ONLY), false, false, 0);
+    GLTextureBuffer tex(mGLSupport, BLANKSTRING, target, id, 0, 0, (Usage)(TU_AUTOMIPMAP|HBU_STATIC_WRITE_ONLY), false, false, 0);
     
     /// Upload data to 0,0,0 in temporary texture
 	Image::Box tempTarget(0, 0, 0, src.getWidth(), src.getHeight(), src.getDepth());

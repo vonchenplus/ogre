@@ -4,7 +4,7 @@
  * (Object-oriented Graphics Rendering Engine)
  * For the latest info, see http://www.ogre3d.org/
  *
- * Copyright (c) 2000-2013 Torus Knot Software Ltd
+ * Copyright (c) 2000-2014 Torus Knot Software Ltd
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,6 @@
 #include "OgrePixelCountLodStrategy.h"
 #include "OgreLodWorkQueueWorker.h"
 #include "OgreLodWorkQueueInjector.h"
-#include "OgreLodWorkQueueInjectorListener.h"
 #include "OgreLodInputProvider.h"
 #include "OgreLodInputProviderMesh.h"
 #include "OgreLodInputProviderBuffer.h"
@@ -45,7 +44,6 @@
 #include "OgreLodCollapseCostOutside.h"
 #include "OgreLodData.h"
 #include "OgreLodCollapser.h"
-#include "OgreRoot.h"
 
 
 namespace Ogre

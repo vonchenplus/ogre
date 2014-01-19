@@ -4,8 +4,8 @@
   (Object-oriented Graphics Rendering Engine)
   For the latest info, see http://www.ogre3d.org/
 
-  Copyright (c) 2000-2013 Torus Knot Software Ltd
-  Also see acknowledgements in Readme.html
+Copyright (c) 2000-2014 Torus Knot Software Ltd
+Also see acknowledgements in Readme.html
 
   You may use this sample code for anything you like, it is not covered by the
   same license as the rest of the engine.
@@ -81,8 +81,6 @@ class _OgreSampleClassExport Sample_Compositor : public SdkSample
    Jeff (nfz) Doyle
    added gui framework to demo
 */
-
-#include <Ogre.h>
 
 #include "HelperLogics.h"
 

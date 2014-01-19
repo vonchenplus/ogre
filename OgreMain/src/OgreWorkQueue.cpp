@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@ THE SOFTWARE.
 #include "OgreWorkQueue.h"
 #include "OgreLogManager.h"
 #include "OgreRoot.h"
-#include "OgreRenderSystem.h"
+#include "OgreTimer.h"
 
 namespace Ogre {
 	//---------------------------------------------------------------------
@@ -629,7 +629,7 @@ namespace Ogre {
 
 		Response* response = 0;
 
-		StringUtil::StrStreamType dbgMsg;
+		StringStream dbgMsg;
 		dbgMsg <<
 #if OGRE_THREAD_SUPPORT
 			OGRE_THREAD_CURRENT_ID
@@ -666,7 +666,7 @@ namespace Ogre {
 	//---------------------------------------------------------------------
 	void DefaultWorkQueueBase::processResponse(Response* r)
 	{
-		StringUtil::StrStreamType dbgMsg;
+		StringStream dbgMsg;
 		dbgMsg << "thread:" <<
 #if OGRE_THREAD_SUPPORT
 			OGRE_THREAD_CURRENT_ID
