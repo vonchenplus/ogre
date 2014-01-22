@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,13 +29,12 @@ THE SOFTWARE.
 #include "OgreAnimation.h"
 #include "OgreKeyFrame.h"
 #include "OgreException.h"
+#include "OgreEntity.h"
 #include "OgreSkeleton.h"
 #include "OgreBone.h"
-#include "OgreEntity.h"
-#include "OgreSubEntity.h"
 #include "OgreMesh.h"
-#include "OgreSubMesh.h"
-#include "OgreStringConverter.h"
+
+#include "OgreSubEntity.h"
 
 namespace Ogre {
 
@@ -51,7 +50,7 @@ namespace Ogre {
         , mKeyFrameTimesDirty(false)
 		, mUseBaseKeyFrame(false)
 		, mBaseKeyFrameTime(0.0f)
-		, mBaseKeyFrameAnimationName(StringUtil::BLANK)
+		, mBaseKeyFrameAnimationName(BLANKSTRING)
 		, mContainer(0)
     {
     }
@@ -732,7 +731,7 @@ namespace Ogre {
 		if (mUseBaseKeyFrame)
 		{
 			Animation* baseAnim = this;
-			if (mBaseKeyFrameAnimationName != StringUtil::BLANK && mContainer)
+			if (mBaseKeyFrameAnimationName != BLANKSTRING && mContainer)
 				baseAnim = mContainer->getAnimation(mBaseKeyFrameAnimationName);
 			
 			if (baseAnim)

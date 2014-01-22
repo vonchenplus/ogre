@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,35 +30,21 @@ THE SOFTWARE.
 #include "OgreSceneManager.h"
 
 #include "OgreCamera.h"
-#include "OgreRenderSystem.h"
 #include "OgreMeshManager.h"
-#include "OgreMesh.h"
-#include "OgreSubMesh.h"
 #include "OgreEntity.h"
 #include "OgreSubEntity.h"
 #include "OgreLight.h"
-#include "OgreMath.h"
 #include "OgreControllerManager.h"
 #include "OgreMaterialManager.h"
 #include "OgreAnimation.h"
-#include "OgreAnimationTrack.h"
-#include "OgreRenderQueueSortingGrouping.h"
-#include "OgreStringConverter.h"
-#include "OgreRenderQueueListener.h"
 #include "OgreRenderObjectListener.h"
 #include "OgreBillboardSet.h"
-#include "OgrePass.h"
 #include "OgreTechnique.h"
-#include "OgreTextureUnitState.h"
-#include "OgreException.h"
 #include "OgreLogManager.h"
-#include "OgreHardwareBufferManager.h"
 #include "OgreRoot.h"
 #include "OgreSpotShadowFadePng.h"
-#include "OgreGpuProgramManager.h"
-#include "OgreGpuProgram.h"
+#include "OgreShadowCameraSetup.h"
 #include "OgreShadowVolumeExtrudeProgram.h"
-#include "OgreDataStream.h"
 #include "OgreStaticGeometry.h"
 #include "OgreHardwarePixelBuffer.h"
 #include "OgreManualObject.h"
@@ -66,11 +52,18 @@ THE SOFTWARE.
 #include "OgreBillboardChain.h"
 #include "OgreRibbonTrail.h"
 #include "OgreParticleSystemManager.h"
+#include "OgreParticleSystem.h"
 #include "OgreProfiler.h"
-#include "OgreCompositorManager.h"
 #include "OgreCompositorChain.h"
 #include "OgreInstanceBatch.h"
 #include "OgreInstancedEntity.h"
+#include "OgreRenderTexture.h"
+#include "OgreTextureManager.h"
+#include "OgreSceneNode.h"
+#include "OgreRectangle2D.h"
+#include "OgreLodListener.h"
+#include "OgreInstancedGeometry.h"
+
 // This class implements the most basic scene manager
 
 #include <cstdio>
@@ -2352,7 +2345,7 @@ void SceneManager::renderVisibleObjectsDefaultSequence(void)
 			if (fireRenderQueueStarted(qId, 
 				mIlluminationStage == IRS_RENDER_TO_TEXTURE ? 
 					RenderQueueInvocation::RENDER_QUEUE_INVOCATION_SHADOWS : 
-					StringUtil::BLANK))
+					BLANKSTRING))
             {
                 // Someone requested we skip this queue
                 break;
@@ -2364,7 +2357,7 @@ void SceneManager::renderVisibleObjectsDefaultSequence(void)
 			if (fireRenderQueueEnded(qId, 
 				mIlluminationStage == IRS_RENDER_TO_TEXTURE ? 
 					RenderQueueInvocation::RENDER_QUEUE_INVOCATION_SHADOWS : 
-					StringUtil::BLANK))
+					BLANKSTRING))
             {
                 // Someone requested we repeat this queue
                 repeatQueue = true;
@@ -3870,7 +3863,7 @@ void SceneManager::manualRender(RenderOperation* rend,
 		}
 		mAutoParamDataSource->setCurrentSceneManager(this);
 		mAutoParamDataSource->setWorldMatrices(&worldMatrix, 1);
-		Camera dummyCam(StringUtil::BLANK, 0);
+		Camera dummyCam(BLANKSTRING, 0);
 		dummyCam.setCustomViewMatrix(true, viewMatrix);
 		dummyCam.setCustomProjectionMatrix(true, projMatrix);
 		mAutoParamDataSource->setCurrentCamera(&dummyCam, false);
@@ -3898,7 +3891,7 @@ void SceneManager::manualRender(Renderable* rend, const Pass* pass, Viewport* vp
 	mDestRenderSystem->_setProjectionMatrix(projMatrix);
 
 	_setPass(pass);
-	Camera dummyCam(StringUtil::BLANK, 0);
+	Camera dummyCam(BLANKSTRING, 0);
 	dummyCam.setCustomViewMatrix(true, viewMatrix);
 	dummyCam.setCustomProjectionMatrix(true, projMatrix);
 	// Do we need to update GPU program parameters?
@@ -4983,7 +4976,7 @@ const Pass* SceneManager::deriveShadowCasterPass(const Pass* pass)
 			else
 			{
 				// Standard shadow caster pass, reset to no vp
-				retPass->setVertexProgram(StringUtil::BLANK);
+				retPass->setVertexProgram(BLANKSTRING);
 			}
 		}
 
@@ -5021,7 +5014,7 @@ const Pass* SceneManager::deriveShadowCasterPass(const Pass* pass)
 			else
 			{
 				// Standard shadow caster pass, reset to no fp
-				retPass->setFragmentProgram(StringUtil::BLANK);
+				retPass->setFragmentProgram(BLANKSTRING);
 			}
 		}
         
@@ -5098,7 +5091,7 @@ const Pass* SceneManager::deriveShadowReceiverPass(const Pass* pass)
 			else
 			{
 				// Standard shadow receiver pass, reset to no vp
-				retPass->setVertexProgram(StringUtil::BLANK);
+				retPass->setVertexProgram(BLANKSTRING);
 			}
 		}
 
@@ -5201,7 +5194,7 @@ const Pass* SceneManager::deriveShadowReceiverPass(const Pass* pass)
 			else
 			{
 				// Standard shadow receiver pass, reset to no fp
-				retPass->setFragmentProgram(StringUtil::BLANK);
+				retPass->setFragmentProgram(BLANKSTRING);
 			}
 
 		}
@@ -6114,7 +6107,7 @@ void SceneManager::setShadowTextureReceiverMaterial(const String& name)
 			}
 			else
 			{
-				mShadowTextureCustomReceiverVertexProgram = StringUtil::BLANK;
+				mShadowTextureCustomReceiverVertexProgram = BLANKSTRING;
 			}
 			if (mShadowTextureCustomReceiverPass->hasFragmentProgram())
 			{
@@ -6126,7 +6119,7 @@ void SceneManager::setShadowTextureReceiverMaterial(const String& name)
 			}
 			else
 			{
-				mShadowTextureCustomReceiverFragmentProgram = StringUtil::BLANK;
+				mShadowTextureCustomReceiverFragmentProgram = BLANKSTRING;
 			}
 		}
 	}

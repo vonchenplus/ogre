@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,28 +26,24 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
+#include "OgreCompositor.h"
 #include "OgreCompositorInstance.h"
 #include "OgreCompositorChain.h"
 #include "OgreCompositorManager.h"
 #include "OgreCompositionTargetPass.h"
-#include "OgreCompositionPass.h"
-#include "OgreCompositionTechnique.h"
 #include "OgreCustomCompositionPass.h"
 #include "OgreTechnique.h"
-#include "OgrePass.h"
-#include "OgreTexture.h"
 #include "OgreLogManager.h"
-#include "OgreMaterialManager.h"
 #include "OgreTextureManager.h"
 #include "OgreSceneManager.h"
-#include "OgreStringConverter.h"
 #include "OgreException.h"
 #include "OgreHardwarePixelBuffer.h"
 #include "OgreCamera.h"
 #include "OgreRoot.h"
-#include "OgreRenderSystem.h"
-#include "OgreHardwareBufferManager.h"
 #include "OgreCompositorLogic.h"
+#include "OgreRenderTarget.h"
+#include "OgreRenderTexture.h"
+#include "OgreRectangle2D.h"
 
 namespace Ogre {
 CompositorInstance::CompositorInstance(CompositionTechnique *technique,
@@ -339,7 +335,7 @@ void CompositorInstance::collectPasses(TargetOperation &finalState, CompositionT
 			}
 
 			RSSetSchemeOperation* setSchemeOperation = 0;
-			if (pass->getMaterialScheme() != StringUtil::BLANK)
+			if (pass->getMaterialScheme() != BLANKSTRING)
 			{
 				//Add the triggers that will set the scheme and restore it each frame
 				finalState.currentQueueGroupID = pass->getFirstRenderQueue();
@@ -671,7 +667,7 @@ void CompositorInstance::createResources(bool forResizeOnly)
             if (!def->fsaa)
             {
                 fsaa = 0;
-                fsaaHint = StringUtil::BLANK;
+                fsaaHint = BLANKSTRING;
             }
             hwGamma = hwGamma || def->hwGammaWrite;
             
@@ -859,7 +855,7 @@ void CompositorInstance::deriveTextureRenderTargetOptions(
 	{
 		*hwGammaWrite = false;
 		*fsaa = 0;
-		*fsaaHint = StringUtil::BLANK;
+		*fsaaHint = BLANKSTRING;
 	}
 
 }

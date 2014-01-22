@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,6 @@ PortalBase.h  -  PortalBase is the base class for Portal and AntiPortal.
 #define PORTALBASE_H
 
 #include "OgrePCZPrerequisites.h"
-#include "OgrePCZSceneNode.h"
 #include "OgreMovableObject.h"
 #include "OgreAxisAlignedBox.h"
 #include "OgreCapsule.h"
@@ -41,6 +40,7 @@ PortalBase.h  -  PortalBase is the base class for Portal and AntiPortal.
 namespace Ogre
 {
 	class PCZSceneNode;
+    class PCZone;
 
 	/** PortalBase - Base class to Portal and AntiPortal classes. */
 	class _OgrePCZPluginExport PortalBase : public MovableObject

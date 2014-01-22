@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include "OgreAnimationTrack.h"
 #include "OgreKeyFrame.h"
 #include "OgreLodStrategyManager.h"
+#include "OgreLodStrategy.h"
 #include <cstddef>
 
 namespace Ogre {
@@ -970,7 +971,7 @@ namespace Ogre {
                 {
                     // NB set is local to this buffer, but will be translated into a 
                     // global set number across all vertex buffers
-					StringUtil::StrStreamType str;
+					StringStream str;
 					str << "texture_coord_dimensions_" << tx;
                     attrib = vbElem->Attribute(str.str().c_str());
                     VertexElementType vtype = VET_FLOAT2; // Default

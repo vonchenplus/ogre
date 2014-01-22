@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,14 +28,11 @@ THE SOFTWARE.
 
 #include "OgreStableHeaders.h"
 
-#include "OgreRoot.h"
-#include "OgreRenderSystem.h"
 #include "OgreETCCodec.h"
 #include "OgreImage.h"
 #include "OgreException.h"
 
 #include "OgreLogManager.h"
-#include "OgreStringConverter.h"
 
 #define FOURCC(c0, c1, c2, c3) (c0 | (c1 << 8) | (c2 << 16) | (c3 << 24))
 #define KTX_ENDIAN_REF      (0x04030201)
@@ -207,7 +204,7 @@ namespace Ogre {
                 return String("ktx");
 		}
 
-		return StringUtil::BLANK;
+		return BLANKSTRING;
 	}
     //---------------------------------------------------------------------
 	bool ETCCodec::decodePKM(DataStreamPtr& stream, DecodeResult& result) const

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,9 +29,9 @@ THE SOFTWARE.
 #include "OgreLodConfigSerializer.h"
 #include "OgreLodConfig.h"
 
-#include "OgreDataStream.h"
 #include "OgreLodStrategyManager.h"
 #include "OgreLogManager.h"
+#include "OgreHardwareIndexBuffer.h"
 #include "OgreMeshManager.h"
 
 #include <fstream>
@@ -250,7 +250,7 @@ namespace Ogre
 	void LodConfigSerializer::writeLodLevels()
 	{
 		writeChunkHeader(LCCID_LOD_LEVELS, calcLodLevelsSize());
-		uint32 size = mLodConfig->levels.size();
+		uint32 size = static_cast<uint32>(mLodConfig->levels.size());
 		writeInts(&size, 1);
 
 		LodConfig::LodLevelList::iterator it = mLodConfig->levels.begin();
@@ -322,7 +322,7 @@ namespace Ogre
 			return;
 		}
 		writeChunkHeader(LCCID_PROFILE, calcLodProfileSize());
-		uint32 size = mLodConfig->advanced.profile.size();
+		uint32 size = static_cast<uint32>(mLodConfig->advanced.profile.size());
 		writeInts(&size, 1);
 		LodProfile::iterator it = mLodConfig->advanced.profile.begin();
 		LodProfile::iterator itEnd = mLodConfig->advanced.profile.end();

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,17 +27,14 @@ THE SOFTWARE.
 */
 
 #include "OgreOverlayManager.h"
-#include "OgreStringVector.h"
 #include "OgreOverlayContainer.h"
-#include "OgreStringConverter.h"
 #include "OgreLogManager.h"
-#include "OgreSceneManagerEnumerator.h"
-#include "OgreSceneManager.h"
-#include "OgreSceneNode.h"
-#include "OgreEntity.h"
 #include "OgreException.h"
 #include "OgreViewport.h"
+#include "OgreOverlay.h"
+#include "OgreResourceGroupManager.h"
 #include "OgreOverlayElementFactory.h"
+#include "OgreStringConverter.h"
 
 namespace Ogre {
 
@@ -453,7 +450,7 @@ namespace Ogre {
             // BAD command. BAD!
             LogManager::getSingleton().logMessage("Bad element attribute line: '"
                 + line + "' for element " + pElement->getName() + " in overlay " + 
-                (!pOverlay ? StringUtil::BLANK : pOverlay->getName()), LML_CRITICAL);
+                (!pOverlay ? BLANKSTRING : pOverlay->getName()), LML_CRITICAL);
         }
     }
     //-----------------------------------------------------------------------

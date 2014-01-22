@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,8 +33,9 @@ THE SOFTWARE.
 #include "OgreTextureUnitState.h"
 #include "OgreGpuProgramManager.h"
 #include "OgreHighLevelGpuProgramManager.h"
-#include "OgreHardwarePixelBuffer.h"
 #include "OgreShadowCameraSetupPSSM.h"
+#include "OgreLogManager.h"
+#include "OgreHighLevelGpuProgram.h"
 #include <fstream>
 #include <string>
 
@@ -470,7 +471,7 @@ namespace Ogre
 	{
 		HighLevelGpuProgramPtr ret = createVertexProgram(prof, terrain, tt);
 
-		StringUtil::StrStreamType sourceStr;
+		StringStream sourceStr;
 		generateVertexProgramSource(prof, terrain, tt, sourceStr);
 
 		ret->setSource(sourceStr.str());
@@ -491,7 +492,7 @@ namespace Ogre
 	{
 		HighLevelGpuProgramPtr ret = createFragmentProgram(prof, terrain, tt);
 
-		StringUtil::StrStreamType sourceStr;
+		StringStream sourceStr;
 		generateFragmentProgramSource(prof, terrain, tt, sourceStr);
 		ret->setSource(sourceStr.str());
 		ret->load();
@@ -505,7 +506,7 @@ namespace Ogre
 	}
 	//---------------------------------------------------------------------
 	void TerrainMaterialGeneratorA::SM2Profile::ShaderHelper::generateVertexProgramSource(
-		const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringUtil::StrStreamType& outStream)
+		const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
 	{
 		generateVpHeader(prof, terrain, tt, outStream);
 
@@ -523,7 +524,7 @@ namespace Ogre
 	}
 	//---------------------------------------------------------------------
 	void TerrainMaterialGeneratorA::SM2Profile::ShaderHelper::generateFragmentProgramSource(
-		const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringUtil::StrStreamType& outStream)
+		const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
 	{
 		generateFpHeader(prof, terrain, tt, outStream);
 

@@ -4,7 +4,7 @@
   (Object-oriented Graphics Rendering Engine)
   For the latest info, see http://www.ogre3d.org/
 
-  Copyright (c) 2000-2013 Torus Knot Software Ltd
+  Copyright (c) 2000-2014 Torus Knot Software Ltd
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -779,7 +779,7 @@ namespace Ogre {
         }
 
         // GL texture buffer
-        GL3PlusTextureBuffer tex(StringUtil::BLANK, target, id, 0, 0, (Usage)(TU_AUTOMIPMAP|HBU_STATIC_WRITE_ONLY), false, 0);
+        GL3PlusTextureBuffer tex(BLANKSTRING, target, id, 0, 0, (Usage)(TU_AUTOMIPMAP|HBU_STATIC_WRITE_ONLY), false, 0);
 
         // Upload data to 0,0,0 in temporary texture
         Image::Box tempTarget(0, 0, 0, src.getWidth(), src.getHeight(), src.getDepth());

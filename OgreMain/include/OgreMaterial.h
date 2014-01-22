@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -278,7 +278,7 @@ namespace Ogre {
 		@param newGroup Only required if changeGroup is true; the new group to assign
         */
         MaterialPtr clone(const String& newName, bool changeGroup = false, 
-			const String& newGroup = StringUtil::BLANK) const;
+			const String& newGroup = BLANKSTRING) const;
 
         /** Copies the details of this material into another, preserving the target's handle and name
         (unlike operator=) but copying everything else.

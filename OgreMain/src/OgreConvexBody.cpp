@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Copyright (c) 2006 Matthias Fink, netAllied GmbH <matthias.fink@web.de>								
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,10 +30,10 @@ THE SOFTWARE.
 #include "OgreConvexBody.h"
 #include "OgreException.h"
 #include "OgreVector3.h"
-#include <OgreLogManager.h>
-#include <OgreRay.h>
-#include <OgreFrustum.h>
-#include <OgreAxisAlignedBox.h>
+#include "OgreLogManager.h"
+#include "OgreRay.h"
+#include "OgreFrustum.h"
+#include "OgreAxisAlignedBox.h"
 
 
 namespace Ogre
@@ -1213,7 +1213,7 @@ namespace Ogre
 	//-----------------------------------------------------------------------
 	void ConvexBody::logInfo( void ) const
 	{
-		StringUtil::StrStreamType ssOut( std::stringstream::out );
+		StringStream ssOut( std::stringstream::out );
 		ssOut << *this;
 		
 		Ogre::LogManager::getSingleton().logMessage( Ogre::LML_NORMAL, ssOut.str()  );

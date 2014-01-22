@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -27,12 +27,13 @@ THE SOFTWARE.
 
 #include "OgreShaderProgramManager.h"
 #include "OgreHighLevelGpuProgramManager.h"
-#include "OgreConfigFile.h"
 #include "OgreShaderRenderState.h"
 #include "OgreShaderProgramSet.h"
+#include "OgreShaderProgram.h"
 #include "OgreShaderGenerator.h"
 #include "OgrePass.h"
 #include "OgreLogManager.h"
+#include "OgreHighLevelGpuProgram.h"
 #if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
 #include "OgreShaderCGProgramWriter.h"
 #include "OgreShaderHLSLProgramWriter.h"
@@ -125,8 +126,8 @@ void ProgramManager::releasePrograms(Pass* pass, TargetRenderState* renderState)
 
 	if (programSet != NULL)
 	{
-		pass->setVertexProgram(StringUtil::BLANK);
-		pass->setFragmentProgram(StringUtil::BLANK);
+		pass->setVertexProgram(BLANKSTRING);
+		pass->setFragmentProgram(BLANKSTRING);
 
 		GpuProgramPtr vsProgram(programSet->getGpuVertexProgram());
 		GpuProgramPtr psProgram(programSet->getGpuFragmentProgram());

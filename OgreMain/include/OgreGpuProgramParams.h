@@ -4,7 +4,7 @@
   (Object-oriented Graphics Rendering Engine)
   For the latest info, see http://www.ogre3d.org
 
-  Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,6 @@
 #include "OgreSharedPtr.h"
 #include "OgreIteratorWrappers.h"
 #include "OgreSerializer.h"
-#include "OgreRenderOperation.h"
 #include "OgreAny.h"
 #include "Threading/OgreThreadHeaders.h"
 #include "OgreHeaderPrefix.h"
@@ -537,7 +536,6 @@ namespace Ogre {
         */
         static bool msGenerateAllConstantDefinitionArrayEntries;
     };
-    typedef SharedPtr<GpuNamedConstants> GpuNamedConstantsPtr;
 
     /// Simple class for loading / saving GpuNamedConstants
     class _OgreExport GpuNamedConstantsSerializer : public Serializer
@@ -581,7 +579,6 @@ namespace Ogre {
         size_t bufferSize;
     GpuLogicalBufferStruct() : bufferSize(0) {}
     };
-    typedef SharedPtr<GpuLogicalBufferStruct> GpuLogicalBufferStructPtr;
 
     /** Definition of container that holds the current float constants.
         @note Not necessarily in direct index order to constant indexes, logical
@@ -798,9 +795,6 @@ namespace Ogre {
         const Any& _getRenderSystemData() const { return mRenderSystemData; }
 
     };
-
-    /// Shared pointer used to hold references to GpuProgramParameters instances
-    typedef SharedPtr<GpuSharedParameters> GpuSharedParametersPtr;
 
     class GpuProgramParameters;
 
@@ -2462,9 +2456,6 @@ namespace Ogre {
          */
         const SubroutineMap& getSubroutineMap() const { return mSubroutineMap; }
     };
-
-    /// Shared pointer used to hold references to GpuProgramParameters instances
-    typedef SharedPtr<GpuProgramParameters> GpuProgramParametersSharedPtr;
 
     /** @} */
     /** @} */

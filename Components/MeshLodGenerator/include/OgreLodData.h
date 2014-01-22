@@ -4,7 +4,7 @@
  * (Object-oriented Graphics Rendering Engine)
  * For the latest info, see http://www.ogre3d.org/
  *
- * Copyright (c) 2000-2013 Torus Knot Software Ltd
+ * Copyright (c) 2000-2014 Torus Knot Software Ltd
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,8 +32,7 @@
 #include "OgreLodPrerequisites.h"
 #include "OgreVectorSet.h"
 #include "OgreVectorSetImpl.h"
-
-#include "OgreMesh.h"
+#include "OgreVector3.h"
 
 #ifndef MESHLOD_QUALITY
 /// MESHLOD_QUALITY=1 is fastest processing time.
@@ -142,7 +141,7 @@ struct _OgreLodExport LodData {
 	/// Makes possible to get the vertices with the smallest collapse cost.
 	CollapseCostHeap mCollapseCostHeap;
 	IndexBufferInfoList mIndexBufferInfoList;
-#ifndef NDEBUG
+#if OGRE_DEBUG_MODE
 	/**
 	 * @brief The name of the mesh being processed.
 	 *
@@ -168,6 +167,5 @@ struct _OgreLodExport LodData {
 	{}
 };
 
-typedef SharedPtr<LodData> LodDataPtr;
 }
 #endif

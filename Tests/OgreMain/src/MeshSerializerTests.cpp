@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,9 @@ THE SOFTWARE.
 #include "OgreSkeletonManager.h"
 #include "OgreSkeletonSerializer.h"
 #include "OgreDistanceLodStrategy.h"
+#include "OgreMaterialManager.h"
+#include "OgreLodStrategyManager.h"
+#include "OgreSkeleton.h"
 
 //#define I_HAVE_LOT_OF_FREE_TIME
 
@@ -75,6 +78,8 @@ void MeshSerializerTests::setUp()
 	mLogManager->createLog("MeshWithoutIndexDataTests.log", false);
 	mLogManager->setLogDetail(LL_LOW);
 
+	mFSLayer = OGRE_NEW_T(Ogre::FileSystemLayer, Ogre::MEMCATEGORY_GENERAL)(OGRE_VERSION_NAME);
+
 	OGRE_NEW ResourceGroupManager();
 	OGRE_NEW LodStrategyManager();
 	OGRE_NEW DefaultHardwareBufferManager();
@@ -88,23 +93,15 @@ void MeshSerializerTests::setUp()
 
 	// Load resource paths from config file
 	ConfigFile cf;
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-	cf.load(macBundlePath() + "/Contents/Resources/resources.cfg");
-#elif OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-#if OGRE_DEBUG_MODE
-	cf.load("resources_d.cfg");
+	String resourcesPath;
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+	resourcesPath = mFSLayer->getConfigFilePath("resources.cfg");
 #else
-	cf.load("resources.cfg");
+	resourcesPath = mFSLayer->getConfigFilePath("bin/resources.cfg");
 #endif
-#else
-#ifdef OGRE_STATIC_LIB
-	cf.load("bin/resources.cfg");
-#else
-	cf.load("resources.cfg");
-#endif
-#endif /* if OGRE_PLATFORM == OGRE_PLATFORM_APPLE */
 
 	// Go through all sections & settings in the file
+	cf.load(resourcesPath);
 	ConfigFile::SectionIterator seci = cf.getSectionIterator();
 
 	String secName, typeName, archName;
@@ -175,6 +172,7 @@ void MeshSerializerTests::tearDown()
 	OGRE_DELETE MaterialManager::getSingletonPtr();
 	OGRE_DELETE LodStrategyManager::getSingletonPtr();
 	OGRE_DELETE ResourceGroupManager::getSingletonPtr();
+	OGRE_DELETE_T(mFSLayer, FileSystemLayer, Ogre::MEMCATEGORY_GENERAL);
 	OGRE_DELETE mLogManager;
 }
 void MeshSerializerTests::testMesh_clone()
@@ -463,9 +461,9 @@ void MeshSerializerTests::assertVertexDataClone(VertexData* a, VertexData* b, Me
 				HardwareVertexBufferSharedPtr bbuf = b->vertexBufferBinding->getBuffer(bElem.getSource());
 				unsigned char* avertex = static_cast<unsigned char*>(abuf->lock(HardwareBuffer::HBL_READ_ONLY));
 				unsigned char* bvertex = static_cast<unsigned char*>(bbuf->lock(HardwareBuffer::HBL_READ_ONLY));
-				int avSize = abuf->getVertexSize();
-				int bvSize = bbuf->getVertexSize();
-				int elemSize = VertexElement::getTypeSize(aElem.getType());
+				size_t avSize = abuf->getVertexSize();
+				size_t bvSize = bbuf->getVertexSize();
+				size_t elemSize = VertexElement::getTypeSize(aElem.getType());
 				unsigned char* avEnd = avertex + a->vertexCount * avSize;
 				bool error = false;
 				for (; avertex < avEnd; avertex += avSize, bvertex += bvSize) {

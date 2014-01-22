@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,16 +27,16 @@ THE SOFTWARE.
 */
 #include "OgreStableHeaders.h"
 #include "OgreRenderTarget.h"
-#include "OgreStringConverter.h"
 
 #include "OgreViewport.h"
 #include "OgreException.h"
 #include "OgreLogManager.h"
 #include "OgreRenderTargetListener.h"
 #include "OgreRoot.h"
-#include "OgreRenderSystem.h"
 #include "OgreDepthBuffer.h"
 #include "OgreProfiler.h"
+#include "OgreTimer.h"
+#include <iomanip>
 
 namespace Ogre {
 
@@ -228,7 +228,7 @@ namespace Ogre {
 
         if (it != mViewportList.end())
         {
-			StringUtil::StrStreamType str;
+			StringStream str;
 			str << "Can't create another viewport for "
 				<< mName << " with Z-order " << ZOrder
 				<< " because a viewport exists with this Z-order already.";

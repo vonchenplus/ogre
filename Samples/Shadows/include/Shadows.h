@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -20,6 +20,9 @@ same license as the rest of the engine.
 */
 
 #include "SdkSample.h"
+#include "OgreBillboard.h"
+#include "OgreMovablePlane.h"
+#include "OgrePredefinedControllers.h"
 
 using namespace Ogre;
 using namespace OgreBites;
@@ -327,7 +330,7 @@ protected:
 			{
 				if (x != 0 || z != 0)
 				{
-					StringUtil::StrStreamType str;
+					StringStream str;
 					str << "col" << x << "_" << z;
 					node = mSceneMgr->getRootSceneNode()->createChildSceneNode();
 					pEnt = mSceneMgr->createEntity( str.str(), "column.mesh" );
@@ -720,8 +723,8 @@ protected:
 			{
 			case MAT_STANDARD:
 				mSceneMgr->setShadowTexturePixelFormat(PF_X8R8G8B8);
-				mSceneMgr->setShadowTextureCasterMaterial(StringUtil::BLANK);
-				mSceneMgr->setShadowTextureReceiverMaterial(StringUtil::BLANK);
+				mSceneMgr->setShadowTextureCasterMaterial(BLANKSTRING);
+				mSceneMgr->setShadowTextureReceiverMaterial(BLANKSTRING);
 				mSceneMgr->setShadowTextureSelfShadow(false);	
 				
 				resetMaterials();

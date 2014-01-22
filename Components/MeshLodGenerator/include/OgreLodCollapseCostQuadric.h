@@ -5,7 +5,7 @@
  * (Object-oriented Graphics Rendering Engine)
  * For the latest info, see http://www.ogre3d.org/
  *
- * Copyright (c) 2000-2013 Torus Knot Software Ltd
+ * Copyright (c) 2000-2014 Torus Knot Software Ltd
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@
 #include "OgreLodPrerequisites.h"
 #include "OgreLodCollapseCost.h"
 #include "OgreLodData.h"
+#include "OgreMatrix4.h"
 
 namespace Ogre
 {
@@ -47,10 +48,10 @@ public:
 protected:
 
 	struct TriangleQuadricPlane {
-		Ogre::Matrix4 quadric;
+		Matrix4 quadric;
 	};
-	vector<Ogre::Matrix4>::type mTrianglePlaneQuadricList;
-	vector<Ogre::Matrix4>::type mVertexQuadricList;
+	vector<Matrix4>::type mTrianglePlaneQuadricList;
+	vector<Matrix4>::type mVertexQuadricList;
 	void computeTrianglePlaneQuadric(LodData* data, size_t triangleID);
 	void computeVertexQuadric(LodData* data, size_t vertexID);
 };

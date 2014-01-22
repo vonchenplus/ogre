@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,15 +29,11 @@ THE SOFTWARE.
 #include "OgreSubEntity.h"
 
 #include "OgreEntity.h"
-#include "OgreSkeletonInstance.h"
-#include "OgreSceneManager.h"
 #include "OgreMaterialManager.h"
 #include "OgreSubMesh.h"
-#include "OgreTagPoint.h"
 #include "OgreLogManager.h"
 #include "OgreMesh.h"
 #include "OgreException.h"
-#include "OgreCamera.h"
 
 namespace Ogre {
     //-----------------------------------------------------------------------
@@ -73,7 +69,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     const String& SubEntity::getMaterialName(void) const
     {
-		return !mMaterialPtr.isNull() ? mMaterialPtr->getName() : StringUtil::BLANK;
+		return !mMaterialPtr.isNull() ? mMaterialPtr->getName() : BLANKSTRING;
         //return mMaterialName;
     }
     //-----------------------------------------------------------------------

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,12 +32,11 @@ THE SOFTWARE.
 
 #include "OgreSingleton.h"
 #include "OgreResourceManager.h"
-#include "OgreMaterial.h"
-#include "OgreStringVector.h"
-#include "OgreMaterialSerializer.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+
+	class MaterialSerializer;
 
 
 	/** \addtogroup Core
@@ -268,13 +267,13 @@ namespace Ogre {
 		Add a listener to handle material events. 
 		If schemeName is supplied, the listener will only receive events for that certain scheme.
 		*/
-		virtual void addListener(Listener* l, const Ogre::String& schemeName = StringUtil::BLANK);
+		virtual void addListener(Listener* l, const Ogre::String& schemeName = BLANKSTRING);
 
 		/** 
 		Remove a listener handling material events. 
 		If the listener was added with a custom scheme name, it needs to be supplied here as well.
 		*/
-		virtual void removeListener(Listener* l, const Ogre::String& schemeName = StringUtil::BLANK);
+		virtual void removeListener(Listener* l, const Ogre::String& schemeName = BLANKSTRING);
 
 		/// Internal method for sorting out missing technique for a scheme
 		virtual Technique* _arbitrateMissingTechniqueForActiveScheme(

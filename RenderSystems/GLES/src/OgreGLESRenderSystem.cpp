@@ -5,7 +5,7 @@ This source file is part of OGRE
 For the latest info, see http://www.ogre3d.org
 
 Copyright (c) 2008 Renato Araujo Oliveira Filho <renatox@gmail.com>
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,8 @@ THE SOFTWARE.
 #include "OgreGLESUtil.h"
 #include "OgreGLESPBRenderTexture.h"
 #include "OgreGLESFBORenderTexture.h"
+#include "OgreLogManager.h"
+#include "OgreViewport.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
 #   include "OgreEAGLWindow.h"
@@ -688,9 +690,9 @@ namespace Ogre {
     {
         // TODO find a way to get error string
 //        const GLubyte *errString = gluErrorString (errCode);
-//        return (errString != 0) ? String((const char*) errString) : StringUtil::BLANK;
+//        return (errString != 0) ? String((const char*) errString) : BLANKSTRING;
 
-        return StringUtil::BLANK;
+        return BLANKSTRING;
     }
 
     VertexElementType GLESRenderSystem::getColourVertexElementType(void) const

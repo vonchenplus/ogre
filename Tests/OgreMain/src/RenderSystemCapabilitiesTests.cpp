@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "OgreStringConverter.h"
 #include "OgreRenderSystemCapabilitiesSerializer.h"
 #include "OgreArchiveManager.h"
+#include "OgreLogManager.h"
 
 #include <fstream>
 #include <algorithm>
@@ -47,10 +48,10 @@ void RenderSystemCapabilitiesTests::setUp()
 {
     using namespace Ogre;
 
-	OGRE_DELETE LogManager::getSingletonPtr();
-	mLogManager = OGRE_NEW LogManager();
-	mLogManager->createLog("RenderSystemCapabilitiesTests.log", true);
-	mLogManager->setLogDetail(LL_LOW);
+    if(LogManager::getSingletonPtr() == 0)
+        mLogManager = OGRE_NEW LogManager();
+
+    LogManager::getSingleton().setLogDetail(LL_LOW);
 
     // we need to be able to create FileSystem archives to load .rendercaps
     mFileSystemArchiveFactory = OGRE_NEW FileSystemArchiveFactory();

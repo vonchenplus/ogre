@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -37,26 +37,14 @@ Code Style Update	 :
 #ifndef PCZ_SCENEMANAGER_H
 #define PCZ_SCENEMANAGER_H
 
-#include <OgreSceneManager.h>
-#include <OgreSphere.h>
-
 #include "OgrePCZPrerequisites.h"
-#include "OgrePCZSceneNode.h"
+#include "OgreSceneManager.h"
 #include "OgrePCZone.h"
-#include "OgrePCZoneFactory.h"
-#include "OgrePortal.h"
-#include "OgreAntiPortal.h"
 
 namespace Ogre
 {
-
-    class PCZone;
-    class PCZCamera;
-    class PCZIntersectionSceneQuery;
-    class PCZRaySceneQuery;
-    class PCZSphereSceneQuery;
-    class PCZAxisAlignedBoxSceneQuery;
-    class PCZPlaneBoundedVolumeListSceneQuery;
+    class PCZoneFactoryManager;
+    class PortalBase;
 
 	typedef vector<SceneNode*>::type NodeList;
 	typedef list<WireBoundingBox*>::type BoxList;

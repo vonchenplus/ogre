@@ -4,8 +4,8 @@
   (Object-oriented Graphics Rendering Engine)
   For the latest info, see http://www.ogre3d.org/
 
-  Copyright (c) 2000-2013 Torus Knot Software Ltd
-  Also see acknowledgements in Readme.html
+Copyright (c) 2000-2014 Torus Knot Software Ltd
+Also see acknowledgements in Readme.html
 
   You may use this sample code for anything you like, it is not covered by the
   same license as the rest of the engine.
@@ -22,6 +22,7 @@
 #define TERRAIN_PAGE_MAX_Y 0
 
 #include "SdkSample.h"
+#include "OgrePageManager.h"
 #include "OgreTerrain.h"
 #include "OgreTerrainGroup.h"
 #include "OgreTerrainQuadTreeNode.h"
@@ -45,7 +46,8 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
  public:
 
  Sample_Terrain()
-     : mTerrainGroup(0)
+     : mTerrainGlobals(0)
+        , mTerrainGroup(0)
         , mTerrainPaging(0)
         , mPageManager(0)
         , mFly(false)
@@ -75,13 +77,6 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
         {
             OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Your graphics card does not support vertex or fragment shaders, "
                         "so you cannot run this sample. Sorry!", "Sample_Terrain::testCapabilities");
-        }
-        else if (Root::getSingleton().getRenderSystem()->getName().find("OpenGL 3+") != String::npos)
-        {
-            OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED,
-                        "Sample currently out of order in the OpenGL 3+ render system."
-                        "  Try again soon!",
-                        "Sample_Terrain::testCapabilities");
         }
     }
 
@@ -688,7 +683,7 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
                 mSceneMgr->setShadowTextureConfig(2, 1024, 1024, PF_X8B8G8R8);
                 mSceneMgr->setShadowTextureSelfShadow(false);
                 mSceneMgr->setShadowCasterRenderBackFaces(false);
-                mSceneMgr->setShadowTextureCasterMaterial(StringUtil::BLANK);
+                mSceneMgr->setShadowTextureCasterMaterial(BLANKSTRING);
             }
 
             matProfile->setReceiveDynamicShadowsDepth(depthShadows);
