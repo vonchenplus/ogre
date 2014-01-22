@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,7 @@ namespace Ogre {
     MaterialPtr Quake3Shader::createAsMaterial(int lightmapNumber)
     {
 		String matName;
-		StringUtil::StrStreamType str;
+		StringStream str;
         String resourceGroup = ResourceGroupManager::getSingleton().getWorldResourceGroupName();
 
         str << mName << "#" << lightmapNumber;
@@ -79,7 +79,7 @@ namespace Ogre {
             // Create basic texture
             if (pass[p].textureName == "$lightmap")
             {
-                StringUtil::StrStreamType str2;
+                StringStream str2;
 				str2 << "@lightmap" << lightmapNumber;
                 t = ogrePass->createTextureUnitState(str2.str());
             }

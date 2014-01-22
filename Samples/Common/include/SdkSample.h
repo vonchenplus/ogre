@@ -4,7 +4,7 @@
  (Object-oriented Graphics Rendering Engine)
  For the latest info, see http://www.ogre3d.org/
  
- Copyright (c) 2000-2013 Torus Knot Software Ltd
+ Copyright (c) 2000-2014 Torus Knot Software Ltd
  
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,8 @@
 #include "Sample.h"
 #include "SdkTrays.h"
 #include "SdkCameraMan.h"
+
+#include "Ogre.h"
 
 #ifdef INCLUDE_RTSHADER_SYSTEM
 #include "OgreRTShaderSystem.h"
@@ -318,6 +320,15 @@ namespace OgreBites
 				mShaderGenerator->invalidateScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 			}	
 #endif // INCLUDE_RTSHADER_SYSTEM
+#if OGRE_PROFILING
+            // Toggle visibility of profiler window
+            else if (evt.key == OIS::KC_P)
+            {
+                Ogre::Profiler* prof = Ogre::Profiler::getSingletonPtr();
+                if (prof)
+                    prof->setEnabled(!prof->getEnabled());
+            }
+#endif // OGRE_PROFILING
 
 			mCameraMan->injectKeyDown(evt);
 			return true;

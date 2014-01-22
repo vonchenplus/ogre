@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -31,10 +31,6 @@ THE SOFTWARE.
 #include "OgreShaderProgram.h"
 #include "OgreShaderParameter.h"
 #include "OgreShaderProgramSet.h"
-#include "OgreEntity.h"
-#include "OgreSubEntity.h"
-#include "OgreMaterial.h"
-#include "OgreSubMesh.h"
 #include "OgreShaderGenerator.h"
 
 #define HS_DATA_BIND_NAME "HS_SRS_DATA"

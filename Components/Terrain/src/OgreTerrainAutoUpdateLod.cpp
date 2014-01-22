@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,27 +27,13 @@ THE SOFTWARE.
 */
 #include "OgreTerrain.h"
 #include "OgreTerrainQuadTreeNode.h"
-#include "OgreStreamSerialiser.h"
-#include "OgreMath.h"
-#include "OgreImage.h"
-#include "OgrePixelFormat.h"
+#include "OgreCamera.h"
 #include "OgreSceneManager.h"
-#include "OgreSceneNode.h"
-#include "OgreException.h"
-#include "OgreBitwise.h"
-#include "OgreStringConverter.h"
 #include "OgreViewport.h"
 #include "OgreLogManager.h"
-#include "OgreHardwarePixelBuffer.h"
-#include "OgreTextureManager.h"
 #include "OgreRoot.h"
 #include "OgreRenderSystem.h"
 #include "OgreRay.h"
-#include "OgrePlane.h"
-#include "OgreTerrainMaterialGeneratorA.h"
-#include "OgreMaterialManager.h"
-#include "OgreHardwareBufferManager.h"
-#include "OgreDeflate.h"
 #include "OgreTerrainAutoUpdateLod.h"
 
 /*

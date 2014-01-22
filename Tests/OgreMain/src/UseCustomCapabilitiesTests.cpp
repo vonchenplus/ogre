@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -47,25 +47,36 @@ void UseCustomCapabilitiesTests::setUp()
     using namespace Ogre;
 
 	// write cleanup to log
-	OGRE_DELETE LogManager::getSingletonPtr();
-	mLogManager = OGRE_NEW LogManager();
-	mLogManager->createLog("testCustomCapabilitiesSetUp.log", true, false);
-	mLogManager->setLogDetail(LL_LOW);
+	if(LogManager::getSingletonPtr() == 0)
+	{
+		LogManager* logManager = OGRE_NEW LogManager();
+		logManager->createLog("testCustomCapabilitiesSetUp.log", true, false);
+	}
+    LogManager::getSingleton().setLogDetail(LL_LOW);
 
-	OGRE_DELETE Ogre::HighLevelGpuProgramManager::getSingletonPtr();
-	OGRE_DELETE Ogre::GpuProgramManager::getSingletonPtr();
-	OGRE_DELETE Ogre::CompositorManager::getSingletonPtr();
-	OGRE_DELETE Ogre::MaterialManager::getSingletonPtr();
-	OGRE_DELETE Ogre::ResourceGroupManager::getSingletonPtr();
+	
+	if(Ogre::HighLevelGpuProgramManager::getSingletonPtr())
+		OGRE_DELETE Ogre::HighLevelGpuProgramManager::getSingletonPtr();
+	if(Ogre::GpuProgramManager::getSingletonPtr())
+		OGRE_DELETE Ogre::GpuProgramManager::getSingletonPtr();
+	if(Ogre::CompositorManager::getSingletonPtr())
+		OGRE_DELETE Ogre::CompositorManager::getSingletonPtr();
+	if(Ogre::MaterialManager::getSingletonPtr())
+		OGRE_DELETE Ogre::MaterialManager::getSingletonPtr();
+	if(Ogre::ResourceGroupManager::getSingletonPtr())
+		OGRE_DELETE Ogre::ResourceGroupManager::getSingletonPtr();
 
 #if OGRE_STATIC
-	mStaticPluginLoader = OGRE_NEW Ogre::StaticPluginLoader();
+        mStaticPluginLoader = OGRE_NEW Ogre::StaticPluginLoader();
 #endif
 }
 
 void UseCustomCapabilitiesTests::tearDown()
 {
-	OGRE_DELETE mLogManager;
+	using namespace Ogre;
+	// set up silent logging to not pollute output
+	if(LogManager::getSingletonPtr())
+		OGRE_DELETE Ogre::LogManager::getSingletonPtr();
 
 #if OGRE_STATIC
         OGRE_DELETE mStaticPluginLoader;
@@ -192,11 +203,15 @@ void UseCustomCapabilitiesTests::testCustomCapabilitiesGL()
     LogManager::getSingleton().setLogDetail(LL_LOW);
 
 #ifdef OGRE_STATIC_LIB
-	Root* root = OGRE_NEW Root(StringUtil::BLANK);
+	Root* root = OGRE_NEW Root(BLANKSTRING);
         
 	mStaticPluginLoader.load();
 #else
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+	Root* root = OGRE_NEW Root(macBundlePath() + "/Contents/Resources/plugins.cfg");
+#else
 	Root* root = OGRE_NEW Root("plugins.cfg");
+#endif
 #endif
 
 	RenderSystem* rs = root->getRenderSystemByName("OpenGL Rendering Subsystem");
@@ -260,7 +275,7 @@ void UseCustomCapabilitiesTests::testCustomCapabilitiesD3D9()
     LogManager::getSingleton().setLogDetail(LL_LOW);
 
 #ifdef OGRE_STATIC_LIB
-	Root* root = OGRE_NEW Root(StringUtil::BLANK);
+	Root* root = OGRE_NEW Root(BLANKSTRING);
         
 	mStaticPluginLoader.load();
 #else

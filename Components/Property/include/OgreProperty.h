@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,16 +33,11 @@ THE SOFTWARE.
 #include "OgreIteratorWrappers.h"
 #include "OgreString.h"
 #include "OgreException.h"
-#include "OgreVector2.h"
-#include "OgreVector3.h"
-#include "OgreVector4.h"
-#include "OgreColourValue.h"
 #include "OgreQuaternion.h"
-#include "OgreMatrix3.h"
 #include "OgreMatrix4.h"
-
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
+
 /** \addtogroup Optional Components
 *  @{
 */
@@ -358,7 +353,7 @@ namespace Ogre
 			PropertyBase* baseProp = getProperty(name);
 			if (baseProp->getType() != typeCheck)
 			{
-				StringUtil::StrStreamType msg;
+				StringStream msg;
 				msg << "Property error: type passed in: '" << PropertyDef::getTypeName(typeCheck)
 					<< "', type of property: '" << PropertyDef::getTypeName(baseProp->getType()) << "'";
 				OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, msg.str(), "PropertySet::setPropertyImpl");
@@ -373,7 +368,7 @@ namespace Ogre
 			PropertyBase* baseProp = getProperty(name);
 			if (baseProp->getType() != typeCheck)
 			{
-				StringUtil::StrStreamType msg;
+				StringStream msg;
 				msg << "Property error: type requested: '" << PropertyDef::getTypeName(typeCheck)
 					<< "', type of property: '" << PropertyDef::getTypeName(baseProp->getType()) << "'";
 				OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, msg.str(), "PropertySet::getPropertyImpl");

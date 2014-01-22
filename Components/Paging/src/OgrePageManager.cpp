@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,12 +26,9 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgrePageManager.h"
-#include "OgrePagedWorld.h"
-#include "OgrePageStrategy.h"
 #include "OgrePageContentCollectionFactory.h"
 #include "OgrePagedWorldSection.h"
 #include "OgrePageContentFactory.h"
-#include "OgreStringConverter.h"
 #include "OgreException.h"
 #include "OgrePagedWorldSection.h"
 #include "OgrePagedWorld.h"
@@ -362,7 +359,7 @@ namespace Ogre
 		if (!ser)
 		{
 			// use default implementation
-			StringUtil::StrStreamType nameStr;
+			StringStream nameStr;
 			nameStr << section->getWorld()->getName() << "_" << section->getName() 
 				<< "_" << pageID << ".page";
 			DataStreamPtr stream = ResourceGroupManager::getSingleton().openResource(nameStr.str());
@@ -383,7 +380,7 @@ namespace Ogre
 		if (!ser)
 		{
 			// use default implementation
-			StringUtil::StrStreamType nameStr;
+			StringStream nameStr;
 			nameStr << section->getWorld()->getName() << "_" << section->getName() 
 				<< "_" << pageID << ".page";
 			

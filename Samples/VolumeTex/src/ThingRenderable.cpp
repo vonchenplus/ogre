@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
 You may use this sample code for anything you like, it is not covered by the
@@ -12,10 +12,10 @@ same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 #include "ThingRenderable.h"
-#include <OgreHardwareVertexBuffer.h>
-#include <OgreHardwareIndexBuffer.h>
-#include <OgreHardwareBufferManager.h>
-#include <OgreCamera.h>
+#include "OgreHardwareVertexBuffer.h"
+#include "OgreHardwareIndexBuffer.h"
+#include "OgreHardwareBufferManager.h"
+#include "OgreCamera.h"
 using namespace Ogre;
 
 ThingRenderable::ThingRenderable(float radius, size_t count, float qsize):

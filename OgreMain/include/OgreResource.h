@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,12 +29,10 @@ THE SOFTWARE.
 #define _Resource_H__
 
 #include "OgrePrerequisites.h"
-#include "OgreString.h"
-#include "OgreSharedPtr.h"
-#include "OgreStringInterface.h"
 #include "OgreAtomicScalar.h"
-#include "Threading/OgreThreadHeaders.h"
+#include "OgreStringInterface.h"
 #include "OgreHeaderPrefix.h"
+#include "Threading/OgreThreadHeaders.h"
 
 namespace Ogre {
 
@@ -485,26 +483,6 @@ namespace Ogre {
 		virtual size_t calculateSize(void) const;
 
     };
-
-	/** Shared pointer to a Resource.
-	@remarks
-		This shared pointer allows many references to a resource to be held, and
-		when the final reference is removed, the resource will be destroyed. 
-		Note that the ResourceManager which created this Resource will be holding
-		at least one reference, so this resource will not get destroyed until 
-		someone removes the resource from the manager - this at least gives you
-		strong control over when resources are freed. But the nature of the 
-		shared pointer means that if anyone refers to the removed resource in the
-		meantime, the resource will remain valid.
-	@par
-		You may well see references to ResourcePtr (i.e. ResourcePtr&) being passed 
-		around internally within Ogre. These are 'weak references' ie they do 
-		not increment the reference count on the Resource. This is done for 
-		efficiency in temporary operations that shouldn't need to incur the 
-		overhead of maintaining the reference count; however we don't recommend 
-		you do it yourself since these references are not guaranteed to remain valid.
-	*/
-	typedef SharedPtr<Resource> ResourcePtr;
 
 	/** Interface describing a manual resource loader.
 	@remarks

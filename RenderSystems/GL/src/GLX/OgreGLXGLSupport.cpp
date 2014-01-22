@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -157,6 +157,7 @@ namespace Ogre
 	{
 		ConfigOption optFullScreen;
 		ConfigOption optVideoMode;
+		ConfigOption optColourDepth;
 		ConfigOption optDisplayFrequency;
 		ConfigOption optVSync;
 		ConfigOption optFSAA;
@@ -172,7 +173,11 @@ namespace Ogre
 		
 		optDisplayFrequency.name = "Display Frequency";
 		optDisplayFrequency.immutable = false;
-		
+
+		optColourDepth.name = "Colour Depth";
+		optColourDepth.immutable = false;
+		optColourDepth.currentValue.clear();
+
 		optVSync.name = "VSync";
 		optVSync.immutable = false;
 		
@@ -255,6 +260,7 @@ namespace Ogre
 
 		mOptions[optFullScreen.name] = optFullScreen;
 		mOptions[optVideoMode.name] = optVideoMode;
+		mOptions[optColourDepth.name] = optColourDepth;
 		mOptions[optDisplayFrequency.name] = optDisplayFrequency;
 		mOptions[optVSync.name] = optVSync;
 		mOptions[optRTTMode.name] = optRTTMode;
@@ -331,7 +337,7 @@ namespace Ogre
 	String GLXGLSupport::validateConfig(void) 
 	{
 		// TO DO
-		return StringUtil::BLANK;
+		return BLANKSTRING;
 	}
 
 	//-------------------------------------------------------------------------------------------------//

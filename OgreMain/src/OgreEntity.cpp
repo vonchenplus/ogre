@@ -4,7 +4,7 @@
   (Object-oriented Graphics Rendering Engine)
   For the latest info, see http://www.ogre3d.org
 
-  Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -45,9 +45,6 @@
 #include "OgreTechnique.h"
 #include "OgrePass.h"
 #include "OgreSkeletonInstance.h"
-#include "OgreEdgeListBuilder.h"
-#include "OgreStringConverter.h"
-#include "OgreAnimation.h"
 #include "OgreOptimisedUtil.h"
 #include "OgreSceneNode.h"
 #include "OgreLodStrategy.h"

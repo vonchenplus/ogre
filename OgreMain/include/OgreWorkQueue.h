@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreAny.h"
 #include "OgreSharedPtr.h"
+#include "OgreCommon.h"
 #include "Threading/OgreThreadHeaders.h"
 #include "OgreHeaderPrefix.h"
 
@@ -131,7 +132,7 @@ namespace Ogre
 			Any mData;
 
 		public:
-			Response(const Request* rq, bool success, const Any& data, const String& msg = StringUtil::BLANK);
+			Response(const Request* rq, bool success, const Any& data, const String& msg = BLANKSTRING);
 			~Response();
 			/// Get the request that this is a response to (NB destruction destroys this)
 			const Request* getRequest() const { return mRequest; }
@@ -365,7 +366,7 @@ namespace Ogre
 			Call startup() to initialise.
 		@param name Optional name, just helps to identify logging output
 		*/
-		DefaultWorkQueueBase(const String& name = StringUtil::BLANK);
+		DefaultWorkQueueBase(const String& name = BLANKSTRING);
 		virtual ~DefaultWorkQueueBase();
 		/// Get the name of the work queue
 		const String& getName() const;

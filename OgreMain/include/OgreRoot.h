@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,12 +31,7 @@ THE SOFTWARE.
 // Precompiler options
 #include "OgrePrerequisites.h"
 
-#include "OgreSingleton.h"
-#include "OgreString.h"
 #include "OgreSceneManagerEnumerator.h"
-#include "OgreResourceGroupManager.h"
-#include "OgreLodStrategyManager.h"
-#include "OgreWorkQueue.h"       
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
 #include "Android/OgreAndroidLogListener.h"
@@ -332,7 +327,7 @@ namespace Ogre
                 requested, otherwise <b>NULL</b>.
         */
 	    RenderWindow* initialise(bool autoCreateWindow, const String& windowTitle = "OGRE Render Window",
-                                    const String& customCapabilitiesConfig = StringUtil::BLANK);
+                                    const String& customCapabilitiesConfig = BLANKSTRING);
 
 		/** Returns whether the system is initialised or not. */
 		bool isInitialised(void) const { return mIsInitialised; }
@@ -393,7 +388,7 @@ namespace Ogre
 			created. If you leave this blank, an auto name will be assigned.
 		*/
 		SceneManager* createSceneManager(const String& typeName, 
-			const String& instanceName = StringUtil::BLANK);
+			const String& instanceName = BLANKSTRING);
 
 		/** Create a SceneManager instance based on scene type support.
 		@remarks
@@ -408,7 +403,7 @@ namespace Ogre
 			created. If you leave this blank, an auto name will be assigned.
 		*/
 		SceneManager* createSceneManager(SceneTypeMask typeMask, 
-			const String& instanceName = StringUtil::BLANK);
+			const String& instanceName = BLANKSTRING);
 
 		/** Destroy an instance of a SceneManager. */
 		void destroySceneManager(SceneManager* sm);
@@ -631,7 +626,7 @@ namespace Ogre
 			will be considered candidates for creation.
 		*/
 		DataStreamPtr createFileStream(const String& filename, const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
-			bool overwrite = false, const String& locationPattern = StringUtil::BLANK);
+			bool overwrite = false, const String& locationPattern = BLANKSTRING);
 
 		/** Helper method to assist you in accessing readable file streams.
 		@remarks
@@ -648,7 +643,7 @@ namespace Ogre
 			will be considered candidates for creation.
 		*/		
 		DataStreamPtr openFileStream(const String& filename, const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
-			const String& locationPattern = StringUtil::BLANK);
+			const String& locationPattern = BLANKSTRING);
 
         /** Generates a packed data version of the passed in ColourValue suitable for
             use with the current RenderSystem.
