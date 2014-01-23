@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -148,76 +148,72 @@ namespace Ogre {
 
         defines.clear();
 
-        if (!stringBuffer.empty())
-		{
-			// Split preprocessor defines and build up macro array
-			D3D_SHADER_MACRO macro;
-			String::size_type pos = 0;
-			while (pos != String::npos)
-			{
-				macro.Name = &stringBuffer[pos];
-				macro.Definition = 0;
+        if (stringBuffer.empty())
+            return;
 
-				String::size_type start_pos=pos;
+        // Split preprocessor defines and build up macro array
+        D3D_SHADER_MACRO macro;
+        String::size_type pos = 0;
+        while (pos != String::npos)
+        {
+            macro.Name = &stringBuffer[pos];
+            macro.Definition = 0;
 
-				// Find delims
-				pos = stringBuffer.find_first_of(";,=", pos);
+            String::size_type start_pos=pos;
 
-				if(start_pos==pos)
-				{
-					if(pos==stringBuffer.length())
-					{
-						break;
-					}
-					pos++;
-					continue;
-				}
+            // Find delims
+            pos = stringBuffer.find_first_of(";,=", pos);
 
-				if (pos != String::npos)
-				{
-					// Check definition part
-					if (stringBuffer[pos] == '=')
-					{
-						// Setup null character for macro name
-						stringBuffer[pos++] = '\0';
-						macro.Definition = &stringBuffer[pos];
-						pos = stringBuffer.find_first_of(";,", pos);
-					}
-					else
-					{
-						// No definition part, define as "1"
-						macro.Definition = "1";
-					}
+            if(start_pos==pos)
+            {
+                if(pos==stringBuffer.length())
+                {
+                    break;
+                }
+                pos++;
+                continue;
+            }
 
-					if (pos != String::npos)
-					{
-						// Setup null character for macro name or definition
-						stringBuffer[pos++] = '\0';
-					}
-				}
-				else
-				{
-					macro.Definition = "1";
-				}
-				if(strlen(macro.Name)>0)
-				{
-					defines.push_back(macro);
-				}
-				else
-				{
-					break;
-				}
-			}
-		}
+            if (pos != String::npos)
+            {
+                // Check definition part
+                if (stringBuffer[pos] == '=')
+                {
+                    // Setup null character for macro name
+                    stringBuffer[pos++] = '\0';
+                    macro.Definition = &stringBuffer[pos];
+                    pos = stringBuffer.find_first_of(";,", pos);
+                }
+                else
+                {
+                    // No definition part, define as "1"
+                    macro.Definition = "1";
+                }
 
-		//Add D3D11 define to all program, compiled with D3D11 RenderSystem
-		D3D_SHADER_MACRO macro = {"D3D11","1"};
-		defines.push_back(macro);		
-		
-		// Add NULL terminator
-		macro.Name = 0;
-		macro.Definition = 0;
-		defines.push_back(macro);
+                if (pos != String::npos)
+                {
+                    // Setup null character for macro name or definition
+                    stringBuffer[pos++] = '\0';
+                }
+            }
+            else
+            {
+                macro.Definition = "1";
+            }
+            if(strlen(macro.Name)>0)
+            {
+                defines.push_back(macro);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        // Add NULL terminator
+        macro.Name = 0;
+        macro.Definition = 0;
+        defines.push_back(macro);
     }		
     //-----------------------------------------------------------------------
     void D3D11HLSLProgram::loadFromSource(void)
@@ -1516,25 +1512,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void D3D11HLSLProgram::setTarget(const String& target)
     {
-        mTarget = "";
-        vector<String>::type profiles = StringUtil::split(target, " ");
-        for(int i = 0 ; i < profiles.size() ; i++)
-        {
-            String & currentProfile = profiles[i];
-            if(GpuProgramManager::getSingleton().isSyntaxSupported(currentProfile))
-            {
-                mTarget = currentProfile;
-                break;
-            }
-        }
-
-        if(mTarget == "")
-        {
-            LogManager::getSingleton().logMessage(
-                "Invalid target for D3D11 shader '" + mName + "' - '" + target + "'");
-        }
-
-
+        mTarget = target;
     }
     //-----------------------------------------------------------------------
     const String& D3D11HLSLProgram::getCompatibleTarget(void) const

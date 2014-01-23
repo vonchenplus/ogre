@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -71,7 +71,7 @@ namespace Ogre {
 		{
 			IDirect3DDevice9* d3d9Device = D3D9RenderSystem::getResourceCreationDevice(i);
 
-			createBuffer(d3d9Device, mBufferDesc.Pool, false);
+			createBuffer(d3d9Device, mBufferDesc.Pool);
 		}					
     }
 	//---------------------------------------------------------------------
@@ -100,7 +100,6 @@ namespace Ogre {
 		D3D9_DEVICE_ACCESS_CRITICAL_SECTION
 		
 		DeviceToBufferResourcesIterator it = mMapDeviceToBufferResources.begin();
-		IDirect3DDevice9* d3d9Device = D3D9RenderSystem::getActiveD3D9DeviceIfExists();
 
 		while (it != mMapDeviceToBufferResources.end())
 		{
@@ -129,10 +128,6 @@ namespace Ogre {
 					
 			bufferResources->mLockOptions = options;
 		
-			//We will switch the source buffer to the active d3d9device as we may decide to only update it during unlock
-			if (it->first == d3d9Device)
-				mSourceBuffer = it->second;
-
 			++it;
 		}		
 
@@ -146,11 +141,7 @@ namespace Ogre {
     {	
 		D3D9_DEVICE_ACCESS_CRITICAL_SECTION
 
-		//check if we can delay the update of secondary buffer resources
-		//if the user requested it and we have a shadow buffer we can always recreate the buffer later
-		if ((mShadowBuffer == NULL) || ((mLockUploadOption & HBU_ON_DEMAND) == 0))
-		{
-			DeviceToBufferResourcesIterator it = mMapDeviceToBufferResources.begin();
+		DeviceToBufferResourcesIterator it = mMapDeviceToBufferResources.begin();
 		uint nextFrameNumber = Root::getSingleton().getNextFrameNumber();
 
 		while (it != mMapDeviceToBufferResources.end())
@@ -167,9 +158,8 @@ namespace Ogre {
 				}				
 			}
 
-				++it;
-			}	
-		}
+			++it;
+		}	
 
 		// Unlock the source buffer.
 		_unlockBuffer(mSourceBuffer);
@@ -204,7 +194,7 @@ namespace Ogre {
 		D3D9_DEVICE_ACCESS_CRITICAL_SECTION
 
 		if (D3D9RenderSystem::getResourceManager()->getCreationPolicy() == RCP_CREATE_ON_ALL_DEVICES)
-			createBuffer(d3d9Device, mBufferDesc.Pool, true);	
+			createBuffer(d3d9Device, mBufferDesc.Pool);	
 
 	}
 	//---------------------------------------------------------------------
@@ -259,11 +249,11 @@ namespace Ogre {
 
 		if (mBufferDesc.Pool == D3DPOOL_DEFAULT)
 		{
-			createBuffer(d3d9Device, mBufferDesc.Pool, true);		
+			createBuffer(d3d9Device, mBufferDesc.Pool);		
 		}
 	}
 	//---------------------------------------------------------------------
-	void D3D9HardwareIndexBuffer::createBuffer(IDirect3DDevice9* d3d9Device, D3DPOOL ePool, bool updateNewBuffer)
+	void D3D9HardwareIndexBuffer::createBuffer(IDirect3DDevice9* d3d9Device, D3DPOOL ePool)
 	{
 		D3D9_DEVICE_ACCESS_CRITICAL_SECTION
 
@@ -326,8 +316,7 @@ namespace Ogre {
 
 		// This is a new buffer and source buffer exists we must update the content now 
 		// to prevent situation where the source buffer will be destroyed and we won't be able to restore its content.
-		// This is except for during the creation process of the class when there is no data yet to update.
-		else if (updateNewBuffer)
+		else
 		{			
 			updateBufferContent(bufferResources);			
 		}
@@ -344,7 +333,7 @@ namespace Ogre {
 		// Case index buffer was not found for the current device -> create it.		
 		if (it == mMapDeviceToBufferResources.end() || it->second->mBuffer == NULL)		
 		{						
-			createBuffer(d3d9Device, mBufferDesc.Pool, true);
+			createBuffer(d3d9Device, mBufferDesc.Pool);
 			it = mMapDeviceToBufferResources.find(d3d9Device);						
 		}
 
@@ -363,14 +352,14 @@ namespace Ogre {
 		{
 			if (mShadowBuffer != NULL)
 			{
-				const char* shadowData = (const char*)mShadowBuffer->lock(bufferResources->mLockOffset, bufferResources->mLockLength, HBL_NORMAL);
+				const char* shadowData = (const char*)mShadowBuffer->lock(HBL_NORMAL);
 				updateBufferResources(shadowData, bufferResources);
 				mShadowBuffer->unlock();
 			}
 			else if (mSourceBuffer != bufferResources && (mUsage & HardwareBuffer::HBU_WRITE_ONLY) == 0)
 			{				
 				mSourceBuffer->mLockOptions = HBL_READ_ONLY;
-				mSourceLockedBytes = _lockBuffer(mSourceBuffer, bufferResources->mLockOffset, bufferResources->mLockLength);
+				mSourceLockedBytes = _lockBuffer(mSourceBuffer, 0, mSizeInBytes);
 				updateBufferResources(mSourceLockedBytes, bufferResources);
 				_unlockBuffer(mSourceBuffer);
 				mSourceLockedBytes = NULL;

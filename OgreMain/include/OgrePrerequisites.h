@@ -4,7 +4,7 @@ This source file is a part of OGRE
 
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -49,10 +49,10 @@ THE SOFTWARE
 namespace Ogre {
     // Define ogre version
     #define OGRE_VERSION_MAJOR 1
-    #define OGRE_VERSION_MINOR 10
+    #define OGRE_VERSION_MINOR 9
     #define OGRE_VERSION_PATCH 0
 	#define OGRE_VERSION_SUFFIX ""
-    #define OGRE_VERSION_NAME "Xalafu"
+    #define OGRE_VERSION_NAME "Ghadamon"
 
     #define OGRE_VERSION    ((OGRE_VERSION_MAJOR << 16) | (OGRE_VERSION_MINOR << 8) | OGRE_VERSION_PATCH)
 
@@ -114,6 +114,9 @@ namespace Ogre {
     typedef unsigned int uint;
 	typedef unsigned long ulong;
 
+    #if __cplusplus >= 201103L
+    #define register
+    #endif
 // Pre-declare classes
 // Allows use of pointers in header files without including individual .h
 // so decreases dependencies between files
@@ -329,17 +332,8 @@ settings have been made.
 namespace Ogre
 {
 #if OGRE_STRING_USE_CUSTOM_MEMORY_ALLOCATOR
-	#if OGRE_WCHAR_T_STRINGS
-		typedef std::basic_string<wchar_t, std::char_traits<wchar_t>, STLAllocator<wchar_t,GeneralAllocPolicy > >	_StringBase;
-	#else
-		typedef std::basic_string<char, std::char_traits<char>, STLAllocator<char,GeneralAllocPolicy > >	_StringBase;
-	#endif
-
-	#if OGRE_WCHAR_T_STRINGS
-		typedef std::basic_stringstream<wchar_t,std::char_traits<wchar_t>,STLAllocator<wchar_t,GeneralAllocPolicy >> _StringStreamBase;
-	#else
-		typedef std::basic_stringstream<char,std::char_traits<char>,STLAllocator<char,GeneralAllocPolicy > > _StringStreamBase;
-	#endif
+    typedef std::basic_string<char, std::char_traits<char>, STLAllocator<char,GeneralAllocPolicy > >        _StringBase;
+    typedef std::basic_stringstream<char,std::char_traits<char>,STLAllocator<char,GeneralAllocPolicy > >    _StringStreamBase;
 
 	#define StdStringT(T) std::basic_string<T, std::char_traits<T>, std::allocator<T> >	
 	#define CustomMemoryStringT(T) std::basic_string<T, std::char_traits<T>, STLAllocator<T,GeneralAllocPolicy> >	
@@ -440,17 +434,8 @@ namespace Ogre
 	#undef CustomMemoryStringT
 
 #else
-	#if OGRE_WCHAR_T_STRINGS
-		typedef std::wstring _StringBase;
-	#else
-		typedef std::string _StringBase;
-	#endif
-
-	#if OGRE_WCHAR_T_STRINGS
-		typedef std::basic_stringstream<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> > _StringStreamBase;
-	#else
-		typedef std::basic_stringstream<char,std::char_traits<char>,std::allocator<char> > _StringStreamBase;
-	#endif
+    typedef std::string _StringBase;
+    typedef std::basic_stringstream<char,std::char_traits<char>,std::allocator<char> > _StringStreamBase;
 
 #endif
 

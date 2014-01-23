@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -172,13 +172,6 @@ namespace Ogre {
 		/** Get a custom composition pass by its name 
 		*/
 		CustomCompositionPass* getCustomCompositionPass(const String& name);
-
-		/**
-		Relocates a compositor chain from one viewport to another
-		@param sourceVP The viewport to take the chain from
-		@param destVP The viewport to connect the chain to
-		*/
-		void _relocateChain(Viewport* sourceVP, Viewport* destVP);
 
 		/** Override standard Singleton retrieval.
 		@remarks

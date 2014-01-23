@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1027,20 +1027,6 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 			// Set fixed-function tesselation evaluation parameters
 		}
 
-                if (pass->hasComputeProgram())
-		{
-                    bindGpuProgram(pass->getComputeProgram()->_getBindingDelegate());
-                    // bind parameters later
-		}
-		else
-		{
-                    // Unbind program?
-                    if (mDestRenderSystem->isGpuProgramBound(GPT_COMPUTE_PROGRAM))
-                    {
-                        mDestRenderSystem->unbindGpuProgram(GPT_COMPUTE_PROGRAM);
-                    }
-                    // Set fixed-function compute parameters
-		}
 
 		if (passSurfaceAndLightParams)
 		{
@@ -5027,7 +5013,9 @@ const Pass* SceneManager::deriveShadowCasterPass(const Pass* pass)
 		}
         
 		// handle the case where there is no fixed pipeline support
-		retPass->getParent()->getParent()->compile();
+		if( retPass->getParent()->getParent()->getCompilationRequired() )
+			retPass->getParent()->getParent()->compile();
+
         Technique* btech = retPass->getParent()->getParent()->getBestTechnique();
         if( btech )
         {
@@ -5214,7 +5202,9 @@ const Pass* SceneManager::deriveShadowReceiverPass(const Pass* pass)
 		retPass->_load();
 
 		// handle the case where there is no fixed pipeline support
-		retPass->getParent()->getParent()->compile();
+		if( retPass->getParent()->getParent()->getCompilationRequired() )
+			retPass->getParent()->getParent()->compile();
+
         Technique* btech = retPass->getParent()->getParent()->getBestTechnique();
         if( btech )
         {
@@ -7298,12 +7288,6 @@ void SceneManager::updateGpuProgramParameters(const Pass* pass)
 			mDestRenderSystem->bindGpuProgramParameters(GPT_DOMAIN_PROGRAM, 
 				pass->getTesselationDomainProgramParameters(), mGpuParamsDirty);
 		}
-
-                // if (pass->hasComputeProgram())
-		// {
-                //     mDestRenderSystem->bindGpuProgramParameters(GPT_COMPUTE_PROGRAM, 
-                //                                                 pass->getComputeProgramParameters(), mGpuParamsDirty);
-		// }
 
 		mGpuParamsDirty = 0;
 	}

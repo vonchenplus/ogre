@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -69,7 +69,7 @@ namespace Ogre {
 		    /// Get the number of vertices in this buffer
 		    size_t getNumVertices(void) const { return mNumVertices; }
 		    /// Get if this vertex buffer is an "instance data" buffer (per instance)
-		    bool getIsInstanceData() const { return mIsInstanceData; }
+		    bool isInstanceData() const { return mIsInstanceData; }
 		    /// Set if this vertex buffer is an "instance data" buffer (per instance)
 		    void setIsInstanceData(const bool val);
 			/// Get the number of instances to draw using the same per-instance data before advancing in the buffer by one element.
@@ -587,7 +587,7 @@ namespace Ogre {
         virtual void closeGaps(BindingIndexMap& bindingIndexMap);
 
         /// Returns true if this binding has an element that contains instance data
-        virtual bool getHasInstanceData() const;
+        virtual bool hasInstanceData() const;
 
 
 	};

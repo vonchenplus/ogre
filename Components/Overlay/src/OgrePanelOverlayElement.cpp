@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
- Copyright (c) 2000-2013 Torus Knot Software Ltd
+ Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -223,7 +223,7 @@ namespace Ogre {
 		HardwareVertexBufferSharedPtr vbuf =
 			mRenderOp.vertexData->vertexBufferBinding->getBuffer(POSITION_BINDING);
 		float* pPos = static_cast<float*>(
-			vbuf->lock(HardwareBuffer::HBL_DISCARD, Root::getSingleton().getFreqUpdatedBuffersUploadOption()) );
+			vbuf->lock(HardwareBuffer::HBL_DISCARD) );
 
 		// Use the furthest away depth value, since materials should have depth-check off
 		// This initialised the depth buffer for any 3D objects in front

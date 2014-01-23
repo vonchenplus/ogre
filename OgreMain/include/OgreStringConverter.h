@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -218,8 +218,7 @@ namespace Ogre {
         /** Converts a String to a boolean. 
         @remarks
             Returns true if case-insensitive match of the start of the string
-            matches "true", "yes", "1", or "on", false if "false", "no", "0" 
-            or "off".
+            matches "true", "yes" or "1", false otherwise.
         */
         static bool parseBool(const String& val, bool defaultValue = 0);
         /** Parses a Vector2 out of a String.

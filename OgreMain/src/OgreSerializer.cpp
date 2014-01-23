@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -191,17 +191,17 @@ namespace Ogre {
     {
 		if(mFlipEndian)
 		{
-            uint32 * pIntToWrite = (uint32 *)malloc(sizeof(uint32) * count);
-            memcpy(pIntToWrite, pInt, sizeof(uint32) * count);
+            unsigned int * pIntToWrite = (unsigned int *)malloc(sizeof(unsigned int) * count);
+            memcpy(pIntToWrite, pInt, sizeof(unsigned int) * count);
             
-            flipToLittleEndian(pIntToWrite, sizeof(uint32), count);
-            writeData(pIntToWrite, sizeof(uint32), count);
+            flipToLittleEndian(pIntToWrite, sizeof(unsigned int), count);
+            writeData(pIntToWrite, sizeof(unsigned int), count);
             
             free(pIntToWrite);
 		}
 		else
 		{
-            writeData(pInt, sizeof(uint32), count);
+            writeData(pInt, sizeof(unsigned int), count);
 		}
     }
     //---------------------------------------------------------------------
@@ -320,10 +320,10 @@ namespace Ogre {
         flipFromLittleEndian(pDest, sizeof(unsigned short), count);
     }
     //---------------------------------------------------------------------
-    void Serializer::readInts(DataStreamPtr& stream, uint32* pDest, size_t count)
+    void Serializer::readInts(DataStreamPtr& stream, unsigned int* pDest, size_t count)
     {
-        stream->read(pDest, sizeof(uint32) * count);
-        flipFromLittleEndian(pDest, sizeof(uint32), count);
+        stream->read(pDest, sizeof(unsigned int) * count);
+        flipFromLittleEndian(pDest, sizeof(unsigned int), count);
     }
     //---------------------------------------------------------------------
     String Serializer::readString(DataStreamPtr& stream, size_t numChars)

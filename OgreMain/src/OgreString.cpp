@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -212,19 +212,6 @@ namespace Ogre {
             str.end(),
             str.begin(),
 			toupper);
-    }
-    //-----------------------------------------------------------------------
-    void StringUtil::toTitleCase(String& str) 
-    {
-        String::iterator it = str.begin();
-        *it = toupper(*it);
-        for (; it != str.end() - 1; it++)
-        {
-            if (*it == ' ') 
-            {
-                *(it + 1) = toupper(*(it + 1));
-            }
-        }
     }
     //-----------------------------------------------------------------------
     bool StringUtil::startsWith(const String& str, const String& pattern, bool lowerCase)

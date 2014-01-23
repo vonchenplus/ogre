@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -511,19 +511,9 @@ namespace Ogre
 
 		ZeroMemory( presentParams, sizeof(D3DPRESENT_PARAMETERS) );
 		presentParams->Windowed					= !mIsFullScreen;
-		
-		DWORD version = GetVersion();
-		DWORD major = (DWORD) (LOBYTE(LOWORD(version)));
-		DWORD minor = (DWORD) (HIBYTE(LOWORD(version)));
-		bool isWindows7 = (major > 6) || ((major == 6) && (minor >= 1));
-
-		// http://msdn.microsoft.com/en-us/library/windows/desktop/bb172574%28v=vs.85%29.aspx
-		// Multisampling is valid only on a swap chain that is being created or reset with the D3DSWAPEFFECT_DISCARD swap effect.		
-		bool useFlipSwap =  D3D9RenderSystem::isDirectX9Ex() && isWindows7 && (isAA() == false);
-			
-		presentParams->SwapEffect				= useFlipSwap ? D3DSWAPEFFECT_FLIPEX : D3DSWAPEFFECT_DISCARD;
+		presentParams->SwapEffect				= D3DSWAPEFFECT_DISCARD;
 		// triple buffer if VSync is on or if flip swap is used. Otherwise we may get a performance penalty.
-		presentParams->BackBufferCount			= mVSync || useFlipSwap ? 2 : 1;
+		presentParams->BackBufferCount			= mVSync ? 2 : 1;
 		presentParams->EnableAutoDepthStencil	= (mDepthBufferPoolId != DepthBuffer::POOL_NO_DEPTH);
 		presentParams->hDeviceWindow			= mHWnd;
 		presentParams->BackBufferWidth			= mWidth;
@@ -942,12 +932,7 @@ namespace Ogre
 		}	
 
 	}
-	//-----------------------------------------------------------------------------
-	void D3D9RenderWindow::updateStats( void )
-	{
-		RenderTarget::updateStats();
-		mStats.vBlankMissCount = mDevice->getVBlankMissCount(this);
-	}
+
 	//-----------------------------------------------------------------------------
 	bool D3D9RenderWindow::isNvPerfHUDEnable() const
 	{

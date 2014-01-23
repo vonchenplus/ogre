@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -897,6 +897,7 @@ namespace Ogre
 		rsc->setCapability(RSC_STENCIL_WRAP);
 		rsc->setCapability(RSC_HWOCCLUSION);		
 		rsc->setCapability(RSC_USER_CLIP_PLANES);			
+		rsc->setCapability(RSC_32BIT_INDEX);			
 		rsc->setCapability(RSC_VERTEX_FORMAT_UBYTE4);			
 		rsc->setCapability(RSC_TEXTURE_1D);			
 		rsc->setCapability(RSC_TEXTURE_3D);			
@@ -990,6 +991,10 @@ namespace Ogre
 			// User clip planes
 			if (rkCurCaps.MaxUserClipPlanes == 0)			
 				rsc->unsetCapability(RSC_USER_CLIP_PLANES);			
+
+			// D3DFMT_INDEX32 type?
+			if (rkCurCaps.MaxVertexIndex <= 0xFFFF)			
+				rsc->unsetCapability(RSC_32BIT_INDEX);	
 
 			// UBYTE4 type?
 			if ((rkCurCaps.DeclTypes & D3DDTCAPS_UBYTE4) == 0)			
@@ -3270,7 +3275,7 @@ namespace Ogre
         VertexDeclaration* globalVertexDeclaration = getGlobalInstanceVertexBufferVertexDeclaration();
         bool hasInstanceData = useGlobalInstancingVertexBufferIsAvailable &&
                     !globalInstanceVertexBuffer.isNull() && globalVertexDeclaration != NULL 
-                || binding->getHasInstanceData();
+                || binding->hasInstanceData();
 
 
 		// TODO: attempt to detect duplicates
@@ -3310,7 +3315,7 @@ namespace Ogre
             // SetStreamSourceFreq
             if ( hasInstanceData ) 
             {
-		        if ( d3d9buf->getIsInstanceData() )
+		        if ( d3d9buf->isInstanceData() )
 		        {
 			        hr = getActiveD3D9Device()->SetStreamSourceFreq( static_cast<UINT>(source), D3DSTREAMSOURCE_INSTANCEDATA | d3d9buf->getInstanceDataStepRate() );
 		        }
@@ -4124,13 +4129,6 @@ namespace Ogre
 		}
 
 		return d3d9Device;
-	}	
-
-	//---------------------------------------------------------------------
-	IDirect3DDevice9* D3D9RenderSystem::getActiveD3D9DeviceIfExists()
-	{	
-		D3D9Device* activeDevice = msD3D9RenderSystem->mDeviceManager->getActiveDevice();
-		return activeDevice ? activeDevice->getD3D9Device() : NULL;
 	}	
 
 	//---------------------------------------------------------------------

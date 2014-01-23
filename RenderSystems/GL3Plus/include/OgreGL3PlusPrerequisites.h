@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -36,16 +36,15 @@ namespace Ogre {
     class GL3PlusRenderSystem;
     class GL3PlusTexture;
     class GL3PlusTextureManager;
+    class GL3PlusGpuProgram;
     class GL3PlusContext;
     class GL3PlusRTTManager;
     class GL3PlusFBOManager;
     class GL3PlusHardwarePixelBuffer;
     class GL3PlusRenderBuffer;
-    class GL3PlusDepthBuffer;
-    
-    class GLSLShader;
+	class GL3PlusDepthBuffer;
 
-    typedef SharedPtr<GLSLShader> GLSLShaderPtr;
+    typedef SharedPtr<GL3PlusGpuProgram> GL3PlusGpuProgramPtr;
     typedef SharedPtr<GL3PlusTexture> GL3PlusTexturePtr;
 }
 
@@ -105,9 +104,8 @@ namespace Ogre {
 #   define __PRETTY_FUNCTION__ __FUNCTION__
 #endif
 
-#define ENABLE_GL_CHECK 1
+#define ENABLE_GL_CHECK 0
 #if ENABLE_GL_CHECK
-#include "OgreStringVector.h"
 #define OGRE_CHECK_GL_ERROR(glFunc) \
 { \
     glFunc; \

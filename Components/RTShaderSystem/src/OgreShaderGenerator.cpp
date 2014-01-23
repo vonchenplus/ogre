@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -642,12 +642,6 @@ void ShaderGenerator::removeSceneManager(SceneManager* sceneMgr)
 SceneManager* ShaderGenerator::getActiveSceneManager()
 {
 	return mActiveSceneMgr;
-}
-//-----------------------------------------------------------------------------
-void ShaderGenerator::_setActiveSceneManager(SceneManager* sceneManager)
-{
-	mActiveViewportValid &= (mActiveSceneMgr == sceneManager);
-	mActiveSceneMgr = sceneManager;
 }
 
 //-----------------------------------------------------------------------------
@@ -1346,7 +1340,7 @@ size_t ShaderGenerator::getFragmentShaderCount() const
 }
 
 //-----------------------------------------------------------------------------
-void ShaderGenerator::setTargetLanguage(const String& shaderLanguage,const float version)
+void ShaderGenerator::setTargetLanguage(const String& shaderLanguage)
 {
 	// Make sure that the shader language is supported.
 	if (HighLevelGpuProgramManager::getSingleton().isLanguageSupported(shaderLanguage) == false)
@@ -1357,10 +1351,9 @@ void ShaderGenerator::setTargetLanguage(const String& shaderLanguage,const float
 	}
 
 	// Case target language changed -> flush the shaders cache.
-	if (mShaderLanguage != shaderLanguage || mShaderLanguageVersion != version )
+	if (mShaderLanguage != shaderLanguage)
 	{
 		mShaderLanguage = shaderLanguage;
-		mShaderLanguageVersion = version;
 		flushShaderCache();
 	}
 }

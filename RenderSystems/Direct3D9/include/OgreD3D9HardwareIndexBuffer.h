@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +61,7 @@ namespace Ogre {
 		virtual void notifyOnDeviceReset(IDirect3DDevice9* d3d9Device);
 
 		// Create the actual index buffer.
-		void createBuffer(IDirect3DDevice9* d3d9Device, D3DPOOL ePool, bool updateNewBuffer);
+		void createBuffer(IDirect3DDevice9* d3d9Device, D3DPOOL ePool);
 	
 		/// Get the D3D-specific index buffer
         IDirect3DIndexBuffer9* getD3DIndexBuffer(void);		
