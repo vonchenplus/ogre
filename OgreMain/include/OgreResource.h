@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -291,14 +291,6 @@ namespace Ogre {
 			return mIsManual;
 		}
 
-		/** Set "Is this resource manually loaded?"
-		*/
-		virtual void setManuallyLoaded(bool isManual)
-		{
-			mIsManual = isManual;
-		}
-
-
 		/** Unloads the resource; this is not permanent, the resource can be
 			reloaded later if required.
         */
@@ -341,14 +333,6 @@ namespace Ogre {
         { 
 			// No lock required to read this state since no modify
             return (mLoadingState.get() == LOADSTATE_LOADED); 
-        }
-
-		/** Change the Resource loading state to loaded.
-        */
-        virtual void setToLoaded(void) 
-        { 
-			// No lock required to read this state since no modify
-            mLoadingState.set(LOADSTATE_LOADED); 
         }
 
 		/** Returns whether the resource is currently in the process of

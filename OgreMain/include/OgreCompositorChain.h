@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -134,9 +134,6 @@ namespace Ogre {
         /** Get viewport that is the target of this chain
         */
         Viewport *getViewport();
-		/** Set viewport that is the target of this chain
-		*/
-		void _notifyViewport(Viewport* vp);
 
         /** Remove a compositor by pointer. This is internally used by CompositionTechnique to
             "weak" remove any instanced of a deleted technique.

@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -73,13 +73,6 @@ namespace Ogre {
                 usage = HardwareBuffer::HBU_STATIC;
             }
         }
-		//If we have write only buffers in DirectX9Ex we will turn on the discardable flag.
-		//Otherwise Ogre will operates in far less framerate
-		if (D3D9RenderSystem::isDirectX9Ex() && (usage & HardwareBuffer::HBU_WRITE_ONLY))
-		{
-			usage = (HardwareBuffer::Usage)
-				((unsigned int)usage | (unsigned int)HardwareBuffer::HBU_DISCARDABLE);
-		}
 #endif
 		D3D9HardwareVertexBuffer* vbuf = OGRE_NEW D3D9HardwareVertexBuffer(
 			this, vertexSize, numVerts, usage, false, useShadowBuffer);
@@ -117,13 +110,6 @@ namespace Ogre {
                 usage = HardwareBuffer::HBU_STATIC;
             }
         }
-		//If we have write only buffers in DirectX9Ex we will turn on the discardable flag.
-		//Otherwise Ogre will operates in far less framerate
-		if (D3D9RenderSystem::isDirectX9Ex() && (usage & HardwareBuffer::HBU_WRITE_ONLY))
-		{
-			usage = (HardwareBuffer::Usage)
-				((unsigned int)usage | (unsigned int)HardwareBuffer::HBU_DISCARDABLE);
-		}
 #endif
 		D3D9HardwareIndexBuffer* idx = OGRE_NEW D3D9HardwareIndexBuffer(
 			this, itype, numIndexes, usage, false, useShadowBuffer);

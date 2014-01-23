@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -172,7 +172,7 @@ namespace Ogre {
 				if ( foundIter != binding->getBindings().end() )
 				{
 					HardwareVertexBufferSharedPtr bufAtSlot = foundIter->second;
-					if ( bufAtSlot->getIsInstanceData() )
+					if ( bufAtSlot->isInstanceData() )
 					{
 						D3delems[idx].InputSlotClass		= D3D11_INPUT_PER_INSTANCE_DATA;
 						D3delems[idx].InstanceDataStepRate	= bufAtSlot->getInstanceDataStepRate();

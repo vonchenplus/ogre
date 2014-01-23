@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -357,7 +357,6 @@ namespace Ogre
 		static UINT	getResourceCreationDeviceCount();
 		static IDirect3DDevice9* getResourceCreationDevice(UINT index);
 		static IDirect3DDevice9* getActiveD3D9Device();
-		static IDirect3DDevice9* getActiveD3D9DeviceIfExists();
 
 		/** Check which depthStencil formats can be used with a certain pixel format,
 			and return the best suited.

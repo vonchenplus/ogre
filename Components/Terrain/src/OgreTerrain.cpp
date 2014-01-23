@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -613,13 +613,8 @@ namespace Ogre
 	//---------------------------------------------------------------------
 	bool Terrain::prepare(const String& filename)
 	{
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-		DataStreamPtr stream = Root::getSingleton().openFileStream(macBundlePath() + "/../Documents/" + filename,
-                                                                   _getDerivedResourceGroup());
-#else
-		DataStreamPtr stream = Root::getSingleton().openFileStream(filename,
-                                                                   _getDerivedResourceGroup());
-#endif
+        DataStreamPtr stream = ResourceGroupManager::getSingleton().openResource(filename, _getDerivedResourceGroup());
+
 		return prepare(stream);
 	}
 	//---------------------------------------------------------------------
@@ -3260,6 +3255,14 @@ namespace Ogre
 	{
 		GenerateMaterialRequest gmreq = any_cast<GenerateMaterialRequest>(res->getRequest()->getData());
 		unsigned long currentTime = Root::getSingletonPtr()->getTimer()->getMilliseconds();
+		// haven't reached the time
+		if(currentTime<gmreq.startTime)
+		{
+			Root::getSingleton().getWorkQueue()->addRequest(
+				mWorkQueueChannel, WORKQUEUE_GENERATE_MATERIAL_REQUEST, 
+				Any(gmreq), 0, false);
+			return;
+		}
 
 		// process
 		switch(gmreq.stage)

@@ -2373,17 +2373,3 @@ material Examples/EnvMappedRustySteel
 		}
 	}
 }
-
-// material Examples/Passthrough
-// {
-//     technique
-//     {
-//         pass
-//         {
-//             diffuse vertexcolour
-//             specular vertexcolour
-//             ambient vertexcolour
-//             lighting off
-//         }
-//     }
-// }

@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,7 @@ namespace Ogre {
         // Nothing to do
 	}
 	//-----------------------------------------------------------------------
-    void* DefaultHardwareVertexBuffer::lock(size_t offset, size_t length, LockOptions options, UploadOptions uploadOpt)
+    void* DefaultHardwareVertexBuffer::lock(size_t offset, size_t length, LockOptions options)
 	{
         mIsLocked = true;
 		return mData + offset;
@@ -113,7 +113,7 @@ namespace Ogre {
         // Nothing to do
 	}
 	//-----------------------------------------------------------------------
-    void* DefaultHardwareIndexBuffer::lock(size_t offset, size_t length, LockOptions options, UploadOptions uploadOpt)
+    void* DefaultHardwareIndexBuffer::lock(size_t offset, size_t length, LockOptions options)
 	{
         mIsLocked = true;
 		return mData + offset;
@@ -170,7 +170,7 @@ namespace Ogre {
 	}
 	*/
 	//-----------------------------------------------------------------------
-    void* DefaultHardwareUniformBuffer::lock(size_t offset, size_t length, LockOptions options, UploadOptions uploadOpt)
+    void* DefaultHardwareUniformBuffer::lock(size_t offset, size_t length, LockOptions options)
 	{
         mIsLocked = true;
 		return mData + offset;
@@ -226,7 +226,7 @@ namespace Ogre {
      }
      */
 	//-----------------------------------------------------------------------
-    void* DefaultHardwareCounterBuffer::lock(size_t offset, size_t length, LockOptions options, UploadOptions uploadOpt)
+    void* DefaultHardwareCounterBuffer::lock(size_t offset, size_t length, LockOptions options)
 	{
         mIsLocked = true;
 		return mData + offset;

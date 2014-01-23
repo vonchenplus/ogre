@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -59,9 +59,6 @@ namespace Ogre {
 	*/
 	class _OgreExport UnifiedHighLevelGpuProgram : public HighLevelGpuProgram
 	{
-	private:
-		static std::map<String,int> mLanguagePriorities;
-
 	public:
 		/// Command object for setting delegate (can set more than once)
 		class CmdDelegate : public ParamCommand
@@ -70,9 +67,6 @@ namespace Ogre {
 			String doGet(const void* target) const;
 			void doSet(void* target, const String& val);
 		};
-
-		static void setPrioriry(String shaderLanguage,int priority);
-		static int	getPriority(String shaderLanguage);
 
 	protected:
 		static CmdDelegate msCmdDelegate;

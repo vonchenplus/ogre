@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -107,8 +107,6 @@ enum FFPShaderStage
 #define FFP_FUNC_GENERATE_TEXCOORD_ENV_REFLECT		"FFP_GenerateTexCoord_EnvMap_Reflect"
 #define FFP_FUNC_GENERATE_TEXCOORD_PROJECTION		"FFP_GenerateTexCoord_Projection"
 #define FFP_FUNC_SAMPLE_TEXTURE						"FFP_SampleTexture"
-#define FFP_FUNC_CONSTRUCT_SAMPLER_WRAPPER			"FFP_Construct_Sampler_Wrapper" //only for hlsl
-
 #define FFP_FUNC_SAMPLE_TEXTURE_PROJ				"FFP_SampleTextureProj"
 #define FFP_FUNC_MODULATEX2							"FFP_ModulateX2"
 #define FFP_FUNC_MODULATEX4							"FFP_ModulateX4"

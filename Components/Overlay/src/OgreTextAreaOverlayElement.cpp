@@ -4,7 +4,7 @@ This source file is a part of OGRE
 
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -68,6 +68,7 @@ namespace Ogre {
 
         mCharHeight = 0.02;
 		mPixelCharHeight = 12;
+        mSpaceWidthOverridden = false;
 		mSpaceWidth = 0;
 		mPixelSpaceWidth = 0;
 		mViewportAspectCoef = 1;
@@ -165,14 +166,14 @@ namespace Ogre {
 		const HardwareVertexBufferSharedPtr& vbuf = 
 			mRenderOp.vertexData->vertexBufferBinding->getBuffer(POS_TEX_BINDING);
 		pVert = static_cast<float*>(
-			vbuf->lock(HardwareBuffer::HBL_DISCARD, Root::getSingleton().getFreqUpdatedBuffersUploadOption()) );
+			vbuf->lock(HardwareBuffer::HBL_DISCARD) );
 
 		float largestWidth = 0;
 		float left = _getDerivedLeft() * 2.0f - 1.0f;
 		float top = -( (_getDerivedTop() * 2.0f ) - 1.0f );
 
 		// Derive space with from a number 0
-		if (mSpaceWidth == 0)
+        if(!mSpaceWidthOverridden)
 		{
 			mSpaceWidth = mFont->getGlyphAspectRatio(UNICODE_ZERO) * mCharHeight;
 		}
@@ -391,6 +392,7 @@ namespace Ogre {
 
     void TextAreaOverlayElement::setSpaceWidth( Real width )
     {
+        mSpaceWidthOverridden = true;
         if (mMetricsMode != GMM_RELATIVE)
         {
             mPixelSpaceWidth = static_cast<unsigned short>(width);
@@ -536,7 +538,7 @@ namespace Ogre {
             mRenderOp.vertexData->vertexBufferBinding->getBuffer(COLOUR_BINDING);
 
         RGBA* pDest = static_cast<RGBA*>(
-            vbuf->lock(HardwareBuffer::HBL_DISCARD, Root::getSingleton().getFreqUpdatedBuffersUploadOption()) );
+            vbuf->lock(HardwareBuffer::HBL_DISCARD) );
 
         for (size_t i = 0; i < mAllocSize; ++i)
         {

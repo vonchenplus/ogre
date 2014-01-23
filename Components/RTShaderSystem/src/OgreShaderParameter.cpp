@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -368,10 +368,6 @@ bool UniformParameter::isFloat() const
 	case GCT_INT2:
 	case GCT_INT3:
 	case GCT_INT4:
-	case GCT_UINT1:
-	case GCT_UINT2:
-	case GCT_UINT3:
-	case GCT_UINT4:
 	case GCT_SAMPLER1D:
 	case GCT_SAMPLER2D:
     case GCT_SAMPLER2DARRAY:
@@ -660,15 +656,11 @@ ParameterPtr ParameterFactory::createInTexcoord(GpuConstantType type, int index,
     case GCT_MATRIX_4X2:
     case GCT_MATRIX_4X3:
     case GCT_MATRIX_4X4:
-	case GCT_INT1:
-	case GCT_INT2:
-	case GCT_INT3:
-	case GCT_INT4:
-	case GCT_UINT1:
-	case GCT_UINT2:
-	case GCT_UINT3:
-	case GCT_UINT4:
-	case GCT_UNKNOWN:
+    case GCT_INT1:
+    case GCT_INT2:
+    case GCT_INT3:
+    case GCT_INT4:
+    case GCT_UNKNOWN:
         break;
 	}
 
@@ -713,11 +705,7 @@ ParameterPtr ParameterFactory::createOutTexcoord(GpuConstantType type, int index
     case GCT_INT2:
     case GCT_INT3:
     case GCT_INT4:
-	case GCT_UINT1:
-	case GCT_UINT2:
-	case GCT_UINT3:
-	case GCT_UINT4:
-	case GCT_UNKNOWN:
+    case GCT_UNKNOWN:
         break;
 	}
 
@@ -824,10 +812,6 @@ UniformParameterPtr ParameterFactory::createSampler(GpuConstantType type, int in
     case GCT_INT2:
     case GCT_INT3:
     case GCT_INT4:
-	case GCT_UINT1:
-	case GCT_UINT2:
-	case GCT_UINT3:
-	case GCT_UINT4:
     case GCT_UNKNOWN:
         break;
 	}

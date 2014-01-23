@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -122,7 +122,6 @@ namespace Ogre
 		Real mFrameSmoothingTime;
 		bool mRemoveQueueStructuresOnClear;
 		Real mDefaultMinPixelSize;
-		HardwareBuffer::UploadOptions mFreqUpdatedBuffersUploadOption;
 
 	public:
 		typedef vector<DynLib*>::type PluginLibList;
@@ -1086,17 +1085,6 @@ namespace Ogre
 		*/
 		Real getDefaultMinPixelSize() { return mDefaultMinPixelSize; }
 	
-		/** Set the default upload option for buffers that frequently changed
-		Setting upload option to HBU_ON_DEMAND can increase the framerate in multi-device scenarios,
-		as it will upload frequently changing buffers to devices that require them.
-		However setting the HBU_ON_DEMAND may also introduce hiccups.
-		*/
-		void setFreqUpdatedBuffersUploadOption(HardwareBuffer::UploadOptions uploadOp) { mFreqUpdatedBuffersUploadOption = uploadOp; }
-		/** Get the default upload option for buffers that frequently changed
-		@note
-			To use this feature see Camera::setFreqUpdatedBuffersUploadOption()
-		*/
-		HardwareBuffer::UploadOptions getFreqUpdatedBuffersUploadOption() const { return mFreqUpdatedBuffersUploadOption; }
 
     };
 	/** @} */

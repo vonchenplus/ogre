@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -533,24 +533,6 @@ CustomCompositionPass* CompositorManager::getCustomCompositionPass(const String&
 			"CompositorManager::getCustomCompositionPass");
 	}
 	return it->second;
-}
-//-----------------------------------------------------------------------
-void CompositorManager::_relocateChain( Viewport* sourceVP, Viewport* destVP )
-{
-	if (sourceVP != destVP)
-	{
-		CompositorChain *chain = getCompositorChain(sourceVP);
-		Ogre::RenderTarget *srcTarget = sourceVP->getTarget();
-		Ogre::RenderTarget *dstTarget = destVP->getTarget();
-		if (srcTarget != dstTarget)
-		{
-			srcTarget->removeListener(chain);
-			dstTarget->addListener(chain);
-		}
-		chain->_notifyViewport(destVP);
-		mChains.erase(sourceVP);
-		mChains[destVP] = chain;
-	}
 }
 //-----------------------------------------------------------------------
 }

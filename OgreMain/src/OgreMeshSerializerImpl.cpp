@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -381,7 +381,7 @@ namespace Ogre {
             vertexData->vertexBufferBinding->getBindings();
         VertexBufferBinding::VertexBufferBindingMap::const_iterator vbi, vbiend;
 
-		size_t size = MSTREAM_OVERHEAD_SIZE + sizeof(uint32) + // base
+		size_t size = MSTREAM_OVERHEAD_SIZE + sizeof(unsigned int) + // base
 			(MSTREAM_OVERHEAD_SIZE + elemList.size() * (MSTREAM_OVERHEAD_SIZE + sizeof(unsigned short) * 5)); // elements
         vbiend = bindings.end();
 		for (vbi = bindings.begin(); vbi != vbiend; ++vbi)
@@ -546,12 +546,12 @@ namespace Ogre {
         // bool useSharedVertices
         size += sizeof(bool);
         // unsigned int indexCount
-        size += sizeof(uint32);
+        size += sizeof(unsigned int);
         // bool indexes32bit
         size += sizeof(bool);
         // unsigned int* / unsigned short* faceVertexIndices
 		if (idx32bit)
-			size += sizeof(uint32) * pSub->indexData->indexCount;
+			size += sizeof(unsigned int) * pSub->indexData->indexCount;
 		else
 			size += sizeof(unsigned short) * pSub->indexData->indexCount;
         // Geometry
@@ -602,7 +602,7 @@ namespace Ogre {
         size_t size = MSTREAM_OVERHEAD_SIZE;
 
         // Num vertices
-        size += sizeof(uint32);
+        size += sizeof(unsigned int);
 
         const VertexDeclaration::VertexElementList& elems =
             vertexData->vertexDeclaration->getElements();
@@ -1154,7 +1154,7 @@ namespace Ogre {
         size_t size = MSTREAM_OVERHEAD_SIZE;
 
         // Vert index
-        size += sizeof(uint32);
+        size += sizeof(unsigned int);
         // Bone index
         size += sizeof(unsigned short);
         // weight
@@ -1248,7 +1248,7 @@ namespace Ogre {
 			// header
 			size += MSTREAM_OVERHEAD_SIZE;
 			// unsigned int numFaces;
-			size += sizeof(uint32);
+			size += sizeof(unsigned int);
 			SubMesh* sm = pMesh->getSubMesh(subidx);
             const IndexData* indexData = sm->mLodFaceList[lodNum - 1];
 
@@ -1259,7 +1259,7 @@ namespace Ogre {
 				indexData->indexBuffer->getType() == HardwareIndexBuffer::IT_32BIT)
             {
 			    size += static_cast<unsigned long>(
-                    sizeof(uint32) * indexData->indexCount);
+                    sizeof(unsigned int) * indexData->indexCount);
             }
             else
             {
@@ -1278,7 +1278,7 @@ namespace Ogre {
 		{
 			size = MSTREAM_OVERHEAD_SIZE;
 			// unsigned int numFaces;
-			size += sizeof(uint32);
+			size += sizeof(unsigned int);
 			SubMesh* sm = pMesh->getSubMesh(subidx);
             const IndexData* indexData = sm->mLodFaceList[lodNum - 1];
             // bool indexes32Bit
@@ -1291,7 +1291,7 @@ namespace Ogre {
             if (idx32)
             {
 			    size += static_cast<unsigned long>(
-                    sizeof(uint32) * indexData->indexCount);
+                    sizeof(unsigned int) * indexData->indexCount);
             }
             else
             {
@@ -1561,10 +1561,10 @@ namespace Ogre {
 						typeSize = sizeof(unsigned short);
 						break;
 					case VET_INT1:
-						typeSize = sizeof(int32);
+						typeSize = sizeof(int);
 						break;
 					case VET_UINT1:
-						typeSize = sizeof(uint32);
+						typeSize = sizeof(unsigned int);
 						break;
 					case VET_COLOUR:
 					case VET_COLOUR_ABGR:
@@ -2803,7 +2803,7 @@ namespace Ogre {
 			// header
 			size += MSTREAM_OVERHEAD_SIZE;
 			// unsigned int numFaces;
-			size += sizeof(uint32);
+			size += sizeof(unsigned int);
 			SubMesh* sm = pMesh->getSubMesh(subidx);
             const IndexData* indexData = sm->mLodFaceList[lodNum - 1];
 			
@@ -2814,7 +2814,7 @@ namespace Ogre {
 				indexData->indexBuffer->getType() == HardwareIndexBuffer::IT_32BIT)
             {
 			    size += static_cast<unsigned long>(
-												   sizeof(uint32) * indexData->indexCount);
+												   sizeof(unsigned int) * indexData->indexCount);
             }
             else
             {
@@ -2835,7 +2835,7 @@ namespace Ogre {
 		{
 			size = MSTREAM_OVERHEAD_SIZE;
 			// unsigned int numFaces;
-			size += sizeof(uint32);
+			size += sizeof(unsigned int);
 			SubMesh* sm = pMesh->getSubMesh(subidx);
             const IndexData* indexData = sm->mLodFaceList[lodNum - 1];
             // bool indexes32Bit
@@ -2848,7 +2848,7 @@ namespace Ogre {
             if (idx32)
             {
 			    size += static_cast<unsigned long>(
-												   sizeof(uint32) * indexData->indexCount);
+												   sizeof(unsigned int) * indexData->indexCount);
             }
             else
             {

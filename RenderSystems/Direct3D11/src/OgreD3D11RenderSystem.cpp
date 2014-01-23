@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1081,6 +1081,12 @@ bail:
 		rsc->setCapability(RSC_HWSTENCIL);
 		rsc->setStencilBufferBitDepth(8);
 
+		rsc->setCapability(RSC_VBO);
+		UINT formatSupport;
+		if(mFeatureLevel >= D3D_FEATURE_LEVEL_9_2
+		|| SUCCEEDED(mDevice->CheckFormatSupport(DXGI_FORMAT_R32_UINT, &formatSupport)) && 0 != (formatSupport & D3D11_FORMAT_SUPPORT_IA_INDEX_BUFFER))
+			rsc->setCapability(RSC_32BIT_INDEX);
+
 		// Set number of texture units, always 16
 		rsc->setNumTextureUnits(16);
 		rsc->setCapability(RSC_ANISOTROPY);
@@ -1093,7 +1099,6 @@ bail:
 		// We always support compression, D3DX will decompress if device does not support
 		rsc->setCapability(RSC_TEXTURE_COMPRESSION);
 		rsc->setCapability(RSC_TEXTURE_COMPRESSION_DXT);
-		rsc->setCapability(RSC_VBO);
 		rsc->setCapability(RSC_SCISSOR_TEST);
 		rsc->setCapability(RSC_TWO_SIDED_STENCIL);
 		rsc->setCapability(RSC_STENCIL_WRAP);
@@ -2260,7 +2265,7 @@ bail:
 
         bool hasInstanceData = op.useGlobalInstancingVertexBufferIsAvailable &&
                     !globalInstanceVertexBuffer.isNull() && globalVertexDeclaration != NULL 
-                || op.vertexData->vertexBufferBinding->getHasInstanceData();
+                || op.vertexData->vertexBufferBinding->hasInstanceData();
 
 		size_t numberOfInstances = op.numberOfInstances;
 
@@ -2313,51 +2318,45 @@ bail:
 			}
 
 			// samplers mapping
-			size_t numberOfSamplers = OGRE_MAX_TEXTURE_LAYERS + 1;
-			
-			//find the maximum number of samplers
-			while (--numberOfSamplers >= 1 && mTexStageDesc[numberOfSamplers - 1].used == false) ;
+			size_t numberOfSamplers = 0;
+			opState->mTexturesCount = 0;
 
-			opState->mSamplerStatesCount = numberOfSamplers;
-			opState->mTexturesCount = numberOfSamplers;
-			
-			
-				
-			for (size_t n = 0; n < numberOfSamplers; n++)
+			for (size_t n = 0; n < OGRE_MAX_TEXTURE_LAYERS; n++)
 			{
-				ID3D11SamplerState * samplerState  = NULL;
-				ID3D11ShaderResourceView *texture = NULL;
 				sD3DTextureStageDesc & stage = mTexStageDesc[n];
 				if(!stage.used)
 				{
-					samplerState	= NULL;
-					texture			= NULL;
+					break;
 				}
-				else
+
+				numberOfSamplers++;
+
+				ID3D11ShaderResourceView * texture;
+				texture = stage.pTex;
+				opState->mTextures[opState->mTexturesCount] = texture;
+				opState->mTexturesCount++;
+
+				stage.samplerDesc.Filter = D3D11Mappings::get(FilterMinification[n], FilterMagnification[n],
+								FilterMips[n],false );
+				stage.samplerDesc.ComparisonFunc = D3D11Mappings::get(mSceneAlphaRejectFunc);
+				stage.samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+				stage.samplerDesc.MinLOD = 0;
+				stage.samplerDesc.MipLODBias = 0.f;
+				stage.currentSamplerDesc = stage.samplerDesc;
+
+				ID3D11SamplerState * samplerState;
+
+				HRESULT hr = mDevice->CreateSamplerState(&stage.samplerDesc, &samplerState) ;
+				if (FAILED(hr))
 				{
-					texture = stage.pTex;
-
-					stage.samplerDesc.Filter = D3D11Mappings::get(FilterMinification[n], FilterMagnification[n],
-						FilterMips[n],false );
-					stage.samplerDesc.ComparisonFunc = D3D11Mappings::get(mSceneAlphaRejectFunc);
-					stage.samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-					stage.samplerDesc.MinLOD = 0;
-					stage.samplerDesc.MipLODBias = 0.f;
-					stage.currentSamplerDesc = stage.samplerDesc;
-
-					HRESULT hr = mDevice->CreateSamplerState(&stage.samplerDesc, &samplerState) ;
-					if (FAILED(hr))
-					{
-						String errorDescription = mDevice.getErrorDescription();
-						OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
-							"Failed to create sampler state\nError Description:" + errorDescription,
-							"D3D11RenderSystem::_render" );
-					}
-				
+					String errorDescription = mDevice.getErrorDescription();
+					OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
+						"Failed to create sampler state\nError Description:" + errorDescription,
+						"D3D11RenderSystem::_render" );
 				}
-				opState->mSamplerStates[n]	= samplerState;
-				opState->mTextures[n]		= texture;
+				opState->mSamplerStates[n] = (samplerState);		
 			}
+			opState->mSamplerStatesCount = numberOfSamplers;
 		}
 
 		for (size_t n = opState->mTexturesCount; n < OGRE_MAX_TEXTURE_LAYERS; n++)

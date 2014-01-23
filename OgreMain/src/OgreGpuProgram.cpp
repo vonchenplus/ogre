@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -45,12 +45,11 @@ namespace Ogre
     GpuProgram::CmdType GpuProgram::msTypeCmd;
     GpuProgram::CmdSyntax GpuProgram::msSyntaxCmd;
     GpuProgram::CmdSkeletal GpuProgram::msSkeletalCmd;
-    GpuProgram::CmdMorph GpuProgram::msMorphCmd;
-    GpuProgram::CmdPose GpuProgram::msPoseCmd;
-    GpuProgram::CmdVTF GpuProgram::msVTFCmd;
-    GpuProgram::CmdManualNamedConstsFile GpuProgram::msManNamedConstsFileCmd;
-    GpuProgram::CmdAdjacency GpuProgram::msAdjacencyCmd;
-    GpuProgram::CmdComputeGroupDims GpuProgram::msComputeGroupDimsCmd;
+	GpuProgram::CmdMorph GpuProgram::msMorphCmd;
+	GpuProgram::CmdPose GpuProgram::msPoseCmd;
+	GpuProgram::CmdVTF GpuProgram::msVTFCmd;
+	GpuProgram::CmdManualNamedConstsFile GpuProgram::msManNamedConstsFileCmd;
+	GpuProgram::CmdAdjacency GpuProgram::msAdjacencyCmd;
 	
 
     //-----------------------------------------------------------------------------
@@ -285,9 +284,7 @@ namespace Ogre
 			ret->_setNamedConstants(mConstantDefs);
 		}
 		// link shared logical / physical map for low-level use
-		ret->_setLogicalIndexes(mFloatLogicalToPhysical, mDoubleLogicalToPhysical, 
-                                        mIntLogicalToPhysical, mUIntLogicalToPhysical,
-                                        mBoolLogicalToPhysical);
+		ret->_setLogicalIndexes(mFloatLogicalToPhysical, mDoubleLogicalToPhysical, mIntLogicalToPhysical);
 
         // Copy in default parameters if present
         if (!mDefaultParams.isNull())
@@ -310,39 +307,34 @@ namespace Ogre
         ParamDictionary* dict = getParamDictionary();
 
         dict->addParameter(
-            ParameterDef("type", "'vertex_program', 'geometry_program', 'fragment_program', 'hull_program', 'domain_program', 'compute_program'",
-                         PT_STRING), &msTypeCmd);
+            ParameterDef("type", "'vertex_program', 'geometry_program' or 'fragment_program'",
+                PT_STRING), &msTypeCmd);
         dict->addParameter(
             ParameterDef("syntax", "Syntax code, e.g. vs_1_1", PT_STRING), &msSyntaxCmd);
         dict->addParameter(
             ParameterDef("includes_skeletal_animation", 
-                         "Whether this vertex program includes skeletal animation", PT_BOOL), 
+            "Whether this vertex program includes skeletal animation", PT_BOOL), 
             &msSkeletalCmd);
-        dict->addParameter(
-            ParameterDef("includes_morph_animation", 
-                         "Whether this vertex program includes morph animation", PT_BOOL), 
-            &msMorphCmd);
-        dict->addParameter(
-            ParameterDef("includes_pose_animation", 
-                         "The number of poses this vertex program supports for pose animation", PT_INT),
-            &msPoseCmd);
-        dict->addParameter(
-            ParameterDef("uses_vertex_texture_fetch", 
-                         "Whether this vertex program requires vertex texture fetch support.", PT_BOOL), 
-            &msVTFCmd);
-        dict->addParameter(
-            ParameterDef("manual_named_constants", 
-                         "File containing named parameter mappings for low-level programs.", PT_BOOL), 
-            &msManNamedConstsFileCmd);
-        dict->addParameter(
-            ParameterDef("uses_adjacency_information",
-                         "Whether this geometry program requires adjacency information from the input primitives.", PT_BOOL),
-            &msAdjacencyCmd);
-        dict->addParameter(
-            ParameterDef("compute_group_dimensions",
-                         "The number of process groups created by this compute program.", PT_VECTOR3),
-            &msComputeGroupDimsCmd);
-            
+		dict->addParameter(
+			ParameterDef("includes_morph_animation", 
+			"Whether this vertex program includes morph animation", PT_BOOL), 
+			&msMorphCmd);
+		dict->addParameter(
+			ParameterDef("includes_pose_animation", 
+			"The number of poses this vertex program supports for pose animation", PT_INT), 
+			&msPoseCmd);
+		dict->addParameter(
+			ParameterDef("uses_vertex_texture_fetch", 
+			"Whether this vertex program requires vertex texture fetch support.", PT_BOOL), 
+			&msVTFCmd);
+		dict->addParameter(
+			ParameterDef("manual_named_constants", 
+			"File containing named parameter mappings for low-level programs.", PT_BOOL), 
+			&msManNamedConstsFileCmd);
+		dict->addParameter(
+			ParameterDef("uses_adjacency_information",
+			"Whether this geometry program requires adjacency information from the input primitives.", PT_BOOL),
+			&msAdjacencyCmd);
     }
 
     //-----------------------------------------------------------------------
@@ -477,26 +469,15 @@ namespace Ogre
 		t->setManualNamedConstantsFile(val);
 	}
     //-----------------------------------------------------------------------
-    String GpuProgram::CmdAdjacency::doGet(const void* target) const
-    {
-        const GpuProgram* t = static_cast<const GpuProgram*>(target);
-        return StringConverter::toString(t->isAdjacencyInfoRequired());
-    }
-    void GpuProgram::CmdAdjacency::doSet(void* target, const String& val)
-    {
-        GpuProgram* t = static_cast<GpuProgram*>(target);
-        t->setAdjacencyInfoRequired(StringConverter::parseBool(val));
-    }
-    //-----------------------------------------------------------------------
-    String GpuProgram::CmdComputeGroupDims::doGet(const void* target) const
-    {
-        const GpuProgram* t = static_cast<const GpuProgram*>(target);
-        return StringConverter::toString(t->getComputeGroupDimensions());
-    }
-    void GpuProgram::CmdComputeGroupDims::doSet(void* target, const String& val)
-    {
-        GpuProgram* t = static_cast<GpuProgram*>(target);
-        t->setComputeGroupDimensions(StringConverter::parseVector3(val));
-    }
+	String GpuProgram::CmdAdjacency::doGet(const void* target) const
+	{
+		const GpuProgram* t = static_cast<const GpuProgram*>(target);
+		return StringConverter::toString(t->isAdjacencyInfoRequired());
+	}
+	void GpuProgram::CmdAdjacency::doSet(void* target, const String& val)
+	{
+		GpuProgram* t = static_cast<GpuProgram*>(target);
+		t->setAdjacencyInfoRequired(StringConverter::parseBool(val));
+	}
 }
 

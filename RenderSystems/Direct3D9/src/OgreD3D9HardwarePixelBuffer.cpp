@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@ namespace Ogre {
 D3D9HardwarePixelBuffer::D3D9HardwarePixelBuffer(HardwareBuffer::Usage usage, 
 												 D3D9Texture* ownerTexture):
 	HardwarePixelBuffer(0, 0, 0, PF_UNKNOWN, usage, false, false),
-	mDoMipmapGen(false), mHWMipmaps(false), mOwnerTexture(ownerTexture), 
+	mDoMipmapGen(0), mHWMipmaps(0), mOwnerTexture(ownerTexture), 
 	mRenderTexture(NULL)
 {	
 }
@@ -108,7 +108,7 @@ void D3D9HardwarePixelBuffer::bind(IDirect3DDevice9 *dev, IDirect3DSurface9 *sur
 	if(mUsage & TU_RENDERTARGET)
 		updateRenderTexture(writeGamma, fsaa, srcName);
 
-	if (isNewBuffer && mOwnerTexture->isLoaded() && mOwnerTexture->isManuallyLoaded())
+	if (isNewBuffer && mOwnerTexture->isManuallyLoaded())
 	{
 		DeviceToBufferResourcesIterator it = mMapDeviceToBufferResources.begin();
 
@@ -650,12 +650,6 @@ void D3D9HardwarePixelBuffer::blitFromMemory(const PixelBox &src, const Image::B
 	size_t rowWidth;
 	if (PixelUtil::isCompressed(converted.format))
 	{
-		// if the row doesn't divide by 4 - there is padding to 4
-		if(converted.rowPitch  % 4 > 0)
-		{
-			converted.rowPitch  += 4;
-		}
-
 		// D3D wants the width of one row of cells in bytes
 		if (converted.format == PF_DXT1)
 		{
@@ -679,12 +673,6 @@ void D3D9HardwarePixelBuffer::blitFromMemory(const PixelBox &src, const Image::B
 		RECT destRect, srcRect;
 		srcRect = toD3DRECT(converted);
 		destRect = toD3DRECT(dstBox);
-
-		if(converted.getWidth() != dstBox.getWidth() || converted.getHeight() != dstBox.getHeight() )
-		{
-			OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Source and dest size are different",
-				"D3D9HardwarePixelBuffer::blitFromMemory");
-		}
 
 		if(D3DXLoadSurfaceFromMemory(dstBufferResources->surface, NULL, &destRect, 
 			converted.data, D3D9Mappings::_getPF(converted.format),

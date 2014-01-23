@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2013 Torus Knot Software Ltd
+Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,6 @@ THE SOFTWARE.
 #include "OgreShaderHLSLProgramWriter.h"
 #include "OgreStringConverter.h"
 #include "OgreGpuProgramManager.h"
-#include "OgreShaderGenerator.h"
 
 namespace Ogre {
 namespace RTShader {
@@ -59,12 +58,6 @@ void HLSLProgramWriter::initializeStringMaps()
 	mGpuConstTypeMap[GCT_SAMPLER2D] = "sampler2D";
 	mGpuConstTypeMap[GCT_SAMPLER3D] = "sampler3D";
 	mGpuConstTypeMap[GCT_SAMPLERCUBE] = "samplerCUBE";
-	mGpuConstTypeMap[GCT_SAMPLER_WRAPPER1D]		= "SamplerData1D";
-	mGpuConstTypeMap[GCT_SAMPLER_WRAPPER2D]		= "SamplerData2D";
-	mGpuConstTypeMap[GCT_SAMPLER_WRAPPER3D]		= "SamplerData3D";
-	mGpuConstTypeMap[GCT_SAMPLER_WRAPPERCUBE]	= "SamplerDataCube";
-	mGpuConstTypeMap[GCT_SAMPLER_STATE]			= "SamplerState";
-	
 	mGpuConstTypeMap[GCT_MATRIX_2X2] = "float2x2";
 	mGpuConstTypeMap[GCT_MATRIX_2X3] = "float2x3";
 	mGpuConstTypeMap[GCT_MATRIX_2X4] = "float2x4";
@@ -78,10 +71,7 @@ void HLSLProgramWriter::initializeStringMaps()
 	mGpuConstTypeMap[GCT_INT2] = "int2";
 	mGpuConstTypeMap[GCT_INT3] = "int3";
 	mGpuConstTypeMap[GCT_INT4] = "int4";
-	mGpuConstTypeMap[GCT_UINT1] = "uint";
-	mGpuConstTypeMap[GCT_UINT2] = "uint2";
-	mGpuConstTypeMap[GCT_UINT3] = "uint3";
-	mGpuConstTypeMap[GCT_UINT4] = "uint4";
+
 
 	mParamSemanticMap[Parameter::SPS_POSITION] = "POSITION";
 	mParamSemanticMap[Parameter::SPS_BLEND_WEIGHTS] = "BLENDWEIGHT";
@@ -92,11 +82,6 @@ void HLSLProgramWriter::initializeStringMaps()
 	mParamSemanticMap[Parameter::SPS_BINORMAL] = "BINORMAL";
 	mParamSemanticMap[Parameter::SPS_TANGENT] = "TANGENT";
 	mParamSemanticMap[Parameter::SPS_UNKNOWN] = "";
-
-	mGpuConstTypeMapV4[GCT_SAMPLER1D] = "Texture1D";
-	mGpuConstTypeMapV4[GCT_SAMPLER2D] = "Texture2D";
-	mGpuConstTypeMapV4[GCT_SAMPLER3D] = "Texture3D";
-	mGpuConstTypeMapV4[GCT_SAMPLERCUBE] = "TextureCube";
 }
 
 //-----------------------------------------------------------------------
@@ -184,34 +169,17 @@ void HLSLProgramWriter::writeProgramDependencies(std::ostream& os, Program* prog
 	}
 }
 
-
 //-----------------------------------------------------------------------
 void HLSLProgramWriter::writeUniformParameter(std::ostream& os, UniformParameterPtr parameter)
 {
-	bool isHlsl4 = Ogre::RTShader::ShaderGenerator::getSingletonPtr()->IsHlsl4();
-
-	GpuConstantType paramType = parameter->getType();
-
-	if (isHlsl4 && paramType >= GpuConstantType::GCT_SAMPLER1D && paramType <= GpuConstantType::GCT_SAMPLERCUBE)
-		os<<mGpuConstTypeMapV4[paramType];
-	else
-		os<<mGpuConstTypeMap[paramType];
-
-	os << "\t" << parameter->getName();
-
+	os << mGpuConstTypeMap[parameter->getType()];
+	os << "\t";	
+	os << parameter->getName();	
 	if (parameter->isArray() == true)
 	{
 		os << "[" << parameter->getSize() << "]";	
 	}
 	if (parameter->isSampler())
-	{
-		if (isHlsl4)
-			os << " : register(t" << parameter->getIndex() << ")";		
-		else
-			os << " : register(s" << parameter->getIndex() << ")";		
-
-	}
-	else if (parameter->getType() == GpuConstantType::GCT_SAMPLER_STATE)
 	{
 		os << " : register(s" << parameter->getIndex() << ")";		
 	}
