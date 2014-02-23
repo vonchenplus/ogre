@@ -72,7 +72,8 @@ void MeshWithoutIndexDataTests::tearDown()
 
 void MeshWithoutIndexDataTests::testCreateSimpleLine()
 {
-    ManualObject* line = OGRE_NEW ManualObject("line");
+    ManualObject* line = OGRE_NEW ManualObject(0, new ObjectMemoryManager());
+    line->setName("line");
     line->begin("BaseWhiteNoLighting", RenderOperation::OT_LINE_LIST);
     line->position(0, 50, 0);
     line->position(50, 100, 0);
@@ -109,7 +110,8 @@ void MeshWithoutIndexDataTests::testCreateSimpleLine()
 
 void MeshWithoutIndexDataTests::testCreateLineList()
 {
-    ManualObject* lineList = OGRE_NEW ManualObject("line");
+    ManualObject* lineList = OGRE_NEW ManualObject(0, new ObjectMemoryManager());
+    lineList->setName("line");
     lineList->begin("BaseWhiteNoLighting", RenderOperation::OT_LINE_LIST);
     lineList->position(0, 50, 0);
     lineList->position(50, 100, 0);
@@ -150,7 +152,8 @@ void MeshWithoutIndexDataTests::testCreateLineList()
 
 void MeshWithoutIndexDataTests::testCreateLineStrip()
 {
-    ManualObject* lineStrip = OGRE_NEW ManualObject("line");
+    ManualObject* lineStrip = OGRE_NEW ManualObject(0, new ObjectMemoryManager());
+    lineStrip->setName("line");
     lineStrip->begin("BaseWhiteNoLighting", RenderOperation::OT_LINE_STRIP);
     lineStrip->position(50, 100, 0);
     lineStrip->position(0, 50, 0);
@@ -189,7 +192,8 @@ void MeshWithoutIndexDataTests::testCreateLineStrip()
 
 void MeshWithoutIndexDataTests::testCreatePointList()
 {
-    ManualObject* pointList = OGRE_NEW ManualObject("line");
+    ManualObject* pointList = OGRE_NEW ManualObject(0, new ObjectMemoryManager());
+    pointList->setName("line");
     pointList->begin("BaseWhiteNoLighting", RenderOperation::OT_POINT_LIST);
     pointList->position(50, 100, 0);
     pointList->position(0, 50, 0);
@@ -229,11 +233,12 @@ void MeshWithoutIndexDataTests::testCreatePointList()
 void MeshWithoutIndexDataTests::testCreateLineWithMaterial()
 {
     String matName = "lineMat";
-    MaterialPtr matPtr = MaterialManager::getSingleton().create(matName, "General").staticCast<Material>();
+    MaterialPtr matPtr = MaterialManager::getSingleton().create(matName, "General");
     Pass* pass = matPtr->getTechnique(0)->getPass(0);
     pass->setDiffuse(1.0, 0.1, 0.1, 0);
 
-    ManualObject* line = OGRE_NEW ManualObject("line");
+    ManualObject* line = OGRE_NEW ManualObject(0, new ObjectMemoryManager());
+    line->setName("line");
     line->begin(matName, RenderOperation::OT_LINE_LIST);
     line->position(0, 50, 0);
     line->position(50, 100, 0);
@@ -253,7 +258,7 @@ void MeshWithoutIndexDataTests::testCreateLineWithMaterial()
     meshWriter.exportMesh(lineMesh.get(), fileName);
     MaterialSerializer matWriter;
     matWriter.exportMaterial(
-        MaterialManager::getSingleton().getByName(matName).staticCast<Material>(),
+        MaterialManager::getSingleton().getByName(matName),
         matName + ".material");
 
     mMeshMgr->remove( fileName );
@@ -278,29 +283,30 @@ void createMeshWithMaterial(String fileName)
     String matFileNameSuffix = ".material";
     String matName1 = "red";
     String matFileName1 = matName1 + matFileNameSuffix;
-    MaterialPtr matPtr = MaterialManager::getSingleton().create(matName1, "General").staticCast<Material>();
+    MaterialPtr matPtr = MaterialManager::getSingleton().create(matName1, "General");
     Pass* pass = matPtr->getTechnique(0)->getPass(0);
     pass->setDiffuse(1.0, 0.1, 0.1, 0);
 
     String matName2 = "green";
     String matFileName2 = matName2 + matFileNameSuffix;
-    matPtr = MaterialManager::getSingleton().create(matName2, "General").staticCast<Material>();
+    matPtr = MaterialManager::getSingleton().create(matName2, "General");
     pass = matPtr->getTechnique(0)->getPass(0);
     pass->setDiffuse(0.1, 1.0, 0.1, 0);
 
     String matName3 = "blue";
     String matFileName3 = matName3 + matFileNameSuffix;
-    matPtr = MaterialManager::getSingleton().create(matName3, "General").staticCast<Material>();
+    matPtr = MaterialManager::getSingleton().create(matName3, "General");
     pass = matPtr->getTechnique(0)->getPass(0);
     pass->setDiffuse(0.1, 0.1, 1.0, 0);
 
     String matName4 = "yellow";
     String matFileName4 = matName4 + matFileNameSuffix;
-    matPtr = MaterialManager::getSingleton().create(matName4, "General").staticCast<Material>();
+    matPtr = MaterialManager::getSingleton().create(matName4, "General");
     pass = matPtr->getTechnique(0)->getPass(0);
     pass->setDiffuse(1.0, 1.0, 0.1, 0);
 
-    ManualObject* manObj = OGRE_NEW ManualObject("mesh");
+    ManualObject* manObj = OGRE_NEW ManualObject(0, new ObjectMemoryManager());
+    manObj->setName("mesh");
     manObj->begin(matName1, RenderOperation::OT_TRIANGLE_LIST);
     manObj->position(0, 50, 0);
     manObj->position(50, 50, 0);
@@ -392,7 +398,8 @@ void MeshWithoutIndexDataTests::testCloneMesh()
 void MeshWithoutIndexDataTests::testEdgeList()
 {
     String fileName = "testEdgeList.mesh";
-    ManualObject* line = OGRE_NEW ManualObject("line");
+    ManualObject* line = OGRE_NEW ManualObject(0, new ObjectMemoryManager());
+    line->setName("line");
     line->begin("BaseWhiteNoLighting", RenderOperation::OT_LINE_LIST);
     line->position(0, 50, 0);
     line->position(50, 100, 0);

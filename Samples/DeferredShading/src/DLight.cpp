@@ -29,8 +29,8 @@ same license as the rest of the engine.
 
 using namespace Ogre;
 //-----------------------------------------------------------------------
-DLight::DLight(MaterialGenerator *sys, Ogre::Light* parentLight):
-    mParentLight(parentLight), bIgnoreWorld(false), mGenerator(sys), mPermutation(0)
+DLight::DLight(Ogre::IdType id, Ogre::ObjectMemoryManager *memMgr, MaterialGenerator *sys, Ogre::Light* parentLight):
+     SimpleRenderable(id, memMgr), mParentLight(parentLight), bIgnoreWorld(false), mGenerator(sys), mPermutation(0)
 {
     // Set up geometry
     // Allocate render operation
@@ -212,12 +212,12 @@ void DLight::getWorldTransforms(Matrix4* xform) const
     if (mParentLight->getType() == Light::LT_SPOTLIGHT)
     {
         Quaternion quat = Vector3::UNIT_Y.getRotationTo(mParentLight->getDerivedDirection());
-        xform->makeTransform(mParentLight->getDerivedPosition(),
+        xform->makeTransform(Vector3(mParentLight->getAs4DVector().ptr()),
             Vector3::UNIT_SCALE, quat);
     }
     else
     {
-        xform->makeTransform(mParentLight->getDerivedPosition(),
+        xform->makeTransform(Vector3(mParentLight->getAs4DVector().ptr()),
             Vector3::UNIT_SCALE, Quaternion::IDENTITY);
     }
     
@@ -230,7 +230,7 @@ void DLight::updateFromParent()
         mParentLight->getAttenuationLinear(), mParentLight->getAttenuationQuadric());   
     setSpecularColour(mParentLight->getSpecularColour());
 
-    if (getCastChadows())
+    if (getCastShadows())
     {
         ENABLE_BIT(mPermutation,LightMaterialGenerator::MI_SHADOW_CASTER);
     }
@@ -249,13 +249,13 @@ bool DLight::isCameraInsideLight(Ogre::Camera* camera)
     case Ogre::Light::LT_POINT:
         {
         Ogre::Real distanceFromLight = camera->getDerivedPosition()
-            .distance(mParentLight->getDerivedPosition());
+            .distance(Vector3(mParentLight->getAs4DVector().ptr()));
         //Small epsilon fix to account for the fact that we aren't a true sphere.
         return distanceFromLight <= mRadius + camera->getNearClipDistance() + 0.1; 
         }
     case Ogre::Light::LT_SPOTLIGHT:
         {
-        Ogre::Vector3 lightPos = mParentLight->getDerivedPosition();
+        Ogre::Vector3 lightPos = Vector3(mParentLight->getAs4DVector().ptr());
         Ogre::Vector3 lightDir = mParentLight->getDerivedDirection();
         Ogre::Radian attAngle = mParentLight->getSpotlightOuterAngle();
         
@@ -279,7 +279,7 @@ bool DLight::isCameraInsideLight(Ogre::Camera* camera)
     }
 }
 //-----------------------------------------------------------------------
-bool DLight::getCastChadows() const
+bool DLight::getCastShadows() const
 {
     return 
         mParentLight->_getManager()->isShadowTechniqueInUse() &&
@@ -333,10 +333,10 @@ void DLight::updateFromCamera(Ogre::Camera* camera)
         }
 
         Camera shadowCam("ShadowCameraSetupCam", 0);
-        shadowCam._notifyViewport(camera->getViewport());
+        shadowCam._notifyViewport(camera->getLastViewport());
         SceneManager* sm = mParentLight->_getManager();
         sm->getShadowCameraSetup()->getShadowCamera(sm, 
-            camera, camera->getViewport(), mParentLight, &shadowCam, 0);
+            camera, camera->getLastViewport(), mParentLight, &shadowCam, 0);
             
         //Get the shadow camera position
         if (params->_findNamedConstantDefinition("shadowCamPos")) 

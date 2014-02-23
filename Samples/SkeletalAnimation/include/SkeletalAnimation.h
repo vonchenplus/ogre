@@ -11,6 +11,8 @@
 using namespace Ogre;
 using namespace OgreBites;
 
+#include "Animation/OgreSkeletonManager.h"
+
 class _OgreSampleClassExport Sample_SkeletalAnimation : public SdkSample
 {
     enum VisualiseBoundingBoxMode
@@ -193,33 +195,39 @@ protected:
 
 
         // add a blue spotlight
+        SceneNode *lnode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         Light* l = mSceneMgr->createLight();
+        lnode->attachObject(l);
+
         Vector3 dir;
         l->setType(Light::LT_SPOTLIGHT);
-        l->setPosition(-40, 180, -10);
-        dir = -l->getPosition();
+        lnode->setPosition(-40, 180, -10);
+        dir = -lnode->getPosition();
         dir.normalise();
         l->setDirection(dir);
         l->setDiffuseColour(0.0, 0.0, 0.5);
-        bbs->createBillboard(l->getPosition())->setColour(l->getDiffuseColour());
+        bbs->createBillboard(lnode->getPosition())->setColour(l->getDiffuseColour());
         
 
         // add a green spotlight.
+        lnode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         l = mSceneMgr->createLight();
+        lnode->attachObject(l);
         l->setType(Light::LT_SPOTLIGHT);
-        l->setPosition(0, 150, -100);
-        dir = -l->getPosition();
+        lnode->setPosition(0, 150, -100);
+        dir = -lnode->getPosition();
         dir.normalise();
         l->setDirection(dir);
         l->setDiffuseColour(0.0, 0.5, 0.0);     
-        bbs->createBillboard(l->getPosition())->setColour(l->getDiffuseColour());
+        bbs->createBillboard(lnode->getPosition())->setColour(l->getDiffuseColour());
 
         // create a floor mesh resource
         MeshManager::getSingleton().createPlane("floor", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
             Plane(Vector3::UNIT_Y, -1), 250, 250, 25, 25, true, 1, 15, 15, Vector3::UNIT_Z);
 
         // add a floor to our scene using the floor mesh we created
-        Entity* floor = mSceneMgr->createEntity("Floor", "floor");
+        Entity* floor = mSceneMgr->createEntity("floor");
+        floor->setName("Floor");
         floor->setMaterialName("Examples/Rockwall");
         floor->setCastShadows(false);
         mSceneMgr->getRootSceneNode()->attachObject(floor);
@@ -240,7 +248,7 @@ protected:
         Entity* ent = NULL;
         AnimationState* as = NULL;
 
-        for (int i = 0; i < NUM_MODELS; i++)
+        for (unsigned int i = 0; i < NUM_MODELS; i++)
         {
             // create scene nodes for the models at regular angular intervals
             sn = mSceneMgr->getRootSceneNode()->createChildSceneNode();
@@ -249,7 +257,8 @@ protected:
             mModelNodes.push_back(sn);
 
             // create and attach a jaiqua entity
-            ent = mSceneMgr->createEntity("Jaiqua" + StringConverter::toString(i + 1), "jaiqua.mesh");
+            ent = mSceneMgr->createEntity("jaiqua.mesh");
+            ent->setName("Jaiqua" + StringConverter::toString(i + 1));
 
 #ifdef INCLUDE_RTSHADER_SYSTEM
             if (mShaderGenerator->getTargetLanguage() == "glsles")
@@ -345,7 +354,7 @@ protected:
             TransformKeyFrame* newKf = track->createNodeKeyFrame(ANIM_CHOP);
             TransformKeyFrame* startKf = track->getNodeKeyFrame(0);
 
-            Bone* bone = skel->getBone(track->getHandle());
+            OldBone* bone = skel->getBone(track->getHandle());
 
             if (bone->getName() == "Spineroot")   // adjust spine root relative to new location
             {
@@ -385,7 +394,7 @@ protected:
 #endif*/
     }
 
-    const int NUM_MODELS;
+    const unsigned int NUM_MODELS;
     const Real ANIM_CHOP;
     VisualiseBoundingBoxMode mVisualiseBoundingBoxMode;
     int mBoundingBoxModelIndex;  // which model to show the bounding box for

@@ -29,6 +29,8 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 
 #include "OgreFreeImageCodec.h"
+#include "OgrePixelBox.h"
+#include "OgreImage.h"
 #include "OgreException.h"
 #include "OgreLogManager.h"
 #include <FreeImage.h>

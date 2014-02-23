@@ -98,7 +98,7 @@ namespace Ogre
     }
     //---------------------------------------------------------------------
     void PSSMShadowCameraSetup::getShadowCamera(const Ogre::SceneManager *sm, const Ogre::Camera *cam,
-        const Ogre::Viewport *vp, const Ogre::Light *light, Ogre::Camera *texCam, size_t iteration) const
+                                const Ogre::Light *light, Ogre::Camera *texCam, size_t iteration) const
     {
         // apply the right clip distance.
         Real nearDist = mSplitPoints[iteration];
@@ -108,6 +108,7 @@ namespace Ogre
         if (iteration > 0)
         {
             nearDist -= mSplitPadding;
+            nearDist = std::max( nearDist, mSplitPoints[0] );
         }
         if (iteration < mSplitCount - 1)
         {
@@ -124,7 +125,7 @@ namespace Ogre
         _cam->setNearClipDistance(nearDist);
         _cam->setFarClipDistance(farDist);
 
-        LiSPSMShadowCameraSetup::getShadowCamera(sm, cam, vp, light, texCam, iteration);
+        LiSPSMShadowCameraSetup::getShadowCamera(sm, cam,  light, texCam, iteration);
 
         // restore near/far
         _cam->setNearClipDistance(oldNear);

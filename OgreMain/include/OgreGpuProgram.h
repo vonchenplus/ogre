@@ -38,11 +38,11 @@ THE SOFTWARE.
 namespace Ogre {
 
     /** \addtogroup Core
-     *  @{
-     */
+    *  @{
+    */
     /** \addtogroup Resources
-     *  @{
-     */
+    *  @{
+    */
     /** Enumerates the types of programs which can run on the GPU. */
     enum GpuProgramType
     {

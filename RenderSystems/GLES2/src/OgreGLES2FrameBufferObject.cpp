@@ -171,7 +171,7 @@ namespace Ogre {
         OGRE_CHECK_GL_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, mFB));
 
         // Bind all attachment points to frame buffer
-        for(unsigned int x = 0; x < maxSupportedMRTs; ++x)
+        for(uint32 x=0; x<maxSupportedMRTs; ++x)
         {
             if(mColour[x].buffer)
             {
@@ -226,24 +226,21 @@ namespace Ogre {
         // See GLES2FrameBufferObject::attachDepthBuffer() & RenderSystem::setDepthBufferFor()
 
         GLenum bufs[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
-        GLsizei n=0;
-        for(unsigned int x=0; x<maxSupportedMRTs; ++x)
-        {
-            // Fill attached colour buffers
-            if(mColour[x].buffer)
-            {
-                if(getFormat() == PF_DEPTH)
-                    bufs[x] = GL_DEPTH_ATTACHMENT;
-                else
-                    bufs[x] = GL_COLOR_ATTACHMENT0 + x;
-                // Keep highest used buffer + 1
-                n = x+1;
-            }
-            else
-            {
-                bufs[x] = GL_NONE;
-            }
-        }
+		GLsizei n=0;
+		for(size_t x=0; x<OGRE_MAX_MULTIPLE_RENDER_TARGETS; ++x)
+		{
+			// Fill attached colour buffers
+			if(mColour[x].buffer)
+			{
+				bufs[x] = GL_COLOR_ATTACHMENT0 + x;
+				// Keep highest used buffer + 1
+				n = x+1;
+			}
+			else
+			{
+				bufs[x] = GL_NONE;
+			}
+		}
 
 #if OGRE_NO_GLES3_SUPPORT == 0
         // Drawbuffer extension supported, use it

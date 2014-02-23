@@ -245,7 +245,7 @@ namespace Ogre {
             */
             bool assign(QueuedGeometry* qsm);
             /// Build
-            void build(bool stencilShadows);
+            void build();
             /// Dump contents for diagnostics
             void dump(std::ofstream& of) const;
         };
@@ -283,7 +283,7 @@ namespace Ogre {
             /// Assign geometry to this bucket
             void assign(QueuedGeometry* qsm);
             /// Build
-            void build(bool stencilShadows);
+            void build();
             /// Add children to the render queue
             void addRenderables(RenderQueue* queue, uint8 group, 
                 Real lodValue);
@@ -310,29 +310,6 @@ namespace Ogre {
             /// Lookup of Material Buckets in this region
             typedef map<String, MaterialBucket*>::type MaterialBucketMap;
         protected:
-            /** Nested class to allow shadows. */
-            class _OgreExport LODShadowRenderable : public ShadowRenderable
-            {
-            protected:
-                LODBucket* mParent;
-                // Shared link to position buffer
-                HardwareVertexBufferSharedPtr mPositionBuffer;
-                // Shared link to w-coord buffer (optional)
-                HardwareVertexBufferSharedPtr mWBuffer;
-
-            public:
-                LODShadowRenderable(LODBucket* parent, 
-                    HardwareIndexBufferSharedPtr* indexBuffer, const VertexData* vertexData, 
-                    bool createSeparateLightCap, bool isLightCap = false);
-                ~LODShadowRenderable();
-                /// Overridden from ShadowRenderable
-                void getWorldTransforms(Matrix4* xform) const;
-                HardwareVertexBufferSharedPtr getPositionBuffer(void) { return mPositionBuffer; }
-                HardwareVertexBufferSharedPtr getWBuffer(void) { return mWBuffer; }
-                /// Overridden from ShadowRenderable
-                virtual void rebindIndexBuffer(const HardwareIndexBufferSharedPtr& indexBuffer);
-
-            };
             /// Pointer to parent region
             Region* mParent;
             /// LOD level (0 == full LOD)
@@ -347,8 +324,6 @@ namespace Ogre {
             EdgeData* mEdgeList;
             /// Is a vertex program in use somewhere in this group?
             bool mVertexProgramInUse;
-            /// List of shadow renderables
-            ShadowCaster::ShadowRenderableList mShadowRenderables;
         public:
             LODBucket(Region* parent, unsigned short lod, Real lodValue);
             virtual ~LODBucket();
@@ -360,7 +335,7 @@ namespace Ogre {
             /// Assign a queued submesh to this bucket, using specified mesh LOD
             void assign(QueuedSubMesh* qsm, ushort atLod);
             /// Build
-            void build(bool stencilShadows);
+            void build();
             /// Add children to the render queue
             void addRenderables(RenderQueue* queue, uint8 group, 
                 Real lodValue);
@@ -372,12 +347,7 @@ namespace Ogre {
             void dump(std::ofstream& of) const;
             void visitRenderables(Renderable::Visitor* visitor, bool debugRenderables);
             EdgeData* getEdgeList() const { return mEdgeList; }
-            ShadowCaster::ShadowRenderableList& getShadowRenderableList() { return mShadowRenderables; }
             bool isVertexProgramInUse() const { return mVertexProgramInUse; }
-            void updateShadowRenderables(
-                ShadowTechnique shadowTechnique, const Vector4& lightPos, 
-                HardwareIndexBufferSharedPtr* indexBuffer, 
-                bool extrudeVertices, Real extrusionDistance, unsigned long flags = 0 );
             
         };
         /** The details of a topological region which is the highest level of
@@ -409,7 +379,7 @@ namespace Ogre {
             /// Center of the region
             Vector3 mCentre;
             /// LOD values as built up - use the max at each level
-            Mesh::LodValueList mLodValues;
+            Mesh::LodValueArray mLodValues;
             /// Local AABB relative to region centre
             AxisAlignedBox mAABB;
             /// Local bounding radius
@@ -424,23 +394,21 @@ namespace Ogre {
             mutable LightList mLightList;
             /// The last frame that this light list was updated in
             mutable ulong mLightListUpdated;
-            /// LOD strategy reference
-            const LodStrategy *mLodStrategy;
             /// Current camera
             Camera *mCamera;
             /// Cached squared view depth value to avoid recalculation by GeometryBucket
             Real mSquaredViewDepth;
 
         public:
-            Region(StaticGeometry* parent, const String& name, SceneManager* mgr, 
-                uint32 regionID, const Vector3& centre);
+            Region( IdType id, ObjectMemoryManager *objectMemoryManager, StaticGeometry* parent,
+                    SceneManager* mgr, uint32 regionID, const Vector3& centre );
             virtual ~Region();
             // more fields can be added in subclasses
             StaticGeometry* getParent(void) const { return mParent;}
             /// Assign a queued mesh to this region, read for final build
             void assign(QueuedSubMesh* qmesh);
             /// Build this region
-            void build(bool stencilShadows);
+            void build();
             /// Get the region ID of this region
             uint32 getID(void) const { return mRegionID; }
             /// Get the centre point of the region
@@ -448,22 +416,15 @@ namespace Ogre {
             const String& getMovableType(void) const;
             void _notifyCurrentCamera(Camera* cam);
             const AxisAlignedBox& getBoundingBox(void) const;
-            Real getBoundingRadius(void) const;
-            void _updateRenderQueue(RenderQueue* queue);
+            void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
             /// @copydoc MovableObject::visitRenderables
             void visitRenderables(Renderable::Visitor* visitor, 
                 bool debugRenderables = false);
-            bool isVisible(void) const;
             uint32 getTypeFlags(void) const;
 
             typedef VectorIterator<LODBucketList> LODIterator;
             /// Get an iterator over the LODs in this region
             LODIterator getLODIterator(void);
-            /// @copydoc ShadowCaster::getShadowVolumeRenderableIterator
-            ShadowRenderableListIterator getShadowVolumeRenderableIterator(
-                ShadowTechnique shadowTechnique, const Light* light, 
-                HardwareIndexBufferSharedPtr* indexBuffer, size_t* indexBufferUsedSize,
-                bool extrudeVertices, Real extrusionDistance, unsigned long flags = 0 );
             /// Overridden from MovableObject
             EdgeData* getEdgeList(void);
             /** Overridden member from ShadowCaster. */

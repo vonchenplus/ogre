@@ -33,6 +33,9 @@ THE SOFTWARE.
 #include "OgreShadowCameraSetup.h"
 #include "OgrePolygon.h"
 #include "OgreConvexBody.h"
+
+#include "Math/Array/OgreObjectMemoryManager.h"
+
 #include "OgreHeaderPrefix.h"
 
 
@@ -66,6 +69,8 @@ namespace Ogre {
         static const Matrix4 msNormalToLightSpace;
         static const Matrix4 msLightSpaceToNormal;
 
+        ObjectMemoryManager mObjectMemoryManager;
+
         /** Temporary preallocated frustum to set up a projection matrix in 
             calculateShadowMappingMatrix().
         */
@@ -75,6 +80,7 @@ namespace Ogre {
         */
         Camera* mLightFrustumCamera;
         mutable bool mLightFrustumCameraCalculated;
+        NodeMemoryManager *mLocalNodeMemoryManager;
 
         /// Use tighter focus region?
         bool mUseAggressiveRegion;
@@ -282,7 +288,7 @@ namespace Ogre {
         /** Returns a uniform shadow camera with a focused view.
         */
         virtual void getShadowCamera(const SceneManager *sm, const Camera *cam, 
-            const Viewport *vp, const Light *light, Camera *texCam, size_t iteration) const;
+                                    const Light *light, Camera *texCam, size_t iteration) const;
 
         /** Sets whether or not to use the more aggressive approach to deciding on
             the focus region or not.

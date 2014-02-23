@@ -34,8 +34,11 @@ THE SOFTWARE.
 
 #include "OgreRenderSystem.h"
 
+#include "OgreRoot.h"
+#include "OgreViewport.h"
 #include "OgreException.h"
 #include "OgreRenderTarget.h"
+#include "OgreRenderWindow.h"
 #include "OgreDepthBuffer.h"
 #include "OgreIteratorWrappers.h"
 #include "OgreLogManager.h"
@@ -109,32 +112,6 @@ namespace Ogre {
             it->second->resetStatistics();
         }
 
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_updateAllRenderTargets(bool swapBuffers)
-    {
-        // Update all in order of priority
-        // This ensures render-to-texture targets get updated before render windows
-        RenderTargetPriorityMap::iterator itarg, itargend;
-        itargend = mPrioritisedRenderTargets.end();
-        for( itarg = mPrioritisedRenderTargets.begin(); itarg != itargend; ++itarg )
-        {
-            if( itarg->second->isActive() && itarg->second->isAutoUpdated())
-                itarg->second->update(swapBuffers);
-        }
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_swapAllRenderTargetBuffers()
-    {
-        // Update all in order of priority
-        // This ensures render-to-texture targets get updated before render windows
-        RenderTargetPriorityMap::iterator itarg, itargend;
-        itargend = mPrioritisedRenderTargets.end();
-        for( itarg = mPrioritisedRenderTargets.begin(); itarg != itargend; ++itarg )
-        {
-            if( itarg->second->isActive() && itarg->second->isAutoUpdated())
-                itarg->second->swapBuffers();
-        }
     }
     //-----------------------------------------------------------------------
     RenderWindow* RenderSystem::_initialise(bool autoCreateWindow, const String& windowTitle)
@@ -256,8 +233,6 @@ namespace Ogre {
         assert( target.getPriority() < OGRE_NUM_RENDERTARGET_GROUPS );
 
         mRenderTargets.insert( RenderTargetMap::value_type( target.getName(), &target ) );
-        mPrioritisedRenderTargets.insert(
-            RenderTargetPriorityMap::value_type(target.getPriority(), &target ));
     }
 
     //---------------------------------------------------------------------------------------------
@@ -283,18 +258,6 @@ namespace Ogre {
         if( it != mRenderTargets.end() )
         {
             ret = it->second;
-            
-            /* Remove the render target from the priority groups. */
-            RenderTargetPriorityMap::iterator itarg, itargend;
-            itargend = mPrioritisedRenderTargets.end();
-            for( itarg = mPrioritisedRenderTargets.begin(); itarg != itargend; ++itarg )
-            {
-                if( itarg->second == ret ) {
-                    mPrioritisedRenderTargets.erase( itarg );
-                    break;
-                }
-            }
-
             mRenderTargets.erase( it );
         }
         /// If detached render target is the active render target, reset active render target
@@ -708,8 +671,6 @@ namespace Ogre {
         }
         OGRE_DELETE primary;
         mRenderTargets.clear();
-
-        mPrioritisedRenderTargets.clear();
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_beginGeometryCount(void)
@@ -870,18 +831,6 @@ namespace Ogre {
             mClipPlanesDirty = true;
         }
     }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_notifyCameraRemoved(const Camera* cam)
-    {
-        RenderTargetMap::iterator i, iend;
-        iend = mRenderTargets.end();
-        for (i = mRenderTargets.begin(); i != iend; ++i)
-        {
-            RenderTarget* target = i->second;
-            target->_notifyCameraRemoved(cam);
-        }
-    }
-
     //---------------------------------------------------------------------
     bool RenderSystem::updatePassIterationRenderState(void)
     {

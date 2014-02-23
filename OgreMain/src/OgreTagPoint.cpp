@@ -36,7 +36,7 @@ namespace Ogre {
 
     //-----------------------------------------------------------------------------
     TagPoint::TagPoint(unsigned short handle, Skeleton* creator)
-        : Bone(handle, creator)
+        : OldBone(handle, creator)
         , mParentEntity(0)
         , mChildObject(0)
         , mInheritParentEntityOrientation(true)
@@ -103,8 +103,9 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     void TagPoint::needUpdate(bool forceParentUpdate)
     {
-        Bone::needUpdate(forceParentUpdate);
+        OldBone::needUpdate(forceParentUpdate);
 
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
         // We need to tell parent entities node
         if (mParentEntity)
         {
@@ -115,13 +116,14 @@ namespace Ogre {
             }
 
         }
+#endif
 
     }
     //-----------------------------------------------------------------------------
     void TagPoint::updateFromParentImpl(void) const
     {
         // Call superclass
-        Bone::updateFromParentImpl();
+        OldBone::updateFromParentImpl();
 
         // Save transform for local skeleton
         mFullLocalTransform.makeTransform(
@@ -136,7 +138,7 @@ namespace Ogre {
             if (entityParentNode)
             {
                 // Note: orientation/scale inherits from parent node already take care with
-                // Bone::_updateFromParent, don't do that with parent entity transform.
+                // OldBone::_updateFromParent, don't do that with parent entity transform.
 
                 // Combine orientation with that of parent entity
                 const Quaternion& parentOrientation = entityParentNode->_getDerivedOrientation();

@@ -144,14 +144,13 @@ namespace Ogre {
             void doSet(void* target, const String& val);
         };
 
-        /// Default constructor required for STL creation in manager
-        ParticleSystem();
         /** Creates a particle system with no emitters or affectors.
         @remarks
             You should use the ParticleSystemManager to create particle systems rather than creating
             them directly.
         */
-        ParticleSystem(const String& name, const String& resourceGroupName);
+        ParticleSystem( IdType id, ObjectMemoryManager *objectMemoryManager,
+                        const String& resourceGroupName );
 
         virtual ~ParticleSystem();
 
@@ -360,34 +359,16 @@ namespace Ogre {
         virtual const String& getMaterialName(void) const;
 
         /** Overridden from MovableObject
-            @see
-                MovableObject
-        */
-        virtual void _notifyCurrentCamera(Camera* cam);
-
-        /** Overridden from MovableObject
         @see
         MovableObject
         */
-        void _notifyAttached(Node* parent, bool isTagPoint = false);
+        void _notifyAttached(Node* parent);
 
         /** Overridden from MovableObject
             @see
                 MovableObject
         */
-        virtual const AxisAlignedBox& getBoundingBox(void) const { return mAABB; }
-
-        /** Overridden from MovableObject
-            @see
-                MovableObject
-        */
-        virtual Real getBoundingRadius(void) const { return mBoundingRadius; }
-
-        /** Overridden from MovableObject
-            @see
-                MovableObject
-        */
-        virtual void _updateRenderQueue(RenderQueue* queue);
+        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
 
         /// @copydoc MovableObject::visitRenderables
         void visitRenderables(Renderable::Visitor* visitor, 
@@ -560,17 +541,6 @@ namespace Ogre {
         /// Gets whether particles are sorted relative to the camera.
         bool getSortingEnabled(void) const { return mSorted; }
 
-        /** Set the (initial) bounds of the particle system manually. 
-        @remarks
-            If you can, set the bounds of a particle system up-front and 
-            call setBoundsAutoUpdated(false); this is the most efficient way to
-            organise it. Otherwise, set an initial bounds and let the bounds increase
-            for a little while (the default is 5 seconds), after which time the 
-            AABB is fixed to save time.
-        @param aabb Bounds in local space.
-        */
-        void setBounds(const AxisAlignedBox& aabb);
-
         /** Sets whether the bounds will be automatically updated
             for the life of the particle system
         @remarks
@@ -655,9 +625,6 @@ namespace Ogre {
         static CmdIterationInterval msIterationIntervalCmd;
         static CmdNonvisibleTimeout msNonvisibleTimeoutCmd;
 
-
-        AxisAlignedBox mAABB;
-        Real mBoundingRadius;
         bool mBoundsAutoUpdate;
         Real mBoundsUpdateTime;
         Real mUpdateRemainTime;

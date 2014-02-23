@@ -1036,7 +1036,7 @@ bail:
         {
             mPrimaryWindow = win;
             win->getCustomAttribute( "D3DDEVICE", &mDevice );
-            
+
             // Create the texture manager for use by others
             mTextureManager = new D3D11TextureManager( mDevice );
             // Also create hardware buffer manager

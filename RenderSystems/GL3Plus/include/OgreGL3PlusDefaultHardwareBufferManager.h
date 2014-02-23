@@ -180,8 +180,8 @@ namespace Ogre {
     class _OgreGL3PlusExport GL3PlusDefaultHardwareBufferManager : public HardwareBufferManager
     {
     public:
-    GL3PlusDefaultHardwareBufferManager()
-        : HardwareBufferManager(OGRE_NEW GL3PlusDefaultHardwareBufferManagerBase())
+        GL3PlusDefaultHardwareBufferManager()
+            : HardwareBufferManager(OGRE_NEW GL3PlusDefaultHardwareBufferManagerBase()) 
         {
 
         }

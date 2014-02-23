@@ -49,7 +49,6 @@ THE SOFTWARE.
 #include "OgreD3D9HardwareOcclusionQuery.h"
 #include "OgreFrustum.h"
 #include "OgreD3D9MultiRenderTarget.h"
-#include "OgreCompositorManager.h"
 #include "OgreD3D9DeviceManager.h"
 #include "OgreD3D9ResourceManager.h"
 #include "OgreD3D9DepthBuffer.h"
@@ -1712,7 +1711,7 @@ namespace Ogre
         unsigned short num = 0;
         for (i = lights.begin(); i != iend && num < limit; ++i, ++num)
         {
-            setD3D9Light(num, *i);
+            setD3D9Light(num, i->light);
         }
         // Disable extra lights
         for (; num < mCurrentLights[activeDevice]; ++num)
@@ -1739,7 +1738,7 @@ namespace Ogre
             "Failed to set render state D3DRS_LIGHTING", "D3D9RenderSystem::setLightingEnabled" );
     }
     //---------------------------------------------------------------------
-    void D3D9RenderSystem::setD3D9Light( size_t index, Light* lt )
+    void D3D9RenderSystem::setD3D9Light( size_t index, const Light* lt )
     {
         HRESULT hr;
 
@@ -1782,7 +1781,7 @@ namespace Ogre
             Vector3 vec;
             if( lt->getType() != Light::LT_DIRECTIONAL )
             {
-                vec = lt->getDerivedPosition(true);
+                vec = lt->getParentNode()->_getDerivedPosition();
                 d3dLight.Position = D3DXVECTOR3( vec.x, vec.y, vec.z );
             }
             if( lt->getType() != Light::LT_POINT )
@@ -3177,10 +3176,6 @@ namespace Ogre
     void D3D9RenderSystem::_beginFrame()
     {
         HRESULT hr;
-
-        if( !mActiveViewport )
-            OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Cannot begin frame - no viewport selected.", "D3D9RenderSystem::_beginFrame" );
-
         if( FAILED( hr = getActiveD3D9Device()->BeginScene() ) )
         {
             String msg = DXGetErrorDescription(hr);
@@ -3188,12 +3183,6 @@ namespace Ogre
         }
 
         mLastVertexSourceCount = 0;
-
-        // Clear left overs of previous viewport.
-        // I.E: Viewport A can use 3 different textures and light states
-        // When trying to render viewport B these settings should be cleared, otherwise 
-        // graphical artifacts might occur.
-        mDeviceManager->getActiveDevice()->clearDeviceStreams();
     }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::_endFrame()
@@ -3201,6 +3190,8 @@ namespace Ogre
         HRESULT hr;
         if( FAILED( hr = getActiveD3D9Device()->EndScene() ) )
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Error ending frame", "D3D9RenderSystem::_endFrame" );
+
+        mDeviceManager->getActiveDevice()->clearDeviceStreams();
 
         mDeviceManager->destroyInactiveRenderDevices();
     }
@@ -4298,11 +4289,6 @@ namespace Ogre
         mFragmentProgramBound = false;
         mLastVertexSourceCount = 0;
 
-        
-        // Force all compositors to reconstruct their internal resources
-        // render textures will have been changed without their knowledge
-        CompositorManager::getSingleton()._reconstructAllCompositorResources();
-        
         // Restore previous active device.
 
         // Invalidate active view port.

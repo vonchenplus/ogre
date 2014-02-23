@@ -145,12 +145,14 @@ protected:
             Plane(Vector3::UNIT_Y, -30), 1000, 1000, 10, 10, true, 1, 8, 8, Vector3::UNIT_Z);
 
         // create a floor entity, give it a material, and place it at the origin
-        Entity* floor = mSceneMgr->createEntity("Floor", "floor");
+        Entity* floor = mSceneMgr->createEntity("floor");
+        floor->setName("Floor");
         floor->setMaterialName("Examples/BumpyMetal");
         mSceneMgr->getRootSceneNode()->attachObject(floor);
 
         // Create an ogre head and place it at the origin
-        Entity* head = mSceneMgr->createEntity("Head", "ogrehead.mesh");
+        Entity* head = mSceneMgr->createEntity("ogrehead.mesh");
+        head->setName("Head");
         head->setRenderQueueGroup(cPriorityMain);
         mSceneMgr->getRootSceneNode()->attachObject(head);
 
@@ -183,7 +185,7 @@ protected:
         mGen->invalidateScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 
         // Make this viewport work with shader generator scheme.
-        mViewport->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+        mSceneMgr->getCurrentViewport()->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
     }
 
 
@@ -208,7 +210,8 @@ protected:
         LightState state;
         
         // Create a light node
-        state.node = mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(50, 30, 0));
+        state.node = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        state.node->setPosition(Vector3(50, 30, 0));
 
         String animName = mPathNameGen.generate();
         // Create a 14 second animation with spline interpolation

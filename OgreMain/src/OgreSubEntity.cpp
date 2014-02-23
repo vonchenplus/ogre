@@ -39,13 +39,10 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     SubEntity::SubEntity (Entity* parent, SubMesh* subMeshBasis)
         : Renderable(), mParentEntity(parent), //mMaterialName("BaseWhite"),
-        mSubMesh(subMeshBasis), mMaterialLodIndex(0), mCachedCamera(0)
+        mSubMesh(subMeshBasis)
     {
         //mMaterialPtr = MaterialManager::getSingleton().getByName(mMaterialName, subMeshBasis->parent->getGroup());
-        mVisible = true;
-        mRenderQueueID = 0;
-        mRenderQueueIDSet = false;
-        mRenderQueuePrioritySet = false;
+        mMaterialLodIndex = 0;
         mSkelAnimVertexData = 0;
         mVertexAnimationAppliedThisFrame = false;
         mSoftwareVertexAnimVertexData = 0;
@@ -62,7 +59,7 @@ namespace Ogre {
         OGRE_DELETE mSoftwareVertexAnimVertexData;
     }
     //-----------------------------------------------------------------------
-    SubMesh* SubEntity::getSubMesh(void)
+    SubMesh* SubEntity::getSubMesh(void) const
     {
         return mSubMesh;
     }
@@ -125,6 +122,9 @@ namespace Ogre {
         // Ensure new material loaded (will not load again if already loaded)
         mMaterialPtr->load();
 
+        size_t subEntityIndex = this - &(*mParentEntity->mSubEntityList.begin());
+        mParentEntity->mLodMaterial[subEntityIndex] = mMaterialPtr->_getLodValues();
+
         // tell parent to reconsider material vertex processing options
         mParentEntity->reevaluateVertexProcessing();
     }
@@ -143,7 +143,7 @@ namespace Ogre {
     void SubEntity::getRenderOperation(RenderOperation& op)
     {
         // Use LOD
-        mSubMesh->_getRenderOperation(op, mParentEntity->mMeshLodIndex);
+        mSubMesh->_getRenderOperation(op, mParentEntity->mCurrentMeshLod );
         // Deal with any vertex data overrides
         op.vertexData = getVertexDataForBinding();
 
@@ -267,12 +267,6 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Real SubEntity::getSquaredViewDepth(const Camera* cam) const
     {
-        // First of all, check the cached value
-        // NB this is manually invalidated by parent each _notifyCurrentCamera call
-        // Done this here rather than there since we only need this for transparent objects
-        if (mCachedCamera == cam)
-            return mCachedCameraDist;
-
         Node* n = mParentEntity->getParentNode();
         assert(n);
         Real dist;
@@ -293,26 +287,12 @@ namespace Ogre {
         else
             dist = n->getSquaredViewDepth(cam);
 
-        mCachedCameraDist = dist;
-        mCachedCamera = cam;
-
         return dist;
     }
     //-----------------------------------------------------------------------
     const LightList& SubEntity::getLights(void) const
     {
         return mParentEntity->queryLights();
-    }
-    //-----------------------------------------------------------------------
-    void SubEntity::setVisible(bool visible)
-    {
-        mVisible = visible;
-    }
-    //-----------------------------------------------------------------------
-    bool SubEntity::isVisible(void) const
-    {
-        return mVisible;
-
     }
     //-----------------------------------------------------------------------
     void SubEntity::prepareTempBlendBuffers(void)
@@ -394,7 +374,12 @@ namespace Ogre {
         return &mTempSkelAnimInfo;
     }
     //-----------------------------------------------------------------------
-    TempBlendedBufferInfo* SubEntity::_getVertexAnimTempBufferInfo(void) 
+    TempBlendedBufferInfo* SubEntity::_getVertexAnimTempBufferInfo(void)
+    {
+        return &mTempVertexAnimInfo;
+    }
+    //-----------------------------------------------------------------------
+    const TempBlendedBufferInfo* SubEntity::_getVertexAnimTempBufferInfo(void) const
     {
         return &mTempVertexAnimInfo;
     }
@@ -477,38 +462,4 @@ namespace Ogre {
         }
 
     }
-
-    void SubEntity::setRenderQueueGroup(uint8 queueID)
-    {
-        mRenderQueueIDSet = true;
-        mRenderQueueID = queueID;
-    }
-
-    void SubEntity::setRenderQueueGroupAndPriority(uint8 queueID, ushort priority)
-    {
-        setRenderQueueGroup(queueID);
-        mRenderQueuePrioritySet = true;
-        mRenderQueuePriority = priority;
-    }
-
-    uint8 SubEntity::getRenderQueueGroup(void) const
-    {
-        return mRenderQueueID;
-    }
-
-    ushort SubEntity::getRenderQueuePriority(void) const
-    {
-        return mRenderQueuePriority;
-    }
-
-    bool SubEntity::isRenderQueueGroupSet(void) const
-    {
-        return mRenderQueueIDSet;
-    }
-
-    bool SubEntity::isRenderQueuePrioritySet(void) const
-    {
-        return mRenderQueuePrioritySet;
-    }
-
 }

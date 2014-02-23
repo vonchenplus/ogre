@@ -34,6 +34,8 @@
 #include "OgreTextAreaOverlayElement.h"
 #include "OgreFontManager.h"
 #include "OgreTimer.h"
+#include "OgreFrameStats.h"
+#include "InputContext.h"
 #include "OgreRoot.h"
 #include "OgreCamera.h"
 #include "OgreRenderWindow.h"
@@ -456,6 +458,8 @@ namespace OgreBites
             mLines.clear();
 
             Ogre::Font* font = (Ogre::Font*)Ogre::FontManager::getSingleton().getByName(mTextArea->getFontName()).getPointer();
+            if( !font->isLoaded() ) //We need the font to be loaded for getGlyphAspectRatio to work
+                font->load();
             
             Ogre::String current = DISPLAY_STRING_TO_STRING(text);
             bool firstWord = true;
@@ -2400,7 +2404,7 @@ namespace OgreBites
 
                 mDialogShade->show();
 
-                mDialog = new TextBox(mName + "/DialogBox", caption, 300, 208);
+                mDialog = new TextBox(mName + "/DialogBox", caption, 400, 308);
                 mDialog->setText(message);
                 e = mDialog->getOverlayElement();
                 mDialogShade->addChild(e);
@@ -2773,12 +2777,16 @@ namespace OgreBites
             if (areFrameStatsVisible() && currentTime - mLastStatUpdateTime > 250)
             {
                 Ogre::RenderTarget::FrameStats stats = mWindow->getStatistics();
+                const Ogre::FrameStats *frameStats = Ogre::Root::getSingleton().getFrameStats();
 
                 mLastStatUpdateTime = currentTime;
 
                 Ogre::String s("FPS: ");
-                s += Ogre::StringConverter::toString((int)stats.lastFPS);
-                
+
+                char m[32];
+                float avgTime = frameStats->getAvgTime();
+                sprintf( m, "%.2fms - %.2ffps", avgTime, 1000.0f / avgTime );
+                s += m;
                 mFpsLabel->setCaption(s);
 
                 if (mStatsPanel->getOverlayElement()->isVisible())
@@ -2786,18 +2794,18 @@ namespace OgreBites
                     Ogre::StringVector values;
                     Ogre::StringStream oss;
                     
-                    oss.str("");
+                    /*oss.str("");
                     oss << std::fixed << std::setprecision(1) << stats.avgFPS;
+                    Ogre::String str = oss.str();
+                    values.push_back(str);*/
+
+                    oss.str("");
+                    oss << std::fixed << std::setprecision(1) << frameStats->getBestTime();
                     Ogre::String str = oss.str();
                     values.push_back(str);
 
                     oss.str("");
-                    oss << std::fixed << std::setprecision(1) << stats.bestFPS;
-                    str = oss.str();
-                    values.push_back(str);
-
-                    oss.str("");
-                    oss << std::fixed << std::setprecision(1) << stats.worstFPS;
+                    oss << std::fixed << std::setprecision(1) << frameStats->getWorstTime();
                     str = oss.str();
                     values.push_back(str);
 
@@ -2816,9 +2824,6 @@ namespace OgreBites
 
         void windowUpdate()
         {
-#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS && OGRE_PLATFORM != OGRE_PLATFORM_NACL
-            mWindow->update();
-#endif
         }
 
         void resourceGroupScriptingStarted(const Ogre::String& groupName, size_t scriptCount)

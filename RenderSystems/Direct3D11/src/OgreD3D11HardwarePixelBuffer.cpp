@@ -611,7 +611,7 @@ namespace Ogre {
             {
                 sizeinbytes = converted.getHeight() * converted.getWidth() * PixelUtil::getNumElemBytes(converted.format);
             }
-            
+ 
             const Ogre::PixelBox &locked = lock(dstBox, HBL_DISCARD);
 
             int srcRowPitch = converted.rowPitch * PixelUtil::getNumElemBytes(converted.format);

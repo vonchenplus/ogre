@@ -2277,7 +2277,7 @@ namespace Ogre
         }
         mLastMillis = currMillis;
         // only calculate LOD once per LOD camera, per frame, per viewport height
-        const Camera* lodCamera = v->getCamera()->getLodCamera();
+        const Camera* lodCamera = source->getCameraInProgress()->getLodCamera();
         unsigned long frameNum = Root::getSingleton().getNextFrameNumber();
         int vpHeight = v->getActualHeight();
         if (mLastLODCamera != lodCamera || frameNum != mLastLODFrame
@@ -2303,7 +2303,7 @@ namespace Ogre
         if (mQuadTree)
         {
             // calculate error terms
-            const Camera* cam = vp->getCamera()->getLodCamera();
+            const Camera* cam = mSceneMgr->getCameraInProgress()->getLodCamera();
 
             // W. de Boer 2000 calculation
             // A = vp_near / abs(vp_top)
@@ -2311,7 +2311,7 @@ namespace Ogre
             Real A = 1.0f / Math::Tan(cam->getFOVy() * 0.5f);
             // T = 2 * maxPixelError / vertRes
             Real maxPixelError = TerrainGlobalOptions::getSingleton().getMaxPixelError() * cam->_getLodBiasInverse();
-            Viewport* lodVp = cam->getViewport();
+            Viewport* lodVp = cam->getLastViewport();
             Real T = 2.0f * maxPixelError / (Real)lodVp->getActualHeight();
 
             // CFactor = A / T

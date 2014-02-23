@@ -58,10 +58,10 @@ namespace OgreBites
             mTrayMgr = 0;
             mCameraMan = 0;
             mCamera = 0;
-            mViewport = 0;
             mDetailsPanel = 0;
             mCursorWasVisible = false;
             mDragLook = false;
+            mBackgroundColour = Ogre::ColourValue::Black;
         }
 
         virtual ~SdkSample() {}
@@ -129,7 +129,8 @@ namespace OgreBites
 
         virtual void windowResized(Ogre::RenderWindow* rw)
         {
-            mCamera->setAspectRatio((Ogre::Real)mViewport->getActualWidth() / (Ogre::Real)mViewport->getActualHeight());
+            //Commented, Camera has auto AR
+            //mCamera->setAspectRatio((Ogre::Real)rw->getWidth() / (Ogre::Real)rw->getHeight());
         }
 
         virtual bool keyPressed(const OIS::KeyEvent& evt)
@@ -230,7 +231,7 @@ namespace OgreBites
             {   
                 if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION))
                 {
-                    Ogre::Viewport* mainVP = mCamera->getViewport();
+                    Ogre::Viewport* mainVP = mCamera->getLastViewport();
                     const Ogre::String& curMaterialScheme = mainVP->getMaterialScheme();
 
                     if (curMaterialScheme == Ogre::MaterialManager::DEFAULT_SCHEME_NAME)
@@ -484,7 +485,7 @@ namespace OgreBites
 #ifdef INCLUDE_RTSHADER_SYSTEM
             mDetailsPanel->setParamValue(11, "Off");
 
-            Ogre::Viewport* mainVP = mCamera->getViewport();
+            Ogre::Viewport* mainVP = mCamera->getLastViewport();
             //const Ogre::String& curMaterialScheme = mainVP->getMaterialScheme();
             if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION) == false)
             {
@@ -497,6 +498,7 @@ namespace OgreBites
             mDetailsPanel->setParamValue(15, "0");                                                          
 #endif
 
+            mWorkspace = setupCompositor();
             setupContent();
             mContentSetup = true;
 
@@ -517,12 +519,26 @@ namespace OgreBites
 
     protected:
 
+        /** virtual so that advanced samples such as Sample_Compositor can override this method to change the default behavior
+         *  if setupCompositor() is overridden, be aware @mBackgroundColour will be ignored
+         */
+        virtual Ogre::CompositorWorkspace* setupCompositor()
+        {
+            Ogre::CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
+
+            const Ogre::IdString workspaceName( mInfo["Title"] + " Workspace" );
+            if( !compositorManager->hasWorkspaceDefinition( workspaceName ) )
+            {
+                compositorManager->createBasicWorkspaceDef( workspaceName, mBackgroundColour,
+                                                            Ogre::IdString() );
+            }
+            return compositorManager->addWorkspace( mSceneMgr, mWindow, mCamera, workspaceName, true );
+        }
+
         virtual void setupView()
         {
             // setup default viewport layout and camera
             mCamera = mSceneMgr->createCamera("MainCamera");
-            mViewport = mWindow->addViewport(mCamera);
-            mCamera->setAspectRatio((Ogre::Real)mViewport->getActualWidth() / (Ogre::Real)mViewport->getActualHeight());
             mCamera->setAutoAspectRatio(true);
             mCamera->setNearClipDistance(5);
 
@@ -545,13 +561,13 @@ namespace OgreBites
             }
         }
 
-        Ogre::Viewport* mViewport;          // main viewport
         Ogre::Camera* mCamera;              // main camera
         SdkTrayManager* mTrayMgr;           // tray interface manager
         SdkCameraMan* mCameraMan;           // basic camera controller
         ParamsPanel* mDetailsPanel;         // sample details panel
         bool mCursorWasVisible;             // was cursor visible before dialog appeared
         bool mDragLook;                     // click and drag to free-look
+        Ogre::ColourValue mBackgroundColour;    // color value passed to createBasicWorkspaceDef
     };
 }
 

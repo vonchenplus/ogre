@@ -208,9 +208,9 @@ public:
         sceneMgr = mgr;
         name = inName ;
         _prepareMesh();
-        node = static_cast<SceneNode*> (sceneMgr->getRootSceneNode()->createChild(name));
+        node = static_cast<SceneNode*> (sceneMgr->getRootSceneNode()->createChild());
         node->translate(x*(PLANE_SIZE/COMPLEXITY), 10, y*(PLANE_SIZE/COMPLEXITY));
-        entity = sceneMgr->createEntity(name, name);
+        entity = sceneMgr->createEntity(name);
         entity->setMaterialName(CIRCLES_MATERIAL);
         node->attachObject(entity);
         tm = 0 ;
@@ -220,8 +220,8 @@ public:
     ~WaterCircle()
     {
         MeshManager::getSingleton().remove(mesh->getHandle());
-        sceneMgr->destroyEntity(entity->getName());
-        static_cast<SceneNode*> (sceneMgr->getRootSceneNode())->removeChild(node->getName());
+        sceneMgr->destroyEntity( entity );
+        static_cast<SceneNode*> (sceneMgr->getRootSceneNode())->removeChild( node );
     }
     void animate(Real timeSinceLastFrame)
     {
@@ -296,23 +296,26 @@ protected:
         mSceneMgr->setAmbientLight(ColourValue(0.75, 0.75, 0.75));
         
         // Create a light
-        Light* l = mSceneMgr->createLight("MainLight");
+        SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        Light* l = mSceneMgr->createLight();
+        lightNode->attachObject( l );
         // Accept default settings: point light, white diffuse, just set position
         // NB I could attach the light to a SceneNode if I wanted it to move automatically with
         //  other objects, but I don't
-        l->setPosition(200,300,100);
+        lightNode->setPosition(200,300,100);
         
         // Create water mesh and entity
         waterMesh = new WaterMesh(MESH_NAME, PLANE_SIZE, COMPLEXITY);
-        waterEntity = mSceneMgr->createEntity(ENTITY_NAME,
-                                              MESH_NAME);
+        waterEntity = mSceneMgr->createEntity(MESH_NAME);
+        waterEntity->setName(ENTITY_NAME);
         //~ waterEntity->setMaterialName(MATERIAL_NAME);
         SceneNode *waterNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         waterNode->attachObject(waterEntity);
         
         // Add a head, give it it's own node
         headNode = waterNode->createChildSceneNode();
-        Entity *ent = mSceneMgr->createEntity("head", "ogrehead.mesh");
+        Entity *ent = mSceneMgr->createEntity("ogrehead.mesh");
+        ent->setName("head");
         headNode->attachObject(ent);
         
         // Make sure the camera track this node
@@ -324,9 +327,8 @@ protected:
         camNode->yaw(Degree(-45));
         camNode->attachObject(mCamera);
         
-        // Create light node
-        SceneNode* lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-        lightNode->attachObject(l);
+        // Create animated light node
+        lightNode = lightNode->createChildSceneNode();
         
         // set up spline animation of light node
         Animation* anim = mSceneMgr->createAnimation("WaterLight", 20);
@@ -354,8 +356,7 @@ protected:
         //mSceneMgr->setFog(FOG_EXP, ColourValue::White, 0.0002);
         
         // Let there be rain
-        particleSystem = mSceneMgr->createParticleSystem("rain",
-                                                         "Examples/Water/Rain");
+        particleSystem = mSceneMgr->createParticleSystem("Examples/Water/Rain");
         particleEmitter = particleSystem->getEmitter(0);
         particleEmitter->setEmissionRate(0);
         SceneNode* rNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();

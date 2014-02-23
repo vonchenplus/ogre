@@ -31,10 +31,9 @@ THE SOFTWARE.
 #include "OgreWindowEventUtilities.h"
 #include "OgreD3D11Driver.h"
 #include "OgreRoot.h"
-#include "OgreLogManager.h"
-#include "OgreViewport.h"
 #include "OgreD3D11DepthBuffer.h"
 #include "OgreD3D11Texture.h"
+#include "OgrePixelBox.h"
 
 namespace Ogre
 {
@@ -252,9 +251,9 @@ namespace Ogre
     void D3D11RenderWindowBase::_updateViewportsDimensions()
     {
         // Notify viewports of resize
-        ViewportList::iterator it = mViewportList.begin();
+        ViewportList::const_iterator it = mViewportList.begin();
         while( it != mViewportList.end() )
-            (*it++).second->_updateDimensions();            
+            (*it++)->_updateDimensions();           
     }
     //---------------------------------------------------------------------
     IDXGIDeviceN* D3D11RenderWindowBase::_queryDxgiDevice()

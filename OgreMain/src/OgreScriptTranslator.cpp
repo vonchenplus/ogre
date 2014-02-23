@@ -38,11 +38,6 @@ THE SOFTWARE.
 #include "OgreParticleSystemRenderer.h"
 #include "OgreParticleEmitter.h"
 #include "OgreParticleAffector.h"
-#include "OgreCompositor.h"
-#include "OgreCompositorManager.h"
-#include "OgreCompositionTechnique.h"
-#include "OgreCompositionTargetPass.h"
-#include "OgreCompositionPass.h"
 #include "OgreExternalTextureSourceManager.h"
 #include "OgreLodStrategyManager.h"
 #include "OgreDistanceLodStrategy.h"
@@ -50,6 +45,14 @@ THE SOFTWARE.
 #include "OgreParticleSystem.h"
 #include "OgreRoot.h"
 #include "OgreHighLevelGpuProgram.h"
+
+#include "Compositor/OgreCompositorManager2.h"
+#include "Compositor/OgreCompositorWorkspaceDef.h"
+#include "Compositor/OgreCompositorShadowNodeDef.h"
+#include "Compositor/Pass/PassClear/OgreCompositorPassClearDef.h"
+#include "Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h"
+#include "Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h"
+#include "Compositor/Pass/PassStencil/OgreCompositorPassStencilDef.h"
 
 namespace Ogre{
 
@@ -151,6 +154,15 @@ namespace Ogre{
         return true;
     }
     //-------------------------------------------------------------------------
+    bool ScriptTranslator::getIdString(const AbstractNodePtr &node, IdString *result)
+    {
+        if(node->type != ANT_ATOM)
+            return false;
+        AtomAbstractNode *atom = (AtomAbstractNode*)node.get();
+        *result = IdString( atom->value );
+        return true;
+    }
+    //-------------------------------------------------------------------------
     bool ScriptTranslator::getReal(const Ogre::AbstractNodePtr &node, Ogre::Real *result)
     {
         if (node->type != ANT_ATOM)
@@ -162,11 +174,11 @@ namespace Ogre{
         int n = sscanf(atom->value.c_str(), "%f", result);
 #else
         int n = sscanf(atom->value.c_str(), "%lf", result);
-#endif
-
-        if (n == 0 || n == EOF)
+#endif      
+        
+        if(n == 0 || n == EOF)
             return false; // Conversion failed
-
+        
         return true;
     }
     //-------------------------------------------------------------------------
@@ -174,12 +186,12 @@ namespace Ogre{
     {
         if(node->type != ANT_ATOM)
             return false;
-
+        
         AtomAbstractNode *atom = (AtomAbstractNode*)node.get();
         int n = sscanf(atom->value.c_str(), "%f", result);
-        if (n == 0 || n == EOF)
+        if(n == 0 || n == EOF)
             return false; // Conversion failed
-
+            
         return true;
     }
     //-------------------------------------------------------------------------
@@ -198,28 +210,41 @@ namespace Ogre{
     //-------------------------------------------------------------------------
     bool ScriptTranslator::getInt(const Ogre::AbstractNodePtr &node, int *result)
     {
-        if (node->type != ANT_ATOM)
+        if(node->type != ANT_ATOM)
             return false;
-
+        
         AtomAbstractNode *atom = (AtomAbstractNode*)node.get();
         int n = sscanf(atom->value.c_str(), "%d", result);
-        if (n == 0 || n == EOF)
+        if(n == 0 || n == EOF)
             return false; // Conversion failed
-
+            
         return true;
     }
     //-------------------------------------------------------------------------
-    bool ScriptTranslator::getUInt(const Ogre::AbstractNodePtr &node, uint *result)
+    bool ScriptTranslator::getUInt(const Ogre::AbstractNodePtr &node, uint32 *result)
     {
-        if (node->type != ANT_ATOM)
+        if(node->type != ANT_ATOM)
             return false;
-
+        
         AtomAbstractNode *atom = (AtomAbstractNode*)node.get();
         int n = sscanf(atom->value.c_str(), "%u", result);
-        if (n == 0 || n == EOF)
+        if(n == 0 || n == EOF)
             return false; // Conversion failed
-
+            
         return true;
+    }
+    //-------------------------------------------------------------------------
+    bool ScriptTranslator::getHex(const Ogre::AbstractNodePtr &node, uint32 *result)
+    {
+        if(node->type != ANT_ATOM)
+            return false;
+        
+        AtomAbstractNode *atom = (AtomAbstractNode*)node.get();
+
+        char *end;
+        *result = static_cast<uint32>(strtoul( atom->value.c_str(), &end, 16 ));
+        
+        return !(*end);
     }
     //-------------------------------------------------------------------------
     bool ScriptTranslator::getColour(AbstractNodeList::const_iterator i, AbstractNodeList::const_iterator end, ColourValue *result, int maxEntries)
@@ -340,12 +365,12 @@ namespace Ogre{
     bool ScriptTranslator::getMatrix4(AbstractNodeList::const_iterator i, AbstractNodeList::const_iterator end, Matrix4 *m)
     {
         int n = 0;
-        while (i != end && n < 16)
+        while(i != end && n < 16)
         {
-            if (i != end)
+            if(i != end)
             {
                 Real r = 0;
-                if (getReal(*i, &r))
+                if(getReal(*i, &r))
                     (*m)[n/4][n%4] = r;
                 else
                     return false;
@@ -364,12 +389,12 @@ namespace Ogre{
     {
         bool success = true;
         int n = 0;
-        while (n < count)
+        while(n < count)
         {
-            if (i != end)
+            if(i != end)
             {
                 int v = 0;
-                if (getInt(*i, &v))
+                if(getInt(*i, &v))
                     vals[n] = v;
                 else
                     break;
@@ -380,7 +405,7 @@ namespace Ogre{
             ++n;
         }
 
-        if (n < count)
+        if(n < count)
             success = false;
 
         return success;
@@ -390,12 +415,12 @@ namespace Ogre{
     {
         bool success = true;
         int n = 0;
-        while (n < count)
+        while(n < count)
         {
-            if (i != end)
+            if(i != end)
             {
                 float v = 0;
-                if (getFloat(*i, &v))
+                if(getFloat(*i, &v))
                     vals[n] = v;
                 else
                     break;
@@ -406,7 +431,7 @@ namespace Ogre{
             ++n;
         }
 
-        if (n < count)
+        if(n < count)
             success = false;
 
         return success;
@@ -532,7 +557,7 @@ namespace Ogre{
 
         String val;
         getString(*i, &val);
-        if (val.find("float") != String::npos)
+        if(val.find("float") != String::npos)
         {
             int count = 1;
             if (val.size() == 6)
@@ -672,7 +697,7 @@ namespace Ogre{
                 {
                 case ID_LOD_VALUES:
                     {
-                        Material::LodValueList lods;
+                        Material::LodValueArray lods;
                         for(AbstractNodeList::iterator j = prop->values.begin(); j != prop->values.end(); ++j)
                         {
                             Real v = 0;
@@ -680,63 +705,9 @@ namespace Ogre{
                                 lods.push_back(v);
                             else
                                 compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line,
-                                                   "lod_values expects only numbers as arguments");
+                                    "lod_values expects only numbers as arguments");
                         }
                         mMaterial->setLodLevels(lods);
-                    }
-                    break;
-                case ID_LOD_DISTANCES:
-                    {
-                        // Deprecated! Only for backwards compatibility.
-                        // Set strategy hard-coded to 'distance' strategy, since that was the only one available back then,
-                        // when using this material keyword was still current.
-                        LodStrategy *strategy = DistanceLodSphereStrategy::getSingletonPtr();
-                        mMaterial->setLodStrategy(strategy);
-
-                        // Read in LOD distances
-                        Material::LodValueList lods;
-                        for(AbstractNodeList::iterator j = prop->values.begin(); j != prop->values.end(); ++j)
-                        {
-                            Real v = 0;
-                            if(getReal(*j, &v))
-                                lods.push_back(v);
-                            else
-                                compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line,
-                                                   "lod_values expects only numbers as arguments");
-                        }
-                        mMaterial->setLodLevels(lods);
-                    }
-                    break;
-                case ID_LOD_STRATEGY:
-                    if (prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "lod_strategy only supports 1 argument");
-                    }
-                    else
-                    {
-                        String strategyName;
-                        bool result = getString(prop->values.front(), &strategyName);
-                        if (result)
-                        {
-
-                            LodStrategy *strategy = LodStrategyManager::getSingleton().getStrategy(strategyName);
-
-                            result = (strategy != 0);
-
-                            if (result)
-                                mMaterial->setLodStrategy(strategy);
-                        }
-
-                        if (!result)
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "lod_strategy argument must be a valid LOD strategy");
-                        }
                     }
                     break;
                 case ID_RECEIVE_SHADOWS:
@@ -747,7 +718,7 @@ namespace Ogre{
                     else if(prop->values.size() > 1)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "receive_shadows only supports 1 argument");
+                            "receive_shadows only supports 1 argument");
                     }
                     else
                     {
@@ -756,7 +727,7 @@ namespace Ogre{
                             mMaterial->setReceiveShadows(val);
                         else
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "receive_shadows argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
+                                "receive_shadows argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
                     }
                     break;
                 case ID_TRANSPARENCY_CASTS_SHADOWS:
@@ -767,7 +738,7 @@ namespace Ogre{
                     else if(prop->values.size() > 1)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "transparency_casts_shadows only supports 1 argument");
+                            "transparency_casts_shadows only supports 1 argument");
                     }
                     else
                     {
@@ -776,7 +747,7 @@ namespace Ogre{
                             mMaterial->setTransparencyCastsShadows(val);
                         else
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "transparency_casts_shadows argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
+                                "transparency_casts_shadows argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
                     }
                     break;
                 case ID_SET_TEXTURE_ALIAS:
@@ -787,7 +758,7 @@ namespace Ogre{
                     else if(prop->values.size() > 3)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "set_texture_alias only supports 2 arguments");
+                            "set_texture_alias only supports 2 arguments");
                     }
                     else
                     {
@@ -797,12 +768,12 @@ namespace Ogre{
                             mTextureAliases.insert(std::make_pair(name, value));
                         else
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "set_texture_alias must have 2 string argument");
+                                "set_texture_alias must have 2 string argument");
                     }
                     break;
                 default:
-                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                                       "token \"" + prop->name + "\" is not recognized");
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
                 }
             }
             else if((*i)->type == ANT_OBJECT)
@@ -858,7 +829,7 @@ namespace Ogre{
                     else if(prop->values.size() > 1)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "scheme only supports 1 argument");
+                            "scheme only supports 1 argument");
                     }
                     else
                     {
@@ -868,7 +839,7 @@ namespace Ogre{
                             mTechnique->setSchemeName(scheme);
                         else
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "scheme must have 1 string argument");
+                                "scheme must have 1 string argument");
                     }
                     break;
                 case ID_LOD_INDEX:
@@ -879,7 +850,7 @@ namespace Ogre{
                     else if(prop->values.size() > 1)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "lod_index only supports 1 argument");
+                            "lod_index only supports 1 argument");
                     }
                     else
                     {
@@ -889,7 +860,7 @@ namespace Ogre{
                             mTechnique->setLodIndex(static_cast<unsigned short>(v));
                         else
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "lod_index cannot accept argument \"" + (*i0)->getValue() + "\"");
+                                "lod_index cannot accept argument \"" + (*i0)->getValue() + "\"");
                     }
                     break;
                 case ID_SHADOW_CASTER_MATERIAL:
@@ -900,7 +871,7 @@ namespace Ogre{
                     else if(prop->values.size() > 1)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "shadow_caster_material only accepts 1 argument");
+                            "shadow_caster_material only accepts 1 argument");
                     }
                     else
                     {
@@ -914,44 +885,19 @@ namespace Ogre{
                         }
                         else
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "shadow_caster_material cannot accept argument \"" + (*i0)->getValue() + "\"");
-                    }
-                    break;
-                case ID_SHADOW_RECEIVER_MATERIAL:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "shadow_receiver_material only accepts 1 argument");
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0);
-                        String matName;
-                        if(getString(*i0, &matName))
-                        {
-                            ProcessResourceNameScriptCompilerEvent evt(ProcessResourceNameScriptCompilerEvent::MATERIAL, matName);
-                            compiler->_fireEvent(&evt, 0);
-                            mTechnique->setShadowReceiverMaterial(evt.mName);
-                        }
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "shadow_receiver_material_name cannot accept argument \"" + (*i0)->getValue() + "\"");
+                                "shadow_caster_material cannot accept argument \"" + (*i0)->getValue() + "\"");
                     }
                     break;
                 case ID_GPU_VENDOR_RULE:
                     if(prop->values.size() < 2)
                     {
                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line,
-                                           "gpu_vendor_rule must have 2 arguments");
+                            "gpu_vendor_rule must have 2 arguments");
                     }
                     else if(prop->values.size() > 2)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "gpu_vendor_rule must have 2 arguments");
+                            "gpu_vendor_rule must have 2 arguments");
                     }
                     else
                     {
@@ -2524,12 +2470,6 @@ namespace Ogre{
                 case ID_SHADOW_CASTER_FRAGMENT_PROGRAM_REF:
                     translateShadowCasterFragmentProgramRef(compiler, child);
                     break;
-                case ID_SHADOW_RECEIVER_VERTEX_PROGRAM_REF:
-                    translateShadowReceiverVertexProgramRef(compiler, child);
-                    break;
-                case ID_SHADOW_RECEIVER_FRAGMENT_PROGRAM_REF:
-                    translateShadowReceiverFragmentProgramRef(compiler, child);
-                    break;
                 default:
                     processNode(compiler, *i);
                 }
@@ -2741,58 +2681,6 @@ namespace Ogre{
         if(pass->getShadowCasterFragmentProgram()->isSupported())
         {
             GpuProgramParametersSharedPtr params = pass->getShadowCasterFragmentProgramParameters();
-            GpuProgramTranslator::translateProgramParameters(compiler, params, node);
-        }
-    }
-    //-------------------------------------------------------------------------
-    void PassTranslator::translateShadowReceiverVertexProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node)
-    {
-        if(node->name.empty())
-        {
-            compiler->addError(ScriptCompiler::CE_OBJECTNAMEEXPECTED, node->file, node->line);
-            return;
-        }
-
-        ProcessResourceNameScriptCompilerEvent evt(ProcessResourceNameScriptCompilerEvent::GPU_PROGRAM, node->name);
-        compiler->_fireEvent(&evt, 0);
-
-        if (GpuProgramManager::getSingleton().getByName(evt.mName).isNull())
-        {
-            compiler->addError(ScriptCompiler::CE_REFERENCETOANONEXISTINGOBJECT, node->file, node->line);
-            return;
-        }
-
-        Pass *pass = any_cast<Pass*>(node->parent->context);
-        pass->setShadowReceiverVertexProgram(evt.mName);
-        if(pass->getShadowReceiverVertexProgram()->isSupported())
-        {
-            GpuProgramParametersSharedPtr params = pass->getShadowReceiverVertexProgramParameters();
-            GpuProgramTranslator::translateProgramParameters(compiler, params, node);
-        }
-    }
-    //-------------------------------------------------------------------------
-    void PassTranslator::translateShadowReceiverFragmentProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node)
-    {
-        if(node->name.empty())
-        {
-            compiler->addError(ScriptCompiler::CE_OBJECTNAMEEXPECTED, node->file, node->line);
-            return;
-        }
-
-        ProcessResourceNameScriptCompilerEvent evt(ProcessResourceNameScriptCompilerEvent::GPU_PROGRAM, node->name);
-        compiler->_fireEvent(&evt, 0);
-
-        if (GpuProgramManager::getSingleton().getByName(evt.mName).isNull())
-        {
-            compiler->addError(ScriptCompiler::CE_REFERENCETOANONEXISTINGOBJECT, node->file, node->line);
-            return;
-        }
-
-        Pass *pass = any_cast<Pass*>(node->parent->context);
-        pass->setShadowReceiverFragmentProgram(evt.mName);
-        if(pass->getShadowReceiverFragmentProgram()->isSupported())
-        {
-            GpuProgramParametersSharedPtr params = pass->getShadowReceiverFragmentProgramParameters();
             GpuProgramTranslator::translateProgramParameters(compiler, params, node);
         }
     }
@@ -4147,7 +4035,7 @@ namespace Ogre{
                     else if(prop->values.size() > 1)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "binding_type must have at most 1 argument");
+                            "binding_type must have at most 1 argument");
                     }
                     else
                     {
@@ -4165,24 +4053,24 @@ namespace Ogre{
                             case ID_GEOMETRY:
                                 mUnit->setBindingType(TextureUnitState::BT_GEOMETRY);
                                 break;
-                            case ID_TESSELLATION_HULL:
-                                mUnit->setBindingType(TextureUnitState::BT_TESSELLATION_HULL);
+                            case ID_TESSELATION_HULL:
+                                mUnit->setBindingType(TextureUnitState::BT_TESSELATION_HULL);
                                 break;
-                            case ID_TESSELLATION_DOMAIN:
-                                mUnit->setBindingType(TextureUnitState::BT_TESSELLATION_DOMAIN);
+                            case ID_TESSELATION_DOMAIN:
+                                mUnit->setBindingType(TextureUnitState::BT_TESSELATION_DOMAIN);
                                 break;
                             case ID_COMPUTE:
                                 mUnit->setBindingType(TextureUnitState::BT_COMPUTE);
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   atom->value + " is not a valid binding type (must be \"vertex\" or \"fragment\")");
+                                    atom->value + " is not a valid binding type (must be \"vertex\" or \"fragment\")");
                             }
                         }
                         else
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid binding type");
+                                prop->values.front()->getValue() + " is not a valid binding type");
                         }
                     }
                     break;
@@ -4191,10 +4079,10 @@ namespace Ogre{
                     {
                         compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                     }
-                    else if(prop->values.size() > 4)
+                    else if(prop->values.size() > 3)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "content_type must have at most 4 arguments");
+                            "content_type must have at most 3 arguments");
                     }
                     else
                     {
@@ -4211,47 +4099,45 @@ namespace Ogre{
                                 break;
                             case ID_COMPOSITOR:
                                 mUnit->setContentType(TextureUnitState::CONTENT_COMPOSITOR);
-                                if (prop->values.size() >= 3)
+                                if (prop->values.size() >= 2)
                                 {
-                                    String compositorName;
-                                    getString(*getNodeAt(prop->values, 1), &compositorName);
                                     String textureName;
-                                    getString(*getNodeAt(prop->values, 2), &textureName);
-
-                                    if (prop->values.size() == 4)
+                                    getString(*getNodeAt(prop->values, 1), &textureName);
+                                    
+                                    if (prop->values.size() == 3)
                                     {
                                         uint32 mrtIndex;
-                                        getUInt(*getNodeAt(prop->values, 3), (uint32*)&mrtIndex);
-                                        mUnit->setCompositorReference(compositorName, textureName, mrtIndex);
+                                        getUInt(*getNodeAt(prop->values, 2), (uint32*)&mrtIndex);
+                                        mUnit->setCompositorReference(textureName, mrtIndex);
                                     }
                                     else
                                     {
-                                        mUnit->setCompositorReference(compositorName, textureName);
+                                        mUnit->setCompositorReference(textureName);
                                     }
                                 }
                                 else
                                 {
                                     compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                       "content_type compositor must have an additional 2 or 3 parameters");
+                                        "content_type compositor must have an additional 2 or 3 parameters");
                                 }
-
+                                
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   atom->value + " is not a valid content type (must be \"named\" or \"shadow\" or \"compositor\")");
+                                    atom->value + " is not a valid content type (must be \"named\" or \"shadow\" or \"compositor\")");
                             }
                         }
                         else
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid content type");
+                                prop->values.front()->getValue() + " is not a valid content type");
                         }
                     }
                     break;
                 default:
-                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                                       "token \"" + prop->name + "\" is not recognized");
-                }
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
+                }               
             }
             else if((*i)->type == ANT_OBJECT)
             {
@@ -4261,8 +4147,8 @@ namespace Ogre{
     }
 
     /**************************************************************************
-     * TextureSourceTranslator
-     **************************************************************************/
+    * TextureSourceTranslator
+    **************************************************************************/
     TextureSourceTranslator::TextureSourceTranslator()
     {
     }
@@ -5744,7 +5630,7 @@ namespace Ogre{
     {
     }
 
-    void ParticleSystemTranslator::translate(ScriptCompiler* compiler, const AbstractNodePtr &node)
+    void ParticleSystemTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
     {
         ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
         // Find the name
@@ -5986,14 +5872,183 @@ namespace Ogre{
     }
 
     /**************************************************************************
-     * CompositorTranslator
+     * CompositorTextureBaseTranslator
      *************************************************************************/
-    CompositorTranslator::CompositorTranslator()
-        :mCompositor(0)
+    void CompositorTextureBaseTranslator::translateTextureProperty( TextureDefinitionBase *defBase,
+                                                                    PropertyAbstractNode *prop,
+                                                                    ScriptCompiler *compiler ) const
+    {
+        size_t atomIndex = 1;
+        AbstractNodeList::const_iterator it = getNodeAt(prop->values, 0);
+
+        if((*it)->type != ANT_ATOM)
+        {
+            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+            return;
+        }
+        // Save the first atom, should be name
+        AtomAbstractNode *atom0 = (AtomAbstractNode*)(*it).get();
+
+        uint width = 0, height = 0;
+        float widthFactor = 1.0f, heightFactor = 1.0f;
+        bool widthSet = false, heightSet = false, formatSet = false;
+        TextureDefinitionBase::BoolSetting hwGammaWrite = TextureDefinitionBase::BoolUndefined;
+        bool fsaa = true;
+        bool fsaaExplicitResolve = false;
+        uint16 depthBufferId = DepthBuffer::POOL_DEFAULT;
+        Ogre::PixelFormatList formats;
+
+        while (atomIndex < prop->values.size())
+        {
+            it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+            if((*it)->type != ANT_ATOM)
+            {
+                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                return;
+            }
+            AtomAbstractNode *atom = (AtomAbstractNode*)(*it).get();
+
+            switch(atom->id)
+            {
+            case ID_TARGET_WIDTH:
+                width = 0;
+                widthSet = true;
+                break;
+            case ID_TARGET_HEIGHT:
+                height = 0;
+                heightSet = true;
+                break;
+            case ID_TARGET_WIDTH_SCALED:
+            case ID_TARGET_HEIGHT_SCALED:
+                {
+                    bool *pSetFlag;
+                    uint *pSize;
+                    float *pFactor;
+
+                    if (atom->id == ID_TARGET_WIDTH_SCALED)
+                    {
+                        pSetFlag = &widthSet;
+                        pSize = &width;
+                        pFactor = &widthFactor;
+                    }
+                    else
+                    {
+                        pSetFlag = &heightSet;
+                        pSize = &height;
+                        pFactor = &heightFactor;
+                    }
+                    // advance to next to get scaling
+                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                    atom = (AtomAbstractNode*)(*it).get();
+                    if (!StringConverter::isNumber(atom->value))
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+
+                    *pSize = 0;
+                    *pFactor = StringConverter::parseReal(atom->value);
+                    *pSetFlag = true;
+                }
+                break;
+            case ID_GAMMA:
+                hwGammaWrite = TextureDefinitionBase::BoolTrue;
+                break;
+            case ID_NO_GAMMA:
+                hwGammaWrite = TextureDefinitionBase::BoolFalse;
+                break;
+            case ID_NO_FSAA:
+                fsaa = false;
+                break;
+            case ID_EXPLICIT_RESOLVE:
+                fsaaExplicitResolve = true;
+                break;
+            case ID_DEPTH_POOL:
+                {
+                    // advance to next to get the ID
+                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                    atom = (AtomAbstractNode*)(*it).get();
+                    if (!StringConverter::isNumber(atom->value))
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+
+                    depthBufferId = StringConverter::parseInt(atom->value);
+                }
+                break;
+            default:
+                if (StringConverter::isNumber(atom->value))
+                {
+                    if (atomIndex == 2)
+                    {
+                        width = StringConverter::parseInt(atom->value);
+                        widthSet = true;
+                    }
+                    else if (atomIndex == 3)
+                    {
+                        height = StringConverter::parseInt(atom->value);
+                        heightSet = true;
+                    }
+                    else
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                }
+                else
+                {
+                    // pixel format?
+                    PixelFormat format = PixelUtil::getFormatFromName(atom->value, true);
+                    if (format == PF_UNKNOWN)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                    formats.push_back(format);
+                    formatSet = true;
+                }
+
+            }
+        }
+        if (!widthSet || !heightSet || !formatSet)
+        {
+            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+            return;
+        }
+
+
+        // No errors, create
+        TextureDefinitionBase::TextureDefinition *td = defBase->addTextureDefinition( atom0->value );
+        td->width           = width;
+        td->height          = height;
+        td->widthFactor     = widthFactor;
+        td->heightFactor    = heightFactor;
+        td->formatList      = formats;
+        td->fsaa            = fsaa;
+        td->hwGammaWrite    = hwGammaWrite;
+        td->depthBufferId   = depthBufferId;
+        td->fsaaExplicitResolve = fsaaExplicitResolve;
+    }
+
+    /**************************************************************************
+     * CompositorWorkspaceTranslator
+     *************************************************************************/
+    CompositorWorkspaceTranslator::CompositorWorkspaceTranslator() : mWorkspaceDef(0)
     {
     }
 
-    void CompositorTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
+    void CompositorWorkspaceTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
     {
         ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
         if(obj->name.empty())
@@ -6002,58 +6057,42 @@ namespace Ogre{
             return;
         }
 
-        // Create the compositor
+        // Create the workspace definition
         CreateCompositorScriptCompilerEvent evt(obj->file, obj->name, compiler->getResourceGroup());
-        bool processed = compiler->_fireEvent(&evt, (void*)&mCompositor);
-
+        bool processed = compiler->_fireEvent(&evt, (void*)&mWorkspaceDef);
+        
         if(!processed)
         {
-            mCompositor = reinterpret_cast<Compositor*>(CompositorManager::getSingleton().create(obj->name,
-                                                                                                 compiler->getResourceGroup()).get());
+            CompositorManager2 *compositorMgr = Root::getSingleton().getCompositorManager2();
+            mWorkspaceDef = compositorMgr->addWorkspaceDefinition( obj->name );
         }
 
-        if(mCompositor == 0)
+        if(mWorkspaceDef == 0)
         {
             compiler->addError(ScriptCompiler::CE_OBJECTALLOCATIONERROR, obj->file, obj->line);
             return;
         }
 
         // Prepare the compositor
-        mCompositor->removeAllTechniques();
-        mCompositor->_notifyOrigin(obj->file);
-        obj->context = Any(mCompositor);
+        obj->context = Any(mWorkspaceDef);
 
+        size_t numTextureDefinitions = 0;
         for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
         {
-            if((*i)->type == ANT_OBJECT)
+            if((*i)->type == ANT_PROPERTY)
             {
-                processNode(compiler, *i);
-            }
-            else
-            {
-                compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, (*i)->file, (*i)->line,
-                                   "token not recognized");
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                if( prop->id == ID_TEXTURE )
+                    ++numTextureDefinitions;
             }
         }
-    }
 
-    /**************************************************************************
-     * CompositionTechniqueTranslator
-     *************************************************************************/
-    CompositionTechniqueTranslator::CompositionTechniqueTranslator()
-        :mTechnique(0)
-    {
-    }
-    //-------------------------------------------------------------------------
-    void CompositionTechniqueTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
-    {
-        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+        mWorkspaceDef->setNumLocalTextureDefinitions( numTextureDefinitions );
 
-        Compositor *compositor = any_cast<Compositor*>(obj->parent->context);
-        mTechnique = compositor->createTechnique();
-        obj->context = Any(mTechnique);
-
-        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        AbstractNodeList::iterator i = obj->children.begin();
+        try
+        {
+        for(i = obj->children.begin(); i != obj->children.end(); ++i)
         {
             if((*i)->type == ANT_OBJECT)
             {
@@ -6065,295 +6104,215 @@ namespace Ogre{
                 switch(prop->id)
                 {
                 case ID_TEXTURE:
+                    translateTextureProperty( mWorkspaceDef, prop, compiler );
+                    break;
+                case ID_ALIAS:
+                    if(prop->values.empty())
                     {
-                        size_t atomIndex = 1;
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() != 2)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "alias only supports 2 arguments");
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator it1 = prop->values.begin();
+                        AbstractNodeList::const_iterator it0 = it1++;
 
-                        AbstractNodeList::const_iterator it = getNodeAt(prop->values, 0);
+                        IdString aliasName, nodeName;
+                        if( getIdString( *it0, &aliasName ) && getIdString( *it1, &nodeName ) )
+                            mWorkspaceDef->addNodeAlias( aliasName, nodeName );
+                    }
+                    break;
+                case ID_CONNECT:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() < 2)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "connect needs at least 2 argument");
+                    }
+                    else if( prop->values.size() & 0x01 )
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "connect must have an even number of arguments");
+                    }
+                    else
+                    {
+                        size_t numStrings = 0;
+                        IdString outNode, inNode;
 
-                        if((*it)->type != ANT_ATOM)
+                        //Find out the names of the out & in nodes.
+                        AbstractNodeList::const_iterator itor = prop->values.begin();
+                        AbstractNodeList::const_iterator end  = prop->values.end();
+
+                        AbstractNodeList::const_iterator inNodeStart = itor;
+
+                        while( itor != end )
                         {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                            return;
-                        }
-                        // Save the first atom, should be name
-                        AtomAbstractNode *atom0 = (AtomAbstractNode*)(*it).get();
-
-                        size_t width = 0, height = 0;
-                        float widthFactor = 1.0f, heightFactor = 1.0f;
-                        bool widthSet = false, heightSet = false, formatSet = false;
-                        bool pooled = false;
-                        bool hwGammaWrite = false;
-                        bool fsaa = true;
-                        uint16 depthBufferId = DepthBuffer::POOL_DEFAULT;
-                        CompositionTechnique::TextureScope scope = CompositionTechnique::TS_LOCAL;
-                        Ogre::PixelFormatList formats;
-
-                        while (atomIndex < prop->values.size())
-                        {
-                            it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
-                            if((*it)->type != ANT_ATOM)
+                            uint32 unused;
+                            if( !getUInt( *itor, &unused ) )
                             {
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                                return;
-                            }
-                            AtomAbstractNode *atom = (AtomAbstractNode*)(*it).get();
-
-                            switch(atom->id)
-                            {
-                            case ID_TARGET_WIDTH:
-                                width = 0;
-                                widthSet = true;
-                                break;
-                            case ID_TARGET_HEIGHT:
-                                height = 0;
-                                heightSet = true;
-                                break;
-                            case ID_TARGET_WIDTH_SCALED:
-                            case ID_TARGET_HEIGHT_SCALED:
+                                if( numStrings >= 2 )
                                 {
-                                    bool *pSetFlag;
-                                    size_t *pSize;
-                                    float *pFactor;
-
-                                    if (atom->id == ID_TARGET_WIDTH_SCALED)
-                                    {
-                                        pSetFlag = &widthSet;
-                                        pSize = &width;
-                                        pFactor = &widthFactor;
-                                    }
-                                    else
-                                    {
-                                        pSetFlag = &heightSet;
-                                        pSize = &height;
-                                        pFactor = &heightFactor;
-                                    }
-                                    // advance to next to get scaling
-                                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
-                                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
-                                    {
-                                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                                        return;
-                                    }
-                                    atom = (AtomAbstractNode*)(*it).get();
-                                    if (!StringConverter::isNumber(atom->value))
-                                    {
-                                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                                        return;
-                                    }
-
-                                    *pSize = 0;
-                                    *pFactor = StringConverter::parseReal(atom->value);
-                                    *pSetFlag = true;
-                                }
-                                break;
-                            case ID_POOLED:
-                                pooled = true;
-                                break;
-                            case ID_SCOPE_LOCAL:
-                                scope = CompositionTechnique::TS_LOCAL;
-                                break;
-                            case ID_SCOPE_CHAIN:
-                                scope = CompositionTechnique::TS_CHAIN;
-                                break;
-                            case ID_SCOPE_GLOBAL:
-                                scope = CompositionTechnique::TS_GLOBAL;
-                                break;
-                            case ID_GAMMA:
-                                hwGammaWrite = true;
-                                break;
-                            case ID_NO_FSAA:
-                                fsaa = false;
-                                break;
-                            case ID_DEPTH_POOL:
-                                {
-                                    // advance to next to get the ID
-                                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
-                                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
-                                    {
-                                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                                        return;
-                                    }
-                                    atom = (AtomAbstractNode*)(*it).get();
-                                    if (!StringConverter::isNumber(atom->value))
-                                    {
-                                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                                        return;
-                                    }
-
-                                    depthBufferId = StringConverter::parseInt(atom->value);
-                                }
-                                break;
-                            default:
-                                if (StringConverter::isNumber(atom->value))
-                                {
-                                    if (atomIndex == 2)
-                                    {
-                                        width = StringConverter::parseInt(atom->value);
-                                        widthSet = true;
-                                    }
-                                    else if (atomIndex == 3)
-                                    {
-                                        height = StringConverter::parseInt(atom->value);
-                                        heightSet = true;
-                                    }
-                                    else
-                                    {
-                                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                                        return;
-                                    }
+                                    compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                                    numStrings = 3; //Flag the error somehow
                                 }
                                 else
                                 {
-                                    // pixel format?
-                                    PixelFormat format = PixelUtil::getFormatFromName(atom->value, true);
-                                    if (format == PF_UNKNOWN)
+                                    if( !getIdString( *itor, numStrings == 0 ? &outNode : &inNode ) )
                                     {
                                         compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                                        return;
+                                        numStrings = 3; //Flag the error somehow
                                     }
-                                    formats.push_back(format);
-                                    formatSet = true;
+                                    else
+                                    {
+                                        ++numStrings;
+                                        inNodeStart = itor;
+                                    }
                                 }
-
                             }
+                            ++itor;
                         }
-                        if (!widthSet || !heightSet || !formatSet)
+
+                        if( numStrings != 2 )
                         {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                "The only non-numeric arguments expected are the 'out node' and 'in node' names");
                         }
+                        else
+                        {
+                            itor = prop->values.begin();
+                            ++itor;
+                            ++inNodeStart;
+                            uint32 outChannel, inChannel;
 
+                            while( itor != prop->values.end() && inNodeStart != prop->values.end() )
+                            {
+                                getUInt( *itor, &outChannel );
+                                getUInt( *inNodeStart, &inChannel );
+                                mWorkspaceDef->connect( outNode, outChannel, inNode, inChannel );
+                                ++itor;
+                                ++inNodeStart;
+                            }
 
-                        // No errors, create
-                        CompositionTechnique::TextureDefinition *def = mTechnique->createTextureDefinition(atom0->value);
-                        def->width = width;
-                        def->height = height;
-                        def->widthFactor = widthFactor;
-                        def->heightFactor = heightFactor;
-                        def->formatList = formats;
-                        def->fsaa = fsaa;
-                        def->hwGammaWrite = hwGammaWrite;
-                        def->depthBufferId = depthBufferId;
-                        def->pooled = pooled;
-                        def->scope = scope;
+                            //No explicit numeric channels provided.
+                            if( prop->values.size() == 2 )
+                                mWorkspaceDef->connect( outNode, inNode );
+                        }
                     }
                     break;
-                case ID_TEXTURE_REF:
+                case ID_CONNECT_OUTPUT:
                     if(prop->values.empty())
                     {
                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
                     }
-                    else if(prop->values.size() != 3)
-                    {
-                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                           "texture_ref only supports 3 argument");
-                    }
-                    else
-                    {
-                        String texName, refCompName, refTexName;
-
-                        AbstractNodeList::const_iterator it = getNodeAt(prop->values, 0);
-                        if(!getString(*it, &texName))
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "texture_ref must have 3 string arguments");
-
-                        it = getNodeAt(prop->values, 1);
-                        if(!getString(*it, &refCompName))
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "texture_ref must have 3 string arguments");
-
-                        it = getNodeAt(prop->values, 2);
-                        if(!getString(*it, &refTexName))
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "texture_ref must have 3 string arguments");
-
-                        CompositionTechnique::TextureDefinition* refTexDef =
-                            mTechnique->createTextureDefinition(texName);
-
-                        refTexDef->refCompName = refCompName;
-                        refTexDef->refTexName = refTexName;
-                    }
-                    break;
-                case ID_SCHEME:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
+                    else if(prop->values.size() != 2 )
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "scheme only supports 1 argument");
+                            "connect_output only supports 2 arguments");
                     }
                     else
                     {
-                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0);
-                        String scheme;
-                        if(getString(*i0, &scheme))
-                            mTechnique->setSchemeName(scheme);
+                        AbstractNodeList::const_iterator it1 = prop->values.begin();
+                        AbstractNodeList::const_iterator it0 = it1++;
+
+                        uint32 inChannel;
+                        IdString inNode;
+                        if( getIdString( *it0, &inNode ) && getUInt( *it1, &inChannel ) )
+                            mWorkspaceDef->connectOutput( inNode, inChannel );
                         else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "scheme must have 1 string argument");
-                    }
-                    break;
-                case ID_COMPOSITOR_LOGIC:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "compositor logic only supports 1 argument");
-                    }
-                    else
-                    {
-                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0);
-                        String logicName;
-                        if(getString(*i0, &logicName))
-                            mTechnique->setCompositorLogicName(logicName);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "compositor logic must have 1 string argument");
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                     }
                     break;
                 default:
-                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                                       "token \"" + prop->name + "\" is not recognized");
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
                 }
             }
+            else
+            {
+                compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, (*i)->file, (*i)->line,
+                    "token not recognized");
+            }
+        }
+        }
+        catch( Exception &e )
+        {
+            if( i != obj->children.end() )
+                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, (*i)->file, (*i)->line);
+            throw e;
         }
     }
 
     /**************************************************************************
-     * CompositionTargetPass
+     * CompositorNodeTranslator
      *************************************************************************/
-    CompositionTargetPassTranslator::CompositionTargetPassTranslator()
-        :mTarget(0)
+    CompositorNodeTranslator::CompositorNodeTranslator() : mNodeDef(0)
     {
     }
     //-------------------------------------------------------------------------
-    void CompositionTargetPassTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
+    void CompositorNodeTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
     {
         ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
-
-        CompositionTechnique *technique = any_cast<CompositionTechnique*>(obj->parent->context);
-        if(obj->id == ID_TARGET)
+        if(obj->name.empty())
         {
-            mTarget = technique->createTargetPass();
-            if(!obj->name.empty())
-            {
-                String name = obj->name;
+            compiler->addError(ScriptCompiler::CE_OBJECTNAMEEXPECTED, obj->file, obj->line);
+            return;
+        }
 
-                mTarget->setOutputName(name);
+        // Create the Node definition
+        CreateCompositorScriptCompilerEvent evt(obj->file, obj->name, compiler->getResourceGroup());
+        bool processed = compiler->_fireEvent(&evt, (void*)&mNodeDef);
+        
+        if(!processed)
+        {
+            CompositorManager2 *compositorMgr = Root::getSingleton().getCompositorManager2();
+            mNodeDef = compositorMgr->addNodeDefinition( obj->name );
+        }
+
+        if(mNodeDef == 0)
+        {
+            compiler->addError(ScriptCompiler::CE_OBJECTALLOCATIONERROR, obj->file, obj->line);
+            return;
+        }
+
+        // Prepare the compositor
+        obj->context = Any(mNodeDef);
+
+        size_t numTextureDefinitions = 0;
+        size_t numTargetPasses = 0;
+        size_t numOutputChannels = 0;
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                if( prop->id == ID_TEXTURE )
+                    ++numTextureDefinitions;
+                else if( prop->id == ID_OUT )
+                    ++numOutputChannels;
+            }
+            else if((*i)->type == ANT_OBJECT)
+            {
+                ObjectAbstractNode *objNode = reinterpret_cast<ObjectAbstractNode*>( i->get() );
+                if( !objNode->abstract && objNode->id == ID_TARGET )
+                    ++numTargetPasses;
             }
         }
-        else if(obj->id == ID_TARGET_OUTPUT)
-        {
-            mTarget = technique->getOutputTargetPass();
-        }
-        obj->context = Any(mTarget);
 
-        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        mNodeDef->setNumLocalTextureDefinitions( numTextureDefinitions );
+        mNodeDef->setNumTargetPass( numTargetPasses );
+        mNodeDef->setNumOutputChannels( numOutputChannels );
+
+        AbstractNodeList::iterator i = obj->children.begin();
+        try
+        {
+        for(i = obj->children.begin(); i != obj->children.end(); ++i)
         {
             if((*i)->type == ANT_OBJECT)
             {
@@ -6364,222 +6323,806 @@ namespace Ogre{
                 PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
                 switch(prop->id)
                 {
-                case ID_INPUT:
+                case ID_TEXTURE:
+                    translateTextureProperty( mNodeDef, prop, compiler );
+                    break;
+                case ID_IN:
                     if(prop->values.empty())
                     {
                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() != 2)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "'in' only supports 2 arguments");
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator it1 = prop->values.begin();
+                        AbstractNodeList::const_iterator it0 = it1++;
+
+                        uint32 inChannel;
+                        String textureName;
+                        if( getUInt( *it0, &inChannel ) && getString( *it1, &textureName ) )
+                        {
+                            mNodeDef->addTextureSourceName( textureName, inChannel,
+                                                            TextureDefinitionBase::TEXTURE_INPUT );
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_OUT:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() != 2)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "'in' only supports 2 arguments");
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator it1 = prop->values.begin();
+                        AbstractNodeList::const_iterator it0 = it1++;
+
+                        uint32 outChannel;
+                        String textureName;
+                        if( getUInt( *it0, &outChannel ) && getString( *it1, &textureName ) )
+                            mNodeDef->mapOutputChannel( outChannel, textureName );
+                        else
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    }
+                    break;
+                case ID_CUSTOM_ID:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getIdString( *it0, &mNodeDef->mCustomIdentifier ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                default:
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
+                }
+            }
+            else
+            {
+                compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, (*i)->file, (*i)->line,
+                    "token not recognized");
+            }
+        }
+        }
+        catch( Exception &e )
+        {
+            if( i != obj->children.end() )
+                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, (*i)->file, (*i)->line);
+            throw e;
+        }
+    }
+
+    /**************************************************************************
+     * CompositorShadowNodeTranslator
+     *************************************************************************/
+    CompositorShadowNodeTranslator::CompositorShadowNodeTranslator() : mShadowNodeDef(0)
+    {
+    }
+    //-------------------------------------------------------------------------
+    void CompositorShadowNodeTranslator::translateShadowMapProperty(PropertyAbstractNode *prop,
+                                            ScriptCompiler *compiler, bool isAtlas,
+                                            const ShadowTextureDefinition &defaultParams) const
+    {
+        size_t atomIndex = 1;
+        AbstractNodeList::const_iterator it = getNodeAt(prop->values, 0);
+
+        if((*it)->type != ANT_ATOM)
+        {
+            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+            return;
+        }
+
+        // Save the first atom, should be shadow map name.
+        AtomAbstractNode *atom0 = (AtomAbstractNode*)(*it).get();
+
+        uint width = 0, height = 0;
+        float widthFactor = 1.0f, heightFactor = 1.0f;
+        bool widthSet = false, heightSet = false, formatSet = false;
+        bool hwGammaWrite = false;
+        uint fsaa = 0;
+        uint16 depthBufferId = DepthBuffer::POOL_DEFAULT;
+        Ogre::PixelFormatList formats;
+        int lightIdx = ~0;
+        size_t splitIdx = 0;
+
+        while (atomIndex < prop->values.size())
+        {
+            it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+            if((*it)->type != ANT_ATOM)
+            {
+                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                return;
+            }
+            AtomAbstractNode *atom = (AtomAbstractNode*)(*it).get();
+
+            switch(atom->id)
+            {
+            case ID_TARGET_WIDTH:
+                width = 0;
+                widthSet = true;
+                break;
+            case ID_TARGET_HEIGHT:
+                height = 0;
+                heightSet = true;
+                break;
+            case ID_TARGET_WIDTH_SCALED:
+            case ID_TARGET_HEIGHT_SCALED:
+                {
+                    bool *pSetFlag;
+                    uint *pSize;
+                    float *pFactor;
+
+                    if (atom->id == ID_TARGET_WIDTH_SCALED)
+                    {
+                        pSetFlag = &widthSet;
+                        pSize = &width;
+                        pFactor = &widthFactor;
+                    }
+                    else
+                    {
+                        pSetFlag = &heightSet;
+                        pSize = &height;
+                        pFactor = &heightFactor;
+                    }
+                    // advance to next to get scaling
+                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         return;
                     }
-                    else if (prop->values.size() > 1)
+                    atom = (AtomAbstractNode*)(*it).get();
+                    if (!StringConverter::isNumber(atom->value))
                     {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+
+                    *pSize = 0;
+                    *pFactor = StringConverter::parseReal(atom->value);
+                    *pSetFlag = true;
+                }
+                break;
+            case ID_GAMMA:
+                hwGammaWrite = true;
+                break;
+            case ID_FSAA:
+                {
+                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                    if( !getUInt( *it, &fsaa ) )
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                }
+                break;
+            case ID_DEPTH_POOL:
+                {
+                    // advance to next to get the ID
+                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                    atom = (AtomAbstractNode*)(*it).get();
+                    if (!StringConverter::isNumber(atom->value))
+                    {
+                        compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        return;
+                    }
+
+                    depthBufferId = StringConverter::parseInt(atom->value);
+                }
+                break;
+            case ID_LIGHT:
+                {
+                    // advance to next to get the ID
+                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                    atom = (AtomAbstractNode*)(*it).get();
+                    if (!StringConverter::isNumber(atom->value))
+                    {
+                        compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        return;
+                    }
+
+                    lightIdx = StringConverter::parseInt(atom->value);
+                }
+                break;
+            case ID_SPLIT:
+                {
+                    // advance to next to get the ID
+                    it = getNodeAt(prop->values, static_cast<int>(atomIndex++));
+                    if(prop->values.end() == it || (*it)->type != ANT_ATOM)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                    atom = (AtomAbstractNode*)(*it).get();
+                    if (!StringConverter::isNumber(atom->value))
+                    {
+                        compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        return;
+                    }
+
+                    splitIdx = StringConverter::parseInt(atom->value);
+                }
+                break;
+            default:
+                if (StringConverter::isNumber(atom->value))
+                {
+                    if (atomIndex == 2)
+                    {
+                        width = StringConverter::parseInt(atom->value);
+                        widthSet = true;
+                    }
+                    else if (atomIndex == 3)
+                    {
+                        height = StringConverter::parseInt(atom->value);
+                        heightSet = true;
+                    }
+                    else
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        return;
+                    }
+                }
+                else
+                {
+                    // pixel format or optional name?
+                    PixelFormat format = PixelUtil::getFormatFromName(atom->value, true);
+                    if (format == PF_UNKNOWN)
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         return;
                     }
                     else
                     {
-                        if(prop->values.front()->type == ANT_ATOM)
+                        formats.push_back(format);
+                        formatSet = true;
+                    }
+                }
+
+            }
+        }
+        if ( (!isAtlas && (!widthSet || !heightSet || !formatSet)) || lightIdx == ~0 )
+        {
+            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+            return;
+        }
+
+        ShadowTextureDefinition *td = mShadowNodeDef->addShadowTextureDefinition( lightIdx, splitIdx,
+                                                                                atom0->value, isAtlas );
+        // No errors, create
+        td->width           = width;
+        td->height          = height;
+        td->widthFactor     = widthFactor;
+        td->heightFactor    = heightFactor;
+        td->formatList      = formats;
+        td->fsaa            = fsaa;
+        td->hwGammaWrite    = hwGammaWrite;
+        td->depthBufferId   = depthBufferId;
+
+        td->aggressiveFocusRegion   = defaultParams.aggressiveFocusRegion;
+        td->optimalAdjustFactor     = defaultParams.optimalAdjustFactor;
+        td->lightDirThreshold       = defaultParams.lightDirThreshold;
+        td->pssmLambda              = defaultParams.pssmLambda;
+        td->splitPadding            = defaultParams.splitPadding;
+        td->numSplits               = defaultParams.numSplits;
+    }
+    //-------------------------------------------------------------------------
+    void CompositorShadowNodeTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
+    {
+        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+        if(obj->name.empty())
+        {
+            compiler->addError(ScriptCompiler::CE_OBJECTNAMEEXPECTED, obj->file, obj->line);
+            return;
+        }
+
+        // Create the Node definition
+        CreateCompositorScriptCompilerEvent evt(obj->file, obj->name, compiler->getResourceGroup());
+        bool processed = compiler->_fireEvent(&evt, (void*)&mShadowNodeDef);
+        
+        if(!processed)
+        {
+            CompositorManager2 *compositorMgr = Root::getSingleton().getCompositorManager2();
+            mShadowNodeDef = compositorMgr->addShadowNodeDefinition( obj->name );
+        }
+
+        if(mShadowNodeDef == 0)
+        {
+            compiler->addError(ScriptCompiler::CE_OBJECTALLOCATIONERROR, obj->file, obj->line);
+            return;
+        }
+
+        // Prepare the compositor
+        obj->context = Any(static_cast<CompositorNodeDef*>( mShadowNodeDef ));
+
+        size_t numTextureDefinitions = 0;
+        size_t numShadowMaps = 0;
+        size_t numTargetPasses = 0;
+        size_t numOutputChannels = 0;
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                if( prop->id == ID_TEXTURE )
+                    ++numTextureDefinitions;
+                else if( prop->id == ID_SHADOW_MAP )
+                    ++numShadowMaps;
+                else if( prop->id == ID_OUT )
+                    ++numOutputChannels;
+            }
+            else if((*i)->type == ANT_OBJECT)
+            {
+                ObjectAbstractNode *nodeObj = reinterpret_cast<ObjectAbstractNode*>( i->get() );
+                if( !nodeObj->abstract )
+                {
+                    if( nodeObj->id == ID_TARGET )
+                        ++numTargetPasses;
+                    else if( nodeObj->id == ID_SHADOW_MAP )
+                    {
+                        numTargetPasses += nodeObj->values.size() + 1;
+                    }
+                }
+            }
+        }
+
+        mShadowNodeDef->setNumLocalTextureDefinitions( numTextureDefinitions );
+        mShadowNodeDef->setNumShadowTextureDefinitions( numShadowMaps );
+        mShadowNodeDef->setNumTargetPass( numTargetPasses );
+        mShadowNodeDef->setNumOutputChannels( numOutputChannels );
+
+        ShadowTextureDefinition defaultParams( SHADOWMAP_UNIFORM, IdString(), 0, 0 );
+
+        AbstractNodeList::iterator i = obj->children.begin();
+        try
+        {
+        for(i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_OBJECT)
+            {
+                processNode(compiler, *i);
+            }
+            else if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                switch(prop->id)
+                {
+                case ID_TEXTURE:
+                    translateTextureProperty( mShadowNodeDef, prop, compiler );
+                    break;
+                case ID_TECHNIQUE:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() != 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+
+                        String str;
+                        if( getString( *it0, &str ) )
                         {
-                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
-                            switch(atom->id)
+                            if( str == "uniform" )
+                                mShadowNodeDef->setDefaultTechnique( SHADOWMAP_UNIFORM );
+                            else if( str == "planeoptimal" )
+                                mShadowNodeDef->setDefaultTechnique( SHADOWMAP_PLANEOPTIMAL );
+                            else if( str == "focused" )
+                                mShadowNodeDef->setDefaultTechnique( SHADOWMAP_FOCUSED );
+                            else if( str == "lispsm" )
+                                mShadowNodeDef->setDefaultTechnique( SHADOWMAP_LISPSM );
+                            else if( str == "pssm" )
+                                mShadowNodeDef->setDefaultTechnique( SHADOWMAP_PSSM );
+                            else
                             {
-                            case ID_NONE:
-                                mTarget->setInputMode(CompositionTargetPass::IM_NONE);
-                                break;
-                            case ID_PREVIOUS:
-                                mTarget->setInputMode(CompositionTargetPass::IM_PREVIOUS);
-                                break;
-                            default:
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS,
+                                     prop->file, prop->line, "shadow techniques can be: technique "
+                                    "[uniform|planeoptimal|focused|lispsm|pssm]");
                             }
                         }
                         else
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                            return;
                         }
                     }
                     break;
-                case ID_ONLY_INITIAL:
-                    if(prop->values.empty())
+                case ID_NUM_SPLITS:
                     {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else
-                    {
-                        bool val;
-                        if(getBoolean(prop->values.front(), &val))
+                        if(prop->values.empty())
                         {
-                            mTarget->setOnlyInitial(val);
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                         }
-                        else
+                        else if(prop->values.size() != 1)
                         {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                            compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
                         }
-                    }
-                    break;
-                case ID_VISIBILITY_MASK:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else
-                    {
+
                         uint32 val;
-                        if(getUInt(prop->values.front(), &val))
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( getUInt( *it0, &val ) )
                         {
-                            mTarget->setVisibilityMask(val);
+                            defaultParams.numSplits = val;
                         }
                         else
                         {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                            return;
                         }
                     }
                     break;
-                case ID_LOD_BIAS:
-                    if(prop->values.empty())
+                case ID_PSSM_SPLIT_PADDING:
                     {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else
-                    {
-                        float val;
-                        if(getFloat(prop->values.front(), &val))
+                        if(prop->values.empty())
                         {
-                            mTarget->setLodBias(val);
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                         }
-                        else
+                        else if(prop->values.size() != 1)
                         {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                            compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getReal( *it0, &defaultParams.splitPadding ) )
+                        {
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                            return;
                         }
                     }
                     break;
-                case ID_MATERIAL_SCHEME:
-                    if(prop->values.empty())
+                case ID_PSSM_LAMBDA:
                     {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else
-                    {
-                        String val;
-                        if(getString(prop->values.front(), &val))
+                        if(prop->values.empty())
                         {
-                            mTarget->setMaterialScheme(val);
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                         }
-                        else
+                        else if(prop->values.size() != 1)
                         {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                            compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getReal( *it0, &defaultParams.pssmLambda ) )
+                        {
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                            return;
                         }
                     }
                     break;
-                case ID_SHADOWS_ENABLED:
-                    if(prop->values.empty())
+                case ID_USE_AGGRESSIVE_FOCUS_REGION:
                     {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else
-                    {
-                        bool val;
-                        if(getBoolean(prop->values.front(), &val))
+                        if(prop->values.empty())
                         {
-                            mTarget->setShadowsEnabled(val);
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                        else if(prop->values.size() != 1)
+                        {
+                            compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getBoolean( *it0, &defaultParams.aggressiveFocusRegion ) )
+                        {
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                            return;
+                        }
+                    }
+                    break;
+                case ID_OPTIMAL_AJUST_FACTOR:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                        else if(prop->values.size() != 1)
+                        {
+                            compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getReal( *it0, &defaultParams.optimalAdjustFactor ) )
+                        {
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                            return;
+                        }
+                    }
+                    break;
+                case ID_LIGHT_DIR_THRESHOLD:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                        else if(prop->values.size() != 1)
+                        {
+                            compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        Real val;
+                        if( getReal( *it0, &val ) )
+                        {
+                            defaultParams.lightDirThreshold = Degree( val );
                         }
                         else
                         {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                            return;
                         }
+                    }
+                    break;
+                case ID_SHADOW_MAP:
+                case ID_SHADOW_ATLAS:
+                    translateShadowMapProperty( prop, compiler, prop->id == ID_SHADOW_ATLAS, defaultParams );
+                    break;
+                case ID_OUT:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() != 2)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "'in' only supports 2 arguments");
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator it1 = prop->values.begin();
+                        AbstractNodeList::const_iterator it0 = it1++;
+
+                        uint32 outChannel;
+                        String textureName;
+                        if( getUInt( *it0, &outChannel ) && getString( *it1, &textureName ) )
+                            mShadowNodeDef->mapOutputChannel( outChannel, textureName );
+                        else
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                     }
                     break;
                 default:
-                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                                       "token \"" + prop->name + "\" is not recognized");
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
                 }
+            }
+            else
+            {
+                compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, (*i)->file, (*i)->line,
+                    "token not recognized");
+            }
+        }
+        }
+        catch( Exception &e )
+        {
+            if( i != obj->children.end() )
+                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, (*i)->file, (*i)->line);
+            throw e;
+        }
+    }
+
+    /**************************************************************************
+     * CompositorTargetTranslator
+     *************************************************************************/
+    CompositorTargetTranslator::CompositorTargetTranslator() : mTargetDef(0)
+    {
+    }
+    //-------------------------------------------------------------------------
+    void CompositorTargetTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
+    {
+        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+
+        mTargetDef = 0;
+        CompositorNodeDef *nodeDef = any_cast<CompositorNodeDef*>(obj->parent->context);
+        if( !obj->name.empty() )
+        {
+            uint32 rtIndex = 0;
+            if( !obj->values.empty() )
+            {
+                AbstractNodeList::const_iterator sliceIt = obj->values.begin();
+
+                if( !getUInt( *sliceIt, &rtIndex ) )
+                {
+                    String cubemapHint;
+                    if( getString( *sliceIt, &cubemapHint ) )
+                    {
+                        StringUtil::toUpperCase( cubemapHint );
+
+                        if( cubemapHint == "+X" || cubemapHint == "X" )
+                        {
+                            rtIndex = 0;
+                        }
+                        else if( cubemapHint == "-X" )
+                        {
+                            rtIndex = 1;
+                        }
+                        else if( cubemapHint == "+Y" || cubemapHint == "Y" )
+                        {
+                            rtIndex = 2;
+                        }
+                        else if( cubemapHint == "-Y" )
+                        {
+                            rtIndex = 3;
+                        }
+                        else if( cubemapHint == "+Z" || cubemapHint == "Z" )
+                        {
+                            rtIndex = 4;
+                        }
+                        else if( cubemapHint == "-Z" )
+                        {
+                            rtIndex = 5;
+                        }
+                    }
+                }
+            }
+
+            mTargetDef = nodeDef->addTargetPass( obj->name, rtIndex );
+        }
+        else
+        {
+            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, node->file, node->line);
+            return;
+        }
+
+        obj->context = Any(mTargetDef);
+
+        size_t numPasses = 0;
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_OBJECT)
+            {
+                ObjectAbstractNode *nodeObj = reinterpret_cast<ObjectAbstractNode*>( i->get() );
+                if( !nodeObj->abstract && nodeObj->id == ID_PASS )
+                    ++numPasses;
+            }
+        }
+
+        mTargetDef->setNumPasses( numPasses );
+
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_OBJECT)
+            {
+                processNode(compiler, *i);
+            }
+            else
+            {
+                compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, (*i)->file, (*i)->line,
+                                    "token not recognized");
             }
         }
     }
 
     /**************************************************************************
-     * CompositionPassTranslator
+     * CompositorShadowMapTargetTranslator
      *************************************************************************/
-    CompositionPassTranslator::CompositionPassTranslator()
-        :mPass(0)
+    CompositorShadowMapTargetTranslator::CompositorShadowMapTargetTranslator() : mTargetDef(0)
     {
     }
-
-    void CompositionPassTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
+    //-------------------------------------------------------------------------
+    void CompositorShadowMapTargetTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
     {
         ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
 
-        CompositionTargetPass *target = any_cast<CompositionTargetPass*>(obj->parent->context);
-        mPass = target->createPass();
-        obj->context = Any(mPass);
+        mTargetDef = 0;
+        CompositorNodeDef *nodeDef = 0;
 
-        // The name is the type of the pass
-        if(obj->values.empty())
+        nodeDef = any_cast<CompositorNodeDef*>(obj->parent->context);
+        if( obj->name.empty())
         {
-            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, obj->file, obj->line);
-            return;
-        }
-        String type;
-        if(!getString(obj->values.front(), &type))
-        {
-            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line);
+            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, node->file, node->line);
             return;
         }
 
-        if(type == "clear")
-            mPass->setType(CompositionPass::PT_CLEAR);
-        else if(type == "stencil")
-            mPass->setType(CompositionPass::PT_STENCIL);
-        else if(type == "render_quad")
-            mPass->setType(CompositionPass::PT_RENDERQUAD);
-        else if(type == "render_scene")
-            mPass->setType(CompositionPass::PT_RENDERSCENE);
-        else if(type == "render_custom") {
-            mPass->setType(CompositionPass::PT_RENDERCUSTOM);
-            String customType;
-            //This is the ugly one liner for safe access to the second parameter.
-            if (obj->values.size() < 2 || !getString(*(++(obj->values.begin())), &customType))
+        size_t numPasses = 0;
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_OBJECT)
             {
-                compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, obj->file, obj->line);
-                return;
+                ObjectAbstractNode *nodeObj = reinterpret_cast<ObjectAbstractNode*>( i->get() );
+                if( !nodeObj->abstract && nodeObj->id == ID_PASS )
+                    ++numPasses;
             }
-            mPass->setCustomType(customType);
         }
-        else
+
+        String targetPassName;
+        AbstractNodeList::const_iterator namesIt = obj->values.begin();
+        for( size_t j=0; j<obj->values.size() + 1; ++j )
         {
-            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line,
-                               "pass types must be \"clear\", \"stencil\", \"render_quad\", \"render_scene\" or \"render_custom\".");
-            return;
+            if( !j )
+                targetPassName = obj->name;
+            else
+            {
+                if( !getString( *namesIt++, &targetPassName ) )
+                {
+                    compiler->addError( ScriptCompiler::CE_STRINGEXPECTED, obj->file, obj->line );
+                    return;
+                }
+            }
+
+            mTargetDef = nodeDef->addTargetPass( targetPassName );
+            mTargetDef->setNumPasses( numPasses );
+            obj->context = Any(mTargetDef);
+
+            for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+            {
+                if((*i)->type == ANT_OBJECT)
+                {
+                    processNode(compiler, *i);
+                }
+                else
+                {
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, (*i)->file, (*i)->line,
+                                        "token not recognized");
+                }
+            }
+
+            size_t shadowMapIdx;
+            TextureDefinitionBase::TextureSource texSource;
+            nodeDef->getTextureSource( mTargetDef->getRenderTargetName(), shadowMapIdx, texSource );
+
+            const CompositorPassDefVec &compositorPasses = mTargetDef->getCompositorPasses();
+            CompositorPassDefVec::const_iterator itor = compositorPasses.begin();
+            CompositorPassDefVec::const_iterator end  = compositorPasses.end();
+
+            while( itor != end )
+            {
+                (*itor)->mShadowMapIdx      = static_cast<uint32>(shadowMapIdx);
+                (*itor)->mIncludeOverlays   = false;
+                ++itor;
+            }
         }
+    }
+        
+    /**************************************************************************
+     * CompositorPassTranslator
+     *************************************************************************/
+    CompositorPassTranslator::CompositorPassTranslator() : mPassDef(0)
+    {
+    }
+
+    void CompositorPassTranslator::translateClear(ScriptCompiler *compiler, const AbstractNodePtr &node,
+                                                    CompositorTargetDef *targetDef)
+    {
+        mPassDef = targetDef->addPass( PASS_CLEAR );
+        CompositorPassClearDef *passClear = static_cast<CompositorPassClearDef*>( mPassDef );
+
+        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+        obj->context = Any(mPassDef);
 
         for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
         {
@@ -6592,132 +7135,6 @@ namespace Ogre{
                 PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
                 switch(prop->id)
                 {
-                case ID_CHECK:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        bool val;
-                        if(getBoolean(prop->values.front(), &val))
-                            mPass->setStencilCheck(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
-                case ID_COMP_FUNC:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        CompareFunction func;
-                        if(getCompareFunction(prop->values.front(), &func))
-                            mPass->setStencilFunc(func);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
-                case ID_REF_VALUE:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        uint32 val;
-                        if(getUInt(prop->values.front(), &val))
-                            mPass->setStencilRefValue(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
-                case ID_MASK:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        uint32 val;
-                        if(getUInt(prop->values.front(), &val))
-                            mPass->setStencilMask(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
-                case ID_FAIL_OP:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        StencilOperation val;
-                        if(getStencilOp(prop->values.front(), &val))
-                            mPass->setStencilFailOp(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
-                case ID_DEPTH_FAIL_OP:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        StencilOperation val;
-                        if(getStencilOp(prop->values.front(), &val))
-                            mPass->setStencilDepthFailOp(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
-                case ID_PASS_OP:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        StencilOperation val;
-                        if(getStencilOp(prop->values.front(), &val))
-                            mPass->setStencilPassOp(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
-                case ID_TWO_SIDED:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        bool val;
-                        if(getBoolean(prop->values.front(), &val))
-                            mPass->setStencilTwoSidedOperation(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
-                case ID_READ_BACK_AS_TEXTURE:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                            return;
-                        }
-                        bool val;
-                        if(getBoolean(prop->values.front(), &val))
-                            mPass->setStencilReadBackAsTextureOperation(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                    }
-                    break;
                 case ID_BUFFERS:
                     {
                         uint32 buffers = 0;
@@ -6743,7 +7160,7 @@ namespace Ogre{
                             else
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
-                        mPass->setClearBuffers(buffers);
+                        passClear->mClearBufferFlags = buffers;
                     }
                     break;
                 case ID_COLOUR_VALUE:
@@ -6753,11 +7170,10 @@ namespace Ogre{
                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                             return;
                         }
-                        ColourValue val;
-                        if(getColour(prop->values.begin(), prop->values.end(), &val))
-                            mPass->setClearColour(val);
-                        else
+                        if( !getColour(prop->values.begin(), prop->values.end(), &passClear->mColourValue) )
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        }
                     }
                     break;
                 case ID_DEPTH_VALUE:
@@ -6767,11 +7183,10 @@ namespace Ogre{
                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                             return;
                         }
-                        Real val;
-                        if(getReal(prop->values.front(), &val))
-                            mPass->setClearDepth(val);
-                        else
+                        if( !getReal(prop->values.front(), &passClear->mDepthValue) )
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        }
                     }
                     break;
                 case ID_STENCIL_VALUE:
@@ -6781,11 +7196,109 @@ namespace Ogre{
                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                             return;
                         }
-                        uint32 val;
-                        if(getUInt(prop->values.front(), &val))
-                            mPass->setClearStencil(val);
-                        else
+                        if( !getUInt(prop->values.front(), &passClear->mStencilValue) )
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_DISCARD_ONLY:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getBoolean( *it0, &passClear->mDiscardOnly ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                "discard_only argument must be 'true', 'false', 'yes', 'no', 'on', or 'off'");
+                        }
+                    }
+                    break;
+                case ID_VIEWPORT:
+                case ID_IDENTIFIER:
+                case ID_NUM_INITIAL:
+                case ID_OVERLAYS:
+                    break;
+                default:
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
+                }
+            }
+        }
+    }
+
+    void CompositorPassTranslator::translateQuad(ScriptCompiler *compiler, const AbstractNodePtr &node,
+                                                    CompositorTargetDef *targetDef)
+    {
+        mPassDef = targetDef->addPass( PASS_QUAD );
+        CompositorPassQuadDef *passQuad = static_cast<CompositorPassQuadDef*>( mPassDef );
+
+        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+        obj->context = Any(mPassDef);
+
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_OBJECT)
+            {
+                processNode(compiler, *i);
+            }
+            else if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                switch(prop->id)
+                {
+                case ID_USE_QUAD:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getBoolean( *it0, &passQuad->mUseQuad ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_QUAD_NORMALS:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        if(prop->values.front()->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom = reinterpret_cast<AtomAbstractNode*>(prop->values.front().get());
+                            if(atom->id == ID_CAMERA_FAR_CORNERS_VIEW_SPACE)
+                                passQuad->mFrustumCorners = CompositorPassQuadDef::VIEW_SPACE_CORNERS;
+                            else if(atom->id == ID_CAMERA_FAR_CORNERS_WORLD_SPACE)
+                                passQuad->mFrustumCorners = CompositorPassQuadDef::WORLD_SPACE_CORNERS;
+                            else
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_CAMERA:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getIdString( *it0, &passQuad->mCameraName ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        }
                     }
                     break;
                 case ID_MATERIAL:
@@ -6802,13 +7315,7 @@ namespace Ogre{
                     else
                     {
                         String val;
-                        if(getString(prop->values.front(), &val))
-                        {
-                            ProcessResourceNameScriptCompilerEvent evt(ProcessResourceNameScriptCompilerEvent::MATERIAL, val);
-                            compiler->_fireEvent(&evt, 0);
-                            mPass->setMaterialName(evt.mName);
-                        }
-                        else
+                        if( !getString(prop->values.front(), &passQuad->mMaterialName) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
@@ -6827,22 +7334,25 @@ namespace Ogre{
                     }
                     else
                     {
-                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0), i1 = getNodeAt(prop->values, 1), i2 = getNodeAt(prop->values, 2);
+                        AbstractNodeList::const_iterator it2 = prop->values.begin();
+                        AbstractNodeList::const_iterator it0 = it2++;
+                        AbstractNodeList::const_iterator it1 = it2++;
+
                         uint32 id;
                         String name;
-                        if(getUInt(*i0, &id) && getString(*i1, &name))
+                        if( getUInt(*it0, &id) && getString(*it1, &name) )
                         {
                             uint32 index = 0;
-                            if(i2 != prop->values.end())
+                            if(it2 != prop->values.end())
                             {
-                                if(!getUInt(*i2, &index))
+                                if(!getUInt(*it2, &index))
                                 {
                                     compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
                                     return;
                                 }
                             }
 
-                            mPass->setInput(id, name, index);
+                            passQuad->addQuadTextureSource( id, name, index );
                         }
                         else
                         {
@@ -6850,6 +7360,419 @@ namespace Ogre{
                         }
                     }
                     break;
+                case ID_VIEWPORT:
+                case ID_IDENTIFIER:
+                case ID_NUM_INITIAL:
+                case ID_OVERLAYS:
+                    break;
+                default:
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
+                }
+            }
+        }
+    }
+
+    void CompositorPassTranslator::translateScene(ScriptCompiler *compiler, const AbstractNodePtr &node,
+                                                    CompositorTargetDef *targetDef)
+    {
+        mPassDef = targetDef->addPass( PASS_SCENE );
+        CompositorPassSceneDef *passScene = static_cast<CompositorPassSceneDef*>( mPassDef );
+
+        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+        obj->context = Any(mPassDef);
+
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_OBJECT)
+            {
+                processNode(compiler, *i);
+            }
+            else if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                switch(prop->id)
+                {
+                case ID_LOD_BIAS:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        Real var;
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( getReal( *it0, &var ) )
+                        {
+                            passScene->mLodBias = var;
+                        }
+                        else
+                        {
+                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_LOD_UPDATE_LIST:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        bool var;
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( getBoolean( *it0, &var ) )
+                        {
+                            passScene->mUpdateLodLists = var;
+                        }
+                        else
+                        {
+                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_VISIBILITY_MASK:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        uint32 var;
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( getHex( *it0, &var ) )
+                        {
+                            passScene->setVisibilityMask( var );
+                        }
+                        else
+                        {
+                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_SHADOWS_ENABLED:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+                        else if(prop->values.size() > 2)
+                        {
+                            compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        AbstractNodeList::const_iterator it1 = it0;
+                        if( prop->values.size() > 1 )
+                            ++it1;
+
+                        String str;
+                        if( getString( *it0, &str ) )
+                        {
+                            if( str == "off" )
+                                passScene->mShadowNode = IdString();
+                            else
+                            {
+                                passScene->mShadowNode = IdString( str );
+                                passScene->mShadowNodeRecalculation = SHADOW_NODE_FIRST_ONLY;
+
+                                if( prop->values.size() > 1 && getString( *it1, &str ) )
+                                {
+                                    if( str == "reuse" )
+                                        passScene->mShadowNodeRecalculation = SHADOW_NODE_REUSE;
+                                    else if( str == "recalculate" )
+                                        passScene->mShadowNodeRecalculation = SHADOW_NODE_RECALCULATE;
+                                    else if( str == "first" )
+                                        passScene->mShadowNodeRecalculation = SHADOW_NODE_FIRST_ONLY;
+                                    else
+                                    {
+                                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS,
+                                                prop->file, prop->line,
+                                                "Valid options are reuse, recalculate and first");
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                "shadow property can be either 'shadow off' or 'shadow myNodeName "
+                                "[first|reuse|recalculate]'");
+                        }
+                    }
+                    break;
+                case ID_CAMERA:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getIdString( *it0, &passScene->mCameraName ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_LOD_CAMERA:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getIdString( *it0, &passScene->mLodCameraName ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_FIRST_RENDER_QUEUE:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        uint32 val;
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( getUInt( *it0, &val ) )
+                        {
+                            passScene->mFirstRQ = val;
+                        }
+                        else
+                        {
+                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_LAST_RENDER_QUEUE:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        uint32 val;
+                        String str;
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( getUInt( *it0, &val ) )
+                        {
+                            passScene->mLastRQ = std::min<uint32>( val, std::numeric_limits<uint8>::max() );
+                        }
+                        else if( getString( *it0, &str ) && str == "max" )
+                        {
+                            passScene->mLastRQ = std::numeric_limits<uint8>::max();
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line,
+                                                "Expected a number between 0 & 255, or the word 'max'" );
+                        }
+                    }
+                    break;
+                case ID_CAMERA_CUBEMAP_REORIENT:
+                    {
+                        if(prop->values.empty())
+                        {
+                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                            return;
+                        }
+
+                        AbstractNodeList::const_iterator it0 = prop->values.begin();
+                        if( !getBoolean( *it0, &passScene->mCameraCubemapReorient ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+                case ID_VIEWPORT:
+                case ID_IDENTIFIER:
+                case ID_NUM_INITIAL:
+                case ID_OVERLAYS:
+                    break;
+                default:
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
+                }
+            }
+        }
+    }
+
+    void CompositorPassTranslator::translateStencil(ScriptCompiler *compiler, const AbstractNodePtr &node,
+                                                    CompositorTargetDef *targetDef)
+    {
+        mPassDef = targetDef->addPass( PASS_STENCIL );
+        CompositorPassStencilDef *passStencil = static_cast<CompositorPassStencilDef*>( mPassDef );
+
+        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+        obj->context = Any(mPassDef);
+
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_OBJECT)
+            {
+                processNode(compiler, *i);
+            }
+            else if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                switch(prop->id)
+                {
+                case ID_CHECK:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        return;
+                    }
+                    if(!getBoolean(prop->values.front(), &passStencil->mStencilCheck))
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    break;
+                case ID_COMP_FUNC:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        return;
+                    }
+                    if(!getCompareFunction(prop->values.front(), &passStencil->mCompareFunc))
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    break;
+                case ID_REF_VALUE:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        return;
+                    }
+                    if(!getUInt(prop->values.front(), &passStencil->mStencilRef))
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    break;
+                case ID_MASK:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        return;
+                    }
+                    if(!getUInt(prop->values.front(), &passStencil->mStencilMask))
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    break;
+                case ID_FAIL_OP:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        return;
+                    }
+                    if(!getStencilOp(prop->values.front(), &passStencil->mStencilFailOp))
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    break;
+                case ID_DEPTH_FAIL_OP:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        return;
+                    }
+                    if(!getStencilOp(prop->values.front(), &passStencil->mStencilDepthFailOp))
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    break;
+                case ID_PASS_OP:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        return;
+                    }
+                    if(!getStencilOp(prop->values.front(), &passStencil->mStencilPassOp))
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    break;
+                case ID_TWO_SIDED:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                        return;
+                    }
+                    if(!getBoolean(prop->values.front(), &passStencil->mTwoSided))
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                    break;
+                case ID_VIEWPORT:
+                case ID_IDENTIFIER:
+                case ID_NUM_INITIAL:
+                case ID_OVERLAYS:
+                    break;
+                default:
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
+                        "token \"" + prop->name + "\" is not recognized");
+                }
+            }
+        }
+    }
+
+    void CompositorPassTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
+    {
+        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+
+        CompositorTargetDef *target = any_cast<CompositorTargetDef*>(obj->parent->context);
+
+        // The name is the type of the pass
+        if(obj->name.empty())
+        {
+            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, obj->file, obj->line);
+            return;
+        }
+
+        if(obj->name == "clear")
+            translateClear( compiler, node, target );
+        else if(obj->name == "stencil")
+            translateStencil( compiler, node, target );
+        else if(obj->name == "render_quad")
+            translateQuad( compiler, node, target );
+        else if(obj->name == "render_scene")
+            translateScene( compiler, node, target );
+        else
+        {
+            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line,
+                "pass types must be \"clear\", \"stencil\", \"render_quad\" or \"render_scene\".");
+            return;
+        }
+
+        obj->context = Any(mPassDef);
+
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                switch(prop->id)
+                {
+                case ID_VIEWPORT:
+                    {
+                        if(prop->values.size() != 4)
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                "4 numeric arguments expected");
+                            return;
+                        }
+                        AbstractNodeList::const_iterator it3 = prop->values.begin();
+                        AbstractNodeList::const_iterator it0 = it3++;
+                        AbstractNodeList::const_iterator it1 = it3++;
+                        AbstractNodeList::const_iterator it2 = it3++;
+
+                        if( !getFloat( *it0, &mPassDef->mVpLeft ) || !getFloat( *it1, &mPassDef->mVpTop ) ||
+                            !getFloat( *it2, &mPassDef->mVpWidth ) || !getFloat( *it3, &mPassDef->mVpHeight ) )
+                        {
+                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+                    }
+                    break;
+
                 case ID_IDENTIFIER:
                     if(prop->values.empty())
                     {
@@ -6863,18 +7786,13 @@ namespace Ogre{
                     }
                     else
                     {
-                        uint32 val;
-                        if(getUInt(prop->values.front(), &val))
-                        {
-                            mPass->setIdentifier(val);
-                        }
-                        else
+                        if( !getUInt(prop->values.front(), &mPassDef->mIdentifier) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
                     }
                     break;
-                case ID_FIRST_RENDER_QUEUE:
+                case ID_NUM_INITIAL:
                     if(prop->values.empty())
                     {
                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
@@ -6887,97 +7805,32 @@ namespace Ogre{
                     }
                     else
                     {
-                        uint32 val;
-                        if(getUInt(prop->values.front(), &val))
-                        {
-                            mPass->setFirstRenderQueue(static_cast<uint8>(val));
-                        }
-                        else
+                        if( !getUInt(prop->values.front(), &mPassDef->mNumInitialPasses) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
                     }
                     break;
-                case ID_LAST_RENDER_QUEUE:
+                case ID_OVERLAYS:
                     if(prop->values.empty())
                     {
                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
                     }
-                    else if (prop->values.size() > 1)
+                    else if(prop->values.size() > 1)
                     {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "overlays only supports 1 argument");
                     }
                     else
                     {
-                        uint32 val;
-                        if(getUInt(prop->values.front(), &val))
+                        bool val = true;
+                        if(!getBoolean(prop->values.front(), &mPassDef->mIncludeOverlays))
                         {
-                            mPass->setLastRenderQueue(static_cast<uint8>(val));
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                "overlays argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
                         }
                     }
                     break;
-                case ID_MATERIAL_SCHEME:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else
-                    {
-                        String val;
-                        if(getString(prop->values.front(), &val))
-                        {
-                            mPass->setMaterialScheme(val);
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                        }
-                    }
-                    break;
-                case ID_QUAD_NORMALS:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else if (prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line);
-                        return;
-                    }
-                    else
-                    {
-                        if(prop->values.front()->type == ANT_ATOM)
-                        {
-                            AtomAbstractNode *atom = reinterpret_cast<AtomAbstractNode*>(prop->values.front().get());
-                            if(atom->id == ID_CAMERA_FAR_CORNERS_VIEW_SPACE)
-                                mPass->setQuadFarCorners(true, true);
-                            else if(atom->id == ID_CAMERA_FAR_CORNERS_WORLD_SPACE)
-                                mPass->setQuadFarCorners(true, false);
-                            else
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                        }
-                    }
-                    break;
-                default:
-                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
-                                       "token \"" + prop->name + "\" is not recognized");
                 }
             }
         }
@@ -7013,11 +7866,11 @@ namespace Ogre{
                 translator = &mTextureUnitTranslator;
             else if(obj->id == ID_TEXTURE_SOURCE && parent && parent->id == ID_TEXTURE_UNIT)
                 translator = &mTextureSourceTranslator;
-            else if(obj->id == ID_FRAGMENT_PROGRAM ||
-                    obj->id == ID_VERTEX_PROGRAM ||
+            else if(obj->id == ID_FRAGMENT_PROGRAM || 
+                    obj->id == ID_VERTEX_PROGRAM || 
                     obj->id == ID_GEOMETRY_PROGRAM ||
-                    obj->id == ID_TESSELLATION_HULL_PROGRAM || 
-                    obj->id == ID_TESSELLATION_DOMAIN_PROGRAM ||
+                    obj->id == ID_TESSELATION_HULL_PROGRAM || 
+                    obj->id == ID_TESSELATION_DOMAIN_PROGRAM ||
                     obj->id == ID_COMPUTE_PROGRAM)
                 translator = &mGpuProgramTranslator;
             else if(obj->id == ID_SHARED_PARAMS)
@@ -7028,14 +7881,18 @@ namespace Ogre{
                 translator = &mParticleEmitterTranslator;
             else if(obj->id == ID_AFFECTOR)
                 translator = &mParticleAffectorTranslator;
-            else if(obj->id == ID_COMPOSITOR)
-                translator = &mCompositorTranslator;
-            else if(obj->id == ID_TECHNIQUE && parent && parent->id == ID_COMPOSITOR)
-                translator = &mCompositionTechniqueTranslator;
-            else if((obj->id == ID_TARGET || obj->id == ID_TARGET_OUTPUT) && parent && parent->id == ID_TECHNIQUE)
-                translator = &mCompositionTargetPassTranslator;
-            else if(obj->id == ID_PASS && parent && (parent->id == ID_TARGET || parent->id == ID_TARGET_OUTPUT))
-                translator = &mCompositionPassTranslator;
+            else if(obj->id == ID_WORKSPACE)
+                translator = &mCompositorWorkspaceTranslator;
+            else if(obj->id == ID_COMPOSITOR_NODE)
+                translator = &mCompositorNodeTranslator;
+            else if(obj->id == ID_SHADOW_NODE)
+                translator = &mCompositorShadowNodeTranslator;
+            else if(obj->id == ID_TARGET && parent && (parent->id == ID_COMPOSITOR_NODE || parent->id == ID_SHADOW_NODE))
+                translator = &mCompositorTargetTranslator;
+            else if(obj->id == ID_SHADOW_MAP && parent && ID_SHADOW_NODE)
+                translator = &mCompositorShadowMapTargetTranslator;
+            else if(obj->id == ID_PASS && parent && (parent->id == ID_TARGET || parent->id == ID_SHADOW_MAP))
+                translator = &mCompositorPassTranslator;
         }
 
         return translator;

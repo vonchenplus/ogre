@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include "OgreWindowEventUtilities.h"
 #include "OgreGLES2RenderSystem.h"
 #include "OgreGLES2PixelFormat.h"
-#include "OgreViewport.h"
+#include "OgrePixelBox.h"
 #include <iomanip>
 
 #import <UIKit/UIWindow.h>
@@ -143,7 +143,7 @@ namespace Ogre {
 
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
         {
-            (*it).second->_updateDimensions();
+            (*it)->_updateDimensions();
         }
 	}
     
@@ -157,7 +157,7 @@ namespace Ogre {
 
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
         {
-            (*it).second->_updateDimensions();
+            (*it)->_updateDimensions();
         }
 	}
 

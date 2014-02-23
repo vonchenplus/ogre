@@ -62,9 +62,10 @@ namespace Ogre {
     {
     }
     //-----------------------------------------------------------------------
-    BillboardChain::BillboardChain(const String& name, size_t maxElements,
-        size_t numberOfChains, bool useTextureCoords, bool useColours, bool dynamic)
-        :MovableObject(name),
+    BillboardChain::BillboardChain( IdType id, ObjectMemoryManager *objectMemoryManager,
+            size_t maxElements, size_t numberOfChains, bool useTextureCoords,
+            bool useColours, bool dynamic )
+        :MovableObject( id, objectMemoryManager ),
         mMaxElementsPerChain(maxElements),
         mChainCount(numberOfChains),
         mUseTexCoords(useTextureCoords),
@@ -75,7 +76,7 @@ namespace Ogre {
         mBoundsDirty(true),
         mIndexContentDirty(true),
         mVertexContentDirty(true),
-        mRadius(0.0f),
+        mRadius(0.0f), //TODO: (dark_sylinc)
         mTexCoordDir(TCD_U),
         mVertexCameraUsed(0),
         mFaceCamera(true),
@@ -278,10 +279,6 @@ namespace Ogre {
         mVertexContentDirty = true;
         mIndexContentDirty = true;
         mBoundsDirty = true;
-        // tell parent node to update bounds
-        if (mParentNode)
-            mParentNode->needUpdate();
-
     }
     //-----------------------------------------------------------------------
     void BillboardChain::removeChainElement(size_t chainIndex)
@@ -315,10 +312,6 @@ namespace Ogre {
         mVertexContentDirty = true;
         mIndexContentDirty = true;
         mBoundsDirty = true;
-        // tell parent node to update bounds
-        if (mParentNode)
-            mParentNode->needUpdate();
-
     }
     //-----------------------------------------------------------------------
     void BillboardChain::clearChain(size_t chainIndex)
@@ -338,10 +331,6 @@ namespace Ogre {
         mVertexContentDirty = true;
         mIndexContentDirty = true;
         mBoundsDirty = true;
-        // tell parent node to update bounds
-        if (mParentNode)
-            mParentNode->needUpdate();
-
     }
     //-----------------------------------------------------------------------
     void BillboardChain::clearAllChains(void)
@@ -385,11 +374,6 @@ namespace Ogre {
 
         mVertexContentDirty = true;
         mBoundsDirty = true;
-        // tell parent node to update bounds
-        if (mParentNode)
-            mParentNode->needUpdate();
-
-
     }
     //-----------------------------------------------------------------------
     const BillboardChain::Element&
@@ -473,8 +457,8 @@ namespace Ogre {
             else
             {
                 mRadius = Math::Sqrt(
-                    std::max(mAABB.getMinimum().squaredLength(),
-                    mAABB.getMaximum().squaredLength()));
+                    max( mAABB.getMinimum().squaredLength(),
+                        mAABB.getMaximum().squaredLength() ) );
             }
 
             mBoundsDirty = false;
@@ -709,11 +693,6 @@ namespace Ogre {
         return dist.squaredLength();
     }
     //-----------------------------------------------------------------------
-    Real BillboardChain::getBoundingRadius(void) const
-    {
-        return mRadius;
-    }
-    //-----------------------------------------------------------------------
     const AxisAlignedBox& BillboardChain::getBoundingBox(void) const
     {
         updateBoundingBox();
@@ -754,40 +733,40 @@ namespace Ogre {
         return BillboardChainFactory::FACTORY_TYPE_NAME;
     }
     //-----------------------------------------------------------------------
-    void BillboardChain::_updateRenderQueue(RenderQueue* queue)
+    void BillboardChain::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
     {
         updateIndexBuffer();
 
-        if (mIndexData->indexCount > 0)
-        {
-            if (mRenderQueuePrioritySet)
-                queue->addRenderable(this, mRenderQueueID, mRenderQueuePriority);
-            else if (mRenderQueueIDSet)
+		if (mIndexData->indexCount > 0)
+		{
+			if (mRenderQueuePrioritySet)
+				queue->addRenderable(this, mRenderQueueID, mRenderQueuePriority);
+			else if (mRenderQueueIDSet)
                 queue->addRenderable(this, mRenderQueueID);
             else
                 queue->addRenderable(this);
-        }
+		}
 
-    }
-    //-----------------------------------------------------------------------
-    void BillboardChain::getRenderOperation(RenderOperation& op)
-    {
-        op.indexData = mIndexData;
-        op.operationType = RenderOperation::OT_TRIANGLE_LIST;
-        op.srcRenderable = this;
-        op.useIndexes = true;
-        op.vertexData = mVertexData;
-    }
-    //-----------------------------------------------------------------------
+	}
+	//-----------------------------------------------------------------------
+	void BillboardChain::getRenderOperation(RenderOperation& op)
+	{
+		op.indexData = mIndexData;
+		op.operationType = RenderOperation::OT_TRIANGLE_LIST;
+		op.srcRenderable = this;
+		op.useIndexes = true;
+		op.vertexData = mVertexData;
+	}
+	//-----------------------------------------------------------------------
     bool BillboardChain::preRender(SceneManager* sm, RenderSystem* rsys)
     {
         // Retrieve the current viewport from the scene manager.
         // The viewport is only valid during a viewport update.
-        Viewport *currentViewport = sm->getCurrentViewport();
-        if( !currentViewport )
+        Camera *cameraInProgress = sm->getCameraInProgress();
+        if( !cameraInProgress )
             return false;
 
-        updateVertexBuffer(currentViewport->getCamera());
+        updateVertexBuffer( cameraInProgress );
         return true;
     }
     //-----------------------------------------------------------------------
@@ -816,8 +795,9 @@ namespace Ogre {
         return FACTORY_TYPE_NAME;
     }
     //-----------------------------------------------------------------------
-    MovableObject* BillboardChainFactory::createInstanceImpl( const String& name,
-        const NameValuePairList* params)
+    MovableObject* BillboardChainFactory::createInstanceImpl( IdType id,
+                                            ObjectMemoryManager *objectMemoryManager,
+                                            const NameValuePairList* params )
     {
         size_t maxElements = 20;
         size_t numberOfChains = 1;
@@ -855,7 +835,8 @@ namespace Ogre {
 
         }
 
-        return OGRE_NEW BillboardChain(name, maxElements, numberOfChains, useTex, useCol, dynamic);
+        return OGRE_NEW BillboardChain( id, objectMemoryManager, maxElements,
+                                        numberOfChains, useTex, useCol, dynamic);
 
     }
     //-----------------------------------------------------------------------

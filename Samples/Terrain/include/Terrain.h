@@ -486,14 +486,15 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
 
         // set up a colour map
         /*
-          if (!terrain->getGlobalColourMapEnabled())
-          {
-          terrain->setGlobalColourMapEnabled(true);
-          Image colourMap;
-          colourMap.load("testcolourmap.jpg", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-          terrain->getGlobalColourMap()->loadImage(colourMap);
-          }
+        if (!terrain->getGlobalColourMapEnabled())
+        {
+            terrain->setGlobalColourMapEnabled(true);
+            Image colourMap;
+            colourMap.load("testcolourmap.jpg", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+            terrain->getGlobalColourMap()->loadImage(colourMap);
+        }
         */
+
     }
 
     void configureTerrainDefaults(Light* l)
@@ -583,13 +584,17 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
 
     void addTextureShadowDebugOverlay(TrayLocation loc, size_t num)
     {
+        ShadowTextureList texList;
+        ShadowTextureManager::getSingleton().getAllShadowTextures(texList);
         for (size_t i = 0; i < num; ++i)
         {
-            TexturePtr shadowTex = mSceneMgr->getShadowTexture(i);
+            TexturePtr shadowTex = texList[i];
             addTextureDebugOverlay(loc, shadowTex, i);
-        }
-    }
 
+        }
+
+    }
+        
     MaterialPtr buildDepthShadowMaterial(const String& textureName)
     {
         String matName = "DepthShadows/" + textureName;
@@ -761,7 +766,8 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
         if (Ogre::Root::getSingleton().getRenderSystem()->getName() == "Direct3D11 Rendering Subsystem")
             mTerrainGlobals->setUseVertexCompressionWhenAvailable(false);
 
-        mEditMarker = mSceneMgr->createEntity("editMarker", "sphere.mesh");
+        mEditMarker = mSceneMgr->createEntity("sphere.mesh");
+        mEditMarker->setName("editMarker");
         mEditNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         mEditNode->attachObject(mEditMarker);
         mEditNode->setScale(0.05, 0.05, 0.05);
@@ -790,11 +796,12 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
 
         mSceneMgr->setAmbientLight(ColourValue(0.2, 0.2, 0.2));
 
+
         mTerrainGroup = OGRE_NEW TerrainGroup(mSceneMgr, Terrain::ALIGN_X_Z, TERRAIN_SIZE, TERRAIN_WORLD_SIZE);
         mTerrainGroup->setFilenameConvention(TERRAIN_FILE_PREFIX, TERRAIN_FILE_SUFFIX);
         mTerrainGroup->setOrigin(mTerrainPos);
         mTerrainGroup->setResourceGroup("Terrain");
-        
+
         configureTerrainDefaults(l);
 #ifdef PAGING
         // Paging setup
@@ -872,10 +879,7 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
         else
             OGRE_DELETE mTerrainGroup;
 
-        if (mTerrainGlobals) 
-        {
-            OGRE_DELETE mTerrainGlobals;
-        }
+        OGRE_DELETE mTerrainGlobals;
         mHouseList.clear();
 
         SdkSample::_shutdown();

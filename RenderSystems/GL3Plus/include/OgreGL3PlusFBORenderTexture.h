@@ -82,10 +82,10 @@ namespace Ogre {
         virtual GL3PlusFBORenderTexture *createRenderTexture(const String &name,
                                                              const GL3PlusSurfaceDesc &target, bool writeGamma, uint fsaa);
 
-        /** Create a multi render target
-         */
+        /** Create a multi render target 
+        */
         virtual MultiRenderTarget* createMultiRenderTarget(const String & name);
-
+        
         /** Request a render buffer. If format is GL_NONE, return a zero buffer.
          */
         GL3PlusSurfaceDesc requestRenderBuffer(GLenum format, uint32 width, uint32 height, uint fsaa);

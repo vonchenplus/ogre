@@ -80,9 +80,9 @@ protected:
     int                             mInstancingTechnique;
     int                             mCurrentMesh;
     std::vector<MovableObject*>     mEntities;
-    std::vector<InstancedEntity*>   mMovedInstances;
     std::vector<SceneNode*>         mSceneNodes;
-    std::set<AnimationState*>       mAnimations;
+    std::vector<SkeletonAnimation*> mAnimations;
+    std::vector<AnimationState*>    mAnimationsLegacy;
     InstanceManager                 *mCurrentManager;
     bool                            mSupportedTechniques[NUM_TECHNIQUES+1];
     const char**                        mCurrentMaterialSet;
@@ -94,7 +94,6 @@ protected:
     SelectMenu                      *mSkinningTechniques;
     CheckBox                        *mEnableShadows;
     CheckBox                        *mSetStatic;
-    CheckBox                        *mUseSceneNodes;
     OgreBites::Button                   *mDefragmentBatches;
     CheckBox                        *mDefragmentOptimumCull;
     Slider                          *mInstancesSlider;

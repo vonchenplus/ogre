@@ -36,11 +36,11 @@ namespace Ogre {
 
 
     /** \addtogroup Core
-     *  @{
-     */
+    *  @{
+    */
     /** \addtogroup RenderSystem
-     *  @{
-     */
+    *  @{
+    */
     /** 'New' rendering operation using vertex buffers. */
     class _OgrePrivate RenderOperation {
     public:

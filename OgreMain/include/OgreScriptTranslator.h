@@ -30,11 +30,15 @@ THE SOFTWARE.
 #define __SCRIPTTRANSLATOR_H_
 
 #include "OgrePrerequisites.h"
+#include "Compositor/OgreCompositorCommon.h"
 #include "OgreScriptCompiler.h"
-#include "OgreRenderSystem.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre{
+    struct IdString;
+    enum StencilOperation;
+    class TextureDefinitionBase;
+
     /** \addtogroup Core
     *  @{
     */
@@ -152,13 +156,11 @@ namespace Ogre{
         void translateVertexProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
         void translateGeometryProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
         void translateFragmentProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
-        void translateTessellationHullProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
-        void translateTessellationDomainProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
+        void translateTesselationHullProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
+        void translateTesselationDomainProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
         void translateComputeProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
         void translateShadowCasterVertexProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
         void translateShadowCasterFragmentProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
-        void translateShadowReceiverVertexProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
-        void translateShadowReceiverFragmentProgramRef(ScriptCompiler *compiler, ObjectAbstractNode *node);
     };
 
     class _OgreExport TextureUnitTranslator : public ScriptTranslator
@@ -231,36 +233,70 @@ namespace Ogre{
     /**************************************************************************
      * Compositor section
      *************************************************************************/
-    class _OgreExport CompositorTranslator : public ScriptTranslator
+    class _OgreExport CompositorTextureBaseTranslator : public ScriptTranslator
     {
     protected:
-        Compositor *mCompositor;
+        void translateTextureProperty( TextureDefinitionBase *defBase, PropertyAbstractNode *prop,
+                                        ScriptCompiler *compiler ) const;
+    };
+    class _OgreExport CompositorWorkspaceTranslator : public CompositorTextureBaseTranslator
+    {
+    protected:
+        CompositorWorkspaceDef *mWorkspaceDef;
     public:
-        CompositorTranslator();
+        CompositorWorkspaceTranslator();
         void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
     };
-    class _OgreExport CompositionTechniqueTranslator : public ScriptTranslator
+    class _OgreExport CompositorNodeTranslator : public CompositorTextureBaseTranslator
     {
     protected:
-        CompositionTechnique *mTechnique;
+        CompositorNodeDef *mNodeDef;
     public:
-        CompositionTechniqueTranslator();
+        CompositorNodeTranslator();
         void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
     };
-    class _OgreExport CompositionTargetPassTranslator : public ScriptTranslator
+    class _OgreExport CompositorShadowNodeTranslator : public CompositorTextureBaseTranslator
     {
     protected:
-        CompositionTargetPass *mTarget;
+        CompositorShadowNodeDef *mShadowNodeDef;
+        void translateShadowMapProperty( PropertyAbstractNode *prop, ScriptCompiler *compiler,
+                                         bool isAtlas, const ShadowTextureDefinition &defaultParams ) const;
     public:
-        CompositionTargetPassTranslator();
+        CompositorShadowNodeTranslator();
         void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
     };
-    class _OgreExport CompositionPassTranslator : public ScriptTranslator
+    class _OgreExport CompositorTargetTranslator : public ScriptTranslator
     {
     protected:
-        CompositionPass *mPass;
+        CompositorTargetDef *mTargetDef;
     public:
-        CompositionPassTranslator();
+        CompositorTargetTranslator();
+        void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
+    };
+    class _OgreExport CompositorShadowMapTargetTranslator : public ScriptTranslator
+    {
+    protected:
+        CompositorTargetDef *mTargetDef;
+    public:
+        CompositorShadowMapTargetTranslator();
+        void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
+    };
+    class _OgreExport CompositorPassTranslator : public ScriptTranslator
+    {
+    protected:
+        CompositorPassDef *mPassDef;
+
+        void translateClear( ScriptCompiler *compiler, const AbstractNodePtr &node,
+                             CompositorTargetDef *targetDef );
+        void translateQuad( ScriptCompiler *compiler, const AbstractNodePtr &node,
+                            CompositorTargetDef *targetDef );
+        void translateScene( ScriptCompiler *compiler, const AbstractNodePtr &node,
+                             CompositorTargetDef *targetDef );
+        void translateStencil( ScriptCompiler *compiler, const AbstractNodePtr &node,
+                                CompositorTargetDef *targetDef );
+
+    public:
+        CompositorPassTranslator();
         void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
     };
 
@@ -281,10 +317,12 @@ namespace Ogre{
         ParticleSystemTranslator mParticleSystemTranslator;
         ParticleEmitterTranslator mParticleEmitterTranslator;
         ParticleAffectorTranslator mParticleAffectorTranslator;
-        CompositorTranslator mCompositorTranslator;
-        CompositionTechniqueTranslator mCompositionTechniqueTranslator;
-        CompositionTargetPassTranslator mCompositionTargetPassTranslator;
-        CompositionPassTranslator mCompositionPassTranslator;
+        CompositorWorkspaceTranslator mCompositorWorkspaceTranslator;
+        CompositorNodeTranslator mCompositorNodeTranslator;
+        CompositorShadowNodeTranslator mCompositorShadowNodeTranslator;
+        CompositorTargetTranslator mCompositorTargetTranslator;
+        CompositorShadowMapTargetTranslator mCompositorShadowMapTargetTranslator;
+        CompositorPassTranslator mCompositorPassTranslator;
     public:
         BuiltinScriptTranslatorManager();
         /// Returns the number of translators being managed

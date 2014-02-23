@@ -349,7 +349,7 @@ namespace Ogre {
         // texture aliases
         writeTextureAliases(subMeshNode, s);
 
-        // Bone assignments
+        // OldBone assignments
         if (mMesh->hasSkeleton())
         {
             SubMesh::BoneAssignmentIterator bi = const_cast<SubMesh*>(s)->getBoneAssignmentIterator();
@@ -865,7 +865,7 @@ namespace Ogre {
             if(textureAliasesNode)
                 readTextureAliases(textureAliasesNode, sm);
 
-            // Bone assignments
+            // OldBone assignments
             TiXmlElement* boneAssigns = smElem->FirstChildElement("boneassignments");
             if(boneAssigns)
                 readBoneAssignments(boneAssigns, sm);
@@ -1438,10 +1438,9 @@ namespace Ogre {
         TiXmlElement* lodNode = 
             mMeshNode->InsertEndChild(TiXmlElement("levelofdetail"))->ToElement();
 
-        const LodStrategy *strategy = pMesh->getLodStrategy();
         unsigned short numLvls = pMesh->getNumLodLevels();
-        bool manual = pMesh->hasManualLodLevel();
-        lodNode->SetAttribute("strategy", strategy->getName());
+        bool manual = pMesh->isLodManual();
+        lodNode->SetAttribute("strategy", pMesh->getLodStrategyName());
         lodNode->SetAttribute("numlevels", StringConverter::toString(numLvls));
         lodNode->SetAttribute("manual", StringConverter::toString(manual));
 
@@ -1449,7 +1448,7 @@ namespace Ogre {
         for (unsigned short i = 1; i < numLvls; ++i)
         {
             const MeshLodUsage& usage = pMesh->getLodLevel(i);
-            if (pMesh->_isManualLodLevel(i))
+            if (manual)
             {
                 writeLodUsageManual(lodNode, i, usage);
             }
@@ -1602,9 +1601,7 @@ namespace Ogre {
         // This attribute is optional to maintain backwards compatibility
         if (val)
         {
-            String strategyName = val;
-            LodStrategy *strategy = LodStrategyManager::getSingleton().getStrategy(strategyName);
-            mMesh->setLodStrategy(strategy);
+            mMesh->setLodStrategyName( val );
         }
 
         val = lodNode->Attribute("numlevels");
@@ -1612,26 +1609,34 @@ namespace Ogre {
             StringConverter::parseUnsignedInt(val));
 
         val = lodNode->Attribute("manual");
-        StringConverter::parseBool(val);
+        bool manual = StringConverter::parseBool(val);
 
         // Set up the basic structures
-        mMesh->_setLodInfo(numLevels);
+        mMesh->_setLodInfo(numLevels, manual);
 
         // Parse the detail, start from 1 (the first sub-level of detail)
         unsigned short i = 1;
-        TiXmlElement* usageElem = lodNode->FirstChildElement();
+        TiXmlElement* usageElem;
+        if (manual)
+        {
+            usageElem = lodNode->FirstChildElement("lodmanual");
+        }
+        else
+        {
+            usageElem = lodNode->FirstChildElement("lodgenerated");
+        }
         while (usageElem)
         {
-            if (usageElem->ValueStr() == "lodmanual")
+            if (manual)
             {
                 readLodUsageManual(usageElem, i);
-                
+                usageElem = usageElem->NextSiblingElement();
             }
-            else if (usageElem->ValueStr() == "lodgenerated")
+            else
             {
                 readLodUsageGenerated(usageElem, i);
+                usageElem = usageElem->NextSiblingElement();
             }
-            usageElem = usageElem->NextSiblingElement();
             ++i;
         }
         
@@ -1657,18 +1662,11 @@ namespace Ogre {
         {
             usage.userValue = StringConverter::parseReal(val);
         }
-        usage.value = mMesh->getLodStrategy()->transformUserValue(usage.userValue);
+        const LodStrategy *lodStrategy = LodStrategyManager::getSingleton().getStrategy( mMesh->getLodStrategyName() );
+        usage.value = lodStrategy->transformUserValue(usage.userValue);
         usage.manualName = manualNode->Attribute("meshname");
         usage.edgeData = NULL;
 
-        // Generate for mixed
-        ushort numSubs, i;
-        numSubs = mMesh->getNumSubMeshes();
-        for (i = 0; i < numSubs; ++i)
-        {
-            SubMesh* sm = mMesh->getSubMesh(i);
-            sm->mLodFaceList[index - 1] = OGRE_NEW IndexData();
-        }
         mMesh->_setLodUsage(index, usage);
     }
     //---------------------------------------------------------------------
@@ -1690,7 +1688,8 @@ namespace Ogre {
         {
             usage.userValue = StringConverter::parseReal(val);
         }
-        usage.value = mMesh->getLodStrategy()->transformUserValue(usage.userValue);
+        const LodStrategy *lodStrategy = LodStrategyManager::getSingleton().getStrategy( mMesh->getLodStrategyName() );
+        usage.value = lodStrategy->transformUserValue(usage.userValue);
         usage.manualMesh.setNull();
         usage.manualName = "";
         usage.edgeData = NULL;

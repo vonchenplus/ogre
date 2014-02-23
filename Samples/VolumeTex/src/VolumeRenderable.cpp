@@ -12,20 +12,23 @@ same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 #include "VolumeRenderable.h"
-#include "OgreCamera.h"
-#include "OgreSceneNode.h"
-#include "OgreHardwareVertexBuffer.h"
-#include "OgreHardwareIndexBuffer.h"
-#include "OgreHardwareBufferManager.h"
-#include "OgreMaterial.h"
-#include "OgreTechnique.h"
-#include "OgrePass.h"
-#include "OgreTextureUnitState.h"
-#include "OgreTextureManager.h"
-#include "OgreMaterialManager.h"
+#include <OgreCamera.h>
+#include <OgreSceneNode.h>
+#include <OgreHardwareVertexBuffer.h>
+#include <OgreHardwareIndexBuffer.h>
+#include <OgreHardwareBufferManager.h>
+#include <OgreMaterial.h>
+#include <OgreTechnique.h>
+#include <OgrePass.h>
+#include <OgreTextureUnitState.h>
+#include <OgreTextureManager.h>
+#include <OgreMaterialManager.h>
+#include <Math/Array/OgreObjectMemoryManager.h>
+
 using namespace Ogre;
 
 VolumeRenderable::VolumeRenderable(size_t nSlices, float size, const String &texture):
+    SimpleRenderable(0, new ObjectMemoryManager()),
     mSlices(nSlices),
     mSize(size),
     mTexture(texture)
@@ -50,7 +53,7 @@ VolumeRenderable::~VolumeRenderable()
 
 void VolumeRenderable::_notifyCurrentCamera( Camera* cam )
 {
-    MovableObject::_notifyCurrentCamera(cam);
+//  MovableObject::_notifyCurrentCamera(cam);
 
     // Fake orientation toward camera
     Vector3 zVec = getParentNode()->_getDerivedPosition() - cam->getDerivedPosition();

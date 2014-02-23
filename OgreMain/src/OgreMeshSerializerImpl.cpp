@@ -290,7 +290,7 @@ namespace Ogre {
         // Operation type
         writeSubMeshOperation(s);
 
-        // Bone assignments
+        // OldBone assignments
         if (!s->mBoneAssignments.empty())
         {
             LogManager::getSingleton().logMessage("Exporting dedicated geometry bone assignments...");
@@ -608,7 +608,7 @@ namespace Ogre {
         size += calcSubMeshTextureAliasesSize(pSub);
         size += calcSubMeshOperationSize(pSub);
 
-        // Bone assignments
+        // OldBone assignments
         if (!pSub->mBoneAssignments.empty())
         {
             SubMesh::VertexBoneAssignmentList::const_iterator vi;
@@ -1214,7 +1214,7 @@ namespace Ogre {
 
         // Vert index
         size += sizeof(unsigned int);
-        // Bone index
+        // OldBone index
         size += sizeof(unsigned short);
         // weight
         size += sizeof(float);
@@ -1503,7 +1503,7 @@ namespace Ogre {
         if (strategy == 0)
             strategy = LodStrategyManager::getSingleton().getDefaultStrategy();
 
-        pMesh->setLodStrategy(strategy);
+        pMesh->setLodStrategyName(strategy->getName());
 
         // unsigned short numLevels;
         readShorts(stream, &(pMesh->mNumLods), 1);
@@ -3550,9 +3550,19 @@ namespace Ogre {
 #else
         unsigned short streamID, i;
 
+        LodStrategy *activeStrategy = LodStrategyManager::getSingleton().getDefaultStrategy();
+        if( activeStrategy != DistanceLodSphereStrategy::getSingletonPtr() )
+        {
+            LogManager::getSingleton().logMessage("WARNING! Lod strategies don't match.\n"
+                                "Active strategy (global):\t" + activeStrategy->getName() + "\n" +
+                                "Mesh' strategy:\t" +
+                                DistanceLodSphereStrategy::getSingletonPtr()->getName() + "\n" +
+                                "in " + pMesh->getName() + ". Lod may pop in/out in unexpected ways." );
+        }
+
         // Use the old strategy for this mesh
         LodStrategy *strategy = DistanceLodSphereStrategy::getSingletonPtr();
-        pMesh->setLodStrategy(strategy);
+        pMesh->setLodStrategyName(strategy->getName());
 
         // unsigned short numLevels;
         readShorts(stream, &(pMesh->mNumLods), 1);
@@ -3575,6 +3585,7 @@ namespace Ogre {
         }
         pushInnerChunk(stream);
         // Loop from 1 rather than 0 (full detail index is not in file)
+        pMesh->mLodValues.resize( pMesh->mNumLods, 0 );
         for (i = 1; i < pMesh->mNumLods; ++i)
         {
             streamID = readChunk(stream);

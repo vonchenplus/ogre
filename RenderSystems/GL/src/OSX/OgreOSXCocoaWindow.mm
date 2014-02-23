@@ -34,7 +34,7 @@ THE SOFTWARE.
 #import "OgreGLPixelFormat.h"
 #import "OgreGLUtil.h"
 #import "OgreGLRenderSystem.h"
-#import "OgreViewport.h"
+#import "OgrePixelBox.h"
 
 #import <AppKit/NSScreen.h>
 #import <AppKit/NSOpenGLView.h>
@@ -566,7 +566,7 @@ namespace Ogre {
         
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it) 
         { 
-            (*it).second->_updateDimensions(); 
+            (*it)->_updateDimensions();
         }
     }
 
@@ -590,7 +590,7 @@ namespace Ogre {
 
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
         {
-            (*it).second->_updateDimensions();
+            (*it)->_updateDimensions();
         }
 		[mGLContext update];
     }

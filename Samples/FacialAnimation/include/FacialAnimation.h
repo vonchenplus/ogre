@@ -1,17 +1,3 @@
-/*
------------------------------------------------------------------------------
-This source file is part of OGRE
-(Object-oriented Graphics Rendering Engine)
-For the latest info, see http://www.ogre3d.org/
-
-Copyright (c) 2000-2014 Torus Knot Software Ltd
-Also see acknowledgements in Readme.html
-
-You may use this sample code for anything you like, it is not covered by the
-same license as the rest of the engine.
------------------------------------------------------------------------------
-*/
-
 #ifndef __FacialAnimation_H__
 #define __FacialAnimation_H__
 
@@ -22,10 +8,10 @@ using namespace OgreBites;
 
 class _OgreSampleClassExport Sample_FacialAnimation : public SdkSample
 {
- public:
+public:
 
- Sample_FacialAnimation():
-    mSpeakAnimState(0), mManualAnimState(0), mManualKeyFrame(0), mPlayAnimation(false)
+    Sample_FacialAnimation(): 
+        mSpeakAnimState(0), mManualAnimState(0), mManualKeyFrame(0), mPlayAnimation(false)
     {
         mInfo["Title"] = "Facial Animation";
         mInfo["Description"] = "A demonstration of the facial animation feature, using pose animation.";
@@ -33,23 +19,29 @@ class _OgreSampleClassExport Sample_FacialAnimation : public SdkSample
         mInfo["Category"] = "Animation";
         mInfo["Help"] = "Use the checkbox to enable/disable manual animation. "
             "When manual animation is enabled, use the sliders to adjust each pose's influence.";
+        mBackgroundColour = ColourValue( 0.3f, 0.3f, 0.3f );
     }
 
     bool frameRenderingQueued(const FrameEvent& evt)
     {
-        if (mPlayAnimation) mSpeakAnimState->addTime(evt.timeSinceLastFrame);
-        // std::cout << "Time since last frame: " << evt.timeSinceLastFrame << std::endl;
+        if(mPlayAnimation) mSpeakAnimState->addTime(evt.timeSinceLastFrame);
         return SdkSample::frameRenderingQueued(evt);  // don't forget the parent class updates!
     }
 
- protected:
+protected:
 
     void setupContent(void)
     {
         // setup some basic lighting for our scene
         mSceneMgr->setAmbientLight(ColourValue(0.5, 0.5, 0.5));
-        mSceneMgr->createLight()->setPosition(40, 60, 50);
-        mSceneMgr->createLight()->setPosition(-120, -80, -50);
+
+
+        SceneNode *light0 = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        SceneNode *light1 = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        light0->setPosition(40, 60, 50);
+        light1->setPosition(-120, -80, -50);
+        light0->attachObject( mSceneMgr->createLight() );
+        light1->attachObject( mSceneMgr->createLight() );
 
         // pre-load the mesh so that we can tweak it with a manual animation
         mHeadMesh = MeshManager::getSingleton().load("facial.mesh", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
@@ -61,9 +53,11 @@ class _OgreSampleClassExport Sample_FacialAnimation : public SdkSample
         for (unsigned int i = 0; i < 15; i++) mManualKeyFrame->addPoseReference(i, 0);
 
         // create a head entity from the mesh and attach it to a node with a vertical offset to center it
-        Entity* head = mSceneMgr->createEntity("Head", "facial.mesh");
-
-        mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(0, -30, 0))->attachObject(head);
+        Entity* head = mSceneMgr->createEntity( "facial.mesh",
+                                                ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
+                                                SCENE_STATIC );
+        mSceneMgr->getRootSceneNode( SCENE_STATIC )->createChildSceneNode(
+                                                SCENE_STATIC, Vector3(0, -30, 0) )->attachObject(head);
 
         // get the animation states
         mSpeakAnimState = head->getAnimationState("Speak");
@@ -83,7 +77,7 @@ class _OgreSampleClassExport Sample_FacialAnimation : public SdkSample
     {
         // make logo and frame stats a little more compact to make room for controls
         mTrayMgr->showLogo(TL_BOTTOMLEFT);
-        mTrayMgr->toggleAdvancedFrameStats();
+        mTrayMgr->toggleAdvancedFrameStats(); 
 
         // create group labels for the different sliders
         mExpressions.push_back(mTrayMgr->createLabel(TL_NONE, "ExpressionLabel", "Expressions"));
@@ -147,14 +141,14 @@ class _OgreSampleClassExport Sample_FacialAnimation : public SdkSample
         // dirty animation state since we're fudging this manually
         mManualAnimState->getParent()->_notifyDirty();
     }
-
-    MeshPtr mHeadMesh;
-    AnimationState* mSpeakAnimState;
-    AnimationState* mManualAnimState;
-    VertexPoseKeyFrame* mManualKeyFrame;
-    bool mPlayAnimation;
-    WidgetList mExpressions;
-    WidgetList mMouthShapes;
+   
+   MeshPtr mHeadMesh;
+   AnimationState* mSpeakAnimState;
+   AnimationState* mManualAnimState;
+   VertexPoseKeyFrame* mManualKeyFrame;
+   bool mPlayAnimation;
+   WidgetList mExpressions;
+   WidgetList mMouthShapes;
 };
 
 #endif

@@ -30,8 +30,8 @@ THE SOFTWARE.
 #include "OgreScriptCompiler.h"
 #include "OgreScriptParser.h"
 #include "OgreScriptTranslator.h"
-#include "OgreLogManager.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreLogManager.h"
 
 namespace Ogre
 {
@@ -994,8 +994,8 @@ namespace Ogre
         mIds["vertex_program"] = ID_VERTEX_PROGRAM;
         mIds["geometry_program"] = ID_GEOMETRY_PROGRAM;
         mIds["fragment_program"] = ID_FRAGMENT_PROGRAM;
-        mIds["tessellation_hull_program"] = ID_TESSELLATION_HULL_PROGRAM;
-        mIds["tessellation_domain_program"] = ID_TESSELLATION_DOMAIN_PROGRAM;
+        mIds["tesselation_hull_program"] = ID_TESSELATION_HULL_PROGRAM;
+        mIds["tesselation_domain_program"] = ID_TESSELATION_DOMAIN_PROGRAM;
         mIds["compute_program"] = ID_COMPUTE_PROGRAM;
         mIds["technique"] = ID_TECHNIQUE;
         mIds["pass"] = ID_PASS;
@@ -1003,13 +1003,11 @@ namespace Ogre
         mIds["vertex_program_ref"] = ID_VERTEX_PROGRAM_REF;
         mIds["geometry_program_ref"] = ID_GEOMETRY_PROGRAM_REF;
         mIds["fragment_program_ref"] = ID_FRAGMENT_PROGRAM_REF;
-        mIds["tessellation_hull_program_ref"] = ID_TESSELLATION_HULL_PROGRAM_REF;
-        mIds["tessellation_domain_program_ref"] = ID_TESSELLATION_DOMAIN_PROGRAM_REF;
+        mIds["tesselation_hull_program_ref"] = ID_TESSELATION_HULL_PROGRAM_REF;
+        mIds["tesselation_domain_program_ref"] = ID_TESSELATION_DOMAIN_PROGRAM_REF;
         mIds["compute_program_ref"] = ID_COMPUTE_PROGRAM_REF;
         mIds["shadow_caster_vertex_program_ref"] = ID_SHADOW_CASTER_VERTEX_PROGRAM_REF;
         mIds["shadow_caster_fragment_program_ref"] = ID_SHADOW_CASTER_FRAGMENT_PROGRAM_REF;
-        mIds["shadow_receiver_vertex_program_ref"] = ID_SHADOW_RECEIVER_VERTEX_PROGRAM_REF;
-        mIds["shadow_receiver_fragment_program_ref"] = ID_SHADOW_RECEIVER_FRAGMENT_PROGRAM_REF;
 
         mIds["lod_values"] = ID_LOD_VALUES;
         mIds["lod_strategy"] = ID_LOD_STRATEGY;
@@ -1029,7 +1027,6 @@ namespace Ogre
         mIds["scheme"] = ID_SCHEME;
         mIds["lod_index"] = ID_LOD_INDEX;
         mIds["shadow_caster_material"] = ID_SHADOW_CASTER_MATERIAL;
-        mIds["shadow_receiver_material"] = ID_SHADOW_RECEIVER_MATERIAL;
         mIds["gpu_vendor_rule"] = ID_GPU_VENDOR_RULE;
         mIds["gpu_device_rule"] = ID_GPU_DEVICE_RULE;
         mIds["include"] = ID_INCLUDE;
@@ -1206,6 +1203,7 @@ namespace Ogre
         mIds["content_type"] = ID_CONTENT_TYPE;
         mIds["named"] = ID_NAMED;
         mIds["shadow"] = ID_SHADOW;
+        mIds["compositor"] = ID_COMPOSITOR;
         mIds["texture_source"] = ID_TEXTURE_SOURCE;
         mIds["shared_params"] = ID_SHARED_PARAMS;
         mIds["shared_param_named"] = ID_SHARED_PARAM_NAMED;
@@ -1217,67 +1215,89 @@ namespace Ogre
         mIds["affector"] = ID_AFFECTOR;
 
         // Compositor
-        mIds["compositor"] = ID_COMPOSITOR;
-        mIds["target"] = ID_TARGET;
-        mIds["target_output"] = ID_TARGET_OUTPUT;
+        mIds["workspace"]       = ID_WORKSPACE;
+        mIds["alias"]           = ID_ALIAS;
+        mIds["connect"]         = ID_CONNECT;
+        mIds["connect_output"]  = ID_CONNECT_OUTPUT;
 
-        mIds["input"] = ID_INPUT;
-        mIds["none"] = ID_NONE;
-        mIds["previous"] = ID_PREVIOUS;
-        mIds["target_width"] = ID_TARGET_WIDTH;
-        mIds["target_height"] = ID_TARGET_HEIGHT;
+        mIds["compositor_node"] = ID_COMPOSITOR_NODE;
+        mIds["in"]              = ID_IN;
+        mIds["out"]             = ID_OUT;
+        mIds["custom_id"]       = ID_CUSTOM_ID;
+        mIds["target_width"]        = ID_TARGET_WIDTH;
+        mIds["target_height"]       = ID_TARGET_HEIGHT;
         mIds["target_width_scaled"] = ID_TARGET_WIDTH_SCALED;
-        mIds["target_height_scaled"] = ID_TARGET_HEIGHT_SCALED;
-        mIds["pooled"] = ID_POOLED;
-        //mIds["gamma"] = ID_GAMMA; - already registered
-        mIds["no_fsaa"] = ID_NO_FSAA;
-        mIds["depth_pool"] = ID_DEPTH_POOL;
+        mIds["target_height_scaled"]= ID_TARGET_HEIGHT_SCALED;
+        mIds["no_gamma"]            = ID_NO_GAMMA;
+        mIds["no_fsaa"]             = ID_NO_FSAA;
+        mIds["explicit_resolve"]    = ID_EXPLICIT_RESOLVE;
+        mIds["depth_pool"]          = ID_DEPTH_POOL;
 
-        mIds["texture_ref"] = ID_TEXTURE_REF;
-        mIds["local_scope"] = ID_SCOPE_LOCAL;
-        mIds["chain_scope"] = ID_SCOPE_CHAIN;
-        mIds["global_scope"] = ID_SCOPE_GLOBAL;
-        mIds["compositor_logic"] = ID_COMPOSITOR_LOGIC;
-            
-        mIds["only_initial"] = ID_ONLY_INITIAL;
-        mIds["visibility_mask"] = ID_VISIBILITY_MASK;
-        mIds["lod_bias"] = ID_LOD_BIAS;
+        mIds["target"] = ID_TARGET;
+
+        mIds["clear"]           = ID_CLEAR;
+        mIds["stencil"]         = ID_STENCIL;
+        mIds["render_scene"]    = ID_RENDER_SCENE;
+        mIds["render_quad"]     = ID_RENDER_QUAD;
+
+        mIds["viewport"]        = ID_VIEWPORT;
+        mIds["num_initial"]     = ID_NUM_INITIAL;
+        mIds["identifier"]      = ID_IDENTIFIER;
+        mIds["overlays"]        = ID_OVERLAYS;
+
+        mIds["lod_bias"]        = ID_LOD_BIAS;
+        mIds["lod_update_list"] = ID_LOD_UPDATE_LIST;
+        mIds["lod_camera"]      = ID_LOD_CAMERA;
         mIds["material_scheme"] = ID_MATERIAL_SCHEME;
-        mIds["shadows"] = ID_SHADOWS_ENABLED;
+        mIds["visibility_mask"] = ID_VISIBILITY_MASK;
+        mIds["shadows"]         = ID_SHADOWS_ENABLED;
+        mIds["camera"]          = ID_CAMERA;
+        mIds["rq_first"]        = ID_FIRST_RENDER_QUEUE;
+        mIds["rq_last"]         = ID_LAST_RENDER_QUEUE;
+        mIds["camera_cubemap_reorient"] = ID_CAMERA_CUBEMAP_REORIENT;
 
-        mIds["clear"] = ID_CLEAR;
-        mIds["stencil"] = ID_STENCIL;
-        mIds["render_scene"] = ID_RENDER_SCENE;
-        mIds["render_quad"] = ID_RENDER_QUAD;
-        mIds["identifier"] = ID_IDENTIFIER;
-        mIds["first_render_queue"] = ID_FIRST_RENDER_QUEUE;
-        mIds["last_render_queue"] = ID_LAST_RENDER_QUEUE;
-        mIds["quad_normals"] = ID_QUAD_NORMALS;
-        mIds["camera_far_corners_view_space"] = ID_CAMERA_FAR_CORNERS_VIEW_SPACE;
-        mIds["camera_far_corners_world_space"] = ID_CAMERA_FAR_CORNERS_WORLD_SPACE;
+        mIds["use_quad"]        = ID_USE_QUAD;
+        mIds["quad_normals"]    = ID_QUAD_NORMALS;
+        mIds["camera_far_corners_view_space"]   = ID_CAMERA_FAR_CORNERS_VIEW_SPACE;
+        mIds["camera_far_corners_world_space"]  = ID_CAMERA_FAR_CORNERS_WORLD_SPACE;
+        mIds["input"]           = ID_INPUT;
 
-        mIds["buffers"] = ID_BUFFERS;
-        mIds["colour"] = ID_COLOUR;
-        mIds["depth"] = ID_DEPTH;
-        mIds["colour_value"] = ID_COLOUR_VALUE;
-        mIds["depth_value"] = ID_DEPTH_VALUE;
-        mIds["stencil_value"] = ID_STENCIL_VALUE;
+        mIds["buffers"]         = ID_BUFFERS;
+        mIds["colour"]          = ID_COLOUR;
+        mIds["depth"]           = ID_DEPTH;
+        mIds["colour_value"]    = ID_COLOUR_VALUE;
+        mIds["depth_value"]     = ID_DEPTH_VALUE;
+        mIds["stencil_value"]   = ID_STENCIL_VALUE;
+        mIds["discard_only"]    = ID_DISCARD_ONLY;
 
-        mIds["check"] = ID_CHECK;
-        mIds["comp_func"] = ID_COMP_FUNC;
-        mIds["ref_value"] = ID_REF_VALUE;
-        mIds["mask"] = ID_MASK;
-        mIds["fail_op"] = ID_FAIL_OP;
-        mIds["keep"] = ID_KEEP;
-        mIds["increment"] = ID_INCREMENT;
-        mIds["decrement"] = ID_DECREMENT;
-        mIds["increment_wrap"] = ID_INCREMENT_WRAP;
-        mIds["decrement_wrap"] = ID_DECREMENT_WRAP;
-        mIds["invert"] = ID_INVERT;
-        mIds["depth_fail_op"] = ID_DEPTH_FAIL_OP;
-        mIds["pass_op"] = ID_PASS_OP;
-        mIds["two_sided"] = ID_TWO_SIDED;
-        mIds["read_back_as_texture"] = ID_READ_BACK_AS_TEXTURE;
+        mIds["check"]           = ID_CHECK;
+        mIds["comp_func"]       = ID_COMP_FUNC;
+        mIds["ref_value"]       = ID_REF_VALUE;
+        mIds["mask"]            = ID_MASK;
+        mIds["fail_op"]         = ID_FAIL_OP;
+        mIds["keep"]            = ID_KEEP;
+        mIds["increment"]       = ID_INCREMENT;
+        mIds["decrement"]       = ID_DECREMENT;
+        mIds["increment_wrap"]  = ID_INCREMENT_WRAP;
+        mIds["decrement_wrap"]  = ID_DECREMENT_WRAP;
+        mIds["invert"]          = ID_INVERT;
+        mIds["depth_fail_op"]   = ID_DEPTH_FAIL_OP;
+        mIds["pass_op"]         = ID_PASS_OP;
+        mIds["two_sided"]       = ID_TWO_SIDED;
+
+        mIds["compositor_node_shadow"]  = ID_SHADOW_NODE;
+        mIds["num_splits"]                  = ID_NUM_SPLITS;
+        mIds["pssm_split_padding"]          = ID_PSSM_SPLIT_PADDING;
+        mIds["pssm_lambda"]                 = ID_PSSM_LAMBDA;
+        mIds["use_aggressive_focus_region"] = ID_USE_AGGRESSIVE_FOCUS_REGION;
+        mIds["optimal_adjust_factor"]       = ID_OPTIMAL_AJUST_FACTOR;
+        mIds["light_direction_threshold"]   = ID_LIGHT_DIR_THRESHOLD;
+        mIds["shadow_map"]              = ID_SHADOW_MAP;
+        mIds["shadow_atlas"]            = ID_SHADOW_ATLAS;
+        mIds["fsaa"]                    = ID_FSAA;
+        mIds["light"]                   = ID_LIGHT;
+        mIds["split"]                   = ID_SPLIT;
+
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
         mIds["rtshader_system"] = ID_RT_SHADER_SYSTEM;
 #endif

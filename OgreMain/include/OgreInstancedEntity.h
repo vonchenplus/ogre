@@ -30,6 +30,8 @@ THE SOFTWARE.
 
 #include "OgreMovableObject.h"
 #include "OgreNode.h"
+#include "OgreDualQuaternion.h"
+#include "Animation/OgreSkeletonInstance.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -86,11 +88,16 @@ namespace Ogre
         bool mInUse;
         InstanceBatch *mBatchOwner;
 
+#ifdef OGRE_LEGACY_ANIMATIONS
         AnimationStateSet *mAnimationState;
-        SkeletonInstance *mSkeletonInstance;
+        OldSkeletonInstance *mSkeletonInstance;
         Matrix4 *mBoneMatrices;  //Local space
         Matrix4 *mBoneWorldMatrices; //World space
         unsigned long mFrameAnimationLastUpdated;
+#else
+        SkeletonInstance    *mSkeletonInstance;
+        BoneMemoryManager   *mBoneMemoryManager;
+#endif
 
         InstancedEntity* mSharedTransformEntity;    //When not null, another InstancedEntity controls the skeleton
                                                 
@@ -102,34 +109,58 @@ namespace Ogre
         typedef vector<InstancedEntity*>::type InstancedEntityVec;
         InstancedEntityVec mSharingPartners;
 
-        //////////////////////////////////////////////////////////////////////////
-        // Parameters used for local transformation offset information
-        // The 
-        //////////////////////////////////////////////////////////////////////////
-
-        /// Object position
-        Vector3 mPosition;
-        Vector3 mDerivedLocalPosition;
-        /// Object orientation
-        Quaternion mOrientation;
-        /// Object scale
-        Vector3 mScale;
-        /// The maximum absolute scale for all dimension
-        Real mMaxScaleLocal;
-        /// Full world transform
-        Matrix4 mFullLocalTransform;
-        /// Tells if mFullTransform needs an updated
-        bool mNeedTransformUpdate;
-        /// Tells if the animation world transform needs an update
-        bool mNeedAnimTransformUpdate;
-        /// Tells whether to use the local transform parameters
-        bool mUseLocalTransform;
-
-
         /// Returns number of matrices written to transform, assumes transform has enough space
         size_t getTransforms( Matrix4 *xform ) const;
         /// Returns number of 32-bit values written
         size_t getTransforms3x4( float *xform ) const;
+
+        /** Fills xform with the 4x3 world matrix (12 bytes)
+        @remarks
+            Assumes this object is attached to a Node
+        */
+        FORCEINLINE void writeSingleTransform3x4( float * RESTRICT_ALIAS xform ) const;
+
+        /** Fills xform with 4x3 world matrices from skeletal animation (12 bytes each)
+        @remarks
+            Number of bytes written to xform is 12 * number of matrices
+        @param xform
+            The pointer to store the matrices
+        @param boneIdxStart
+            Iterator to the first bone index map (@See mIndexToBoneMap)
+        @param boneIdxEnd
+            Iterator to the last bone index map (@See mIndexToBoneMap)
+        */
+        FORCEINLINE void writeAnimatedTransform3x4( float * RESTRICT_ALIAS xform,
+                                                    Mesh::IndexMap::const_iterator boneIdxStart,
+                                                    Mesh::IndexMap::const_iterator boneIdxEnd ) const;
+
+        /** Fills xform with 4x3 world matrices from skeletal animation (12 bytes each, LUT)
+        @remarks
+            Number of bytes written to xform is 12 * number of matrices
+        @param xform
+            The pointer to store the matrices
+        @param boneIdxStart
+            Iterator to the first bone index map (@See mIndexToBoneMap)
+        @param boneIdxEnd
+            Iterator to the last bone index map (@See mIndexToBoneMap)
+        */
+        FORCEINLINE void writeLutTransform3x4( float * RESTRICT_ALIAS xform,
+                                                    Mesh::IndexMap::const_iterator boneIdxStart,
+                                                    Mesh::IndexMap::const_iterator boneIdxEnd ) const;
+
+        /** Fills xform with Dual Quaternion matrices from skeletal animation (32 bytes each)
+        @remarks
+            Number of bytes written to xform is 32 * number of matrices
+        @param xform
+            The pointer to store the matrices
+        @param boneIdxStart
+            Iterator to the first bone index map (@See mIndexToBoneMap)
+        @param boneIdxEnd
+            Iterator to the last bone index map (@See mIndexToBoneMap)
+        */
+        FORCEINLINE void writeDualQuatTransform( float * RESTRICT_ALIAS xform,
+                                                    Mesh::IndexMap::const_iterator boneIdxStart,
+                                                    Mesh::IndexMap::const_iterator boneIdxEnd ) const;
 
         /// Returns true if this InstancedObject is visible to the current camera
         bool findVisible( Camera *camera ) const;
@@ -148,14 +179,16 @@ namespace Ogre
         /// Called when a slave has unlinked from us
         void notifyUnlink( const InstancedEntity *slave );
 
-        /// Mark the transformation matrixes as dirty
-        inline void markTransformDirty();
-
-        /// Incremented count for next name extension
-        static NameGenerator msNameGenerator;
+        /** Sets whether the entity is in use. */
+        void setInUse(bool used);
 
     public:
-        InstancedEntity( InstanceBatch *batchOwner, uint32 instanceID, InstancedEntity* sharedTransformEntity = NULL);
+        InstancedEntity( IdType id, ObjectMemoryManager *objectMemoryManager, InstanceBatch *batchOwner,
+                         uint32 instanceID,
+                 #ifndef OGRE_LEGACY_ANIMATIONS
+                         BoneMemoryManager *boneMemoryManager,
+                 #endif
+                         InstancedEntity* sharedTransformEntity = NULL );
         virtual ~InstancedEntity();
 
         /** Shares the entire transformation with another InstancedEntity. This is useful when a mesh
@@ -192,25 +225,38 @@ namespace Ogre
         const String& getMovableType(void) const;
 
         const AxisAlignedBox& getBoundingBox(void) const;
-        Real getBoundingRadius(void) const;
 
         /** This is used by our batch owner to get the closest entity's depth, returns infinity
             when not attached to a scene node */
         Real getSquaredViewDepth( const Camera* cam ) const;
 
+        /// @copydoc MovableObject::_notifyStaticDirty
+        virtual void _notifyStaticDirty(void) const;
+
         /// Overridden so we can tell the InstanceBatch it needs to update it's bounds
         void _notifyMoved(void);
-        void _notifyAttached( Node* parent, bool isTagPoint = false );
+        /// Overloaded so we can register ourselves for updating our animations
+        virtual void _notifyAttached( Node* parent );
+
+#ifndef OGRE_LEGACY_ANIMATIONS
+        virtual void _notifyParentNodeMemoryChanged(void);
+#endif
 
         /// Do nothing, InstanceBatch takes care of this.
-        void _updateRenderQueue( RenderQueue* queue )   {}
+        void _updateRenderQueue( RenderQueue* queue, Camera *camera, const Camera *lodCamera )  {}
         void visitRenderables( Renderable::Visitor* visitor, bool debugRenderables = false ) {}
 
         /** @see Entity::hasSkeleton */
         bool hasSkeleton(void) const { return mSkeletonInstance != 0; }
-        /** @see Entity::getSkeleton */
-        SkeletonInstance* getSkeleton(void) const { return mSkeletonInstance; }
 
+#ifdef OGRE_LEGACY_ANIMATIONS
+        /** @see Entity::getSkeleton */
+        OldSkeletonInstance* getSkeleton(void) const { return mSkeletonInstance; }
+#else
+        SkeletonInstance* getSkeleton(void) const { return mSkeletonInstance; }
+#endif
+
+#ifdef OGRE_LEGACY_ANIMATIONS
         /** @see Entity::getAnimationState */
         AnimationState* getAnimationState(const String& name) const;
         /** @see Entity::getAllAnimationStates */
@@ -221,50 +267,14 @@ namespace Ogre
             @remarks Assumes it has a skeleton (mSkeletonInstance != 0)
             @return true if something was actually updated
         */
-        virtual bool _updateAnimation(void);
+        bool _updateAnimation(void);
+#endif
 
         /** Sets the transformation look up number */
         void setTransformLookupNumber(uint16 num) { mTransformLookupNumber = num;}
 
-        /** Retrieve the position */
-        const Vector3& getPosition() const { return mPosition; }
-        /** Set the position or the offset from the parent node if a parent node exists */ 
-        void setPosition(const Vector3& position, bool doUpdate = true);
-
-        /** Retrieve the orientation */
-        const Quaternion& getOrientation() const { return mOrientation; }
-        /** Set the orientation or the offset from the parent node if a parent node exists */
-        void setOrientation(const Quaternion& orientation, bool doUpdate = true);
-
-        /** Retrieve the local scale */ 
-        const Vector3& getScale() const { return mScale; }
-        /** Set the  scale or the offset from the parent node if a parent node exists  */ 
-        void setScale(const Vector3& scale, bool doUpdate = true);
-
-        /** Returns the maximum derived scale coefficient among the xyz values */
-        Real getMaxScaleCoef() const;
-
-        /** Update the world transform and derived values */
-        void updateTransforms();
-
         /** Tells if the entity is in use. */
         bool isInUse() const { return mInUse; }
-        /** Sets whether the entity is in use. */
-        void setInUse(bool used);
-
-        /** Returns the world transform of the instanced entity including local transform */
-        virtual const Matrix4& _getParentNodeFullTransform(void) const { 
-            assert((!mNeedTransformUpdate || !mUseLocalTransform) && "Transform data should be updated at this point");
-            return mUseLocalTransform ? mFullLocalTransform :
-                mParentNode ? mParentNode->_getFullTransform() : Matrix4::IDENTITY;
-        }
-
-        /** Returns the derived position of the instanced entity including local transform */
-        const Vector3& _getDerivedPosition() const {
-            assert((!mNeedTransformUpdate || !mUseLocalTransform) && "Transform data should be updated at this point");
-            return mUseLocalTransform ? mDerivedLocalPosition :
-                mParentNode ? mParentNode->_getDerivedPosition() : Vector3::ZERO;
-        }
 
         /** @copydoc MovableObject::isInScene. */
         virtual bool isInScene(void) const
@@ -289,6 +299,8 @@ namespace Ogre
         const Vector4& getCustomParam( unsigned char idx );
     };
 }
+
+#include "OgreInstancedEntity.inl"
 
 #include "OgreHeaderSuffix.h"
 

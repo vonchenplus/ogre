@@ -45,7 +45,8 @@ namespace Ogre {
     String Frustum::msMovableType = "Frustum";
     const Real Frustum::INFINITE_FAR_PLANE_ADJUST = 0.00001;
     //-----------------------------------------------------------------------
-    Frustum::Frustum(const String& name) : 
+    Frustum::Frustum( IdType id, ObjectMemoryManager *objectMemoryManager ) : 
+        MovableObject( id, objectMemoryManager ),
         mProjType(PT_PERSPECTIVE), 
         mFOVy(Radian(Math::PI/4.0f)), 
         mFarDist(100000.0f), 
@@ -74,9 +75,8 @@ namespace Ogre {
         mMaterial = MaterialManager::getSingleton().getByName("BaseWhiteNoLighting");
         
         // Alter superclass members
-        mVisible = false;
+        setVisible( false );
         mParentNode = 0;
-        mName = name;
 
         mLastLinkedReflectionPlane.normal = Vector3::ZERO;
         mLastLinkedObliqueProjPlane.normal = Vector3::ZERO;
@@ -700,26 +700,20 @@ namespace Ogre {
     bool Frustum::isViewOutOfDate(void) const
     {
         // Attached to node?
-        if (mParentNode)
+        if( mParentNode )
         {
+            const Quaternion derivedOrient( mParentNode->_getDerivedOrientationUpdated() );
+            const Vector3 derivedPos( mParentNode->_getDerivedPosition() );
+
             if (mRecalcView ||
-                mParentNode->_getDerivedOrientation() != mLastParentOrientation ||
-                mParentNode->_getDerivedPosition() != mLastParentPosition)
+                derivedOrient != mLastParentOrientation ||
+                derivedPos != mLastParentPosition)
             {
                 // Ok, we're out of date with SceneNode we're attached to
-                mLastParentOrientation = mParentNode->_getDerivedOrientation();
-                mLastParentPosition = mParentNode->_getDerivedPosition();
+                mLastParentOrientation = derivedOrient;
+                mLastParentPosition = derivedPos;
                 mRecalcView = true;
             }
-        }
-        // Deriving reflection from linked plane?
-        if (mLinkedReflectPlane && 
-            !(mLastLinkedReflectionPlane == mLinkedReflectPlane->_getDerivedPlane()))
-        {
-            mReflectPlane = mLinkedReflectPlane->_getDerivedPlane();
-            mReflectMatrix = Math::buildReflectionMatrix(mReflectPlane);
-            mLastLinkedReflectionPlane = mLinkedReflectPlane->_getDerivedPlane();
-            mRecalcView = true;
         }
 
         return mRecalcView;
@@ -923,7 +917,7 @@ namespace Ogre {
         return mBoundingBox;
     }
     //-----------------------------------------------------------------------
-    void Frustum::_updateRenderQueue(RenderQueue* queue)
+    void Frustum::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
     {
         if (mDebugDisplay)
         {
@@ -937,10 +931,12 @@ namespace Ogre {
         return msMovableType;
     }
     //-----------------------------------------------------------------------
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
     Real Frustum::getBoundingRadius(void) const
     {
         return (mFarDist == 0)? 100000 : mFarDist;
     }
+#endif
     //-----------------------------------------------------------------------
     const MaterialPtr& Frustum::getMaterial(void) const
     {
@@ -958,20 +954,13 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Frustum::getWorldTransforms(Matrix4* xform) const 
     {
-        if (mParentNode)
-            *xform = mParentNode->_getFullTransform();
-        else
-            *xform = Matrix4::IDENTITY;
+        *xform = mParentNode->_getFullTransform();
     }
     //-----------------------------------------------------------------------
     Real Frustum::getSquaredViewDepth(const Camera* cam) const 
     {
         // Calc from centre
-        if (mParentNode)
-            return (cam->getDerivedPosition() 
-                - mParentNode->_getDerivedPosition()).squaredLength();
-        else
-            return 0;
+        return (cam->getDerivedPosition() - mParentNode->_getDerivedPosition()).squaredLength();
     }
     //-----------------------------------------------------------------------
     const LightList& Frustum::getLights(void) const 
@@ -984,10 +973,9 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Frustum::_notifyCurrentCamera(Camera* cam)
     {
+        //TODO: (dark_sylinc)
         // Make sure bounding box up-to-date
         updateFrustum();
-
-        MovableObject::_notifyCurrentCamera(cam);
     }
 
     // -------------------------------------------------------------------
@@ -1129,11 +1117,11 @@ namespace Ogre {
                     Real Px0 = -(Pz0 * Nz0) / Nx0;
                     if (Px0 > eyeSpacePos.x)
                     {
-                        *right = std::min(*right, relx0.x);
+                        *right = Ogre::min(*right, relx0.x);
                     }
                     else
                     {
-                        *left = std::max(*left, relx0.x);
+                        *left = Ogre::max(*left, relx0.x);
                     }
                 }
                 Real Pz1 = (Lxz - rsq) / (eyeSpacePos.z - ((Nz1 / Nx1) * eyeSpacePos.x));
@@ -1149,11 +1137,11 @@ namespace Ogre {
                     Real Px1 = -(Pz1 * Nz1) / Nx1;
                     if (Px1 > eyeSpacePos.x)
                     {
-                        *right = std::min(*right, relx1.x);
+                        *right = Ogre::min(*right, relx1.x);
                     }
                     else
                     {
-                        *left = std::max(*left, relx1.x);
+                        *left = Ogre::max(*left, relx1.x);
                     }
                 }
             }
@@ -1197,11 +1185,11 @@ namespace Ogre {
                     Real Py0 = -(Pz0 * Nz0) / Ny0;
                     if (Py0 > eyeSpacePos.y)
                     {
-                        *top = std::min(*top, rely0.y);
+                        *top = Ogre::min(*top, rely0.y);
                     }
                     else
                     {
-                        *bottom = std::max(*bottom, rely0.y);
+                        *bottom = Ogre::max(*bottom, rely0.y);
                     }
                 }
                 Real Pz1 = (Lyz - rsq) / (eyeSpacePos.z - ((Nz1 / Ny1) * eyeSpacePos.y));
@@ -1217,11 +1205,11 @@ namespace Ogre {
                     Real Py1 = -(Pz1 * Nz1) / Ny1;
                     if (Py1 > eyeSpacePos.y)
                     {
-                        *top = std::min(*top, rely1.y);
+                        *top = Ogre::min(*top, rely1.y);
                     }
                     else
                     {
-                        *bottom = std::max(*bottom, rely1.y);
+                        *bottom = Ogre::max(*bottom, rely1.y);
                     }
                 }
             }

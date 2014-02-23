@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include "OgreException.h"
 #include "OgreEntity.h"
 #include "OgreSkeleton.h"
-#include "OgreBone.h"
+#include "OgreOldBone.h"
 #include "OgreMesh.h"
 
 #include "OgreSubEntity.h"
@@ -75,7 +75,7 @@ namespace Ogre {
         if (hasNodeTrack(handle))
         {
             OGRE_EXCEPT(Exception::ERR_DUPLICATE_ITEM, 
-                "Node track with the specified handle " +
+                "OldNode track with the specified handle " +
                 StringConverter::toString(handle) + " already exists",
                 "Animation::createNodeTrack");
         }
@@ -86,7 +86,7 @@ namespace Ogre {
         return ret;
     }
     //---------------------------------------------------------------------
-    NodeAnimationTrack* Animation::createNodeTrack(unsigned short handle, Node* node)
+    NodeAnimationTrack* Animation::createNodeTrack(unsigned short handle, OldNode* node)
     {
         NodeAnimationTrack* ret = createNodeTrack(handle);
 
@@ -333,7 +333,7 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    void Animation::applyToNode(Node* node, Real timePos, Real weight, Real scale)
+    void Animation::applyToNode(OldNode* node, Real timePos, Real weight, Real scale)
     {
         _applyBaseKeyFrame();
 
@@ -359,7 +359,7 @@ namespace Ogre {
         for (i = mNodeTrackList.begin(); i != mNodeTrackList.end(); ++i)
         {
             // get bone to apply to 
-            Bone* b = skel->getBone(i->first);
+            OldBone* b = skel->getBone(i->first);
             i->second->applyToNode(b, timeIndex, weight, scale);
         }
 
@@ -378,7 +378,7 @@ namespace Ogre {
       for (i = mNodeTrackList.begin(); i != mNodeTrackList.end(); ++i)
       {
         // get bone to apply to 
-        Bone* b = skel->getBone(i->first);
+        OldBone* b = skel->getBone(i->first);
         i->second->applyToNode(b, timeIndex, (*blendMask)[b->getHandle()] * weight, scale);
       }
     }
@@ -410,9 +410,6 @@ namespace Ogre {
             {
                 // sub entity vertex data (-1)
                 SubEntity* s = entity->getSubEntity(handle - 1);
-                // Skip this track if subentity is not visible
-                if (!s->isVisible())
-                    continue;
                 swVertexData = s->_getSoftwareVertexAnimVertexData();
                 hwVertexData = s->_getHardwareVertexAnimVertexData();
                 s->_markBuffersUsedForAnimation();

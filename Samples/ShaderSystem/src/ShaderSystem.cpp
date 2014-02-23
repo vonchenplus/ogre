@@ -182,8 +182,8 @@ void Sample_ShaderSystem::buttonHit( OgreBites::Button* b )
 {
     // Case the current material of the main entity should be exported.
     if (b->getName() == EXPORT_BUTTON_NAME)
-    {       
-        const String& materialName = mSceneMgr->getEntity(MAIN_ENTITY_NAME)->getSubEntity(0)->getMaterialName();
+    {
+        const String& materialName = mMainEntity->getSubEntity(0)->getMaterialName();
         
         exportRTShaderSystemMaterial(mExportMaterialPath + "ShaderSystemExport.material", materialName);                        
     }
@@ -256,11 +256,11 @@ bool Sample_ShaderSystem::frameRenderingQueued( const FrameEvent& evt )
 
     if (mPointLightNode != NULL)
     {
-        static Real sToatalTime = 0.0;
+        static Real sTotalTime = 0.0;
         
-        sToatalTime += evt.timeSinceLastFrame;
+        sTotalTime += evt.timeSinceLastFrame;
         mPointLightNode->yaw(Degree(evt.timeSinceLastFrame * 15));
-        mPointLightNode->setPosition(0.0, Math::Sin(sToatalTime) * 30.0, 0.0);
+        mPointLightNode->setPosition(0.0, Math::Sin(sTotalTime) * 30.0, 0.0);
     }
 
     updateTargetObjInfo();
@@ -307,10 +307,13 @@ void Sample_ShaderSystem::setupContent()
         ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, Plane(Vector3::UNIT_Y, 0),
         1500,1500,25,25,true,1,60,60,Vector3::UNIT_Z);
 
-    Entity* pPlaneEnt = mSceneMgr->createEntity( "plane", "Myplane" );
+    Entity* pPlaneEnt = mSceneMgr->createEntity( "Myplane" );
+    pPlaneEnt->setName("plane");
     pPlaneEnt->setMaterialName("Examples/Rockwall");
     pPlaneEnt->setCastShadows(false);
-    mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(0,0,0))->attachObject(pPlaneEnt);
+    SceneNode *planeNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    planeNode->setPosition(Vector3(0,0,0));
+    planeNode->attachObject(pPlaneEnt);
 
 
     // Load sample meshes and generate tangent vectors.
@@ -332,32 +335,31 @@ void Sample_ShaderSystem::setupContent()
             pMesh->buildTangentVectors(VES_TANGENT, src, dest);     
         }
     }
-    
 
-
-    Entity* entity;
     SceneNode* childNode;
 
     // Create the main entity and mark it as the current target object.
-    entity = mSceneMgr->createEntity(MAIN_ENTITY_NAME, MAIN_ENTITY_MESH);
-    mTargetEntities.push_back(entity);
+    mMainEntity = mSceneMgr->createEntity(MAIN_ENTITY_MESH);
+    mMainEntity->setName(MAIN_ENTITY_NAME);
+    mTargetEntities.push_back(mMainEntity);
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();      
-    childNode->attachObject(entity);
-    mTargetObj = entity;
-    childNode->showBoundingBox(true);
+    childNode->attachObject(mMainEntity);
+    mTargetObj = mMainEntity;
 
     // Create reflection entity that will show the exported material.
-    const String& mainExportedMaterial = mSceneMgr->getEntity(MAIN_ENTITY_NAME)->getSubEntity(0)->getMaterialName() + "_RTSS_Export";
+    const String& mainExportedMaterial = mMainEntity->getSubEntity(0)->getMaterialName() + "_RTSS_Export";
     MaterialPtr matMainEnt        = MaterialManager::getSingleton().getByName(mainExportedMaterial, SAMPLE_MATERIAL_GROUP);
 
-    entity = mSceneMgr->createEntity("ExportedMaterialEntity", MAIN_ENTITY_MESH);
+    Entity *entity = mSceneMgr->createEntity(MAIN_ENTITY_MESH);
+    entity->setName("ExportedMaterialEntity");
     entity->setMaterial(matMainEnt);
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     childNode->setPosition(0.0, 200.0, -200.0);
     childNode->attachObject(entity);
 
     // Create texture layer blending demonstration entity.
-    mLayeredBlendingEntity = mSceneMgr->createEntity("LayeredBlendingMaterialEntity", MAIN_ENTITY_MESH);
+    mLayeredBlendingEntity = mSceneMgr->createEntity(MAIN_ENTITY_MESH);
+    mLayeredBlendingEntity->setName("LayeredBlendingMaterialEntity");
     mLayeredBlendingEntity->setMaterialName("RTSS/LayeredBlending");
     mLayeredBlendingEntity->getSubEntity(0)->setCustomParameter(2, Vector4::ZERO);
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
@@ -388,18 +390,20 @@ void Sample_ShaderSystem::setupContent()
 
 
     // Create per pixel lighting demonstration entity.
-    entity = mSceneMgr->createEntity("PerPixelEntity", "knot.mesh");
-    entity->setMaterialName("RTSS/PerPixel_SinglePass");
+    Entity *knotEntity = mSceneMgr->createEntity("knot.mesh");
+    knotEntity->setName("PerPixelEntity");
+    knotEntity->setMaterialName("RTSS/PerPixel_SinglePass");
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     childNode->setPosition(300.0, 100.0, -100.0);
-    childNode->attachObject(entity);
+    childNode->attachObject(knotEntity);
 
     // Create normal map lighting demonstration entity.
-    entity = mSceneMgr->createEntity("NormalMapEntity", "knot.mesh");
-    entity->setMaterialName("RTSS/NormalMapping_SinglePass");
+    knotEntity = mSceneMgr->createEntity("knot.mesh");
+    knotEntity->setName("NormalMapEntity");
+    knotEntity->setMaterialName("RTSS/NormalMapping_SinglePass");
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     childNode->setPosition(-300.0, 100.0, -100.0);
-    childNode->attachObject(entity);
+    childNode->attachObject(knotEntity);
 
     // OpenGL ES 2.0 does not support texture atlases. But ES 3.0 does!
 #if OGRE_NO_GLES3_SUPPORT == 1
@@ -435,7 +439,7 @@ void Sample_ShaderSystem::setupContent()
     mCamera->lookAt(0.0, 150.0, 0.0);
 
     // Make this viewport work with shader generator scheme.
-    mViewport->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+    mSceneMgr->getCurrentViewport()->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 
     // Mark system as on.
     mDetailsPanel->setParamValue(11, "On");
@@ -830,7 +834,7 @@ void Sample_ShaderSystem::createDirectionalLight()
     Light*  light;
     Vector3 dir;
 
-    light = mSceneMgr->createLight(DIRECTIONAL_LIGHT_NAME);
+    light = mSceneMgr->createLight();
     light->setType(Light::LT_DIRECTIONAL);
     light->setCastShadows(true);
     dir.x = 0.5;
@@ -843,6 +847,8 @@ void Sample_ShaderSystem::createDirectionalLight()
 
     // create pivot node
     mDirectionalLightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    mDirectionalLightNode->setName(DIRECTIONAL_LIGHT_NAME);
+    mDirectionalLightNode->attachObject(light);
 
     // Create billboard set.
     mBbsFlare = mSceneMgr->createBillboardSet();
@@ -860,7 +866,7 @@ void Sample_ShaderSystem::createPointLight()
     Light*  light;
     Vector3 dir;
 
-    light = mSceneMgr->createLight(POINT_LIGHT_NAME);
+    light = mSceneMgr->createLight();
     light->setType(Light::LT_POINT);
     light->setCastShadows(false);
     dir.x = 0.5;
@@ -874,7 +880,9 @@ void Sample_ShaderSystem::createPointLight()
 
     // create pivot node
     mPointLightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    
+    mPointLightNode->setName(POINT_LIGHT_NAME);
+    mPointLightNode->attachObject(light);
+
     BillboardSet* bbs;
     
     // Create billboard set.
@@ -884,7 +892,9 @@ void Sample_ShaderSystem::createPointLight()
     bbs->setCastShadows(false);
 
     mPointLightNode->attachObject(bbs);
-    mPointLightNode->createChildSceneNode(Vector3(200, 100, 0))->attachObject(light);
+    SceneNode *node = mPointLightNode->createChildSceneNode();
+    node->setPosition(Vector3(200, 100, 0));
+    node->attachObject(light);
 }
 
 //-----------------------------------------------------------------------
@@ -893,7 +903,7 @@ void Sample_ShaderSystem::createSpotLight()
     Light*  light;
     Vector3 dir;
 
-    light = mSceneMgr->createLight(SPOT_LIGHT_NAME);
+    light = mSceneMgr->createLight();
     light->setType(Light::LT_SPOTLIGHT);
     light->setCastShadows(false);
     dir.x = 0.0;
@@ -905,6 +915,10 @@ void Sample_ShaderSystem::createSpotLight()
     light->setDiffuseColour(0.15, 0.15, 0.65);
     light->setSpecularColour(0.5, 0.5, 0.5);    
     light->setAttenuation(1000.0, 1.0, 0.0005, 0.0);
+
+    SceneNode *spotLightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    spotLightNode->setName(SPOT_LIGHT_NAME);
+    spotLightNode->attachObject(light);
 }
 
 void Sample_ShaderSystem::addModelToScene(const String &  modelName)

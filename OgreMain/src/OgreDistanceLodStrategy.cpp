@@ -32,8 +32,11 @@ THE SOFTWARE.
 #include "OgreNode.h"
 #include "OgreViewport.h"
 
+#include "OgreCamera.h"
+
 #include <limits>
 
+#include "OgreLodStrategyPrivate.inl"
 namespace Ogre {
     DistanceLodStrategyBase::DistanceLodStrategyBase(const String& name)
         : LodStrategy(name)
@@ -52,7 +55,7 @@ namespace Ogre {
             assert(camera->getProjectionType() == PT_PERSPECTIVE && "Camera projection type must be perspective!");
 
             // Get camera viewport
-            Viewport *viewport = camera->getViewport();
+            Viewport *viewport = camera->getLastViewport();
 
             // Get viewport area
             Real viewportArea = static_cast<Real>(viewport->getActualWidth() * viewport->getActualHeight());
@@ -68,13 +71,36 @@ namespace Ogre {
         }
 
         // Squared depth should never be below 0, so clamp
-        squaredDepth = std::max(squaredDepth, Real(0));
+        squaredDepth = max(squaredDepth, Real(0));
 
         // Now adjust it by the camera bias and return the computed value
         return squaredDepth * camera->_getLodBiasInverse();
     }
     //-----------------------------------------------------------------------
-    Real DistanceLodStrategyBase::getBaseValue() const
+    void DistanceLodStrategyBase::lodUpdateImpl( const size_t numNodes, ObjectData objData,
+                                             const Camera *camera, Real bias ) const
+    {
+        ArrayVector3 cameraPos;
+        cameraPos.setAll( camera->getDerivedPosition() );
+
+        ArrayReal lodInvBias( Mathlib::SetAll( camera->_getLodBiasInverse() * bias ) );
+        OGRE_ALIGNED_DECL( Real, lodValues[ARRAY_PACKED_REALS], OGRE_SIMD_ALIGNMENT );
+
+        for( size_t i=0; i<numNodes; i += ARRAY_PACKED_REALS )
+        {
+            ArrayReal * RESTRICT_ALIAS worldRadius = reinterpret_cast<ArrayReal*RESTRICT_ALIAS>
+                                                                        (objData.mWorldRadius);
+            ArrayReal arrayLodValue = objData.mWorldAabb->mCenter.distance( cameraPos ) - (*worldRadius);
+            arrayLodValue = arrayLodValue * lodInvBias;
+            CastArrayToReal( lodValues, arrayLodValue );
+
+            lodSet( objData, lodValues );
+
+            objData.advanceLodPack();
+        }
+    }
+    //-----------------------------------------------------------------------
+    Real DistanceLodStrategy::getBaseValue() const
     {
         return Real(0);
     }
@@ -87,8 +113,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Real DistanceLodStrategyBase::transformUserValue(Real userValue) const
     {
-        // Square user-supplied distance
-        return Math::Sqr(userValue);
+        return userValue;
     }
     //-----------------------------------------------------------------------
     ushort DistanceLodStrategyBase::getIndex(Real value, const Mesh::MeshLodUsageList& meshLodUsageList) const
@@ -97,13 +122,13 @@ namespace Ogre {
         return getIndexAscending(value, meshLodUsageList);
     }
     //-----------------------------------------------------------------------
-    ushort DistanceLodStrategyBase::getIndex(Real value, const Material::LodValueList& materialLodValueList) const
+    ushort DistanceLodStrategyBase::getIndex(Real value, const Material::LodValueArray& materialLodValueArray) const
     {
         // Get index assuming ascending values
-        return getIndexAscending(value, materialLodValueList);
+        return getIndexAscending(value, materialLodValueArray);
     }
     //---------------------------------------------------------------------
-    bool DistanceLodStrategyBase::isSorted(const Mesh::LodValueList& values) const
+    bool DistanceLodStrategyBase::isSorted(const Mesh::LodValueArray& values) const
     {
         // Determine if sorted ascending
         return isSortedAscending(values);
@@ -170,7 +195,7 @@ namespace Ogre {
         // more computation (including a sqrt) so we approximate 
         // it with d^2 - r^2, which is good enough for determining 
         // LOD.
-        return movableObject->getParentNode()->getSquaredViewDepth(camera) - Math::Sqr(movableObject->getBoundingRadius());
+        return movableObject->getParentNode()->getSquaredViewDepth(camera) - Math::Sqr(movableObject->getWorldRadius());
     }
     //-----------------------------------------------------------------------
 
@@ -195,7 +220,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Real DistanceLodBoxStrategy::getSquaredDepth(const MovableObject *movableObject, const Ogre::Camera *camera) const
     {
-        return Math::Sqr(movableObject->getBoundingBox().distance(camera->getPosition()));
+        return Math::Sqr(movableObject->getWorldAabb().distance(camera->getPosition()));
     }
     //-----------------------------------------------------------------------
 

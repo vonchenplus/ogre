@@ -738,7 +738,7 @@ namespace Ogre {
         return win;
     }
 
-
+    //---------------------------------------------------------------------
     DepthBuffer* GL3PlusRenderSystem::_createDepthBufferFor( RenderTarget *renderTarget )
     {
         GL3PlusDepthBuffer *retVal = 0;
@@ -749,19 +749,19 @@ namespace Ogre {
         GL3PlusFrameBufferObject *fbo = 0;
         renderTarget->getCustomAttribute(GL3PlusRenderTexture::CustomAttributeString_FBO, &fbo);
 
-        if ( fbo )
+        if( fbo )
         {
-            // Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast.
-            // Find best depth & stencil format suited for the RT's format.
+            // Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast
+            // Find best depth & stencil format suited for the RT's format
             GLuint depthFormat, stencilFormat;
             static_cast<GL3PlusFBOManager*>(mRTTManager)->getBestDepthStencil( fbo->getFormat(),
-                                                                               &depthFormat, &stencilFormat );
+                                                                        &depthFormat, &stencilFormat );
 
             GL3PlusRenderBuffer *depthBuffer = new GL3PlusRenderBuffer( depthFormat, fbo->getWidth(),
                                                                         fbo->getHeight(), fbo->getFSAA() );
 
             GL3PlusRenderBuffer *stencilBuffer = fbo->getFormat() != PF_DEPTH ? depthBuffer : 0;
-            if ( depthFormat != GL_DEPTH24_STENCIL8 && depthFormat != GL_DEPTH32F_STENCIL8 && stencilFormat != GL_NONE )
+            if( depthFormat != GL_DEPTH24_STENCIL8 && depthFormat != GL_DEPTH32F_STENCIL8 && stencilFormat != GL_NONE )
             {
                 stencilBuffer = new GL3PlusRenderBuffer( stencilFormat, fbo->getWidth(),
                                                          fbo->getHeight(), fbo->getFSAA() );
@@ -774,9 +774,9 @@ namespace Ogre {
 
         return retVal;
     }
-
+    //---------------------------------------------------------------------
     void GL3PlusRenderSystem::_getDepthStencilFormatFor( GLenum internalColourFormat, GLenum *depthFormat,
-                                                         GLenum *stencilFormat )
+                                                      GLenum *stencilFormat )
     {
         mRTTManager->getBestDepthStencil( internalColourFormat, depthFormat, stencilFormat );
     }
@@ -820,8 +820,8 @@ namespace Ogre {
                         GL3PlusDepthBuffer *depthBuffer = static_cast<GL3PlusDepthBuffer*>(*itor);
                         GL3PlusContext *glContext = depthBuffer->getGLContext();
 
-                        if ( glContext == windowContext &&
-                             (depthBuffer->getDepthBuffer() || depthBuffer->getStencilBuffer()) )
+                        if( glContext == windowContext &&
+                            (depthBuffer->getDepthBuffer() || depthBuffer->getStencilBuffer()) )
                         {
                             bFound = true;
 
@@ -959,9 +959,12 @@ namespace Ogre {
                 // Assume 2D.
                 mTextureTypes[stage] = GL_TEXTURE_2D;
 
-            if (!tex.isNull())
+            if(!tex.isNull())
             {
-                OGRE_CHECK_GL_ERROR(glBindTexture( mTextureTypes[stage], tex->getGLID() ));
+                bool isFsaa;
+                GLuint id = tex->getGLID( isFsaa );
+                OGRE_CHECK_GL_ERROR(glBindTexture( isFsaa ?
+                                            GL_TEXTURE_2D_MULTISAMPLE : mTextureTypes[stage], id ));
             }
             else
             {
@@ -1090,7 +1093,7 @@ namespace Ogre {
     {
         GLenum sourceBlend = getBlendMode(sourceFactor);
         GLenum destBlend = getBlendMode(destFactor);
-        if (sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
+        if(sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
         {
             OGRE_CHECK_GL_ERROR(glDisable(GL_BLEND));
         }
@@ -1192,7 +1195,7 @@ namespace Ogre {
         bool a2c = false;
         static bool lasta2c = false;
 
-        if (func != CMPF_ALWAYS_PASS)
+        if(func != CMPF_ALWAYS_PASS)
         {
             a2c = alphaToCoverage;
         }
@@ -1220,7 +1223,6 @@ namespace Ogre {
             mActiveViewport = NULL;
             _setRenderTarget(NULL);
         }
-
         else if (vp != mActiveViewport || vp->_isUpdated())
         {
             RenderTarget* target;
@@ -1254,11 +1256,6 @@ namespace Ogre {
 
     void GL3PlusRenderSystem::_beginFrame(void)
     {
-        if (!mActiveViewport)
-            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
-                        "Cannot begin frame - no viewport selected.",
-                        "GL3PlusRenderSystem::_beginFrame");
-
         OGRE_CHECK_GL_ERROR(glEnable(GL_SCISSOR_TEST));
     }
 
@@ -1276,11 +1273,11 @@ namespace Ogre {
         unbindGpuProgram(GPT_FRAGMENT_PROGRAM);
         unbindGpuProgram(GPT_GEOMETRY_PROGRAM);
 
-        if (mDriverVersion.major >= 4)
+        if(mDriverVersion.major >= 4)
         {
             unbindGpuProgram(GPT_HULL_PROGRAM);
             unbindGpuProgram(GPT_DOMAIN_PROGRAM);
-            if (mDriverVersion.minor >= 3)
+            if(mDriverVersion.minor >= 3)
                 unbindGpuProgram(GPT_COMPUTE_PROGRAM);
         }
     }
@@ -1606,9 +1603,9 @@ namespace Ogre {
             OGRE_CHECK_GL_ERROR(glStencilMaskSeparate(GL_FRONT, writeMask));
             OGRE_CHECK_GL_ERROR(glStencilFuncSeparate(GL_FRONT, convertCompareFunction(func), refValue, compareMask));
             OGRE_CHECK_GL_ERROR(glStencilOpSeparate(GL_FRONT,
-                                                    convertStencilOp(stencilFailOp, flip),
-                                                    convertStencilOp(depthFailOp, flip),
-                                                    convertStencilOp(passOp, flip)));
+                                convertStencilOp(stencilFailOp, flip),
+                                convertStencilOp(depthFailOp, flip),
+                                convertStencilOp(passOp, flip)));
         }
         else
         {
@@ -1616,9 +1613,9 @@ namespace Ogre {
             OGRE_CHECK_GL_ERROR(glStencilMask(writeMask));
             OGRE_CHECK_GL_ERROR(glStencilFunc(convertCompareFunction(func), refValue, compareMask));
             OGRE_CHECK_GL_ERROR(glStencilOp(
-                convertStencilOp(stencilFailOp, flip),
-                convertStencilOp(depthFailOp, flip),
-                convertStencilOp(passOp, flip)));
+                        convertStencilOp(stencilFailOp, flip),
+                        convertStencilOp(depthFailOp, flip),
+                        convertStencilOp(passOp, flip)));
         }
     }
 
@@ -1983,9 +1980,9 @@ namespace Ogre {
                 }
 
                 GLuint indexEnd = op.indexData->indexCount - op.indexData->indexStart;
-                if (hasInstanceData)
+                if(hasInstanceData)
                 {
-                    if (mGLSupport->checkExtension("GL_ARB_draw_elements_base_vertex") || gl3wIsSupported(3, 2))
+                    if(mGLSupport->checkExtension("GL_ARB_draw_elements_base_vertex") || gl3wIsSupported(3, 2))
                     {
                         OGRE_CHECK_GL_ERROR(glDrawElementsInstancedBaseVertex(primType, op.indexData->indexCount, indexType, pBufferData, numberOfInstances, op.vertexData->vertexStart));
                     }
@@ -1996,7 +1993,7 @@ namespace Ogre {
                 }
                 else
                 {
-                    if (mGLSupport->checkExtension("GL_ARB_draw_elements_base_vertex") || gl3wIsSupported(3, 2))
+                    if(mGLSupport->checkExtension("GL_ARB_draw_elements_base_vertex") || gl3wIsSupported(3, 2))
                     {
                         OGRE_CHECK_GL_ERROR(glDrawRangeElementsBaseVertex(primType, op.indexData->indexStart, indexEnd, op.indexData->indexCount, indexType, pBufferData, op.vertexData->vertexStart));
                     }
@@ -2363,8 +2360,8 @@ namespace Ogre {
             // Check the FBO's depth buffer status
             GL3PlusDepthBuffer *depthBuffer = static_cast<GL3PlusDepthBuffer*>(target->getDepthBuffer());
 
-            if ( target->getDepthBufferPool() != DepthBuffer::POOL_NO_DEPTH &&
-                 (!depthBuffer || depthBuffer->getGLContext() != mCurrentContext ) )
+            if( target->getDepthBufferPool() != DepthBuffer::POOL_NO_DEPTH &&
+                (!depthBuffer || depthBuffer->getGLContext() != mCurrentContext ) )
             {
                 // Depth is automatically managed and there is no depth buffer attached to this RT
                 // or the Current context doesn't match the one this Depth buffer was created with

@@ -58,6 +58,8 @@ class VisualTest : public OgreBites::Sample
         mInfo["Category"] = "Tests";
         mInfo["Thumbnail"] = "thumb_visual_tests.png";
         mInfo["Help"] = "";
+        //This bg colour is very hard to confuse with common mistakes (i.e. black triangle on black bg)
+        mBackgroundColour = Ogre::ColourValue( 0.79f, 0.2f, 0.75f );
         Ogre::ResourceGroupManager& rgm = Ogre::ResourceGroupManager::getSingleton();
         if (!rgm.resourceGroupExists(TRANSIENT_RESOURCE_GROUP))
             rgm.createResourceGroup(TRANSIENT_RESOURCE_GROUP);
@@ -96,8 +98,7 @@ class VisualTest : public OgreBites::Sample
     virtual void setupView()
     {
         mCamera = mSceneMgr->createCamera("MainCamera");
-        mViewport = mWindow->addViewport(mCamera);
-        mCamera->setAspectRatio((Ogre::Real)mViewport->getActualWidth() / (Ogre::Real)mViewport->getActualHeight());
+        mCamera->setAutoAspectRatio( true );
         mCamera->setNearClipDistance(0.5f);
         mCamera->setFarClipDistance(10000.f);
         mCamera->setPosition(Ogre::Vector3::ZERO);
@@ -114,7 +115,6 @@ class VisualTest : public OgreBites::Sample
     /** Changes aspect ratio to match any window resizings */
     virtual void windowResized(Ogre::RenderWindow* rw)
     {
-        mCamera->setAspectRatio((Ogre::Real)mViewport->getActualWidth() / (Ogre::Real)mViewport->getActualHeight());
     }
 
     /** Returns whether or not a screenshot should be taken at the given frame */
@@ -144,6 +144,22 @@ class VisualTest : public OgreBites::Sample
 
  protected:
 
+    /** virtual so that advanced samples such as Sample_Compositor can override this method to change the default behavior
+     *  if setupCompositor() is overridden, be aware @mBackgroundColour will be ignored
+     */
+    virtual void setupCompositor()
+    {
+        Ogre::CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
+
+        const Ogre::IdString workspaceName( mInfo["Title"] + " Workspace" );
+        if( !compositorManager->hasWorkspaceDefinition( workspaceName ) )
+        {
+            compositorManager->createBasicWorkspaceDef( mInfo["Title"] + " Workspace", mBackgroundColour,
+                                                        Ogre::IdString() );
+        }
+        compositorManager->addWorkspace( mSceneMgr, mWindow, mCamera, workspaceName, true );
+    }
+
     // a set of frame numbers at which to trigger screenshots
     std::set<unsigned int> mScreenshotFrames;
 
@@ -152,9 +168,7 @@ class VisualTest : public OgreBites::Sample
 
     // The camera for this sample
     Ogre::Camera* mCamera;
-    // The viewport for this sample
-    Ogre::Viewport* mViewport;
-
+    Ogre::ColourValue mBackgroundColour;    // color value passed to createBasicWorkspaceDef
 };
 
 #endif

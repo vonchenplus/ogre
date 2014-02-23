@@ -1302,8 +1302,8 @@ namespace Ogre {
         unsigned short num = 0;
         for (i = lights.begin(); i != iend && num < limit; ++i, ++num)
         {
-            setGLLight(num, *i);
-            mLights[num] = *i;
+            setGLLight(num, i->light);
+            mLights[num] = i->light;
         }
         // Disable extra lights
         for (; num < mCurrentLights; ++num)
@@ -1319,7 +1319,7 @@ namespace Ogre {
         glPopMatrix();
     }
 
-    void GLRenderSystem::setGLLight(size_t index, Light* lt)
+    void GLRenderSystem::setGLLight(size_t index, const Light* lt)
     {
         GLenum gl_index = GL_LIGHT0 + index;
 
@@ -2066,7 +2066,7 @@ namespace Ogre {
         {
             if (mLights[i] != NULL)
             {
-                Light* lt = mLights[i];
+                const Light* lt = mLights[i];
                 setGLLightPositionDirection(lt, GL_LIGHT0 + i);
             }
         }
@@ -2075,13 +2075,8 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     void GLRenderSystem::_beginFrame(void)
     {
-        if (!mActiveViewport)
-            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
-                        "Cannot begin frame - no viewport selected.",
-                        "GLRenderSystem::_beginFrame");
-
         // Activate the viewport clipping
-        mStateCacheManager->setEnabled(GL_SCISSOR_TEST, true);
+        mStateCacheManager->setEnabled(GL_SCISSOR_TEST);
     }
 
     //-----------------------------------------------------------------------------
@@ -2809,12 +2804,12 @@ namespace Ogre {
         mStateCacheManager->activateGLTextureUnit(0);
     }
     //---------------------------------------------------------------------
-    void GLRenderSystem::setGLLightPositionDirection(Light* lt, GLenum lightindex)
+    void GLRenderSystem::setGLLightPositionDirection(const Light* lt, GLenum lightindex)
     {
         // Set position / direction
         Vector4 vec;
         // Use general 4D vector which is the same as GL's approach
-        vec = lt->getAs4DVector(true);
+        vec = lt->getAs4DVector();
 
         // Must convert to float*
         float tmp[4] = {static_cast<float>(vec.x),

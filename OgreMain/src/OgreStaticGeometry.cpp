@@ -40,9 +40,6 @@ THE SOFTWARE.
 #include "OgreRoot.h"
 #include "OgreRenderSystem.h"
 #include "OgreEdgeListBuilder.h"
-#include "OgreTechnique.h"
-#include "OgreLodStrategy.h"
-#include "OgreIteratorWrappers.h"
 
 namespace Ogre {
 
@@ -166,11 +163,9 @@ namespace Ogre {
         if (!ret && autoCreate)
         {
             // Make a name
-            StringStream str;
-            str << mName << ":" << index;
             // Calculate the region centre
             Vector3 centre = getRegionCentre(x, y, z);
-            ret = OGRE_NEW Region(this, str.str(), mOwner, index, centre);
+            ret = OGRE_NEW Region( Id::generateNewId<MovableObject>(), 0, this, mOwner, index, centre );
             mOwner->injectMovableObject(ret);
             ret->setVisible(mVisible);
             ret->setCastShadows(mCastShadows);
@@ -288,11 +283,11 @@ namespace Ogre {
     {
         const MeshPtr& msh = ent->getMesh();
         // Validate
-        if (msh->hasManualLodLevel())
+        if (msh->isLodManual())
         {
             LogManager::getSingleton().logMessage(
                 "WARNING (StaticGeometry): Manual LOD is not supported. "
-                "Using only highest LOD level for mesh " + msh->getName(), LML_CRITICAL);
+                "Using only highest LOD level for mesh " + msh->getName());
         }
 
         AxisAlignedBox sharedWorldBounds;
@@ -332,7 +327,7 @@ namespace Ogre {
         // Otherwise, we have to create a new one
         SubMeshLodGeometryLinkList* lodList = OGRE_NEW_T(SubMeshLodGeometryLinkList, MEMCATEGORY_GEOMETRY)();
         mSubMeshGeometryLookup[sm] = lodList;
-        ushort numLods = sm->parent->hasManualLodLevel() ? 1 :
+        ushort numLods = sm->parent->isLodManual() ? 1 :
             sm->parent->getNumLodLevels();
         lodList->resize(numLods);
         for (ushort lod = 0; lod < numLods; ++lod)
@@ -395,10 +390,12 @@ namespace Ogre {
         // and while we're at it, build the remap we can use later
         bool use32bitIndexes =
             id->indexBuffer->getType() == HardwareIndexBuffer::IT_32BIT;
+        uint16 *p16;
+        uint32 *p32;
         IndexRemap indexRemap;
         if (use32bitIndexes)
         {
-            uint32 *p32 = static_cast<uint32*>(id->indexBuffer->lock(
+            p32 = static_cast<uint32*>(id->indexBuffer->lock(
                 id->indexStart, 
                 id->indexCount * id->indexBuffer->getIndexSize(), 
                 HardwareBuffer::HBL_READ_ONLY));
@@ -407,7 +404,7 @@ namespace Ogre {
         }
         else
         {
-            uint16 *p16 = static_cast<uint16*>(id->indexBuffer->lock(
+            p16 = static_cast<uint16*>(id->indexBuffer->lock(
                 id->indexStart, 
                 id->indexCount * id->indexBuffer->getIndexSize(), 
                 HardwareBuffer::HBL_READ_ONLY));
@@ -536,7 +533,7 @@ namespace Ogre {
             }
         }
         // Iterate through all the child-nodes
-        SceneNode::ConstChildNodeIterator nodei = node->getChildIterator();
+        SceneNode::ConstNodeVecIterator nodei = node->getChildIterator();
 
         while (nodei.hasMoreElements())
         {
@@ -559,17 +556,12 @@ namespace Ogre {
             Region* region = getRegion(qsm->worldBounds, true);
             region->assign(qsm);
         }
-        bool stencilShadows = false;
-        if (mCastShadows && mOwner->isShadowTechniqueStencilBased())
-        {
-            stencilShadows = true;
-        }
 
         // Now tell each region to build itself
         for (RegionMap::iterator ri = mRegionMap.begin();
             ri != mRegionMap.end(); ++ri)
         {
-            ri->second->build(stencilShadows);
+            ri->second->build();
             
             // Set the visibility flags on these regions
             ri->second->setVisibilityFlags(mVisibilityFlags);
@@ -712,11 +704,13 @@ namespace Ogre {
     }
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    StaticGeometry::Region::Region(StaticGeometry* parent, const String& name,
-        SceneManager* mgr, uint32 regionID, const Vector3& centre)
-        : MovableObject(name), mParent(parent), mSceneMgr(mgr), mNode(0),
+    StaticGeometry::Region::Region( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                    StaticGeometry* parent, SceneManager* mgr, uint32 regionID,
+                                    const Vector3& centre ) :
+        MovableObject( id, objectMemoryManager ),
+        mParent(parent), mSceneMgr(mgr), mNode(0),
         mRegionID(regionID), mCentre(centre), mBoundingRadius(0.0f),
-        mCurrentLod(0), mLodStrategy(0), mCamera(0), mSquaredViewDepth(0)
+        mCurrentLod(0)
     {
     }
     //--------------------------------------------------------------------------
@@ -724,8 +718,7 @@ namespace Ogre {
     {
         if (mNode)
         {
-            mNode->getParentSceneNode()->removeChild(mNode);
-            mSceneMgr->destroySceneNode(mNode->getName());
+            mNode->getParentSceneNode()->removeAndDestroyChild(mNode);
             mNode = 0;
         }
         // delete
@@ -750,20 +743,9 @@ namespace Ogre {
         mQueuedSubMeshes.push_back(qmesh);
 
         // Set/check LOD strategy
-        const LodStrategy *lodStrategy = qmesh->submesh->parent->getLodStrategy();
-        if (mLodStrategy == 0)
-        {
-            mLodStrategy = lodStrategy;
-
-            // First LOD mandatory, and always from base LOD value
-            mLodValues.push_back(mLodStrategy->getBaseValue());
-        }
-        else
-        {
-            if (mLodStrategy != lodStrategy)
-                OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Lod strategies do not match",
-                    "StaticGeometry::Region::assign");
-        }
+        const LodStrategy *lodStrategy = LodStrategyManager::getSingleton().getDefaultStrategy();
+        // First LOD mandatory, and always from base LOD value
+        mLodValues.push_back(lodStrategy->getBaseValue());
 
         // update LOD values
         ushort lodLevels = qmesh->submesh->parent->getNumLodLevels();
@@ -792,11 +774,10 @@ namespace Ogre {
 
     }
     //--------------------------------------------------------------------------
-    void StaticGeometry::Region::build(bool stencilShadows)
+    void StaticGeometry::Region::build()
     {
         // Create a node
-        mNode = mSceneMgr->getRootSceneNode()->createChildSceneNode(mName,
-            mCentre);
+        mNode = mSceneMgr->getRootSceneNode()->createChildSceneNode(SCENE_STATIC, mCentre);
         mNode->attachObject(this);
         // We need to create enough LOD buckets to deal with the highest LOD
         // we encountered in all the meshes queued
@@ -814,7 +795,7 @@ namespace Ogre {
                 lodBucket->assign(*qi, lod);
             }
             // now build
-            lodBucket->build(stencilShadows);
+            lodBucket->build();
         }
 
 
@@ -835,21 +816,16 @@ namespace Ogre {
         // Cache squared view depth for use by GeometryBucket
         mSquaredViewDepth = mParentNode->getSquaredViewDepth(cam->getLodCamera());
 
-        // No LOD strategy set yet, skip (this indicates that there are no submeshes)
-        if (mLodStrategy == 0)
-            return;
+        const LodStrategy *lodStrategy = LodStrategyManager::getSingleton().getDefaultStrategy();
 
         // Sanity check
         assert(!mLodValues.empty());
 
         // Calculate LOD value
-        Real lodValue = mLodStrategy->getValue(this, cam);
+        Real lodValue = lodStrategy->getValue(this, cam);
 
         // Store LOD value for this strategy
         mLodValue = lodValue;
-
-        // Get LOD index
-        mCurrentLod = mLodStrategy->getIndex(lodValue, mLodValues);
     }
     //--------------------------------------------------------------------------
     const AxisAlignedBox& StaticGeometry::Region::getBoundingBox(void) const
@@ -857,12 +833,7 @@ namespace Ogre {
         return mAABB;
     }
     //--------------------------------------------------------------------------
-    Real StaticGeometry::Region::getBoundingRadius(void) const
-    {
-        return mBoundingRadius;
-    }
-    //--------------------------------------------------------------------------
-    void StaticGeometry::Region::_updateRenderQueue(RenderQueue* queue)
+    void StaticGeometry::Region::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
     {
         mLodBucketList[mCurrentLod]->addRenderables(queue, mRenderQueueID,
             mLodValue);
@@ -878,24 +849,13 @@ namespace Ogre {
 
     }
     //--------------------------------------------------------------------------
-    bool StaticGeometry::Region::isVisible(void) const
-    {
-        if(!mVisible || mBeyondFarDistance)
-            return false;
-
-        SceneManager* sm = Root::getSingleton()._getCurrentSceneManager();
-        if (sm && !(mVisibilityFlags & sm->_getCombinedVisibilityMask()))
-            return false;
-
-        return true;
-    }
-    //--------------------------------------------------------------------------
     StaticGeometry::Region::LODIterator
     StaticGeometry::Region::getLODIterator(void)
     {
         return LODIterator(mLodBucketList.begin(), mLodBucketList.end());
     }
     //---------------------------------------------------------------------
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
     ShadowCaster::ShadowRenderableListIterator
     StaticGeometry::Region::getShadowVolumeRenderableIterator(
         ShadowTechnique shadowTechnique, const Light* light,
@@ -928,6 +888,7 @@ namespace Ogre {
         return ShadowCaster::ShadowRenderableListIterator(shadowRendList.begin(), shadowRendList.end());
 
     }
+#endif
     //--------------------------------------------------------------------------
     EdgeData* StaticGeometry::Region::getEdgeList(void)
     {
@@ -956,77 +917,6 @@ namespace Ogre {
         of << "--------------------------" << std::endl;
     }
     //--------------------------------------------------------------------------
-    //--------------------------------------------------------------------------
-    StaticGeometry::LODBucket::LODShadowRenderable::LODShadowRenderable(
-        LODBucket* parent, HardwareIndexBufferSharedPtr* indexBuffer,
-        const VertexData* vertexData, bool createSeparateLightCap,
-        bool isLightCap)
-        : mParent(parent)
-    {
-        // Initialise render op
-        mRenderOp.indexData = OGRE_NEW IndexData();
-        mRenderOp.indexData->indexBuffer = *indexBuffer;
-        mRenderOp.indexData->indexStart = 0;
-        // index start and count are sorted out later
-
-        // Create vertex data which just references position component (and 2 component)
-        mRenderOp.vertexData = OGRE_NEW VertexData();
-        // Map in position data
-        mRenderOp.vertexData->vertexDeclaration->addElement(0,0,VET_FLOAT3, VES_POSITION);
-        ushort origPosBind =
-            vertexData->vertexDeclaration->findElementBySemantic(VES_POSITION)->getSource();
-        mPositionBuffer = vertexData->vertexBufferBinding->getBuffer(origPosBind);
-        mRenderOp.vertexData->vertexBufferBinding->setBinding(0, mPositionBuffer);
-        // Map in w-coord buffer (if present)
-        if(!vertexData->hardwareShadowVolWBuffer.isNull())
-        {
-            mRenderOp.vertexData->vertexDeclaration->addElement(1,0,VET_FLOAT1, VES_TEXTURE_COORDINATES, 0);
-            mWBuffer = vertexData->hardwareShadowVolWBuffer;
-            mRenderOp.vertexData->vertexBufferBinding->setBinding(1, mWBuffer);
-        }
-        // Use same vertex start as input
-        mRenderOp.vertexData->vertexStart = vertexData->vertexStart;
-
-        if (isLightCap)
-        {
-            // Use original vertex count, no extrusion
-            mRenderOp.vertexData->vertexCount = vertexData->vertexCount;
-        }
-        else
-        {
-            // Vertex count must take into account the doubling of the buffer,
-            // because second half of the buffer is the extruded copy
-            mRenderOp.vertexData->vertexCount =
-                vertexData->vertexCount * 2;
-            if (createSeparateLightCap)
-            {
-                // Create child light cap
-                mLightCap = OGRE_NEW LODShadowRenderable(parent,
-                    indexBuffer, vertexData, false, true);
-            }
-        }
-    }
-    //--------------------------------------------------------------------------
-    StaticGeometry::LODBucket::LODShadowRenderable::~LODShadowRenderable()
-    {
-        OGRE_DELETE mRenderOp.indexData;
-        OGRE_DELETE mRenderOp.vertexData;
-    }
-    //--------------------------------------------------------------------------
-    void StaticGeometry::LODBucket::LODShadowRenderable::getWorldTransforms(
-        Matrix4* xform) const
-    {
-        // pretransformed
-        *xform = mParent->getParent()->_getParentNodeFullTransform();
-    }
-    //-----------------------------------------------------------------------
-    void StaticGeometry::LODBucket::LODShadowRenderable::rebindIndexBuffer(const HardwareIndexBufferSharedPtr& indexBuffer)
-    {
-        mRenderOp.indexData->indexBuffer = indexBuffer;
-        if (mLightCap) mLightCap->rebindIndexBuffer(indexBuffer);
-    }
-    //--------------------------------------------------------------------------
-    //--------------------------------------------------------------------------
     StaticGeometry::LODBucket::LODBucket(Region* parent, unsigned short lod,
         Real lodValue)
         : mParent(parent), mLod(lod), mLodValue(lodValue), mEdgeList(0)
@@ -1037,12 +927,6 @@ namespace Ogre {
     StaticGeometry::LODBucket::~LODBucket()
     {
         OGRE_DELETE mEdgeList;
-        for (ShadowCaster::ShadowRenderableList::iterator s = mShadowRenderables.begin();
-            s != mShadowRenderables.end(); ++s)
-        {
-            OGRE_DELETE *s;
-        }
-        mShadowRenderables.clear();
         // delete
         for (MaterialBucketMap::iterator i = mMaterialBucketMap.begin();
             i != mMaterialBucketMap.end(); ++i)
@@ -1094,11 +978,10 @@ namespace Ogre {
         mbucket->assign(q);
     }
     //--------------------------------------------------------------------------
-    void StaticGeometry::LODBucket::build(bool stencilShadows)
+    void StaticGeometry::LODBucket::build()
     {
 
         EdgeListBuilder eb;
-        size_t vertexSet = 0;
 
         // Just pass this on to child buckets
         for (MaterialBucketMap::iterator i = mMaterialBucketMap.begin();
@@ -1106,47 +989,7 @@ namespace Ogre {
         {
             MaterialBucket* mat = i->second;
 
-            mat->build(stencilShadows);
-
-            if (stencilShadows)
-            {
-                MaterialBucket::GeometryIterator geomIt =
-                    mat->getGeometryIterator();
-                // Check if we have vertex programs here
-                Technique* t = mat->getMaterial()->getBestTechnique();
-                if (t)
-                {
-                    Pass* p = t->getPass(0);
-                    if (p)
-                    {
-                        if (p->hasVertexProgram())
-                        {
-                            mVertexProgramInUse = true;
-                        }
-                    }
-                }
-
-                while (geomIt.hasMoreElements())
-                {
-                    GeometryBucket* geom = geomIt.getNext();
-
-                    // Check we're dealing with 16-bit indexes here
-                    // Since stencil shadows can only deal with 16-bit
-                    // More than that and stencil is probably too CPU-heavy
-                    // in any case
-                    assert(geom->getIndexData()->indexBuffer->getType()
-                        == HardwareIndexBuffer::IT_16BIT &&
-                        "Only 16-bit indexes allowed when using stencil shadows");
-                    eb.addVertexData(geom->getVertexData());
-                    eb.addIndexData(geom->getIndexData(), vertexSet++);
-                }
-
-            }
-        }
-
-        if (stencilShadows)
-        {
-            mEdgeList = eb.build();
+            mat->build();
         }
     }
     //--------------------------------------------------------------------------
@@ -1195,6 +1038,7 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
     void StaticGeometry::LODBucket::updateShadowRenderables(
         ShadowTechnique shadowTechnique, const Vector4& lightPos, 
         HardwareIndexBufferSharedPtr* indexBuffer, bool extrude, 
@@ -1251,6 +1095,7 @@ namespace Ogre {
         }
 
     }
+#endif
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
     StaticGeometry::MaterialBucket::MaterialBucket(LODBucket* parent,
@@ -1306,7 +1151,7 @@ namespace Ogre {
         }
     }
     //--------------------------------------------------------------------------
-    void StaticGeometry::MaterialBucket::build(bool stencilShadows)
+    void StaticGeometry::MaterialBucket::build()
     {
         mTechnique = 0;
         mMaterial = MaterialManager::getSingleton().getByName(mMaterialName);
@@ -1321,7 +1166,7 @@ namespace Ogre {
         for (GeometryBucketList::iterator i = mGeometryBucketList.begin();
             i != mGeometryBucketList.end(); ++i)
         {
-            (*i)->build(stencilShadows);
+            (*i)->build();
         }
     }
     //--------------------------------------------------------------------------
@@ -1331,16 +1176,10 @@ namespace Ogre {
         // Get region
         Region *region = mParent->getParent();
 
-        // Get material LOD strategy
-        const LodStrategy *materialLodStrategy = mMaterial->getLodStrategy();
-
-        // If material strategy doesn't match, recompute LOD value with correct strategy
-        if (materialLodStrategy != region->mLodStrategy)
-            lodValue = materialLodStrategy->getValue(region, region->mCamera);
+        size_t regionIdx = 0; //TODO!!!!!!
 
         // Determine the current material technique
-        mTechnique = mMaterial->getBestTechnique(
-            mMaterial->getLodIndex(lodValue));
+        mTechnique = mMaterial->getBestTechnique( region->mCurrentMaterialLod[regionIdx] );
         GeometryBucketList::iterator i, iend;
         iend =  mGeometryBucketList.end();
         for (i = mGeometryBucketList.begin(); i != iend; ++i)
@@ -1361,7 +1200,7 @@ namespace Ogre {
         //   source
         //   semantic
         //   type
-        StringStream str;
+        StringUtil::StrStreamType str;
 
         str << geom->indexData->indexBuffer->getType() << "|";
         const VertexDeclaration::VertexElementList& elemList =
@@ -1533,7 +1372,7 @@ namespace Ogre {
         return true;
     }
     //--------------------------------------------------------------------------
-    void StaticGeometry::GeometryBucket::build(bool stencilShadows)
+    void StaticGeometry::GeometryBucket::build()
     {
         // Ok, here's where we transfer the vertices and indexes to the shared
         // buffers
@@ -1559,22 +1398,12 @@ namespace Ogre {
         }
         // create all vertex buffers, and lock
         ushort b;
-        ushort posBufferIdx = dcl->findElementBySemantic(VES_POSITION)->getSource();
 
         vector<uchar*>::type destBufferLocks;
         vector<VertexDeclaration::VertexElementList>::type bufferElements;
         for (b = 0; b < binds->getBufferCount(); ++b)
         {
             size_t vertexCount = mVertexData->vertexCount;
-            // Need to double the vertex count for the position buffer
-            // if we're doing stencil shadows
-            if (stencilShadows && b == posBufferIdx)
-            {
-                vertexCount = vertexCount * 2;
-                assert(vertexCount <= mMaxVertexIndex &&
-                    "Index range exceeded when using stencil shadows, consider "
-                    "reducing your region size or reducing poly count");
-            }
             HardwareVertexBufferSharedPtr vbuf =
                 HardwareBufferManager::getSingleton().createVertexBuffer(
                     dcl->getVertexSize(b),
@@ -1720,40 +1549,6 @@ namespace Ogre {
 
         // If we're dealing with stencil shadows, copy the position data from
         // the early half of the buffer to the latter part
-        if (stencilShadows)
-        {
-            HardwareVertexBufferSharedPtr buf = binds->getBuffer(posBufferIdx);
-            void* pSrc = buf->lock(HardwareBuffer::HBL_NORMAL);
-            // Point dest at second half (remember vertexcount is original count)
-            void* pDest = static_cast<uchar*>(pSrc) +
-                buf->getVertexSize() * mVertexData->vertexCount;
-            memcpy(pDest, pSrc, buf->getVertexSize() * mVertexData->vertexCount);
-            buf->unlock();
-
-            // Also set up hardware W buffer if appropriate
-            RenderSystem* rend = Root::getSingleton().getRenderSystem();
-            if (rend && rend->getCapabilities()->hasCapability(RSC_VERTEX_PROGRAM))
-            {
-                buf = HardwareBufferManager::getSingleton().createVertexBuffer(
-                    sizeof(float), mVertexData->vertexCount * 2,
-                    HardwareBuffer::HBU_STATIC_WRITE_ONLY, false);
-                // Fill the first half with 1.0, second half with 0.0
-                float *pW = static_cast<float*>(
-                    buf->lock(HardwareBuffer::HBL_DISCARD));
-                size_t v;
-                for (v = 0; v < mVertexData->vertexCount; ++v)
-                {
-                    *pW++ = 1.0f;
-                }
-                for (v = 0; v < mVertexData->vertexCount; ++v)
-                {
-                    *pW++ = 0.0f;
-                }
-                buf->unlock();
-                mVertexData->hardwareShadowVolWBuffer = buf;
-            }
-        }
-
     }
     //--------------------------------------------------------------------------
     void StaticGeometry::GeometryBucket::dump(std::ofstream& of) const
