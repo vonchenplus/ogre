@@ -35,6 +35,15 @@ THE SOFTWARE.
 #include "OgreMesh.h"
 #include "OgreException.h"
 
+//TODO: Fix me Hlms
+#include "OgreHlms.h"
+namespace Ogre {
+void Renderable::setHlms( Hlms *hlms, const HlmsParamVec &params )
+{
+    hlms->calculateHashFor( this, params, mHlmsHash, mHlmsCasterHash );
+}
+}
+
 namespace Ogre {
     //-----------------------------------------------------------------------
     SubEntity::SubEntity (Entity* parent, SubMesh* subMeshBasis)
