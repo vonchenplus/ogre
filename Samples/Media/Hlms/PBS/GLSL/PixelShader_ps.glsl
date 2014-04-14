@@ -118,7 +118,7 @@ vec3 qmul( vec4 q, vec3 v )
 }
 @end
 
-vec3 cookTorrance( int lightIdx, vec3 lightDir, vec3 viewDir, float NdotV )
+vec3 cookTorrance( vec3 lightDir, vec3 viewDir, float NdotV, vec3 lightDiffuse, vec3 lightSpecular )
 {
 	vec3 halfWay= normalize( lightDir + viewDir );
 	float NdotL = clamp( dot( nNormal, lightDir ), 0.0f, 1.0f );
@@ -139,10 +139,6 @@ vec3 cookTorrance( int lightIdx, vec3 lightDir, vec3 viewDir, float NdotV )
 
 	float R = roughness_a * exp( roughness_b / roughness_c );
 
-	vec3 reflDir = (-2.0f * dot( viewDir, halfWay )) * halfWay + viewDir;
-@property( envprobe_map )	//Should we be use R instead for selecting the mip?
-	vec3 envColour = textureLod( texEnvProbeMap, reflDir, ROUGHNESS ).xyz;@end
-
 	//Geometric term
 	float shared_geo = 2.0f * NdotH / VdotH;
 	float geo_b	= shared_geo * NdotV;
@@ -156,11 +152,10 @@ vec3 cookTorrance( int lightIdx, vec3 lightDir, vec3 viewDir, float NdotV )
 	@insertpiece( FresnelType ) fresnelS = F0 + pow( 1.0f - VdotH, 5.0f ) * (1.0f - F0);
 	@insertpiece( FresnelType ) fresnelD = 1.0f - F0 + pow( 1.0f - NdotL, 5.0f ) * F0;
 
-@property( envprobe_map )	vec3 Rs = ( envColour * fresnelS * R * G  ) / (4.0f * NdotV * NdotL);@end
-@property( !envprobe_map )	@insertpiece( FresnelType ) Rs = ( fresnelS * R * G  ) / (4.0f * NdotV * NdotL);@end
+	@insertpiece( FresnelType ) Rs = ( fresnelS * R * G  ) / (4.0f * NdotV * NdotL);
 
-	return NdotL * (kS * lightSpecular[lightIdx] * Rs @insertpiece( MulSpecularMapValue ) +
-				   kD * lightDiffuse[lightIdx] * fresnelD @insertpiece( MulDiffuseMapValue ));
+	return NdotL * (kS * lightSpecular * Rs @insertpiece( MulSpecularMapValue ) +
+					kD * lightDiffuse * fresnelD @insertpiece( MulDiffuseMapValue ));
 }
 
 @property( hlms_num_shadow_maps )@piece( DarkenWithShadow ) * getShadow( texShadowMap[@value(CurrentShadowMap)], psPosL@value(CurrentShadowMap), invShadowMapSize[@counter(CurrentShadowMap)] )@end @end
@@ -185,17 +180,17 @@ void main()
 @insertpiece( SampleSpecularMap )
 
 	//Everything's in Camera space, we use Cook-Torrance lighting
-@property( hlms_lights_spot )
+@property( hlms_lights_spot || envprobe_map )
 	vec3 viewDir	= normalize( -psPos );
 	float NdotV		= clamp( dot( nNormal, viewDir ), 0.0f, 1.0f );@end
 
 	vec3 finalColour = vec3(0);
 @property( hlms_lights_directional )
-	finalColour += cookTorrance( 0, lightPosition[0].xyz, viewDir, NdotV );
+	finalColour += cookTorrance( lightPosition[0].xyz, viewDir, NdotV, lightDiffuse[0], lightSpecular[0] );
 @property( hlms_num_shadow_maps )	finalColour *= fShadow;	//1st directional light's shadow@end
 @end
 @foreach( hlms_lights_directional, n, 1 )
-	finalColour += cookTorrance( @n, lightPosition[@n].xyz, viewDir, NdotV )@insertpiece( DarkenWithShadow );@end
+	finalColour += cookTorrance( lightPosition[@n].xyz, viewDir, NdotV, lightDiffuse[@n], lightSpecular[@n] )@insertpiece( DarkenWithShadow );@end
 
 @property( hlms_lights_point || hlms_lights_spot )	vec3 lightDir;
 	float fDistance;
@@ -209,7 +204,7 @@ void main()
 	if( fDistance <= attenuation[@value(atten)].x )
 	{
 		lightDir *= 1.0f / fDistance;
-		tmpColour = cookTorrance( @n, lightDir, viewDir, NdotV )@insertpiece( DarkenWithShadow );
+		tmpColour = cookTorrance( lightDir, viewDir, NdotV, lightDiffuse[@n], lightSpecular[@n] )@insertpiece( DarkenWithShadow );
 		float atten = 1.0f / (1.0 + attenuation[@value(atten)].y * fDistance + attenuation[@counter(atten)].z * fDistance * fDistance );
 		finalColour += tmpColour * atten;
 	}@end
@@ -234,10 +229,15 @@ void main()
 		float spotAtten = clamp( (spotCosAngle - spotParams[@value(spot_params)].y) * spotParams[@value(spot_params)].x, 0.0f, 1.0f );
 		spotAtten = pow( spotAtten, spotParams[@counter(spot_params)].z );
 	@end
-		tmpColour = cookTorrance( @n, lightDir, viewDir, NdotV )@insertpiece( DarkenWithShadow );
+		tmpColour = cookTorrance( lightDir, viewDir, NdotV, lightDiffuse[@n], lightSpecular[@n] )@insertpiece( DarkenWithShadow );
 		float atten = 1.0f / (1.0 + attenuation[@value(atten)].y * fDistance + attenuation[@counter(atten)].z * fDistance * fDistance );
 		finalColour += tmpColour * (atten * spotAtten);
 	}@end
+
+@property( envprobe_map )
+	vec3 reflDir = (-2.0f * dot( viewDir, nNormal )) * nNormal + viewDir;
+	vec3 envColour = textureLod( texEnvProbeMap, reflDir, ROUGHNESS ).xyz;
+	finalColour += envColour * cookTorrance( reflDir, viewDir, NdotV, vec3( 1.0f ), vec3( 1.0f ) );@end
 
 	outColour.xyz	= finalColour;
 	outColour.w		= 1.0f;
