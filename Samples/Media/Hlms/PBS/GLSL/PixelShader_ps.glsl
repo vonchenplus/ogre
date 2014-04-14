@@ -237,7 +237,8 @@ void main()
 @property( envprobe_map )
 	vec3 reflDir = (-2.0f * dot( viewDir, nNormal )) * nNormal + viewDir;
 	vec3 envColour = textureLod( texEnvProbeMap, reflDir, ROUGHNESS ).xyz;
-	finalColour += envColour * cookTorrance( reflDir, viewDir, NdotV, vec3( 1.0f ), vec3( 1.0f ) );@end
+	envColour = envColour * envColour; //TODO: Cubemap Gamma correction broken in GL3+
+	finalColour += cookTorrance( -reflDir, viewDir, NdotV, vec3( 0 ), vec3( envColour ) );@end
 
 	outColour.xyz	= finalColour;
 	outColour.w		= 1.0f;

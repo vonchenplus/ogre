@@ -83,6 +83,12 @@ material TEST
 				tex_address_mode border
 				tex_border_colour 1 1 1 1
 			}
+
+			texture_unit
+			{
+				texture SaintPetersBasilica.dds
+				filtering trilinear
+			}
 		}
 	}
 }

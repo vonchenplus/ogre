@@ -52,5 +52,9 @@ fragment_program TEST_ps glsl
 		param_named			pssmSplitPoints		float3 0 0 0
 
 		param_named			texShadowMap		int7 0 1 2 3 4 5 6
+		//param_named			texShadowMap		int7 1 2 3 4 5 6 7
+
+		param_named			texEnvProbeMap		int 7
+		param_named_auto	invViewMat			inverse_view_matrix
 	}
 }
