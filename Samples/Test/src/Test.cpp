@@ -103,8 +103,9 @@ void Sample_Test::setupContent(void)
         //lightNode->setPosition( -lightNode->getOrientation().zAxis() * 80.0f );
         light->setSpotlightOuterAngle( Degree( 60.0f ) );
         mCreatedLights.push_back( light );
-        light->setDiffuseColour( ColourValue::White );
-        light->setSpecularColour( ColourValue::White );
+        light->setDiffuseColour( ColourValue::White * 2.0f );
+        light->setSpecularColour( ColourValue::White * 2.0f );
+        light->setAttenuationBasedOnRadius( 200.0f, 0.01f );
         //light->setDiffuseColour( ColourValue::Black );
         //light->setSpecularColour( ColourValue::Black );
     }
