@@ -133,7 +133,7 @@ vec3 cookTorrance( vec3 lightDir, vec3 viewDir, float NdotV, vec3 lightDiffuse, 
 	//	R = [ 1 / (m^2 x cos(alpha)^4 ] x [ e^( -tan(alpha)^2 / m^2 ) ]
 	//	R = [ 1 / (m^2 x cos(alpha)^4 ] x [ e^( ( cos(alpha)^2 - 1 )  /  (m^2 cos(alpha)^2 ) ]
 	float NdotH_sq = NdotH * NdotH;
-	float roughness_a = 1.0f / ( sqR * NdotH_sq * NdotH_sq );//( 1 / (m^2 x cos(alpha)^4 )
+	float roughness_a = 1.0f / ( 3.141592654f * sqR * NdotH_sq * NdotH_sq );//( 1 / (m^2 x cos(alpha)^4 )
 	float roughness_b = NdotH_sq - 1.0f;	//( cos(alpha)^2 - 1 )
 	float roughness_c = sqR * NdotH_sq;		//( m^2 cos(alpha)^2 )
 
@@ -235,10 +235,10 @@ void main()
 	}@end
 
 @property( envprobe_map )
-	vec3 reflDir = (-2.0f * dot( viewDir, nNormal )) * nNormal + viewDir;
-	vec3 envColour = textureLod( texEnvProbeMap, reflDir, ROUGHNESS ).xyz;
+	vec3 reflDir = 2.0f * dot( viewDir, nNormal ) * nNormal - viewDir;
+	vec3 envColour = textureLod( texEnvProbeMap, reflDir, ROUGHNESS * 12.0f ).xyz;
 	envColour = envColour * envColour; //TODO: Cubemap Gamma correction broken in GL3+
-	finalColour += cookTorrance( -reflDir, viewDir, NdotV, vec3( 0 ), vec3( envColour ) );@end
+	finalColour += cookTorrance( reflDir, viewDir, NdotV, vec3( 0 ), vec3( envColour ) * (ROUGHNESS * ROUGHNESS) );@end
 
 	outColour.xyz	= finalColour;
 	outColour.w		= 1.0f;
