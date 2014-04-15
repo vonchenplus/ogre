@@ -94,9 +94,9 @@ void Sample_Test::setupContent(void)
         light->setName( "Spot " + StringConverter::toString(i) );
         light->setType( Light::LT_SPOTLIGHT );
         light->setAttenuation( 1000.0f, 1.0f, 0.0f, 0.0f );
-        lightNode->setPosition( (rand() / (float)RAND_MAX) * 300.0f - 150.0f,
-                                40,
-                                (rand() / (float)RAND_MAX) * 300.0f - 150.0f );
+        lightNode->setPosition( (rand() / (float)RAND_MAX) * 75.0f - 37.5f,
+                                10,
+                                (rand() / (float)RAND_MAX) * 75.0f - 37.5f );
         light->setDirection( (-lightNode->getPosition()).normalisedCopy() );
         //light->setDirection( Vector3( -0.1f, -1.0f, -1.0f ).normalisedCopy() );
         //light->setDirection( Vector3::NEGATIVE_UNIT_Y );
@@ -111,11 +111,44 @@ void Sample_Test::setupContent(void)
     }
 
     SceneNode *sceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    mEntity = mSceneMgr->createEntity( "penguin.mesh" );
+    //mEntity = mSceneMgr->createEntity( "penguin.mesh" );
+    mEntity = mSceneMgr->createEntity( "Sphere1000.mesh" );
     mEntity->setMaterialName( "TEST" );
     mEntity->setName( "Penguin" );
     sceneNode->attachObject( mEntity );
-    //sceneNode->scale( 0.1f, 0.1f, 0.1f );
+    sceneNode->scale( 30.0f, 30.0f, 30.0f );
+    mEntity->setVisible( false );
+
+    const int NumWidth  = 8;
+    const int NumHeight = 8;
+    const Real armsLength = 1.0f * 1.5f;
+    for( int j=0; j<NumHeight; ++j )
+    {
+        for( int i=0; i<NumWidth; ++i )
+        {
+            MaterialPtr mat = MaterialManager::getSingleton().getByName( "TEST" );
+            mat = mat->clone( "TEST" + StringConverter::toString( i ) + "_" +
+                                       StringConverter::toString( j ) );
+            GpuProgramParametersSharedPtr psParams = mat->getTechnique(0)->getPass( 0 )->
+                                                                getFragmentProgramParameters();
+            psParams->setNamedConstant( "roughness", (i / (Real)NumWidth) + 0.008f );
+            psParams->setNamedConstant( "F0", j / (Real)NumHeight );
+
+            sceneNode = mSceneMgr->getRootSceneNode( SCENE_STATIC )->createChildSceneNode( SCENE_STATIC );
+            Entity *entity = mSceneMgr->createEntity( "Sphere1000.mesh",
+                                                      ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
+                                                      SCENE_STATIC );
+            entity->setMaterial( mat );
+            entity->setName( "TEST" + StringConverter::toString( i ) + "_" +
+                                      StringConverter::toString( j ) );
+            sceneNode->attachObject( entity );
+            sceneNode->setPosition( (i - NumWidth * 0.5f) * armsLength, 0.0f,
+                                    (j - NumHeight * 0.5f) * armsLength );
+            //sceneNode->scale( 30.0f, 30.0f, 30.0f );
+
+            mEntities.push_back( entity );
+        }
+    }
 
     mCamera->setPosition( 0, 10, 60.0f );
     mCamera->lookAt( 0, 10, 0 );
@@ -128,7 +161,7 @@ void Sample_Test::setupContent(void)
 
     // create a mesh for our ground
     MeshManager::getSingleton().createPlane( "ground", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-                        Plane(Vector3::UNIT_Y, -20), 1000, 1000, 1, 1, true, 1, 6, 6, Vector3::UNIT_Z );
+                        Plane(Vector3::UNIT_Y, -1.2), 1000, 1000, 1, 1, true, 1, 6, 6, Vector3::UNIT_Z );
 
     mFloorPlane = mSceneMgr->createEntity( "ground", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
                                             SCENE_STATIC );
@@ -216,23 +249,16 @@ void Sample_Test::createDebugOverlays(void)
     Ogre::TextureUnitState* textureUnit = DepthShadowTexture->getTechnique(0)->getPass(0)->
                                                             getTextureUnitState(0);
     CompositorShadowNode *shadowNode = mWorkspace->findShadowNode( shadowNodeName );
-    Ogre::TexturePtr tex = shadowNode->getLocalTextures()[3].textures[0];
+    Ogre::TexturePtr tex = shadowNode->getLocalTextures()[0].textures[0];
     textureUnit->setTextureName( tex->getName() );
 
-    DepthShadowTexture = baseWhite->clone("DepthShadowTexture1");
-    textureUnit = DepthShadowTexture->getTechnique(0)->getPass(0)->getTextureUnitState(0);
-    tex = shadowNode->getLocalTextures()[4].textures[0];
-    textureUnit->setTextureName(tex->getName());
-
-    DepthShadowTexture = baseWhite->clone("DepthShadowTexture2");
-    textureUnit = DepthShadowTexture->getTechnique(0)->getPass(0)->getTextureUnitState(0);
-    tex = shadowNode->getLocalTextures()[5].textures[0];
-    textureUnit->setTextureName(tex->getName());
-
-    DepthShadowTexture = baseWhite->clone("DepthShadowTexture3");
-    textureUnit = DepthShadowTexture->getTechnique(0)->getPass(0)->getTextureUnitState(0);
-    tex = shadowNode->getLocalTextures()[6].textures[0];
-    textureUnit->setTextureName(tex->getName());
+    for( int i=1; i<7; ++i )
+    {
+        DepthShadowTexture = baseWhite->clone("DepthShadowTexture" + StringConverter::toString(i));
+        textureUnit = DepthShadowTexture->getTechnique(0)->getPass(0)->getTextureUnitState(0);
+        tex = shadowNode->getLocalTextures()[i].textures[0];
+        textureUnit->setTextureName(tex->getName());
+    }
 
     Ogre::OverlayManager& overlayManager = Ogre::OverlayManager::getSingleton();
     // Create an overlay
@@ -247,28 +273,14 @@ void Sample_Test::createDebugOverlays(void)
     panel->setMaterialName("DepthShadowTexture0");
     debugOverlay->add2D(panel);
 
-    //if( mPssm )
+    for( size_t i=1; i<7; ++i )
     {
         panel = static_cast<Ogre::OverlayContainer*>(
-            overlayManager.createOverlayElement("Panel", "PanelName1"));
+            overlayManager.createOverlayElement("Panel", "PanelName" + StringConverter::toString(i) ));
         panel->setMetricsMode(Ogre::GMM_PIXELS);
-        panel->setPosition(120, 10);
+        panel->setPosition( i * 110 + 10, 10);
         panel->setDimensions(100, 100);
-        panel->setMaterialName("DepthShadowTexture1");
-        debugOverlay->add2D(panel);
-        panel = static_cast<Ogre::OverlayContainer*>(
-            overlayManager.createOverlayElement("Panel", "PanelName2"));
-        panel->setMetricsMode(Ogre::GMM_PIXELS);
-        panel->setPosition(230, 10);
-        panel->setDimensions(100, 100);
-        panel->setMaterialName("DepthShadowTexture2");
-        debugOverlay->add2D(panel);
-        panel = static_cast<Ogre::OverlayContainer*>(
-            overlayManager.createOverlayElement("Panel", "PanelName3"));
-        panel->setMetricsMode(Ogre::GMM_PIXELS);
-        panel->setPosition(340, 10);
-        panel->setDimensions(100, 100);
-        panel->setMaterialName("DepthShadowTexture3");
+        panel->setMaterialName("DepthShadowTexture" + StringConverter::toString(i));
         debugOverlay->add2D(panel);
     }
 
@@ -290,6 +302,48 @@ bool Sample_Test::frameRenderingQueued(const FrameEvent& evt)
     //HACK: To get the lights in the same order they'll be sent to the GPU
     const LightClosestArray &lightList = shadowNode->getShadowCastingLights();
 
+    vector<Entity*>::type::const_iterator itor = mEntities.begin();
+    vector<Entity*>::type::const_iterator end  = mEntities.end();
+
+    while( itor != end )
+    {
+        const MaterialPtr &mat = (*itor)->getSubEntity(0)->getMaterial();
+        GpuProgramParametersSharedPtr psParams = mat->getBestTechnique()->getPass(0)->getFragmentProgramParameters();
+        Vector2 invShadowMapSize[7];
+        for( size_t i=0; i<7; ++i )
+            invShadowMapSize[i] = Vector2( 1.0f / 1024.0f, 1.0f / 1024.0f );
+        invShadowMapSize[0] = Vector2( 1.0f / 2048.0f, 1.0f / 2048.0f );
+        psParams->setNamedConstant( "invShadowMapSize", (Real*)invShadowMapSize, 7, 2 );
+
+        psParams->setNamedConstant( "pssmSplitPoints", (Real*)&(*shadowNode->getPssmSplits(0))[0], 3, 1 );
+
+        Matrix3 viewMat;
+        mCamera->getViewMatrix().extract3x3Matrix( viewMat );
+
+        Vector3 tmp3[4];
+        for( size_t i=0; i<4; ++i )
+            tmp3[i] = viewMat * mCreatedLights[lightList[i+1].globalIndex-1]->getDirection();
+        psParams->setNamedConstant( "spotDirection", (Real*)tmp3, 4, 3 );
+        for( size_t i=0; i<4; ++i )
+        {
+            size_t idx = lightList[i+1].globalIndex-1;
+            tmp3[i].x = 1.0f / ( cosf( mCreatedLights[idx]->getSpotlightInnerAngle().valueRadians() * 0.5f ) -
+                                 cosf( mCreatedLights[idx]->getSpotlightOuterAngle().valueRadians() * 0.5f ) );
+            tmp3[i].y = cosf( mCreatedLights[idx]->getSpotlightOuterAngle().valueRadians() * 0.5f );
+            tmp3[i].z = mCreatedLights[idx]->getSpotlightFalloff();
+        }
+        psParams->setNamedConstant( "spotParams", (Real*)tmp3, 4, 3 );
+        for( size_t i=0; i<4; ++i )
+        {
+            size_t idx = lightList[i+1].globalIndex-1;
+            tmp3[i].x = mCreatedLights[idx]->getAttenuationRange();
+            tmp3[i].y = mCreatedLights[idx]->getAttenuationLinear();
+            tmp3[i].z = mCreatedLights[idx]->getAttenuationQuadric();
+        }
+        psParams->setNamedConstant( "attenuation", (Real*)tmp3, 4, 3 );
+        ++itor;
+    }
+
     const MaterialPtr &mat = mEntity->getSubEntity(0)->getMaterial();
     //GpuProgramParametersSharedPtr vsParams = mat->getBestTechnique()->getPass(0)->getVertexProgramParameters();
     //vsParams->setNamedConstant(  );
@@ -299,6 +353,8 @@ bool Sample_Test::frameRenderingQueued(const FrameEvent& evt)
         invShadowMapSize[i] = Vector2( 1.0f / 1024.0f, 1.0f / 1024.0f );
     invShadowMapSize[0] = Vector2( 1.0f / 2048.0f, 1.0f / 2048.0f );
     psParams->setNamedConstant( "invShadowMapSize", (Real*)invShadowMapSize, 7, 2 );
+
+    psParams->setNamedConstant( "pssmSplitPoints", (Real*)&(*shadowNode->getPssmSplits(0))[0], 3, 1 );
 
     Matrix3 viewMat;
     mCamera->getViewMatrix().extract3x3Matrix( viewMat );

@@ -37,6 +37,7 @@ protected:
     bool                                mPssm;  /// Whether to enable Parallel Split Shadow Mapping
 
     Ogre::Entity                        *mEntity;
+    Ogre::vector<Ogre::Entity*>::type   mEntities;
     Ogre::vector<Ogre::Light*>::type    mCreatedLights;
 
     //Ogre::CompositorWorkspace           *mWorkspace;
