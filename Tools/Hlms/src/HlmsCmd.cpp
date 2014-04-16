@@ -388,7 +388,7 @@ void HlmsCmd::go(void)
 
     Ogre::WindowEventUtilities::messagePump();
     bContinue = mRoot->renderOneFrame();
-    if( bContinue )
+    if( bContinue && !mRoot->endRenderingQueued() )
     {
         // Create the scene
         createScene();
