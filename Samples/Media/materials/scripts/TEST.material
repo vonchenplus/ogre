@@ -1,0 +1,94 @@
+material TEST_ShadowsCaster
+{
+	technique
+	{
+		pass
+		{
+			vertex_program_ref TEST_ShadowsCaster_vs
+			{
+			}
+			fragment_program_ref TEST_ShadowsCaster_ps
+			{
+			}
+		}
+	}
+}
+
+material TEST
+{
+	technique
+	{
+		shadow_caster_material TEST_ShadowsCaster
+
+		pass
+		{
+			vertex_program_ref TEST_vs
+			{
+			}
+
+			fragment_program_ref TEST_ps
+			{
+			}
+
+			/*texture_unit
+			{
+				texture_alias DiffuseTex
+			}*/
+
+			texture_unit
+			{
+				content_type shadow
+				tex_address_mode border
+				tex_border_colour 1 1 1 1
+			}
+			
+			texture_unit
+			{
+				content_type shadow
+				tex_address_mode border
+				tex_border_colour 1 1 1 1
+			}
+			
+			texture_unit
+			{
+				content_type shadow
+				tex_address_mode border
+				tex_border_colour 1 1 1 1
+			}
+			
+			texture_unit
+			{
+				content_type shadow
+				tex_address_mode border
+				tex_border_colour 1 1 1 1
+			}
+			
+			texture_unit
+			{
+				content_type shadow
+				tex_address_mode border
+				tex_border_colour 1 1 1 1
+			}
+			
+			texture_unit
+			{
+				content_type shadow
+				tex_address_mode border
+				tex_border_colour 1 1 1 1
+			}
+			
+			texture_unit
+			{
+				content_type shadow
+				tex_address_mode border
+				tex_border_colour 1 1 1 1
+			}
+
+			texture_unit
+			{
+				texture SaintPetersBasilica.dds
+				filtering trilinear
+			}
+		}
+	}
+}

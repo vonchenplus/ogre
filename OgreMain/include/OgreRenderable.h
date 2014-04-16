@@ -39,10 +39,13 @@ THE SOFTWARE.
 #include "OgreVector4.h"
 #include "OgreException.h"
 #include "OgreUserObjectBindings.h"
-#include "OgreHlms.h"
+//#include "OgreHlms.h" TODO: Fix me Hlms
+#include "OgreIdString.h" //TODO: Fix me Hlms
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+    class Hlms;//TODO: Fix me Hlms
+    typedef vector< std::pair<IdString, String> >::type HlmsParamVec;//TODO: Fix me Hlms
 
     /** \addtogroup Core
     *  @{
@@ -413,10 +416,10 @@ namespace Ogre {
         uint32 getHlmsHash(void) const          { return mHlmsHash; }
         uint32 getHlmsCasterHash(void) const    { return mHlmsCasterHash; }
 
-        void setHlms( Hlms *hlms, const HlmsParamVec &params )
+        void setHlms( Hlms *hlms, const HlmsParamVec &params );/*
         {
             hlms->calculateHashFor( this, params, mHlmsHash, mHlmsCasterHash );
-        }
+        }*/
 
     protected:
         typedef map<size_t, Vector4>::type CustomParameterMap;
