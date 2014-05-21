@@ -52,6 +52,10 @@ set(CMAKE_MODULE_PATH
   "${OGRE_SOURCE_DIR}/CMake/Packages"
 )
 
+if(ANDROID)
+  set(CMAKE_FIND_ROOT_PATH ${OGRE_DEPENDENCIES_DIR} "${CMAKE_FIND_ROOT_PATH}")
+endif()
+
 include(CMakeDependentOption)
 include(CheckCXXCompilerFlag)
 include(MacroLogFeature)
@@ -189,7 +193,7 @@ if ((CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX) AND NOT MINGW)
 endif ((CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX) AND NOT MINGW)
 
 # determine system endianess
-if (MSVC)
+if (MSVC OR ANDROID)
   # This doesn't work on VS 2010
   # MSVC only builds for intel anyway
   set(OGRE_TEST_BIG_ENDIAN FALSE)
@@ -216,6 +220,7 @@ endif (APPLE)
 include(Dependencies)
 # definitions for samples
 set(OGRE_LIBRARIES OgreMain)
+set(OGRE_MeshLodGenerator_LIBRARIES OgreMeshLodGenerator)
 set(OGRE_Paging_LIBRARIES OgrePaging)
 set(OGRE_Terrain_LIBRARIES OgreTerrain)
 set(OGRE_Volume_LIBRARIES OgreVolume)
@@ -334,6 +339,10 @@ elseif (OGRE_BUILD_PLATFORM_WINRT)
   set(OGRE_BUILD_RENDERSYSTEM_D3D11 TRUE CACHE BOOL "Forcing Direct3D11 RenderSystem for WinRT" FORCE)
 endif ()
 
+if(OGRE_BUILD_COMPONENT_MESHLODGENERATOR)
+  set(OGRE_CONFIG_ENABLE_MESHLOD TRUE CACHE BOOL "Forcing Mesh Lod" FORCE)
+endif()
+
 if(OGRE_CONFIG_ENABLE_GLES3_SUPPORT)
   set(OGRE_CONFIG_ENABLE_GLES2_VAO_SUPPORT TRUE CACHE BOOL "Forcing VAO support for OpenGL ES 3" FORCE)
 endif()
@@ -371,6 +380,7 @@ option(OGRE_BUILD_PLUGIN_PFX "Build ParticleFX plugin" TRUE)
 
 cmake_dependent_option(OGRE_BUILD_PLUGIN_PCZ "Build PCZ SceneManager plugin" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_PAGING "Build Paging component" TRUE "" FALSE)
+cmake_dependent_option(OGRE_BUILD_COMPONENT_MESHLODGENERATOR "Build MeshLodGenerator component" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_TERRAIN "Build Terrain component" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_VOLUME "Build Volume component" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_PROPERTY "Build Property component" TRUE "Boost_FOUND" FALSE)
@@ -406,9 +416,11 @@ option(OGRE_CONFIG_MEMTRACK_RELEASE "Enable Ogre's memory tracker in release mod
 # determine threading options
 include(PrepareThreadingOptions)
 cmake_dependent_option(OGRE_CONFIG_ENABLE_FREEIMAGE "Build FreeImage codec. If you disable this option, you need to provide your own image handling codecs." TRUE "FreeImage_FOUND OR OGRE_BUILD_PLATFORM_WINRT OR OGRE_BUILD_PLATFORM_WINDOWS_PHONE" FALSE)
+option(OGRE_CONFIG_ENABLE_MESHLOD "Enable Mesh Lod." TRUE)
 option(OGRE_CONFIG_ENABLE_DDS "Build DDS codec." TRUE)
 option(OGRE_CONFIG_ENABLE_PVRTC "Build PVRTC codec." FALSE)
 option(OGRE_CONFIG_ENABLE_ETC "Build ETC codec." FALSE)
+option(OGRE_CONFIG_ENABLE_QUAD_BUFFER_STEREO "Enable stereoscopic 3D support" FALSE)
 cmake_dependent_option(OGRE_CONFIG_ENABLE_ZIP "Build ZIP archive support. If you disable this option, you cannot use ZIP archives resource locations. The samples won't work." TRUE "ZZip_FOUND OR OGRE_BUILD_PLATFORM_WINRT OR OGRE_BUILD_PLATFORM_WINDOWS_PHONE" FALSE)
 option(OGRE_CONFIG_ENABLE_VIEWPORT_ORIENTATIONMODE "Include Viewport orientation mode support." FALSE)
 cmake_dependent_option(OGRE_CONFIG_ENABLE_GLES2_CG_SUPPORT "Enable Cg support to ES 2 render system" FALSE "OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
@@ -451,6 +463,7 @@ mark_as_advanced(
   OGRE_CONFIG_STRING_USE_CUSTOM_ALLOCATOR
   OGRE_CONFIG_MEMTRACK_DEBUG
   OGRE_CONFIG_MEMTRACK_RELEASE
+  OGRE_CONFIG_ENABLE_MESHLOD
   OGRE_CONFIG_ENABLE_DDS
   OGRE_CONFIG_ENABLE_FREEIMAGE
   OGRE_CONFIG_ENABLE_PVRTC

@@ -26,6 +26,7 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
+#include "OgreGLRenderSystem.h"
 #include "OgreException.h"
 #include "OgreLogManager.h"
 #include "OgreStringConverter.h"
@@ -44,6 +45,7 @@ THE SOFTWARE.
 #include <OpenGL/OpenGL.h>
 #include <AppKit/NSScreen.h>
 #include <Foundation/NSString.h>
+
 namespace Ogre {
 
     class OSXGLSupportImpl
@@ -86,6 +88,9 @@ void OSXGLSupport::addConfig( void )
 	ConfigOption optSRGB;
     ConfigOption optContentScalingFactor;
 	ConfigOption optEnableFixedPipeline;
+#if OGRE_NO_QUAD_BUFFER_STEREO == 0
+	ConfigOption optStereoMode;
+#endif
 
 	// FS setting possibilities
 	optFullScreen.name = "Full Screen";
@@ -144,6 +149,14 @@ void OSXGLSupport::addConfig( void )
     optEnableFixedPipeline.possibleValues.push_back( "No" );
     optEnableFixedPipeline.currentValue = "Yes";
     optEnableFixedPipeline.immutable = false;
+
+#if OGRE_NO_QUAD_BUFFER_STEREO == 0
+	optStereoMode.name = "Stereo Mode";
+	optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_NONE));
+	optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_FRAME_SEQUENTIAL));
+	optStereoMode.currentValue = optStereoMode.possibleValues[0];
+	optStereoMode.immutable = false;
+#endif
 
 	CGLRendererInfoObj rend;
 
@@ -311,6 +324,9 @@ void OSXGLSupport::addConfig( void )
     mOptions[optContentScalingFactor.name] = optContentScalingFactor;
 
     mOptions[optEnableFixedPipeline.name] = optEnableFixedPipeline;
+#if OGRE_NO_QUAD_BUFFER_STEREO == 0
+	mOptions[optStereoMode.name] = optStereoMode;
+#endif
 }
 
 String OSXGLSupport::validateConfig( void )
@@ -373,6 +389,13 @@ RenderWindow* OSXGLSupport::createWindow( bool autoCreateWindow, GLRenderSystem*
 				OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find Fixed Pipeline enabled options!", "Win32GLSupport::createWindow");
 			bool enableFixedPipeline = (opt->second.currentValue == "Yes");
 			renderSystem->setFixedPipelineEnabled(enableFixedPipeline);
+
+#if OGRE_NO_QUAD_BUFFER_STEREO == 0
+		opt = mOptions.find("Stereo Mode");
+		if (opt == mOptions.end())
+			OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find stereo enabled options!", "OSXGLSupport::createWindow");
+		winOptions["stereoMode"] = opt->second.currentValue;	
+#endif
 
         opt = mOptions.find( "macAPI" );
         if( opt != mOptions.end() )
