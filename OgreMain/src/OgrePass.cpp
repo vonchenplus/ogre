@@ -34,148 +34,28 @@ THE SOFTWARE.
 #include "OgreGpuProgramUsage.h"
 #include "OgreTextureUnitState.h"
 #include "OgreStringConverter.h"
+#include "OgreHlmsLowLevelDatablock.h"
+#include "OgreHlmsManager.h"
+#include "OgreHlms.h"
+#include "OgreMaterialManager.h"
 
 namespace Ogre {
+    AtomicScalar<uint32> Pass::mId = 0;
 
-    /** Default pass hash function.
-    @remarks
-        Tries to minimise the number of texture changes.
-    */
-    struct MinTextureStateChangeHashFunc : public Pass::HashFunc
-    {
-        uint32 operator()(const Pass* p) const
-        {
-                    OGRE_LOCK_MUTEX(p->mTexUnitChangeMutex);
-
-            _StringHash H;
-            uint32 hash = p->getIndex() << 28;
-            size_t c = p->getNumTextureUnitStates();
-
-            const TextureUnitState* t0 = 0;
-            const TextureUnitState* t1 = 0;
-            if (c)
-                t0 = p->getTextureUnitState(0);
-            if (c > 1)
-                t1 = p->getTextureUnitState(1);
-
-            if (t0 && !t0->getTextureName().empty())
-                hash += (static_cast<uint32>(H(t0->getTextureName())) 
-                    % (1 << 14)) << 14;
-            if (t1 && !t1->getTextureName().empty())
-                hash += (static_cast<uint32>(H(t1->getTextureName()))
-                    % (1 << 14));
-
-            return hash;
-        }
-    };
-    MinTextureStateChangeHashFunc sMinTextureStateChangeHashFunc;
-    /** Alternate pass hash function.
-    @remarks
-        Tries to minimise the number of GPU program changes.
-    */
-    struct MinGpuProgramChangeHashFunc : public Pass::HashFunc
-    {
-        uint32 operator()(const Pass* p) const
-        {
-            OGRE_LOCK_MUTEX(p->mGpuProgramChangeMutex);
-
-            _StringHash H;
-            uint32 hash = p->getIndex() << 28;
-            if (p->hasVertexProgram())
-                hash += (static_cast<uint32>(H(p->getVertexProgramName()))
-                    % (1 << 14)) << 14;
-            if (p->hasFragmentProgram())
-                hash += (static_cast<uint32>(H(p->getFragmentProgramName()))
-                    % (1 << 14));
-            if (p->hasGeometryProgram())
-                hash += (static_cast<uint32>(H(p->getGeometryProgramName()))
-                         % (1 << 14));
-            if (p->hasTessellationDomainProgram())
-                hash += (static_cast<uint32>(H(p->getTessellationDomainProgramName()))
-                         % (1 << 14));
-            if (p->hasTessellationHullProgram())
-                hash += (static_cast<uint32>(H(p->getTessellationHullProgramName()))
-                         % (1 << 14));
-            if (p->hasComputeProgram())
-                hash += (static_cast<uint32>(H(p->getComputeProgramName()))
-                         % (1 << 14));
-
-            return hash;
-        }
-    };
-    MinGpuProgramChangeHashFunc sMinGpuProgramChangeHashFunc;
-    //-----------------------------------------------------------------------------
-    Pass::PassSet Pass::msDirtyHashList;
-    Pass::PassSet Pass::msPassGraveyard;
-    OGRE_STATIC_MUTEX_INSTANCE(Pass::msDirtyHashListMutex);
-    OGRE_STATIC_MUTEX_INSTANCE(Pass::msPassGraveyardMutex);
-
-    Pass::HashFunc* Pass::msHashFunc = &sMinTextureStateChangeHashFunc;
-    //-----------------------------------------------------------------------------
-    Pass::HashFunc* Pass::getBuiltinHashFunction(BuiltinHashFunction builtin)
-    {
-        Pass::HashFunc* hashFunc = NULL;
-
-        switch(builtin)
-        {
-        case MIN_TEXTURE_CHANGE:
-            hashFunc = &sMinTextureStateChangeHashFunc;
-            break;
-        case MIN_GPU_PROGRAM_CHANGE:
-            hashFunc = &sMinGpuProgramChangeHashFunc;
-            break;
-        }
-
-        return hashFunc;
-    }
-    //-----------------------------------------------------------------------------
-    void Pass::setHashFunction(BuiltinHashFunction builtin)
-    {
-        switch(builtin)
-        {
-        case MIN_TEXTURE_CHANGE:
-            msHashFunc = &sMinTextureStateChangeHashFunc;
-            break;
-        case MIN_GPU_PROGRAM_CHANGE:
-            msHashFunc = &sMinGpuProgramChangeHashFunc;
-            break;
-        }
-    }
     //-----------------------------------------------------------------------------
     Pass::Pass(Technique* parent, unsigned short index)
         : mParent(parent)
         , mIndex(index)
-        , mHash(0)
-        , mHashDirtyQueued(false)
         , mAmbient(ColourValue::White)
         , mDiffuse(ColourValue::White)
         , mSpecular(ColourValue::Black)
         , mEmissive(ColourValue::Black)
         , mShininess(0)
         , mTracking(TVC_NONE)
-        , mSourceBlendFactor(SBF_ONE)
-        , mDestBlendFactor(SBF_ZERO)
-        , mSourceBlendFactorAlpha(SBF_ONE)
-        , mDestBlendFactorAlpha(SBF_ZERO)
-        , mSeparateBlend(false)
-        , mBlendOperation(SBO_ADD)
-        , mAlphaBlendOperation(SBO_ADD)
-        , mSeparateBlendOperation(false)
-        , mDepthCheck(true)
-        , mDepthWrite(true)
-        , mDepthFunc(CMPF_LESS_EQUAL)
-        , mDepthBiasConstant(0.0f)
-        , mDepthBiasSlopeScale(0.0f)
-        , mDepthBiasPerIteration(0.0f)
+        , mDatablock(0)
         , mColourWrite(true)
         , mAlphaRejectFunc(CMPF_ALWAYS_PASS)
         , mAlphaRejectVal(0)
-        , mAlphaToCoverageEnabled(false)
-        , mTransparentSorting(true)
-        , mTransparentSortingForced(false)
-        , mCullMode(CULL_CLOCKWISE)
-        , mManualCullMode(MANUAL_CULL_BACK)
-        , mLightingEnabled(true)
         , mMaxSimultaneousLights(OGRE_MAX_SIMULTANEOUS_LIGHTS)
         , mStartLight(0)
         , mIteratePerLight(false)
@@ -184,8 +64,6 @@ namespace Ogre {
         , mOnlyLightType(Light::LT_POINT)
         , mLightMask(0xFFFFFFFF)
         , mShadeOptions(SO_GOURAUD)
-        , mPolygonMode(PM_SOLID)
-        , mNormaliseNormals(false)
         , mPolygonModeOverrideable(true)
         , mFogOverride(false)
         , mFogMode(FOG_NONE)
@@ -196,24 +74,19 @@ namespace Ogre {
         , mVertexProgramUsage(0)
         , mShadowCasterVertexProgramUsage(0)
         , mShadowCasterFragmentProgramUsage(0)
-        , mShadowReceiverVertexProgramUsage(0)
         , mFragmentProgramUsage(0)
-        , mShadowReceiverFragmentProgramUsage(0)
         , mGeometryProgramUsage(0)
         , mTessellationHullProgramUsage(0)
         , mTessellationDomainProgramUsage(0)
         , mComputeProgramUsage(0)
-        , mQueuedForDeletion(false)
         , mPassIterationCount(1)
         , mPointSize(1.0f)
         , mPointMinSize(0.0f)
         , mPointMaxSize(0.0f)
         , mPointSpritesEnabled(false)
         , mPointAttenuationEnabled(false)
-        , mContentTypeLookupBuilt(false)
         , mLightScissoring(false)
         , mLightClipPlanes(false)
-        , mIlluminationStage(IS_UNKNOWN)
     {
         mPointAttenuationCoeffs[0] = 1.0f;
         mPointAttenuationCoeffs[1] = mPointAttenuationCoeffs[2] = 0.0f;
@@ -221,24 +94,53 @@ namespace Ogre {
         // default name to index
         mName = StringConverter::toString(mIndex);
 
-        // init the hash inline
-        _recalculateHash();
+        HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+        Hlms *hlms = hlmsManager->getHlms( HLMS_LOW_LEVEL );
+        HlmsDatablock *datablock = hlms->createDatablock( IdString( mId++ ), HlmsMacroblock(),
+                                                          HlmsBlendblock(), HlmsParamVec(), false );
+
+        Material *parentMaterial = parent->getParent();
+
+        assert( dynamic_cast<HlmsLowLevelDatablock*>( datablock ) );
+        mDatablock = static_cast<HlmsLowLevelDatablock*>( datablock );
+        mDatablock->mProxyMaterial = MaterialManager::getSingleton().getByName(
+                                                        parentMaterial->getName(),
+                                                        parentMaterial->getGroup() );
+        //The Pass owns the datablock. If we don't decrement the ref count, the
+        //datablock will own the pass. However we still need SharedPtrs so that
+        //if other the Ptr is retrieved from the datablock, the ref. counted is
+        //incremented
+        mDatablock->mProxyMaterial._manualRelease();
    }
 
     //-----------------------------------------------------------------------------
     Pass::Pass(Technique *parent, unsigned short index, const Pass& oth)
         :mParent(parent), mIndex(index), mVertexProgramUsage(0), mShadowCasterVertexProgramUsage(0), 
-        mShadowCasterFragmentProgramUsage(0), mShadowReceiverVertexProgramUsage(0), mFragmentProgramUsage(0), 
-        mShadowReceiverFragmentProgramUsage(0), mGeometryProgramUsage(0), mTessellationHullProgramUsage(0)
-        , mTessellationDomainProgramUsage(0), mComputeProgramUsage(0), mQueuedForDeletion(false), mPassIterationCount(1)
+        mShadowCasterFragmentProgramUsage(0), mFragmentProgramUsage(0), 
+        mGeometryProgramUsage(0), mTessellationHullProgramUsage(0)
+        , mTessellationDomainProgramUsage(0), mComputeProgramUsage(0), mPassIterationCount(1)
     {
+        HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+        Hlms *hlms = hlmsManager->getHlms( HLMS_LOW_LEVEL );
+        HlmsDatablock *datablock = hlms->createDatablock( IdString( mId++ ), HlmsMacroblock(),
+                                                          HlmsBlendblock(), HlmsParamVec(), false );
+
+        Material *parentMaterial = parent->getParent();
+
+        assert( dynamic_cast<HlmsLowLevelDatablock*>( datablock ) );
+        mDatablock = static_cast<HlmsLowLevelDatablock*>( datablock );
+        mDatablock->mProxyMaterial = MaterialManager::getSingleton().getByName(
+                                                        parentMaterial->getName(),
+                                                        parentMaterial->getGroup() );
+        //The Pass owns the datablock. If we don't decrement the ref count, the
+        //datablock will own the pass. However we still need SharedPtrs so that
+        //if other the Ptr is retrieved from the datablock, the ref. counted is
+        //incremented
+        mDatablock->mProxyMaterial._manualRelease();
+
         *this = oth;
         mParent = parent;
         mIndex = index;
-        mQueuedForDeletion = false;
-
-        // init the hash inline
-        _recalculateHash();
     }
     //-----------------------------------------------------------------------------
     Pass::~Pass()
@@ -251,14 +153,19 @@ namespace Ogre {
         OGRE_DELETE mComputeProgramUsage;
         OGRE_DELETE mShadowCasterVertexProgramUsage;
         OGRE_DELETE mShadowCasterFragmentProgramUsage;
-        OGRE_DELETE mShadowReceiverVertexProgramUsage;
-        OGRE_DELETE mShadowReceiverFragmentProgramUsage;        
+
+        //The proxy should not destroy the material.
+        mDatablock->mProxyMaterial._manualSetNull();
+
+        HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+        Hlms *hlms = hlmsManager->getHlms( HLMS_LOW_LEVEL );
+        hlms->destroyDatablock( mDatablock->getName() );
+        mDatablock = 0;
     }
     //-----------------------------------------------------------------------------
     Pass& Pass::operator=(const Pass& oth)
     {
         mName = oth.mName;
-        mHash = oth.mHash;
         mAmbient = oth.mAmbient;
         mDiffuse = oth.mDiffuse;
         mSpecular = oth.mSpecular;
@@ -274,41 +181,20 @@ namespace Ogre {
         mFogEnd = oth.mFogEnd;
         mFogDensity = oth.mFogDensity;
 
-        // Default blending (overwrite)
-        mSourceBlendFactor = oth.mSourceBlendFactor;
-        mDestBlendFactor = oth.mDestBlendFactor;
-        mSourceBlendFactorAlpha = oth.mSourceBlendFactorAlpha;
-        mDestBlendFactorAlpha = oth.mDestBlendFactorAlpha;
-        mSeparateBlend = oth.mSeparateBlend;
+        // The datablock belongs to us, so we don't copy everything (overwrites critical data)
+        mDatablock->mMacroblock = oth.mDatablock->mMacroblock;
+        mDatablock->setBlendblock( oth.mDatablock->mBlendblock );
 
-        mBlendOperation = oth.mBlendOperation;
-        mAlphaBlendOperation = oth.mAlphaBlendOperation;
-        mSeparateBlendOperation = oth.mSeparateBlendOperation;
-
-        mDepthCheck = oth.mDepthCheck;
-        mDepthWrite = oth.mDepthWrite;
         mAlphaRejectFunc = oth.mAlphaRejectFunc;
         mAlphaRejectVal = oth.mAlphaRejectVal;
-        mAlphaToCoverageEnabled = oth.mAlphaToCoverageEnabled;
-        mTransparentSorting = oth.mTransparentSorting;
-        mTransparentSortingForced = oth.mTransparentSortingForced;
         mColourWrite = oth.mColourWrite;
-        mDepthFunc = oth.mDepthFunc;
-        mDepthBiasConstant = oth.mDepthBiasConstant;
-        mDepthBiasSlopeScale = oth.mDepthBiasSlopeScale;
-        mDepthBiasPerIteration = oth.mDepthBiasPerIteration;
-        mCullMode = oth.mCullMode;
-        mManualCullMode = oth.mManualCullMode;
-        mLightingEnabled = oth.mLightingEnabled;
         mMaxSimultaneousLights = oth.mMaxSimultaneousLights;
         mStartLight = oth.mStartLight;
         mIteratePerLight = oth.mIteratePerLight;
         mLightsPerIteration = oth.mLightsPerIteration;
         mRunOnlyForOneLightType = oth.mRunOnlyForOneLightType;
-        mNormaliseNormals = oth.mNormaliseNormals;
         mOnlyLightType = oth.mOnlyLightType;
         mShadeOptions = oth.mShadeOptions;
-        mPolygonMode = oth.mPolygonMode;
         mPolygonModeOverrideable = oth.mPolygonModeOverrideable;
         mPassIterationCount = oth.mPassIterationCount;
         mPointSize = oth.mPointSize;
@@ -318,10 +204,8 @@ namespace Ogre {
         mPointAttenuationEnabled = oth.mPointAttenuationEnabled;
         memcpy(mPointAttenuationCoeffs, oth.mPointAttenuationCoeffs, sizeof(Real)*3);
         mShadowContentTypeLookup = oth.mShadowContentTypeLookup;
-        mContentTypeLookupBuilt = oth.mContentTypeLookupBuilt;
         mLightScissoring = oth.mLightScissoring;
         mLightClipPlanes = oth.mLightClipPlanes;
-        mIlluminationStage = oth.mIlluminationStage;
         mLightMask = oth.mLightMask;
 
         OGRE_DELETE mVertexProgramUsage;
@@ -352,16 +236,6 @@ namespace Ogre {
         else
         {
             mShadowCasterFragmentProgramUsage = NULL;
-        }
-
-        OGRE_DELETE mShadowReceiverVertexProgramUsage;
-        if (oth.mShadowReceiverVertexProgramUsage)
-        {
-            mShadowReceiverVertexProgramUsage = OGRE_NEW GpuProgramUsage(*(oth.mShadowReceiverVertexProgramUsage), this);
-        }
-        else
-        {
-            mShadowReceiverVertexProgramUsage = NULL;
         }
 
         OGRE_DELETE mFragmentProgramUsage;
@@ -414,16 +288,6 @@ namespace Ogre {
             mComputeProgramUsage = NULL;
         }
 
-        OGRE_DELETE mShadowReceiverFragmentProgramUsage;
-        if (oth.mShadowReceiverFragmentProgramUsage)
-        {
-            mShadowReceiverFragmentProgramUsage = OGRE_NEW GpuProgramUsage(*(oth.mShadowReceiverFragmentProgramUsage), this);
-        }
-        else
-        {
-            mShadowReceiverFragmentProgramUsage = NULL;
-        }
-
         TextureUnitStates::const_iterator i, iend;
 
         // Clear texture units but doesn't notify need recompilation in the case
@@ -443,8 +307,6 @@ namespace Ogre {
             TextureUnitState* t = OGRE_NEW TextureUnitState(this, *(*i));
             mTextureUnitStates.push_back(t);
         }
-
-        _dirtyHash();
 
         return *this;
     }
@@ -466,12 +328,8 @@ namespace Ogre {
             memSize += mShadowCasterVertexProgramUsage->calculateSize();
         if(mShadowCasterFragmentProgramUsage)
             memSize += mShadowCasterFragmentProgramUsage->calculateSize();
-        if(mShadowReceiverVertexProgramUsage)
-            memSize += mShadowReceiverVertexProgramUsage->calculateSize();
         if(mFragmentProgramUsage)
             memSize += mFragmentProgramUsage->calculateSize();
-        if(mShadowReceiverFragmentProgramUsage)
-            memSize += mShadowReceiverFragmentProgramUsage->calculateSize();
         if(mGeometryProgramUsage)
             memSize += mGeometryProgramUsage->calculateSize();
         if(mTessellationHullProgramUsage)
@@ -653,7 +511,6 @@ namespace Ogre {
     {
         TextureUnitState *t = OGRE_NEW TextureUnitState(this);
         addTextureUnitState(t);
-        mContentTypeLookupBuilt = false;
         return t;
     }
     //-----------------------------------------------------------------------
@@ -664,7 +521,6 @@ namespace Ogre {
         t->setTextureName(textureName);
         t->setTextureCoordSet(texCoordSet);
         addTextureUnitState(t);
-        mContentTypeLookupBuilt = false;
         return t;
     }
     //-----------------------------------------------------------------------
@@ -700,9 +556,9 @@ namespace Ogre {
                     */
                     state->setTextureNameAlias(BLANKSTRING);
                 }
-                // Needs recompilation
-                mParent->_notifyNeedsRecompile();
-                _dirtyHash();
+
+                if( state->getContentType() == TextureUnitState::CONTENT_SHADOW )
+                    mShadowContentTypeLookup.push_back( mTextureUnitStates.size()-1 );
             }
             else
             {
@@ -710,11 +566,10 @@ namespace Ogre {
                     "Pass:addTextureUnitState");
 
             }
-            mContentTypeLookupBuilt = false;
         }
     }
     //-----------------------------------------------------------------------
-    TextureUnitState* Pass::getTextureUnitState(unsigned short index)
+    TextureUnitState* Pass::getTextureUnitState( size_t index )
     {
         OGRE_LOCK_MUTEX(mTexUnitChangeMutex);
         assert (index < mTextureUnitStates.size() && "Index out of bounds");
@@ -743,7 +598,7 @@ namespace Ogre {
         return foundTUS;
     }
     //-----------------------------------------------------------------------
-    const TextureUnitState* Pass::getTextureUnitState(unsigned short index) const
+    const TextureUnitState* Pass::getTextureUnitState( size_t index ) const
     {
             OGRE_LOCK_MUTEX(mTexUnitChangeMutex);
         assert (index < mTextureUnitStates.size() && "Index out of bounds");
@@ -811,16 +666,11 @@ namespace Ogre {
         OGRE_LOCK_MUTEX(mTexUnitChangeMutex);
         assert (index < mTextureUnitStates.size() && "Index out of bounds");
 
+        removeShadowContentTypeLookup( index );
+
         TextureUnitStates::iterator i = mTextureUnitStates.begin() + index;
         OGRE_DELETE *i;
         mTextureUnitStates.erase(i);
-        if (!mQueuedForDeletion)
-        {
-            // Needs recompilation
-            mParent->_notifyNeedsRecompile();
-        }
-        _dirtyHash();
-        mContentTypeLookupBuilt = false;
     }
     //-----------------------------------------------------------------------
     void Pass::removeAllTextureUnitStates(void)
@@ -833,13 +683,54 @@ namespace Ogre {
             OGRE_DELETE *i;
         }
         mTextureUnitStates.clear();
-        if (!mQueuedForDeletion)
+        mShadowContentTypeLookup.clear();
+    }
+    //-----------------------------------------------------------------------
+    void Pass::recreateShadowContentTypeLookup(void)
+    {
+        mShadowContentTypeLookup.clear();
+        for (unsigned short i = 0; i < mTextureUnitStates.size(); ++i)
         {
-            // Needs recompilation
-            mParent->_notifyNeedsRecompile();
+            if (mTextureUnitStates[i]->getContentType() == TextureUnitState::CONTENT_SHADOW)
+                mShadowContentTypeLookup.push_back(i);
         }
-        _dirtyHash();
-        mContentTypeLookupBuilt = false;
+    }
+    //-----------------------------------------------------------------------
+    void Pass::insertShadowContentTypeLookup( size_t textureUnitIndex )
+    {
+        //Shadow content lookup indexes may have been shifted (and a new index must be inserted)
+        ContentTypeLookup::iterator itor = std::lower_bound( mShadowContentTypeLookup.begin(),
+                                                             mShadowContentTypeLookup.end(),
+                                                             textureUnitIndex );
+        itor = mShadowContentTypeLookup.insert( itor, textureUnitIndex ) + 1;
+        ContentTypeLookup::iterator end  = mShadowContentTypeLookup.end();
+
+        while( itor != end )
+        {
+            *itor += 1;
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------
+    void Pass::removeShadowContentTypeLookup( size_t textureUnitIndex )
+    {
+        //Shadow content lookup indexes may have been shifted (or removed)
+        ContentTypeLookup::iterator itor = std::lower_bound( mShadowContentTypeLookup.begin(),
+                                                             mShadowContentTypeLookup.end(),
+                                                             textureUnitIndex );
+        if( itor != mShadowContentTypeLookup.end() && *itor == textureUnitIndex )
+        {
+            const size_t idx = itor - mShadowContentTypeLookup.begin();
+            mShadowContentTypeLookup.erase( itor );
+            itor = mShadowContentTypeLookup.begin() + idx;
+        }
+        ContentTypeLookup::iterator end  = mShadowContentTypeLookup.end();
+
+        while( itor != end )
+        {
+            *itor -= 1;
+            ++itor;
+        }
     }
     //-----------------------------------------------------------------------
     void Pass::_getBlendFlags(SceneBlendType type, SceneBlendFactor& source, SceneBlendFactor& dest)
@@ -874,160 +765,34 @@ namespace Ogre {
         dest = SBF_ZERO;
     }
     //-----------------------------------------------------------------------
-    void Pass::setSceneBlending(SceneBlendType sbt)
+    HlmsDatablock* Pass::_getDatablock(void) const
     {
-        // Convert type into blend factors
-
-        SceneBlendFactor source;
-        SceneBlendFactor dest;
-        _getBlendFlags(sbt, source, dest);
-
-        // Set blend factors
-
-        setSceneBlending(source, dest);
+        return mDatablock;
     }
     //-----------------------------------------------------------------------
-    void Pass::setSeparateSceneBlending( const SceneBlendType sbt, const SceneBlendType sbta )
+    void Pass::setMacroblock( const HlmsMacroblock *macroblock )
     {
-        // Convert types into blend factors
-
-        SceneBlendFactor source;
-        SceneBlendFactor dest;
-        _getBlendFlags(sbt, source, dest);
-
-        SceneBlendFactor sourceAlpha;
-        SceneBlendFactor destAlpha;
-        _getBlendFlags(sbta, sourceAlpha, destAlpha);
-
-        // Set blend factors
-
-        setSeparateSceneBlending(source, dest, sourceAlpha, destAlpha);
-    }
-
-    //-----------------------------------------------------------------------
-    void Pass::setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor)
-    {
-        mSourceBlendFactor = sourceFactor;
-        mDestBlendFactor = destFactor;
-
-        mSeparateBlend = false;
+        mDatablock->mMacroblock = macroblock;
     }
     //-----------------------------------------------------------------------
-    void Pass::setSeparateSceneBlending( const SceneBlendFactor sourceFactor, const SceneBlendFactor destFactor, const SceneBlendFactor sourceFactorAlpha, const SceneBlendFactor destFactorAlpha )
+    const HlmsMacroblock* Pass::getMacroblock(void) const
     {
-        mSourceBlendFactor = sourceFactor;
-        mDestBlendFactor = destFactor;
-        mSourceBlendFactorAlpha = sourceFactorAlpha;
-        mDestBlendFactorAlpha = destFactorAlpha;
-
-        mSeparateBlend = true;
+        return mDatablock->mMacroblock;
     }
     //-----------------------------------------------------------------------
-    SceneBlendFactor Pass::getSourceBlendFactor(void) const
+    void Pass::setBlendblock( const HlmsBlendblock *blendblock )
     {
-        return mSourceBlendFactor;
+        mDatablock->setBlendblock( blendblock );
     }
     //-----------------------------------------------------------------------
-    SceneBlendFactor Pass::getDestBlendFactor(void) const
+    const HlmsBlendblock* Pass::getBlendblock(void) const
     {
-        return mDestBlendFactor;
-    }
-    //-----------------------------------------------------------------------
-    SceneBlendFactor Pass::getSourceBlendFactorAlpha(void) const
-    {
-        return mSourceBlendFactorAlpha;
-    }
-    //-----------------------------------------------------------------------
-    SceneBlendFactor Pass::getDestBlendFactorAlpha(void) const
-    {
-        return mDestBlendFactorAlpha;
-    }
-    //-----------------------------------------------------------------------
-    bool Pass::hasSeparateSceneBlending() const
-    {
-        return mSeparateBlend;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setSceneBlendingOperation(SceneBlendOperation op)
-    {
-        mBlendOperation = op;
-        mSeparateBlendOperation = false;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setSeparateSceneBlendingOperation(SceneBlendOperation op, SceneBlendOperation alphaOp)
-    {
-        mBlendOperation = op;
-        mAlphaBlendOperation = alphaOp;
-        mSeparateBlendOperation = true;
-    }
-    //-----------------------------------------------------------------------
-    SceneBlendOperation Pass::getSceneBlendingOperation() const
-    {
-        return mBlendOperation;
-    }
-    //-----------------------------------------------------------------------
-    SceneBlendOperation Pass::getSceneBlendingOperationAlpha() const
-    {
-        return mAlphaBlendOperation;
-    }
-    //-----------------------------------------------------------------------
-    bool Pass::hasSeparateSceneBlendingOperations() const
-    {
-        return mSeparateBlendOperation;
+        return mDatablock->mBlendblock;
     }
     //-----------------------------------------------------------------------
     bool Pass::isTransparent(void) const
     {
-        // Transparent if any of the destination colour is taken into account
-        if (mDestBlendFactor == SBF_ZERO &&
-            mSourceBlendFactor != SBF_DEST_COLOUR &&
-            mSourceBlendFactor != SBF_ONE_MINUS_DEST_COLOUR &&
-            mSourceBlendFactor != SBF_DEST_ALPHA &&
-            mSourceBlendFactor != SBF_ONE_MINUS_DEST_ALPHA)
-        {
-            return false;
-        }
-        else
-        {
-            return true;
-        }
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setDepthCheckEnabled(bool enabled)
-    {
-        mDepthCheck = enabled;
-    }
-    //-----------------------------------------------------------------------
-    bool Pass::getDepthCheckEnabled(void) const
-    {
-        return mDepthCheck;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setDepthWriteEnabled(bool enabled)
-    {
-        mDepthWrite = enabled;
-    }
-    //-----------------------------------------------------------------------
-    bool Pass::getDepthWriteEnabled(void) const
-    {
-        return mDepthWrite;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setDepthFunction( CompareFunction func)
-    {
-        mDepthFunc = func;
-    }
-    //-----------------------------------------------------------------------
-    CompareFunction Pass::getDepthFunction(void) const
-    {
-        return mDepthFunc;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage)
-    {
-        mAlphaRejectFunc = func;
-        mAlphaRejectVal = value;
-        mAlphaToCoverageEnabled = alphaToCoverage;
+        return !mDatablock->mIsOpaque;
     }
     //-----------------------------------------------------------------------
     void Pass::setAlphaRejectFunction(CompareFunction func)
@@ -1039,31 +804,6 @@ namespace Ogre {
     {
         mAlphaRejectVal = val;
     }
-    //---------------------------------------------------------------------
-    void Pass::setAlphaToCoverageEnabled(bool enabled)
-    {
-        mAlphaToCoverageEnabled = enabled;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setTransparentSortingEnabled(bool enabled)
-    {
-        mTransparentSorting = enabled;
-    }
-    //-----------------------------------------------------------------------
-    bool Pass::getTransparentSortingEnabled(void) const
-    {
-        return mTransparentSorting;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setTransparentSortingForced(bool enabled)
-    {
-        mTransparentSortingForced = enabled;
-    }
-    //-----------------------------------------------------------------------
-    bool Pass::getTransparentSortingForced(void) const
-    {
-        return mTransparentSortingForced;
-    }
     //-----------------------------------------------------------------------
     void Pass::setColourWriteEnabled(bool enabled)
     {
@@ -1073,26 +813,6 @@ namespace Ogre {
     bool Pass::getColourWriteEnabled(void) const
     {
         return mColourWrite;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setCullingMode( CullingMode mode)
-    {
-        mCullMode = mode;
-    }
-    //-----------------------------------------------------------------------
-    CullingMode Pass::getCullingMode(void) const
-    {
-        return mCullMode;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setLightingEnabled(bool enabled)
-    {
-        mLightingEnabled = enabled;
-    }
-    //-----------------------------------------------------------------------
-    bool Pass::getLightingEnabled(void) const
-    {
-        return mLightingEnabled;
     }
     //-----------------------------------------------------------------------
     void Pass::setMaxSimultaneousLights(unsigned short maxLights)
@@ -1153,26 +873,6 @@ namespace Ogre {
         return mShadeOptions;
     }
     //-----------------------------------------------------------------------
-    void Pass::setPolygonMode(PolygonMode mode)
-    {
-        mPolygonMode = mode;
-    }
-    //-----------------------------------------------------------------------
-    PolygonMode Pass::getPolygonMode(void) const
-    {
-        return mPolygonMode;
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setManualCullingMode(ManualCullingMode mode)
-    {
-        mManualCullMode = mode;
-    }
-    //-----------------------------------------------------------------------
-    ManualCullingMode Pass::getManualCullingMode(void) const
-    {
-        return mManualCullMode;
-    }
-    //-----------------------------------------------------------------------
     void Pass::setFog(bool overrideScene, FogMode mode, const ColourValue& colour, Real density, Real start, Real end)
     {
         mFogOverride = overrideScene;
@@ -1216,82 +916,11 @@ namespace Ogre {
         return mFogDensity;
     }
     //-----------------------------------------------------------------------
-    void Pass::setDepthBias(float constantBias, float slopeScaleBias)
-    {
-       mDepthBiasConstant = constantBias;
-       mDepthBiasSlopeScale = slopeScaleBias;
-    }
-    //-----------------------------------------------------------------------
-    float Pass::getDepthBiasConstant(void) const
-    {
-        return mDepthBiasConstant;
-    }
-    //-----------------------------------------------------------------------
-    float Pass::getDepthBiasSlopeScale(void) const
-    {
-        return mDepthBiasSlopeScale;
-    }
-    //---------------------------------------------------------------------
-    void Pass::setIterationDepthBias(float biasPerIteration)
-    {
-        mDepthBiasPerIteration = biasPerIteration;
-    }
-    //---------------------------------------------------------------------
-    float Pass::getIterationDepthBias() const
-    {
-        return mDepthBiasPerIteration;
-    }
-    //-----------------------------------------------------------------------
-    Pass* Pass::_split(unsigned short numUnits)
-    {
-        if (mVertexProgramUsage || mGeometryProgramUsage || mFragmentProgramUsage)
-        {
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Programmable passes cannot be "
-                "automatically split, define a fallback technique instead.",
-                "Pass:_split");
-        }
-
-        if (mTextureUnitStates.size() > numUnits)
-        {
-            size_t start = mTextureUnitStates.size() - numUnits;
-
-            Pass* newPass = mParent->createPass();
-
-            TextureUnitStates::iterator istart, i, iend;
-            iend = mTextureUnitStates.end();
-            i = istart = mTextureUnitStates.begin() + start;
-            // Set the new pass to fallback using scene blend
-            newPass->setSceneBlending(
-                (*i)->getColourBlendFallbackSrc(), (*i)->getColourBlendFallbackDest());
-            // Fixup the texture unit 0   of new pass   blending method   to replace
-            // all colour and alpha   with texture without adjustment, because we
-            // assume it's detail texture.
-            (*i)->setColourOperationEx(LBX_SOURCE1,   LBS_TEXTURE, LBS_CURRENT);
-            (*i)->setAlphaOperation(LBX_SOURCE1, LBS_TEXTURE, LBS_CURRENT);
-
-            // Add all the other texture unit states
-            for (; i != iend; ++i)
-            {
-                // detach from parent first
-                (*i)->_notifyParent(0);
-                newPass->addTextureUnitState(*i);
-            }
-            // Now remove texture units from this Pass, we don't need to delete since they've
-            // been transferred
-            mTextureUnitStates.erase(istart, iend);
-            _dirtyHash();
-            mContentTypeLookupBuilt = false;
-            return newPass;
-        }
-        return NULL;
-    }
-    //-----------------------------------------------------------------------------
     void Pass::_notifyIndex(unsigned short index)
     {
         if (mIndex != index)
         {
             mIndex = index;
-            _dirtyHash();
         }
     }
     //-----------------------------------------------------------------------
@@ -1351,11 +980,6 @@ namespace Ogre {
             // Load fragment program
             mShadowCasterFragmentProgramUsage->_load();
         }
-        if (mShadowReceiverVertexProgramUsage)
-        {
-            // Load vertex program
-            mShadowReceiverVertexProgramUsage->_load();
-        }
 
         if (mTessellationHullProgramUsage)
         {
@@ -1380,23 +1004,12 @@ namespace Ogre {
             // Load fragment program
             mFragmentProgramUsage->_load();
         }
-        if (mShadowReceiverFragmentProgramUsage)
-        {
-            // Load Fragment program
-            mShadowReceiverFragmentProgramUsage->_load();
-        }
 
         if (mComputeProgramUsage)
         {
             // Load compute program
             mComputeProgramUsage->_load();
         }
-
-        if (mHashDirtyQueued)
-        {
-            _dirtyHash();
-        }
-
     }
     //-----------------------------------------------------------------------
     void Pass::_unload(void)
@@ -1442,7 +1055,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Pass::setVertexProgram(const String& name, bool resetParams)
     {
-        OGRE_LOCK_MUTEX(mGpuProgramChangeMutex);
+            OGRE_LOCK_MUTEX(mGpuProgramChangeMutex);
 
         if (getVertexProgramName() != name)
         {
@@ -1462,12 +1075,6 @@ namespace Ogre {
             }
             // Needs recompilation
             mParent->_notifyNeedsRecompile();
-
-            if( Pass::getHashFunction() == Pass::getBuiltinHashFunction( Pass::MIN_GPU_PROGRAM_CHANGE ) )
-            {
-                _dirtyHash();
-            }
-
         }
     }
     //-----------------------------------------------------------------------
@@ -1505,11 +1112,6 @@ namespace Ogre {
             }
             // Needs recompilation
             mParent->_notifyNeedsRecompile();
-
-            if( Pass::getHashFunction() == Pass::getBuiltinHashFunction( Pass::MIN_GPU_PROGRAM_CHANGE ) )
-            {
-                _dirtyHash();
-            }
         }
     }
     //-----------------------------------------------------------------------
@@ -1547,11 +1149,6 @@ namespace Ogre {
             }
             // Needs recompilation
             mParent->_notifyNeedsRecompile();
-
-            if( Pass::getHashFunction() == Pass::getBuiltinHashFunction( Pass::MIN_GPU_PROGRAM_CHANGE ) )
-            {
-                _dirtyHash();
-            }
         }
     }
     //-----------------------------------------------------------------------
@@ -1589,11 +1186,6 @@ namespace Ogre {
             }
             // Needs recompilation
             mParent->_notifyNeedsRecompile();
-
-            if( Pass::getHashFunction() == Pass::getBuiltinHashFunction( Pass::MIN_GPU_PROGRAM_CHANGE ) )
-            {
-                _dirtyHash();
-            }
         }
     }
     //-----------------------------------------------------------------------
@@ -1631,11 +1223,6 @@ namespace Ogre {
             }
             // Needs recompilation
             mParent->_notifyNeedsRecompile();
-
-            if( Pass::getHashFunction() == Pass::getBuiltinHashFunction( Pass::MIN_GPU_PROGRAM_CHANGE ) )
-            {
-                _dirtyHash();
-            }
         }
     }
     //-----------------------------------------------------------------------
@@ -1673,11 +1260,6 @@ namespace Ogre {
             }
             // Needs recompilation
             mParent->_notifyNeedsRecompile();
-
-            if( Pass::getHashFunction() == Pass::getBuiltinHashFunction( Pass::MIN_GPU_PROGRAM_CHANGE ) )
-            {
-                _dirtyHash();
-            }
         }
     }
     //-----------------------------------------------------------------------
@@ -1830,48 +1412,6 @@ namespace Ogre {
         return mParent->isLoaded();
     }
     //-----------------------------------------------------------------------
-    void Pass::_recalculateHash(void)
-    {
-        /* Hash format is 32-bit, divided as follows (high to low bits)
-           bits   purpose
-            4     Pass index (i.e. max 16 passes!)
-           14     Hashed texture name from unit 0
-           14     Hashed texture name from unit 1
-
-           Note that at the moment we don't sort on the 3rd texture unit plus
-           on the assumption that these are less frequently used; sorting on
-           the first 2 gives us the most benefit for now.
-       */
-        mHash = (*msHashFunc)(this);
-    }
-    //-----------------------------------------------------------------------
-    void Pass::_dirtyHash(void)
-    {
-        Material* mat = mParent->getParent();
-        if (mat->isLoading() || mat->isLoaded())
-        {
-                    OGRE_LOCK_MUTEX(msDirtyHashListMutex);
-            // Mark this hash as for follow up
-            msDirtyHashList.insert(this);
-            mHashDirtyQueued = false;
-        }
-        else
-        {
-            mHashDirtyQueued = true;
-        }
-    }
-    //---------------------------------------------------------------------
-    void Pass::clearDirtyHashList(void) 
-    { 
-            OGRE_LOCK_MUTEX(msDirtyHashListMutex);
-        msDirtyHashList.clear(); 
-    }
-    //-----------------------------------------------------------------------
-    void Pass::_notifyNeedsRecompile(void)
-    {
-        mParent->_notifyNeedsRecompile();
-    }
-    //-----------------------------------------------------------------------
     void Pass::setTextureFiltering(TextureFilterOptions filterType)
     {
         OGRE_LOCK_MUTEX(mTexUnitChangeMutex);
@@ -1934,109 +1474,15 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Pass::processPendingPassUpdates(void)
-    {
-        {
-                    OGRE_LOCK_MUTEX(msPassGraveyardMutex);
-            // Delete items in the graveyard
-            PassSet::iterator i, iend;
-            iend = msPassGraveyard.end();
-            for (i = msPassGraveyard.begin(); i != iend; ++i)
-            {
-                OGRE_DELETE *i;
-            }
-            msPassGraveyard.clear();
-        }
-        PassSet tempDirtyHashList;
-        {
-                    OGRE_LOCK_MUTEX(msDirtyHashListMutex);
-            // The dirty ones will have been removed from the groups above using the old hash now
-            tempDirtyHashList.swap(msDirtyHashList);
-        }
-        PassSet::iterator i, iend;
-        iend = tempDirtyHashList.end();
-        for (i = tempDirtyHashList.begin(); i != iend; ++i)
-        {
-            Pass* p = *i;
-            p->_recalculateHash();
-        }
-    }
-    //-----------------------------------------------------------------------
-    void Pass::queueForDeletion(void)
-    {
-        mQueuedForDeletion = true;
-
-        removeAllTextureUnitStates();
-        if (mVertexProgramUsage)
-        {
-            OGRE_DELETE mVertexProgramUsage;
-            mVertexProgramUsage = 0;
-        }
-        if (mShadowCasterVertexProgramUsage)
-        {
-            OGRE_DELETE mShadowCasterVertexProgramUsage;
-            mShadowCasterVertexProgramUsage = 0;
-        }
-        if (mShadowCasterFragmentProgramUsage)
-        {
-            OGRE_DELETE mShadowCasterFragmentProgramUsage;
-            mShadowCasterFragmentProgramUsage = 0;
-        }
-        if (mShadowReceiverVertexProgramUsage)
-        {
-            OGRE_DELETE mShadowReceiverVertexProgramUsage;
-            mShadowReceiverVertexProgramUsage = 0;
-        }
-        if (mGeometryProgramUsage)
-        {
-            delete mGeometryProgramUsage;
-            mGeometryProgramUsage = 0;
-        }
-        if (mFragmentProgramUsage)
-        {
-            OGRE_DELETE mFragmentProgramUsage;
-            mFragmentProgramUsage = 0;
-        }
-        if (mTessellationHullProgramUsage)
-        {
-            OGRE_DELETE mTessellationHullProgramUsage;
-            mTessellationHullProgramUsage = 0;
-        }
-        if (mTessellationDomainProgramUsage)
-        {
-            OGRE_DELETE mTessellationDomainProgramUsage;
-            mTessellationDomainProgramUsage = 0;
-        }
-        if (mComputeProgramUsage)
-        {
-            OGRE_DELETE mComputeProgramUsage;
-            mComputeProgramUsage = 0;
-        }
-        if (mShadowReceiverFragmentProgramUsage)
-        {
-            OGRE_DELETE mShadowReceiverFragmentProgramUsage;
-            mShadowReceiverFragmentProgramUsage = 0;
-        }
-        // remove from dirty list, if there
-        {
-                    OGRE_LOCK_MUTEX(msDirtyHashListMutex);
-            msDirtyHashList.erase(this);
-        }
-        {
-                    OGRE_LOCK_MUTEX(msPassGraveyardMutex);
-            msPassGraveyard.insert(this);
-        }
-    }
-    //-----------------------------------------------------------------------
     bool Pass::isAmbientOnly(void) const
     {
-        // treat as ambient if lighting is off, or colour write is off,
+        // treat as ambient if colour write is off,
         // or all non-ambient (& emissive) colours are black
         // NB a vertex program could override this, but passes using vertex
         // programs are expected to indicate they are ambient only by
         // setting the state so it matches one of the conditions above, even
         // though this state is not used in rendering.
-        return (!mLightingEnabled || !mColourWrite ||
+        return (!mColourWrite ||
             (mDiffuse == ColourValue::Black &&
              mSpecular == ColourValue::Black));
     }
@@ -2157,116 +1603,6 @@ namespace Ogre {
         return mShadowCasterFragmentProgramUsage->getProgram();
     }
     //-----------------------------------------------------------------------
-    void Pass::setShadowReceiverVertexProgram(const String& name)
-    {
-        // Turn off vertex program if name blank
-        if (name.empty())
-        {
-            OGRE_DELETE mShadowReceiverVertexProgramUsage;
-            mShadowReceiverVertexProgramUsage = NULL;
-        }
-        else
-        {
-            if (!mShadowReceiverVertexProgramUsage)
-            {
-                mShadowReceiverVertexProgramUsage = OGRE_NEW GpuProgramUsage(GPT_VERTEX_PROGRAM, this);
-            }
-            mShadowReceiverVertexProgramUsage->setProgramName(name);
-        }
-        // Needs recompilation
-        mParent->_notifyNeedsRecompile();
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setShadowReceiverVertexProgramParameters(GpuProgramParametersSharedPtr params)
-    {
-        if (!mShadowReceiverVertexProgramUsage)
-        {
-            OGRE_EXCEPT (Exception::ERR_INVALIDPARAMS,
-                "This pass does not have a shadow receiver vertex program assigned!",
-                "Pass::setShadowReceiverVertexProgramParameters");
-        }
-        mShadowReceiverVertexProgramUsage->setParameters(params);
-    }
-    //-----------------------------------------------------------------------
-    const String& Pass::getShadowReceiverVertexProgramName(void) const
-    {
-        if (!mShadowReceiverVertexProgramUsage)
-            return BLANKSTRING;
-        else
-            return mShadowReceiverVertexProgramUsage->getProgramName();
-    }
-    //-----------------------------------------------------------------------
-    GpuProgramParametersSharedPtr Pass::getShadowReceiverVertexProgramParameters(void) const
-    {
-        if (!mShadowReceiverVertexProgramUsage)
-        {
-            OGRE_EXCEPT (Exception::ERR_INVALIDPARAMS,
-                "This pass does not have a shadow receiver vertex program assigned!",
-                "Pass::getShadowReceiverVertexProgramParameters");
-        }
-        return mShadowReceiverVertexProgramUsage->getParameters();
-    }
-    //-----------------------------------------------------------------------
-    const GpuProgramPtr& Pass::getShadowReceiverVertexProgram(void) const
-    {
-        return mShadowReceiverVertexProgramUsage->getProgram();
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setShadowReceiverFragmentProgram(const String& name)
-    {
-        // Turn off Fragment program if name blank
-        if (name.empty())
-        {
-            OGRE_DELETE mShadowReceiverFragmentProgramUsage;
-            mShadowReceiverFragmentProgramUsage = NULL;
-        }
-        else
-        {
-            if (!mShadowReceiverFragmentProgramUsage)
-            {
-                mShadowReceiverFragmentProgramUsage = OGRE_NEW GpuProgramUsage(GPT_FRAGMENT_PROGRAM, this);
-            }
-            mShadowReceiverFragmentProgramUsage->setProgramName(name);
-        }
-        // Needs recompilation
-        mParent->_notifyNeedsRecompile();
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setShadowReceiverFragmentProgramParameters(GpuProgramParametersSharedPtr params)
-    {
-        if (!mShadowReceiverFragmentProgramUsage)
-        {
-            OGRE_EXCEPT (Exception::ERR_INVALIDPARAMS,
-                "This pass does not have a shadow receiver fragment program assigned!",
-                "Pass::setShadowReceiverFragmentProgramParameters");
-        }
-        mShadowReceiverFragmentProgramUsage->setParameters(params);
-    }
-    //-----------------------------------------------------------------------
-    const String& Pass::getShadowReceiverFragmentProgramName(void) const
-    {
-        if (!mShadowReceiverFragmentProgramUsage)
-            return BLANKSTRING;
-        else
-            return mShadowReceiverFragmentProgramUsage->getProgramName();
-    }
-    //-----------------------------------------------------------------------
-    GpuProgramParametersSharedPtr Pass::getShadowReceiverFragmentProgramParameters(void) const
-    {
-        if (!mShadowReceiverFragmentProgramUsage)
-        {
-            OGRE_EXCEPT (Exception::ERR_INVALIDPARAMS,
-                "This pass does not have a shadow receiver fragment program assigned!",
-                "Pass::getShadowReceiverFragmentProgramParameters");
-        }
-        return mShadowReceiverFragmentProgramUsage->getParameters();
-    }
-    //-----------------------------------------------------------------------
-    const GpuProgramPtr& Pass::getShadowReceiverFragmentProgram(void) const
-    {
-        return mShadowReceiverFragmentProgramUsage->getProgram();
-    }
-    //-----------------------------------------------------------------------
     const String& Pass::getResourceGroup(void) const
     {
         return mParent->getResourceGroup();
@@ -2290,22 +1626,9 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    unsigned short Pass::_getTextureUnitWithContentTypeIndex(
-        TextureUnitState::ContentType contentType, unsigned short index) const
+    size_t Pass::_getTextureUnitWithContentTypeIndex(
+        TextureUnitState::ContentType contentType, size_t index) const
     {
-        if (!mContentTypeLookupBuilt)
-        {
-            mShadowContentTypeLookup.clear();
-            for (unsigned short i = 0; i < mTextureUnitStates.size(); ++i)
-            {
-                if (mTextureUnitStates[i]->getContentType() == TextureUnitState::CONTENT_SHADOW)
-                {
-                    mShadowContentTypeLookup.push_back(i);
-                }
-            }
-            mContentTypeLookupBuilt = true;
-        }
-
         switch(contentType)
         {
         case TextureUnitState::CONTENT_SHADOW:

@@ -53,7 +53,6 @@ namespace Ogre
     typedef vector<DepthBuffer*>::type DepthBufferVec;
     typedef map< uint16, DepthBufferVec >::type DepthBufferMap;
     typedef map< String, RenderTarget * >::type RenderTargetMap;
-    typedef multimap<uchar, RenderTarget * >::type RenderTargetPriorityMap;
 
     class TextureManager;
     /// Enum describing the ways to generate texture coordinates
@@ -69,26 +68,6 @@ namespace Ogre
         TEXCALC_ENVIRONMENT_MAP_NORMAL,
         /// Projective texture
         TEXCALC_PROJECTIVE_TEXTURE
-    };
-    /// Enum describing the various actions which can be taken on the stencil buffer
-    enum StencilOperation
-    {
-        /// Leave the stencil buffer unchanged
-        SOP_KEEP,
-        /// Set the stencil value to zero
-        SOP_ZERO,
-        /// Set the stencil value to the reference value
-        SOP_REPLACE,
-        /// Increase the stencil value by 1, clamping at the maximum value
-        SOP_INCREMENT,
-        /// Decrease the stencil value by 1, clamping at 0
-        SOP_DECREMENT,
-        /// Increase the stencil value by 1, wrapping back to 0 when incrementing the maximum value
-        SOP_INCREMENT_WRAP,
-        /// Decrease the stencil value by 1, wrapping when decrementing 0
-        SOP_DECREMENT_WRAP,
-        /// Invert the bits of the stencil buffer
-        SOP_INVERT
     };
 
 
@@ -243,17 +222,6 @@ namespace Ogre
         /** Sets the colour & strength of the ambient (global directionless) light in the world.
         */
         virtual void setAmbientLight(float r, float g, float b) = 0;
-
-        /** Sets the type of light shading required (default = Gouraud).
-        */
-        virtual void setShadingType(ShadeOptions so) = 0;
-
-        /** Sets whether or not dynamic lighting is enabled.
-        @param
-        enabled If true, dynamic lighting is performed on geometry with normals supplied, geometry without
-        normals will not be displayed. If false, no lighting is applied and all geometry will be full brightness.
-        */
-        virtual void setLightingEnabled(bool enabled) = 0;
 
         /** Sets whether or not W-buffers are enabled if they are available for this renderer.
         @param
@@ -735,7 +703,12 @@ namespace Ogre
         */
         virtual void _setTexture(size_t unit, bool enabled, const String &texname);
 
-        /** Binds a texture to a vertex, geometry, compute, tesselation hull
+        virtual void _hlmsMacroblockCreated( HlmsMacroblock *newBlock ) {}
+        virtual void _hlmsMacroblockDestroyed( HlmsMacroblock *block ) {}
+        virtual void _hlmsBlendblockCreated( HlmsBlendblock *newBlock ) {}
+        virtual void _hlmsBlendblockDestroyed( HlmsBlendblock *block ) {}
+
+        /** Binds a texture to a vertex, geometry, compute, tessellation hull
         or tessellation domain sampler.
         @remarks
         Not all rendersystems support separate vertex samplers. For those that
@@ -748,8 +721,8 @@ namespace Ogre
         virtual void _setVertexTexture(size_t unit, const TexturePtr& tex);
         virtual void _setGeometryTexture(size_t unit, const TexturePtr& tex);
         virtual void _setComputeTexture(size_t unit, const TexturePtr& tex);
-        virtual void _setTesselationHullTexture(size_t unit, const TexturePtr& tex);
-        virtual void _setTesselationDomainTexture(size_t unit, const TexturePtr& tex);
+        virtual void _setTessellationHullTexture(size_t unit, const TexturePtr& tex);
+        virtual void _setTessellationDomainTexture(size_t unit, const TexturePtr& tex);
 
         /**
         Sets the texture coordinate set to use for a texture unit.
@@ -931,6 +904,15 @@ namespace Ogre
         /** Get the current active viewport for rendering. */
         virtual Viewport* _getViewport(void);
 
+        /// @See HlmsMacroblock
+        virtual void _setHlmsMacroblock( const HlmsMacroblock *macroblock ) = 0;
+
+        /// @See HlmsBlendblock
+        virtual void _setHlmsBlendblock( const HlmsBlendblock *blendblock ) = 0;
+
+        /// @See HlmsCache
+        virtual void _setProgramsFromHlms( const HlmsCache *hlmsCache ) = 0;
+
         /** Sets the culling mode for the render system based on the 'vertex winding'.
         A typical way for the rendering engine to cull triangles is based on the
         'vertex winding' of triangles. Vertex winding refers to the direction in
@@ -1010,19 +992,6 @@ namespace Ogre
 
         */
         virtual void _setDepthBias(float constantBias, float slopeScaleBias = 0.0f) = 0;
-        /** Sets the fogging mode for future geometry.
-        @param mode Set up the mode of fog as described in the FogMode enum, or set to FOG_NONE to turn off.
-        @param colour The colour of the fog. Either set this to the same as your viewport background colour,
-        or to blend in with a skydome or skybox.
-        @param expDensity The density of the fog in FOG_EXP or FOG_EXP2 mode, as a value between 0 and 1. The default is 1. i.e. completely opaque, lower values can mean
-        that fog never completely obscures the scene.
-        @param linearStart Distance at which linear fog starts to encroach. The distance must be passed
-        as a parametric value between 0 and 1, with 0 being the near clipping plane, and 1 being the far clipping plane. Only applicable if mode is FOG_LINEAR.
-        @param linearEnd Distance at which linear fog becomes completely opaque.The distance must be passed
-        as a parametric value between 0 and 1, with 0 being the near clipping plane, and 1 being the far clipping plane. Only applicable if mode is FOG_LINEAR.
-        */
-        virtual void _setFog(FogMode mode = FOG_NONE, const ColourValue& colour = ColourValue::White, Real expDensity = 1.0, Real linearStart = 0.0, Real linearEnd = 1.0) = 0;
-
 
         /** The RenderSystem will keep a count of tris rendered, this resets the count. */
         virtual void _beginGeometryCount(void);
@@ -1194,18 +1163,6 @@ namespace Ogre
         /** Sets the current vertex buffer binding state. */
         virtual void setVertexBufferBinding(VertexBufferBinding* binding) = 0;
 
-        /** Sets whether or not normals are to be automatically normalised.
-        @remarks
-        This is useful when, for example, you are scaling SceneNodes such that
-        normals may not be unit-length anymore. Note though that this has an
-        overhead so should not be turn on unless you really need it.
-        @par
-        You should not normally call this direct unless you are rendering
-        world geometry; set it on the Renderable because otherwise it will be
-        overridden by material settings. 
-        */
-        virtual void setNormaliseNormals(bool normalise) = 0;
-
         /**
         Render something to the active viewport.
 
@@ -1290,17 +1247,6 @@ namespace Ogre
         /** Utility method for initialising all render targets attached to this rendering system. */
         virtual void _initRenderTargets(void);
 
-        /** Utility method to notify all render targets that a camera has been removed, 
-        in case they were referring to it as their viewer. 
-        */
-        virtual void _notifyCameraRemoved(const Camera* cam);
-
-        /** Internal method for updating all render targets attached to this rendering system. */
-        virtual void _updateAllRenderTargets(bool swapBuffers = true);
-        /** Internal method for swapping all the buffers on all render targets,
-        if _updateAllRenderTargets was called with a 'false' parameter. */
-        virtual void _swapAllRenderTargetBuffers();
-
         /** Sets whether or not vertex windings set should be inverted; this can be important
         for rendering reflections. */
         virtual void setInvertVertexWinding(bool invert);
@@ -1309,20 +1255,6 @@ namespace Ogre
         @see RenderSystem::setInvertVertexWinding
         */
         virtual bool getInvertVertexWinding(void) const;
-
-        /** Sets the 'scissor region' i.e. the region of the target in which rendering can take place.
-        @remarks
-        This method allows you to 'mask off' rendering in all but a given rectangular area
-        as identified by the parameters to this method.
-        @note
-        Not all systems support this method. Check the RenderSystemCapabilities for the
-        RSC_SCISSOR_TEST capability to see if it is supported.
-        @param enabled True to enable the scissor test, false to disable it.
-        @param left, top, right, bottom The location of the corners of the rectangle, expressed in
-        <i>pixels</i>.
-        */
-        virtual void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, 
-            size_t right = 800, size_t bottom = 600) = 0;
 
         /** Clears one or more frame buffers on the active render target. 
         @param buffers Combination of one or more elements of FrameBufferType
@@ -1521,16 +1453,6 @@ namespace Ogre
         */
         virtual void getCustomAttribute(const String& name, void* pData);
 
-		/**
-		* Sets the colour buffer that the render system will to draw. If the render system
-		* implementation or configuration does not support a particular value, then false will be
-		* returned and the current colour buffer value will not be modified.
-		*
-		* @param
-		*     colourBuffer Specifies the colour buffer that will be drawn into.
-		*/
-		virtual bool setDrawBuffer(ColourBufferType colourBuffer) { return false; };
-
     protected:
 
         /** DepthBuffers to be attached to render targets */
@@ -1538,8 +1460,6 @@ namespace Ogre
 
         /** The render targets. */
         RenderTargetMap mRenderTargets;
-        /** The render targets, ordered by priority. */
-        RenderTargetPriorityMap mPrioritisedRenderTargets;
         /** The Active render target. */
         RenderTarget * mActiveRenderTarget;
 

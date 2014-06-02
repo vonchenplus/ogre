@@ -44,8 +44,7 @@ namespace Ogre
     class D3D9Device;
     class D3D9DeviceManager;
     class D3D9ResourceManager;
-	class D3D9StereoDriverBridge;
-	
+
     /**
     Implementation of DirectX9 as a rendering system.
     */
@@ -111,7 +110,7 @@ namespace Ogre
         void refreshD3DSettings();
         void refreshFSAAOptions();
         
-        void setD3D9Light( size_t index, Light* light );
+        void setD3D9Light( size_t index, const Light* light );
         
         // state management methods, very primitive !!!
         HRESULT __SetRenderState(D3DRENDERSTATETYPE state, DWORD value);
@@ -171,10 +170,6 @@ namespace Ogre
         DepthStencilHash mDepthStencilHash;
 
         MultiheadUseType mMultiheadUse;
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        D3D9StereoDriverBridge* mStereoDriver;
-#endif
 
     protected:
         void setClipPlanesImpl(const PlaneList& clipPlanes);        
@@ -247,8 +242,6 @@ namespace Ogre
         void reinitialise();
         void shutdown();
         void setAmbientLight( float r, float g, float b );
-        void setShadingType( ShadeOptions so );
-        void setLightingEnabled( bool enabled );
         void destroyRenderTarget(const String& name);
         VertexElementType getColourVertexElementType() const;
         void setStencilCheckEnabled(bool enabled);
@@ -259,7 +252,6 @@ namespace Ogre
             StencilOperation passOp = SOP_KEEP, 
             bool twoSidedOperation = false,
             bool readBackAsTexture = false);
-        void setNormaliseNormals(bool normalise);
 
         // Low-level overridden members, mainly for internal use
         void _useLights(const LightList& lights, unsigned short limit);
@@ -296,7 +288,6 @@ namespace Ogre
         void _setDepthBufferWriteEnabled(bool enabled = true);
         void _setDepthBufferFunction( CompareFunction func = CMPF_LESS_EQUAL );
         void _setDepthBias(float constantBias, float slopeScaleBias);
-        void _setFog( FogMode mode = FOG_NONE, const ColourValue& colour = ColourValue::White, Real expDensity = 1.0, Real linearStart = 0.0, Real linearEnd = 1.0 );
         void _convertProjectionMatrix(const Matrix4& matrix,
             Matrix4& dest, bool forGpuProgram = false);
         void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 
@@ -398,15 +389,6 @@ namespace Ogre
 
         /// Returns how multihead should be activated
         MultiheadUseType getMultiheadUse() const { return mMultiheadUse; }
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        /// @copydoc RenderSystem::setDrawBuffer
-        virtual bool setDrawBuffer(ColourBufferType colourBuffer);
-
-        /// Creates a bridge to the Direct3D stereo driver implementation
-        void createStereoDriver(const NameValuePairList* miscParams);
-#endif
-
     protected:  
         /// Returns the sampler id for a given unit texture number
         DWORD getSamplerId(size_t unit);

@@ -108,7 +108,7 @@ protected:
         GpuConstantType mTextureSamplerType;
         // Vertex shader input texture coordinate type.
         GpuConstantType mVSInTextureCoordinateType;
-        // Vertex shader output texture coordinates type.       
+        // Vertex shader output texture coordinates type.
         GpuConstantType mVSOutTextureCoordinateType;
         // Texture coordinates calculation method.
         TexCoordCalcMethod mTexCoordCalcMethod;

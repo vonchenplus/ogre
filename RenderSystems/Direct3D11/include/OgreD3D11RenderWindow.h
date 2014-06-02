@@ -65,11 +65,6 @@ namespace Ogre
         virtual void copyContentsToMemory(const PixelBox &dst, FrameBuffer buffer);
         bool requiresTextureFlipping() const                    { return false; }
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		/** Validate the type of stereo that is enabled for this window.*/
-		void _validateStereo();
-#endif
-
     protected:
         void _createSizeDependedD3DResources(); // assumes mpBackBuffer is already initialized
         void _destroySizeDependedD3DResources();
@@ -204,7 +199,7 @@ namespace Ogre
         virtual void destroy(void);
 
         virtual void resize(unsigned int width, unsigned int height);
-        virtual void update(bool swapBuffers = true);
+        virtual void update();
         virtual void swapBuffers();
 
         virtual bool isVisible() const                          { return mImageSourceNative != NULL; }

@@ -184,6 +184,7 @@ namespace Ogre {
         void bind(void);
         /// Unbind the shader in OpenGL.
         void unbind(void);
+        static void unbindAll(void);
         /// Execute the param binding functions for this shader.
         void bindParameters(GpuProgramParametersSharedPtr params, uint16 mask);
         /// Execute the pass iteration param binding functions for this shader.
@@ -289,9 +290,9 @@ namespace Ogre {
         static GLuint mFragmentShaderCount;
         /// Keep track of the number of geometry shaders created.
         static GLuint mGeometryShaderCount;
-        /// Keep track of the number of tesselation hull (control) shaders created.
+        /// Keep track of the number of tessellation hull (control) shaders created.
         static GLuint mHullShaderCount;
-        /// Keep track of the number of tesselation domain (evaluation) shaders created.
+        /// Keep track of the number of tessellation domain (evaluation) shaders created.
         static GLuint mDomainShaderCount;
         /// Keep track of the number of compute shaders created.
         static GLuint mComputeShaderCount;

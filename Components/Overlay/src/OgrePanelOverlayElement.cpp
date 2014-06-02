@@ -31,6 +31,9 @@ THE SOFTWARE.
 #include "OgreStringConverter.h"
 #include "OgreHardwareBufferManager.h"
 #include "OgreRoot.h"
+#include "OgreHlmsGui2DMobileDatablock.h"
+#include "OgreHlms.h"
+#include "OgreHlmsManager.h"
 #include "OgreRenderSystem.h"
 
 namespace Ogre {
@@ -175,22 +178,23 @@ namespace Ogre {
         OverlayContainer::setMaterialName(matName);
     }
     //---------------------------------------------------------------------
-    void PanelOverlayElement::_updateRenderQueue(RenderQueue* queue)
+    void PanelOverlayElement::_updateRenderQueue(RenderQueue* queue, Camera *camera,
+                                                 const Camera *lodCamera)
     {
         if (mVisible)
         {
 
-            if (!mTransparent && !mMaterial.isNull())
+            if (!mTransparent && !mMaterialName.empty())
             {
-                OverlayElement::_updateRenderQueue(queue);
+                OverlayElement::_updateRenderQueue(queue, camera, lodCamera);
             }
 
             // Also add children
             ChildIterator it = getChildIterator();
             while (it.hasMoreElements())
             {
-                // Give children Z-order 1 higher than this
-                it.getNext()->_updateRenderQueue(queue);
+                // Give children ZOrder 1 higher than this
+                it.getNext()->_updateRenderQueue(queue, camera, lodCamera);
             }
         }
     }
@@ -248,10 +252,15 @@ namespace Ogre {
     void PanelOverlayElement::updateTextureGeometry(void)
     {
         // Generate for as many texture layers as there are in material
-        if (!mMaterial.isNull() && mInitialised)
+        if (!mMaterialName.empty() && mInitialised)
         {
-            // Assume one technique and pass for the moment
-            size_t numLayers = mMaterial->getTechnique(0)->getPass(0)->getNumTextureUnitStates();
+            HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+            Hlms *hlms = hlmsManager->getHlms( HLMS_GUI );
+            HlmsDatablock *datablock = hlms->getDatablock( mMaterialName );
+            assert( dynamic_cast<HlmsGui2DMobileDatablock*>( datablock ) );
+
+            HlmsGui2DMobileDatablock *guiDatablock = static_cast<HlmsGui2DMobileDatablock*>(datablock);
+            uint8 numLayers = guiDatablock->getNumUvSets();
 
             VertexDeclaration* decl = mRenderOp.vertexData->vertexDeclaration;
             // Check the number of texcoords we have in our buffer now

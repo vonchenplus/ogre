@@ -38,6 +38,7 @@
 #include "OgreGL3PlusPixelFormat.h"
 #include "OgreWindowEventUtilities.h"
 #include "OgreViewport.h"
+#include "OgrePixelBox.h"
 
 #include <iostream>
 #include <algorithm>
@@ -179,15 +180,6 @@ namespace Ogre
 
             if ((opt = miscParams->find("externalGLControl")) != end)
                 mIsExternalGLControl = StringConverter::parseBool(opt->second);
-            
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-			if ((opt = miscParams->find("stereoMode")) != end)
-			{
-				StereoModeType stereoMode = StringConverter::parseStereoMode(opt->second);
-				if (SMT_NONE != stereoMode)
-					mStereoEnabled = true;
-			}
-#endif
 
             if((opt = miscParams->find("parentWindowHandle")) != end)
             {
@@ -289,9 +281,6 @@ namespace Ogre
                 GLX_RED_SIZE,      1,
                 GLX_BLUE_SIZE,    1,
                 GLX_GREEN_SIZE,  1,
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-				GLX_STEREO, mStereoEnabled ? True : False,
-#endif
                 None
             };
 
@@ -631,7 +620,7 @@ namespace Ogre
                 mHeight = height;
 
                 for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
-                    (*it).second->_updateDimensions();
+                    (*it)->_updateDimensions();
             }
         }
     }
@@ -670,7 +659,7 @@ namespace Ogre
         mHeight = windowAttrib.height;
 
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
-            (*it).second->_updateDimensions();
+            (*it)->_updateDimensions();
     }
 
     //-------------------------------------------------------------------------------------------------//

@@ -58,6 +58,7 @@ extern "C" _OgreSampleExport void dllStopPlugin()
 
 //-----------------------------------------------------------------------
 Sample_ShaderSystem::Sample_ShaderSystem() :
+    mInfiniteFrustum( &mObjectMemoryManager ),
     mLayeredBlendingEntity(NULL)
 {
     mInfo["Title"] = "Shader System";
@@ -182,8 +183,8 @@ void Sample_ShaderSystem::buttonHit( OgreBites::Button* b )
 {
     // Case the current material of the main entity should be exported.
     if (b->getName() == EXPORT_BUTTON_NAME)
-    {       
-        const String& materialName = mSceneMgr->getEntity(MAIN_ENTITY_NAME)->getSubEntity(0)->getMaterialName();
+    {
+        const String& materialName = mMainEntity->getSubEntity(0)->getMaterialName();
         
         exportRTShaderSystemMaterial(mExportMaterialPath + "ShaderSystemExport.material", materialName);                        
     }
@@ -243,31 +244,46 @@ void Sample_ShaderSystem::sliderMoved(Slider* slider)
     }
 }
 
+Light * Sample_ShaderSystem::getLightNamedFromSceneManager(const String &name)
+{
+    LightArray lightList = mSceneMgr->getGlobalLightList().lights;
+
+    for (unsigned int i = 0; i < lightList.size(); ++i)
+    {
+        if(lightList[i]->getName() == name)
+            return lightList[i];
+    }
+
+    return NULL;
+}
+
 //-----------------------------------------------------------------------
 bool Sample_ShaderSystem::frameRenderingQueued( const FrameEvent& evt )
-{   
-    if (mSceneMgr->hasLight(SPOT_LIGHT_NAME))
-    {
-        Light* light = mSceneMgr->getLight(SPOT_LIGHT_NAME);
+{
+    // Make this viewport work with shader generator scheme.
+    mSceneMgr->getCurrentViewport()->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 
-        light->setPosition(mCamera->getDerivedPosition() + mCamera->getDerivedUp() * 20.0);
+    if (getLightNamedFromSceneManager(SPOT_LIGHT_NAME) != NULL)
+    {
+        Light* light = getLightNamedFromSceneManager(SPOT_LIGHT_NAME);
+
+        light->getParentSceneNode()->setPosition(mCamera->getDerivedPosition() + mCamera->getDerivedUp() * 20.0);
         light->setDirection(mCamera->getDerivedDirection());
     }
 
     if (mPointLightNode != NULL)
     {
-        static Real sToatalTime = 0.0;
+        static Real sTotalTime = 0.0;
         
-        sToatalTime += evt.timeSinceLastFrame;
+        sTotalTime += evt.timeSinceLastFrame;
         mPointLightNode->yaw(Degree(evt.timeSinceLastFrame * 15));
-        mPointLightNode->setPosition(0.0, Math::Sin(sToatalTime) * 30.0, 0.0);
+        mPointLightNode->setPosition(0.0, Math::Sin(sTotalTime) * 30.0, 0.0);
     }
 
     updateTargetObjInfo();
     
     return SdkSample::frameRenderingQueued(evt);
 }
-
 
 //-----------------------------------------------------------------------
 //void Sample_ShaderSystem::setupView()
@@ -307,10 +323,13 @@ void Sample_ShaderSystem::setupContent()
         ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, Plane(Vector3::UNIT_Y, 0),
         1500,1500,25,25,true,1,60,60,Vector3::UNIT_Z);
 
-    Entity* pPlaneEnt = mSceneMgr->createEntity( "plane", "Myplane" );
+    Entity* pPlaneEnt = mSceneMgr->createEntity( "Myplane" );
+    pPlaneEnt->setName("plane");
     pPlaneEnt->setMaterialName("Examples/Rockwall");
     pPlaneEnt->setCastShadows(false);
-    mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(0,0,0))->attachObject(pPlaneEnt);
+    SceneNode *planeNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    planeNode->setPosition(Vector3(0,0,0));
+    planeNode->attachObject(pPlaneEnt);
 
 
     // Load sample meshes and generate tangent vectors.
@@ -332,32 +351,31 @@ void Sample_ShaderSystem::setupContent()
             pMesh->buildTangentVectors(VES_TANGENT, src, dest);     
         }
     }
-    
 
-
-    Entity* entity;
     SceneNode* childNode;
 
     // Create the main entity and mark it as the current target object.
-    entity = mSceneMgr->createEntity(MAIN_ENTITY_NAME, MAIN_ENTITY_MESH);
-    mTargetEntities.push_back(entity);
+    mMainEntity = mSceneMgr->createEntity(MAIN_ENTITY_MESH);
+    mMainEntity->setName(MAIN_ENTITY_NAME);
+    mTargetEntities.push_back(mMainEntity);
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();      
-    childNode->attachObject(entity);
-    mTargetObj = entity;
-    childNode->showBoundingBox(true);
+    childNode->attachObject(mMainEntity);
+    mTargetObj = mMainEntity;
 
     // Create reflection entity that will show the exported material.
-    const String& mainExportedMaterial = mSceneMgr->getEntity(MAIN_ENTITY_NAME)->getSubEntity(0)->getMaterialName() + "_RTSS_Export";
+    const String& mainExportedMaterial = mMainEntity->getSubEntity(0)->getMaterialName() + "_RTSS_Export";
     MaterialPtr matMainEnt        = MaterialManager::getSingleton().getByName(mainExportedMaterial, SAMPLE_MATERIAL_GROUP);
 
-    entity = mSceneMgr->createEntity("ExportedMaterialEntity", MAIN_ENTITY_MESH);
+    Entity *entity = mSceneMgr->createEntity(MAIN_ENTITY_MESH);
+    entity->setName("ExportedMaterialEntity");
     entity->setMaterial(matMainEnt);
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     childNode->setPosition(0.0, 200.0, -200.0);
     childNode->attachObject(entity);
 
     // Create texture layer blending demonstration entity.
-    mLayeredBlendingEntity = mSceneMgr->createEntity("LayeredBlendingMaterialEntity", MAIN_ENTITY_MESH);
+    mLayeredBlendingEntity = mSceneMgr->createEntity(MAIN_ENTITY_MESH);
+    mLayeredBlendingEntity->setName("LayeredBlendingMaterialEntity");
     mLayeredBlendingEntity->setMaterialName("RTSS/LayeredBlending");
     mLayeredBlendingEntity->getSubEntity(0)->setCustomParameter(2, Vector4::ZERO);
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
@@ -388,18 +406,20 @@ void Sample_ShaderSystem::setupContent()
 
 
     // Create per pixel lighting demonstration entity.
-    entity = mSceneMgr->createEntity("PerPixelEntity", "knot.mesh");
-    entity->setMaterialName("RTSS/PerPixel_SinglePass");
+    Entity *knotEntity = mSceneMgr->createEntity("knot.mesh");
+    knotEntity->setName("PerPixelEntity");
+    knotEntity->setMaterialName("RTSS/PerPixel_SinglePass");
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     childNode->setPosition(300.0, 100.0, -100.0);
-    childNode->attachObject(entity);
+    childNode->attachObject(knotEntity);
 
     // Create normal map lighting demonstration entity.
-    entity = mSceneMgr->createEntity("NormalMapEntity", "knot.mesh");
-    entity->setMaterialName("RTSS/NormalMapping_SinglePass");
+    knotEntity = mSceneMgr->createEntity("knot.mesh");
+    knotEntity->setName("NormalMapEntity");
+    knotEntity->setMaterialName("RTSS/NormalMapping_SinglePass");
     childNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     childNode->setPosition(-300.0, 100.0, -100.0);
-    childNode->attachObject(entity);
+    childNode->attachObject(knotEntity);
 
     // OpenGL ES 2.0 does not support texture atlases. But ES 3.0 does!
 #if OGRE_NO_GLES3_SUPPORT == 1
@@ -427,15 +447,13 @@ void Sample_ShaderSystem::setupContent()
 
     // Take responsibility for updating the light count manually.
     schemRenderState->setLightCountAutoUpdate(false);
-    
-    setupUI();
 
+    mSceneMgr->updateSceneGraph();
+
+    setupUI();
 
     mCamera->setPosition(0.0, 300.0, 450.0);
     mCamera->lookAt(0.0, 150.0, 0.0);
-
-    // Make this viewport work with shader generator scheme.
-    mViewport->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 
     // Mark system as on.
     mDetailsPanel->setParamValue(11, "On");
@@ -830,7 +848,12 @@ void Sample_ShaderSystem::createDirectionalLight()
     Light*  light;
     Vector3 dir;
 
-    light = mSceneMgr->createLight(DIRECTIONAL_LIGHT_NAME);
+    // create pivot node
+    mDirectionalLightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+
+    light = mSceneMgr->createLight();
+    light->setName(DIRECTIONAL_LIGHT_NAME);
+    mDirectionalLightNode->attachObject(light);
     light->setType(Light::LT_DIRECTIONAL);
     light->setCastShadows(true);
     dir.x = 0.5;
@@ -841,9 +864,6 @@ void Sample_ShaderSystem::createDirectionalLight()
     light->setDiffuseColour(0.65, 0.15, 0.15);
     light->setSpecularColour(0.5, 0.5, 0.5);
 
-    // create pivot node
-    mDirectionalLightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-
     // Create billboard set.
     mBbsFlare = mSceneMgr->createBillboardSet();
     mBbsFlare->setMaterialName("Examples/Flare3");
@@ -851,7 +871,6 @@ void Sample_ShaderSystem::createDirectionalLight()
     mBbsFlare->setCastShadows(false);
     
     mDirectionalLightNode->attachObject(mBbsFlare);
-    mDirectionalLightNode->attachObject(light);
 }
 
 //-----------------------------------------------------------------------
@@ -860,7 +879,13 @@ void Sample_ShaderSystem::createPointLight()
     Light*  light;
     Vector3 dir;
 
-    light = mSceneMgr->createLight(POINT_LIGHT_NAME);
+    // create pivot node
+    mPointLightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+
+    light = mSceneMgr->createLight();
+    light->setName(POINT_LIGHT_NAME);
+    mPointLightNode->attachObject(light);
+    mPointLightNode->setPosition(Vector3(200, 100, 0));
     light->setType(Light::LT_POINT);
     light->setCastShadows(false);
     dir.x = 0.5;
@@ -872,9 +897,6 @@ void Sample_ShaderSystem::createPointLight()
     light->setSpecularColour(0.5, 0.5, 0.5);    
     light->setAttenuation(200.0, 1.0, 0.0005, 0.0);
 
-    // create pivot node
-    mPointLightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    
     BillboardSet* bbs;
     
     // Create billboard set.
@@ -884,7 +906,6 @@ void Sample_ShaderSystem::createPointLight()
     bbs->setCastShadows(false);
 
     mPointLightNode->attachObject(bbs);
-    mPointLightNode->createChildSceneNode(Vector3(200, 100, 0))->attachObject(light);
 }
 
 //-----------------------------------------------------------------------
@@ -893,7 +914,11 @@ void Sample_ShaderSystem::createSpotLight()
     Light*  light;
     Vector3 dir;
 
-    light = mSceneMgr->createLight(SPOT_LIGHT_NAME);
+    SceneNode *spotLightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+
+    light = mSceneMgr->createLight();
+    light->setName(SPOT_LIGHT_NAME);
+    spotLightNode->attachObject(light);
     light->setType(Light::LT_SPOTLIGHT);
     light->setCastShadows(false);
     dir.x = 0.0;
@@ -991,7 +1016,7 @@ void Sample_ShaderSystem::updateInstancedViewports(bool enabled)
 //-----------------------------------------------------------------------
 void Sample_ShaderSystem::updateLightState(const String& lightName, bool visible)
 {
-    if (mSceneMgr->hasLight(lightName))
+    if (getLightNamedFromSceneManager(lightName) != NULL)
     {       
         // Case it is the point light,
         // toggle its visibility and billboard set visibility.
@@ -999,19 +1024,19 @@ void Sample_ShaderSystem::updateLightState(const String& lightName, bool visible
         {
             if (visible)
             {
-                if (mPointLightNode->isInSceneGraph() == false)
+                if (mPointLightNode->getParent() != mSceneMgr->getRootSceneNode())
                 {
                     mSceneMgr->getRootSceneNode()->addChild(mPointLightNode);
                 }
             }
             else
             {
-                if (mPointLightNode->isInSceneGraph() == true)
+                if (mPointLightNode->getParent() == mSceneMgr->getRootSceneNode())
                 {
                     mSceneMgr->getRootSceneNode()->removeChild(mPointLightNode);
                 }
-            }   
-            mSceneMgr->getLight(lightName)->setVisible(visible);
+            }
+            getLightNamedFromSceneManager(lightName)->setVisible(visible);
         }
         
         // Case it is the directional light,
@@ -1030,7 +1055,7 @@ void Sample_ShaderSystem::updateLightState(const String& lightName, bool visible
         // Spot light has no scene node representation.
         else
         {
-            mSceneMgr->getLight(lightName)->setVisible(visible);
+            getLightNamedFromSceneManager(lightName)->setVisible(visible);
         }   
 
         RenderState* schemRenderState = mShaderGenerator->getRenderState(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
@@ -1038,19 +1063,19 @@ void Sample_ShaderSystem::updateLightState(const String& lightName, bool visible
         int lightCount[3] = {0};
 
         // Update point light count.
-        if (mSceneMgr->getLight(POINT_LIGHT_NAME)->isVisible())
+        if (getLightNamedFromSceneManager(POINT_LIGHT_NAME)->isVisible())
         {
             lightCount[0] = 1;
         }
 
         // Update directional light count.
-        if (mSceneMgr->getLight(DIRECTIONAL_LIGHT_NAME)->isVisible())
+        if (getLightNamedFromSceneManager(DIRECTIONAL_LIGHT_NAME)->isVisible())
         {
             lightCount[1] = 1;
         }
 
         // Update spot light count.
-        if (mSceneMgr->getLight(SPOT_LIGHT_NAME)->isVisible())
+        if (getLightNamedFromSceneManager(SPOT_LIGHT_NAME)->isVisible())
         {
             lightCount[2] = 1;
         }
@@ -1074,7 +1099,7 @@ void Sample_ShaderSystem::applyShadowType(int menuIndex)
     // No shadow
     if (menuIndex == 0)
     {
-        mSceneMgr->setShadowTechnique(SHADOWTYPE_NONE);
+//        mSceneMgr->setShadowTechnique(SHADOWTYPE_NONE);
 
 #ifdef RTSHADER_SYSTEM_BUILD_EXT_SHADERS
         const Ogre::RTShader::SubRenderStateList& subRenderStateList = schemRenderState->getTemplateSubRenderStateList();
@@ -1108,12 +1133,12 @@ void Sample_ShaderSystem::applyShadowType(int menuIndex)
     // Integrated shadow PSSM with 3 splits.
     else if (menuIndex == 1)
     {
-        mSceneMgr->setShadowTechnique(SHADOWTYPE_TEXTURE_MODULATIVE_INTEGRATED);
-
-        // 3 textures per directional light
-        mSceneMgr->setShadowTextureCountPerLightType(Ogre::Light::LT_DIRECTIONAL, 3);
-        mSceneMgr->setShadowTextureSettings(512, 3, PF_FLOAT32_R);
-        mSceneMgr->setShadowTextureSelfShadow(true);
+//        mSceneMgr->setShadowTechnique(SHADOWTYPE_TEXTURE_MODULATIVE_INTEGRATED);
+//
+//        // 3 textures per directional light
+//        mSceneMgr->setShadowTextureCountPerLightType(Ogre::Light::LT_DIRECTIONAL, 3);
+//        mSceneMgr->setShadowTextureSettings(512, 3, PF_FLOAT32_R);
+//        mSceneMgr->setShadowTextureSelfShadow(true);
 
         // Leave only directional light.
         mDirLightCheckBox->setChecked(true);
@@ -1145,7 +1170,7 @@ void Sample_ShaderSystem::applyShadowType(int menuIndex)
         pssmSetup->setOptimalAdjustFactor(1, 1);
         pssmSetup->setOptimalAdjustFactor(2, 0.5);
 
-        mSceneMgr->setShadowCameraSetup(ShadowCameraSetupPtr(pssmSetup));
+//        mSceneMgr->setShadowCameraSetup(ShadowCameraSetupPtr(pssmSetup));
 
     
         Ogre::RTShader::SubRenderState* subRenderState = mShaderGenerator->createSubRenderState(Ogre::RTShader::IntegratedPSSM3::Type); 
@@ -1290,6 +1315,7 @@ void Sample_ShaderSystem::destroyPrivateResourceGroup()
 //-----------------------------------------------------------------------
 void Sample_ShaderSystem::pickTargetObject( const OIS::MouseEvent &evt )
 {
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
     int xPos   = evt.state.X.abs;
     int yPos   = evt.state.Y.abs;
     int width  = evt.state.width;
@@ -1314,6 +1340,7 @@ void Sample_ShaderSystem::pickTargetObject( const OIS::MouseEvent &evt )
         mTargetObj = curEntry.movable;
         mTargetObj ->getParentSceneNode()->showBoundingBox(true);       
     }
+#endif
 }
 
 //-----------------------------------------------------------------------
@@ -1332,7 +1359,7 @@ void Sample_ShaderSystem::updateTargetObjInfo()
     
     mTargetObjMatName->setCaption(targetObjMaterialName);
 
-    if (mViewport->getMaterialScheme() == RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
+    if (mCamera->getLastViewport()->getMaterialScheme() == RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
     {       
         MaterialPtr matMainEnt        = MaterialManager::getSingleton().getByName(targetObjMaterialName);
 
@@ -1708,7 +1735,8 @@ ManualObject* Sample_ShaderSystem::createTextureAtlasObject()
     textureAtlasSamplerFactory->addTexutreAtlasDefinition(taiFile, textureAtlasTable);
 
     //Generate the geometry that will seed the particle system
-    ManualObject* textureAtlasObject = mSceneMgr->createManualObject("TextureAtlasObject");
+    ManualObject* textureAtlasObject = mSceneMgr->createManualObject();
+    textureAtlasObject->setName("TextureAtlasObject");
 
     int sliceSize = 30.0;
     int wrapSize = 5.0;

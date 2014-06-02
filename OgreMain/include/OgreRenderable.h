@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreCommon.h"
 
+#include "OgreIdString.h"
 #include "OgreGpuProgram.h"
 #include "OgreGpuProgramParams.h"
 #include "OgreMatrix4.h"
@@ -39,6 +40,7 @@ THE SOFTWARE.
 #include "OgreVector4.h"
 #include "OgreException.h"
 #include "OgreUserObjectBindings.h"
+#include "OgreLodStrategy.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -70,28 +72,22 @@ namespace Ogre {
         */
         class RenderSystemData {}; 
     public:
-        Renderable() : mPolygonModeOverrideable(true), mUseIdentityProjection(false), mUseIdentityView(false), mRenderSystemData(NULL) {}
+        Renderable();
+
         /** Virtual destructor needed as class has virtual methods. */
-        virtual ~Renderable() 
-        {
-            if (mRenderSystemData)
-            {
-                delete mRenderSystemData;
-                mRenderSystemData = NULL;
-            }
-        }
-        /** Retrieves a weak reference to the material this renderable object uses.
-        @remarks
-            Note that the Renderable also has the option to override the getTechnique method
-            to specify a particular Technique to use instead of the best one available.
+        virtual ~Renderable();
+
+        /// Sets the name of the Material to be used. Prefer using HLMS @See setHlms
+        void setMaterialName( const String& name, const String& groupName );
+
+        /// Sets the given material. Overrides HLMS materials.
+        virtual void setMaterial( const MaterialPtr& material );
+
+        /** Retrieves the material this renderable object uses. It may be null if it's using
+            the HLMS. @See getDatablock
         */
-        virtual const MaterialPtr& getMaterial(void) const = 0;
-        /** Retrieves a pointer to the Material Technique this renderable object uses.
-        @remarks
-            This is to allow Renderables to use a chosen Technique if they wish, otherwise
-            they will use the best Technique available for the Material they are using.
-        */
-        virtual Technique* getTechnique(void) const { return getMaterial()->getBestTechnique(0, this); }
+        MaterialPtr getMaterial(void) const;
+
         /** Gets the render operation required to send this object to the frame buffer.
         */
         virtual void getRenderOperation(RenderOperation& op) = 0;
@@ -201,13 +197,6 @@ namespace Ogre {
         @see Renderable::setUseIdentityView
         */
         bool getUseIdentityView(void) const { return mUseIdentityView; }
-
-        /** Returns the camera-relative squared depth of this renderable.
-        @remarks
-            Used to sort transparent objects. Squared depth is used rather than
-            actual depth to avoid having to perform a square root on the result.
-        */
-        virtual Real getSquaredViewDepth(const Camera* cam) const = 0;
 
         /** Gets a list of lights, ordered relative to how close they are to this renderable.
         @remarks
@@ -409,10 +398,42 @@ namespace Ogre {
             mRenderSystemData = val; 
         }
 
+        uint32 getHlmsHash(void) const          { return mHlmsHash; }
+        uint32 getHlmsCasterHash(void) const    { return mHlmsCasterHash; }
+        HlmsDatablock* getDatablock(void) const { return mHlmsDatablock; }
+
+        /** Assigns a datablock (i.e. HLMS material) based on its unique name.
+        @remarks
+            An null IdString() is valid, it will use the default material
+        */
+        void setDatablock( IdString datablockName );
+
+        /// Assigns a datablock (i.e. HLMS Material) to this renderable
+        void setDatablock( HlmsDatablock *datablock );
+
+        /// Manually sets the hlms hashes. Don't call this directly
+        void _setHlmsHashes( uint32 hash, uint32 casterHash );
+
+        uint8 getCurrentMaterialLod(void) const { return mCurrentMaterialLod; }
+
+        friend void LodStrategy::lodSet( ObjectData &t, Real lodValues[ARRAY_PACKED_REALS] );
 
     protected:
         typedef map<size_t, Vector4>::type CustomParameterMap;
         CustomParameterMap mCustomParameters;
+        uint32              mHlmsHash;
+        uint32              mHlmsCasterHash;
+        HlmsDatablock       *mHlmsDatablock;
+        uint8                   mCurrentMaterialLod;
+        FastArray<Real> const   *mLodMaterial;
+
+        /** Index in the vector holding this Rendrable reference in the HLMS datablock.
+            Used for O(1) removals.
+        @remarks
+            Despite being public, Do NOT modify it manually.
+        */
+        public: uint32      mHlmsGlobalIndex;
+    protected:
         bool mPolygonModeOverrideable;
         bool mUseIdentityProjection;
         bool mUseIdentityView;

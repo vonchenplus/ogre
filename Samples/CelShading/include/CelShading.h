@@ -16,6 +16,7 @@ public:
         mInfo["Description"] = "A demo of cel-shaded graphics using vertex & fragment programs.";
         mInfo["Thumbnail"] = "thumb_cel.png";
         mInfo["Category"] = "Lighting";
+        mBackgroundColour = ColourValue::White;
     }
 
     StringVector getRequiredPlugins()
@@ -38,7 +39,8 @@ public:
     bool frameRenderingQueued(const FrameEvent& evt)
     {
         // make the light revolve around our model if and only if the check box is checked
-        if (mMoveLight->isChecked()) mLightPivot->yaw(Degree(evt.timeSinceLastFrame * 30));
+		if (mMoveLight->isChecked())
+			mLightPivot->yaw(Degree(evt.timeSinceLastFrame * 30));
 
         return SdkSample::frameRenderingQueued(evt);  // don't forget the parent class updates!
     }
@@ -46,25 +48,26 @@ public:
 protected:
 
     void setupContent()
-    {     
-        mViewport->setBackgroundColour(ColourValue::White);
-
+    {
         // set our camera to orbit around the origin and show cursor
         mCameraMan->setStyle(CS_ORBIT);
         mTrayMgr->showCursor();
 
         // create a basic point light with an offset
         Light* light = mSceneMgr->createLight();
-        light->setPosition(20, 40, 50);
+		mLightPivot = mSceneMgr->getRootSceneNode()->createChildSceneNode();
 
         // attach the light to a pivot node
-        mLightPivot = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-        mLightPivot->attachObject(light);
+		SceneNode *lightNode = mLightPivot->createChildSceneNode();
+		lightNode->setPosition(20, 40, 50);
+		lightNode->attachObject(light);
 
         // create our model, give it the shader material, and place it at the origin
-        Entity *ent = mSceneMgr->createEntity("Head", "ogrehead.mesh");
+        Entity *ent = mSceneMgr->createEntity( "ogrehead.mesh",
+                                                ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
+                                                SCENE_STATIC );
         ent->setMaterialName("Examples/CelShading");
-        mSceneMgr->getRootSceneNode()->attachObject(ent);
+        mSceneMgr->getRootSceneNode( SCENE_STATIC )->attachObject(ent);
 
         /* We set the same material for all parts of the head, but use custom shader parameters to set the
         colours for each part. See Examples-Advanced.material for how these are bound to GPU parameters. */

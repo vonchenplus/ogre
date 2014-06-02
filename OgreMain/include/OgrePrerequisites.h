@@ -28,31 +28,32 @@ THE SOFTWARE
 
 // Platform-specific stuff
 #include "OgrePlatform.h"
+#include "OgreWorkarounds.h"
 
 #include <string>
 
 // configure memory tracking
 #if OGRE_DEBUG_MODE 
 #   if OGRE_MEMORY_TRACKER_DEBUG_MODE
-#        define OGRE_MEMORY_TRACKER 1
+#       define OGRE_MEMORY_TRACKER 1
 #   else
-#        define OGRE_MEMORY_TRACKER 0
+#       define OGRE_MEMORY_TRACKER 0
 #   endif
 #else
 #   if OGRE_MEMORY_TRACKER_RELEASE_MODE
-#        define OGRE_MEMORY_TRACKER 1
+#       define OGRE_MEMORY_TRACKER 1
 #   else
-#        define OGRE_MEMORY_TRACKER 0
+#       define OGRE_MEMORY_TRACKER 0
 #   endif
 #endif
 
 namespace Ogre {
     // Define ogre version
-    #define OGRE_VERSION_MAJOR 1
-    #define OGRE_VERSION_MINOR 10
+    #define OGRE_VERSION_MAJOR 2
+    #define OGRE_VERSION_MINOR 0
     #define OGRE_VERSION_PATCH 0
     #define OGRE_VERSION_SUFFIX "unstable"
-    #define OGRE_VERSION_NAME "Xalafu"
+    #define OGRE_VERSION_NAME "Tindalos"
 
     #define OGRE_VERSION    ((OGRE_VERSION_MAJOR << 16) | (OGRE_VERSION_MINOR << 8) | OGRE_VERSION_PATCH)
 
@@ -63,11 +64,13 @@ namespace Ogre {
         @note Not valid as a pointer to GPU buffers / parameters
         */
         typedef double Real;
+        typedef uint64 RealAsUint;
     #else
         /** Software floating point type.
         @note Not valid as a pointer to GPU buffers / parameters
         */
         typedef float Real;
+        typedef uint32 RealAsUint;
     #endif
 
     #if OGRE_COMPILER == OGRE_COMPILER_GNUC && OGRE_COMP_VER >= 310 && !defined(STLPORT)
@@ -136,22 +139,31 @@ namespace Ogre {
 // Pre-declare classes
 // Allows use of pointers in header files without including individual .h
 // so decreases dependencies between files
+    struct Aabb;
     class Angle;
     class AnimableValue;
     class Animation;
     class AnimationState;
     class AnimationStateSet;
     class AnimationTrack;
+    class ArrayMatrix4;
+    class ArrayMatrixAf4x3;
+    class ArrayQuaternion;
+    class ArrayVector3;
+    class ArrayMemoryManager;
     class Archive;
     class ArchiveFactory;
     class ArchiveManager;
     class AutoParamDataSource;
     class AxisAlignedBox;
     class AxisAlignedBoxSceneQuery;
+    class Barrier;
     class Billboard;
     class BillboardChain;
     class BillboardSet;
     class Bone;
+    class BoneMemoryManager;
+    struct BoneTransform;
     class Camera;
     class Codec;
     class ColourValue;
@@ -190,6 +202,15 @@ namespace Ogre {
     class HighLevelGpuProgram;
     class HighLevelGpuProgramManager;
     class HighLevelGpuProgramFactory;
+    class Hlms;
+    struct HlmsBlendblock;
+    struct HlmsCache;
+    class HlmsDatablock;
+    class HlmsLowLevel;
+    class HlmsLowLevelDatablock;
+    struct HlmsMacroblock;
+    class HlmsManager;
+    class HlmsTextureManager;
     class IndexData;
     class InstanceBatch;
     class InstanceBatchHW;
@@ -202,6 +223,7 @@ namespace Ogre {
     class IntersectionSceneQueryListener;
     class Image;
     class KeyFrame;
+    struct KfTransform;
     class Light;
     class Log;
     class LogManager;
@@ -222,11 +244,17 @@ namespace Ogre {
     class MeshManager;
     class MovableObject;
     class MovablePlane;
-    class Node;
-    class NodeAnimationTrack;
-    class NodeKeyFrame;
+	class Node;
+    class NodeMemoryManager;
     class NumericAnimationTrack;
     class NumericKeyFrame;
+    struct ObjectData;
+    class ObjectMemoryManager;
+	class OldBone;
+    class OldNode;
+	class OldNodeAnimationTrack;
+    class OldSkeletonInstance;
+    class OldSkeletonManager;
     class Particle;
     class ParticleAffector;
     class ParticleAffectorFactory;
@@ -254,9 +282,6 @@ namespace Ogre {
     class Renderable;
     class RenderPriorityGroup;
     class RenderQueue;
-    class RenderQueueGroup;
-    class RenderQueueInvocation;
-    class RenderQueueInvocationSequence;
     class RenderQueueListener;
     class RenderObjectListener;
     class RenderSystem;
@@ -286,12 +311,12 @@ namespace Ogre {
     class ScriptLoader;
     class Serializer;
     class ShadowCameraSetup;
-    class ShadowCaster;
-    class ShadowRenderable;
     class ShadowTextureManager;
+    class SimpleMatrixAf4x3;
     class SimpleRenderable;
     class SimpleSpline;
     class Skeleton;
+    class SkeletonDef;
     class SkeletonInstance;
     class SkeletonManager;
     class Sphere;
@@ -309,6 +334,7 @@ namespace Ogre {
     class TextureUnitState;
     class Texture;
     class TextureManager;
+    struct Transform;
     class TransformKeyFrame;
     class Timer;
     class UserObjectBindings;
@@ -323,19 +349,11 @@ namespace Ogre {
     class VertexMorphKeyFrame;
     class WireBoundingBox;
     class WorkQueue;
-    class Compositor;
-    class CompositorManager;
-    class CompositorChain;
-    class CompositorInstance;
-    class CompositorLogic;
-    class CompositionTechnique;
-    class CompositionPass;
-    class CompositionTargetPass;
-    class CustomCompositionPass;
+    class CompositorManager2;
+    class CompositorWorkspace;
 
     template<typename T> class SharedPtr;
     typedef SharedPtr<AnimableValue> AnimableValuePtr;
-    typedef SharedPtr<Compositor> CompositorPtr;
     typedef SharedPtr<DataStream> DataStreamPtr;
     typedef SharedPtr<GpuProgram> GpuProgramPtr;
     typedef SharedPtr<GpuNamedConstants> GpuNamedConstantsPtr;
@@ -351,6 +369,7 @@ namespace Ogre {
     typedef SharedPtr<Resource> ResourcePtr;
     typedef SharedPtr<ShadowCameraSetup> ShadowCameraSetupPtr;
     typedef SharedPtr<Skeleton> SkeletonPtr;
+    typedef SharedPtr<SkeletonDef> SkeletonDefPtr;
     typedef SharedPtr<Texture> TexturePtr;
 }
 

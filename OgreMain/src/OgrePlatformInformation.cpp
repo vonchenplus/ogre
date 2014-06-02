@@ -167,6 +167,7 @@ namespace Ogre {
         {
             mov     edi, result
             mov     eax, query
+            xor     ecx, ecx
             cpuid
             mov     [edi]._eax, eax
             mov     [edi]._ebx, ebx
@@ -179,12 +180,14 @@ namespace Ogre {
         #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_64
         __asm__
         (
+            "xor     %%rcx, %%rcx    \n\t"
             "cpuid": "=a" (result._eax), "=b" (result._ebx), "=c" (result._ecx), "=d" (result._edx) : "a" (query)
         );
         #else
         __asm__
         (
             "pushl  %%ebx           \n\t"
+            "xor    %%ecx, %%ecx    \n\t"
             "cpuid                  \n\t"
             "movl   %%ebx, %%edi    \n\t"
             "popl   %%ebx           \n\t"
@@ -401,6 +404,42 @@ namespace Ogre {
         return features;
     }
     //---------------------------------------------------------------------
+    static uint32 _detectNumLogicalCores(void)
+    {
+        uint numLogicalCores = 0;
+
+        // Supports CPUID instruction ?
+        if (_isSupportCpuid())
+        {
+            CpuidResult result;
+
+            // Has standard feature ?
+            if (_performCpuid(0, result))
+            {
+                // Check vendor strings
+                if (memcmp(&result._ebx, "GenuineIntel", 12) == 0)
+                {
+                    _performCpuid(4, result);
+                    numLogicalCores = ((result._eax >> 26) & 0x3f) + 1; // EAX[31:26] + 1
+                }
+                else if (memcmp(&result._ebx, "AuthenticAMD", 12) == 0)
+                {
+                    //Number of CPU cores - 1
+                    _performCpuid( 0x80000008, result );
+                    numLogicalCores = (result._ecx & 0xff) + 1; // EAX[7:0] + 1
+                }
+                else
+                {
+                    // Check standard feature
+                    _performCpuid(1, result);
+                    numLogicalCores = (result._ebx >> 16) & 0xff;
+                }
+            }
+        }
+
+        return numLogicalCores;
+    }
+    //---------------------------------------------------------------------
     static String _detectCpuIdentifier(void)
     {
         // Supports CPUID instruction ?
@@ -484,10 +523,6 @@ namespace Ogre {
             features |= PlatformInformation::CPU_FEATURE_NEON;
         }
         
-        if (cpufeatures & ANDROID_CPU_ARM_FEATURE_VFPv3) 
-        {
-            features |= PlatformInformation::CPU_FEATURE_VFP;
-        }
         return features;
     }
     //---------------------------------------------------------------------
@@ -518,6 +553,12 @@ namespace Ogre {
         }
         return cpuID;
     }
+    //---------------------------------------------------------------------
+    static uint32 _detectNumLogicalCores(void)
+    {
+        //TODO
+        return 0;
+    }
     
 #elif OGRE_CPU == OGRE_CPU_ARM  // OGRE_CPU == OGRE_CPU_ARM
 
@@ -526,18 +567,15 @@ namespace Ogre {
     {
         // Use preprocessor definitions to determine architecture and CPU features
         uint features = 0;
-#if defined(__ARM_NEON__)
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
         int hasNEON;
         size_t len = sizeof(size_t);
         sysctlbyname("hw.optional.neon", &hasNEON, &len, NULL, 0);
 
         if(hasNEON)
-#endif
             features |= PlatformInformation::CPU_FEATURE_NEON;
-#elif defined(__VFP_FP__)
-            features |= PlatformInformation::CPU_FEATURE_VFP;
 #endif
+
         return features;
     }
     //---------------------------------------------------------------------
@@ -580,6 +618,21 @@ namespace Ogre {
 #endif
         return cpuID;
     }
+    //---------------------------------------------------------------------
+    static uint32 _detectNumLogicalCores(void)
+    {
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+        // Get the ARM logical CPU count
+        size_t size = sizeof(size_t);
+        int logicalcpu = 0;
+        sysctlbyname("hw.logicalcpu", &logicalcpu, &size, NULL, 0);
+
+        return logicalcpu;
+#else
+        //TODO
+        return 0;
+#endif
+    }
     
 #elif OGRE_CPU == OGRE_CPU_MIPS  // OGRE_CPU == OGRE_CPU_ARM
 
@@ -613,6 +666,11 @@ namespace Ogre {
     {
         return "Unknown";
     }
+    //---------------------------------------------------------------------
+    static uint32 _detectNumLogicalCores(void)
+    {
+        return 0;
+    }
 
 #endif  // OGRE_CPU
 
@@ -637,12 +695,21 @@ namespace Ogre {
         return (getCpuFeatures() & feature) != 0;
     }
     //---------------------------------------------------------------------
+    uint32 PlatformInformation::getNumLogicalCores(void)
+    {
+        static const uint32 sNumCores = _detectNumLogicalCores();
+        return sNumCores;
+    }
+    //---------------------------------------------------------------------
     void PlatformInformation::log(Log* pLog)
     {
         pLog->logMessage("CPU Identifier & Features");
         pLog->logMessage("-------------------------");
         pLog->logMessage(
             " *   CPU ID: " + getCpuIdentifier());
+        pLog->logMessage(
+            " *   Logical cores (excluding HyperThreaded): " +
+                        StringConverter::toString( getNumLogicalCores() ) );
 #if OGRE_CPU == OGRE_CPU_X86
         if(_isSupportCpuid())
         {
@@ -673,12 +740,10 @@ namespace Ogre {
         }
 #elif OGRE_CPU == OGRE_CPU_ARM || OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
         pLog->logMessage(
-                " *      VFP: " + StringConverter::toString(hasCpuFeature(CPU_FEATURE_VFP), true));
-        pLog->logMessage(
                 " *     NEON: " + StringConverter::toString(hasCpuFeature(CPU_FEATURE_NEON), true));
 #elif OGRE_CPU == OGRE_CPU_MIPS
         pLog->logMessage(
-                " *      MSA: " + StringConverter::toString(hasCpuFeature(CPU_FEATURE_MSA), true));
+                " *      MSA: " + StringConverter::toString(hasCpuFeature(CPU_FEATURE_MSA), true));#endif
 #endif
         pLog->logMessage("-------------------------");
 

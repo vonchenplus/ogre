@@ -39,8 +39,7 @@ namespace Ogre
 
     class D3D11DriverList;
     class D3D11Driver;
-	class D3D11StereoDriverBridge;
-	
+
     /**
     Implementation of DirectX11 as a rendering system.
     */
@@ -213,11 +212,6 @@ namespace Ogre
         bool mRenderSystemWasInited;
 
         IDXGIFactoryN*  mpDXGIFactory;
-		
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		D3D11StereoDriverBridge* mStereoDriver;
-#endif
-
     protected:
         void setClipPlanesImpl(const PlaneList& clipPlanes);
 
@@ -277,8 +271,6 @@ namespace Ogre
         void reinitialise();
         void shutdown();
         void setAmbientLight( float r, float g, float b );
-        void setShadingType( ShadeOptions so );
-        void setLightingEnabled( bool enabled );
         void destroyRenderTarget(const String& name);
         VertexElementType getColourVertexElementType(void) const;
         void setStencilCheckEnabled(bool enabled);
@@ -289,7 +281,6 @@ namespace Ogre
             StencilOperation passOp = SOP_KEEP, 
             bool twoSidedOperation = false,
             bool readBackAsTexture = false);
-        void setNormaliseNormals(bool normalise);
 
         virtual String getErrorDescription(long errorNumber) const;
 
@@ -313,8 +304,8 @@ namespace Ogre
         void _setVertexTexture(size_t unit, const TexturePtr& tex);
         void _setGeometryTexture(size_t unit, const TexturePtr& tex);
         void _setComputeTexture(size_t unit, const TexturePtr& tex);
-        void _setTesselationHullTexture(size_t unit, const TexturePtr& tex);
-        void _setTesselationDomainTexture(size_t unit, const TexturePtr& tex);
+        void _setTessellationHullTexture(size_t unit, const TexturePtr& tex);
+        void _setTessellationDomainTexture(size_t unit, const TexturePtr& tex);
         void _disableTextureUnit(size_t texUnit);
         void _setTextureCoordSet( size_t unit, size_t index );
         void _setTextureCoordCalculation(size_t unit, TexCoordCalcMethod m, 
@@ -339,7 +330,6 @@ namespace Ogre
         void _setDepthBufferWriteEnabled(bool enabled = true);
         void _setDepthBufferFunction( CompareFunction func = CMPF_LESS_EQUAL );
         void _setDepthBias(float constantBias, float slopeScaleBias);
-        void _setFog( FogMode mode = FOG_NONE, const ColourValue& colour = ColourValue::White, Real expDensity = 1.0, Real linearStart = 0.0, Real linearEnd = 1.0 );
         void _convertProjectionMatrix(const Matrix4& matrix,
             Matrix4& dest, bool forGpuProgram = false);
         void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 
@@ -430,9 +420,6 @@ namespace Ogre
 
         /// @copydoc RenderSystem::markProfileEvent
         virtual void markProfileEvent( const String &eventName );
-		
-		/// @copydoc RenderSystem::setDrawBuffer
-		virtual bool setDrawBuffer(ColourBufferType colourBuffer);
     };
 }
 #endif

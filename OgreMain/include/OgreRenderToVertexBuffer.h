@@ -33,19 +33,19 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 namespace Ogre {
     /** \addtogroup Core
-     *  @{
-     */
+    *  @{
+    */
     /** \addtogroup RenderSystem
-     *  @{
-     */
+    *  @{
+    */
     /**
-       An object which renders geometry to a vertex.
-       @remarks
-       This is especially useful together with geometry shaders, as you can
-       render procedural geometry which will get saved to a vertex buffer for
-       reuse later, without regenerating it again. You can also create shaders
-       that run on previous results of those shaders, creating stateful
-       shaders.
+        An object which renders geometry to a vertex.
+    @remarks
+        This is especially useful together with geometry shaders, as you can
+        render procedural geometry which will get saved to a vertex buffer for
+        reuse later, without regenerating it again. You can also create shaders
+        that run on previous results of those shaders, creating stateful 
+        shaders.
     */
     class _OgreExport RenderToVertexBuffer
     {

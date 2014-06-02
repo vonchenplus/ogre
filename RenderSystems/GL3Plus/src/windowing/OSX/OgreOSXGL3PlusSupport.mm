@@ -65,9 +65,6 @@ void OSXGL3PlusSupport::addConfig( void )
 	ConfigOption optVsync;
 	ConfigOption optSRGB;
     ConfigOption optContentScalingFactor;
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-	ConfigOption optStereoMode;
-#endif
 
 	// FS setting possibilities
 	optFullScreen.name = "Full Screen";
@@ -118,14 +115,6 @@ void OSXGL3PlusSupport::addConfig( void )
     optContentScalingFactor.currentValue = StringConverter::toString((float)[NSScreen mainScreen].backingScaleFactor);
     optContentScalingFactor.immutable = false;
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-	optStereoMode.name = "Stereo Mode";
-	optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_NONE));
-	optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_FRAME_SEQUENTIAL));
-	optStereoMode.currentValue = optStereoMode.possibleValues[0];
-	optStereoMode.immutable = false;
-#endif
-
     optMacAPI.name = "macAPI";
     optMacAPI.possibleValues.push_back( "cocoa" );
 	optMacAPI.currentValue = "cocoa";
@@ -135,9 +124,6 @@ void OSXGL3PlusSupport::addConfig( void )
     mOptions[ optFullScreen.name ] = optFullScreen;
 	mOptions[ optBitDepth.name ] = optBitDepth;
     mOptions[ optContentScalingFactor.name ] = optContentScalingFactor;
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-	mOptions[ optStereoMode.name ] = optStereoMode;
-#endif
 
 	CGLRendererInfoObj rend;
 	GLint nrend = 0, maxSamples = 0;
@@ -303,13 +289,6 @@ RenderWindow* OSXGL3PlusSupport::createWindow( bool autoCreateWindow, GL3PlusRen
         {
 			winOptions[ "macAPI" ] = opt->second.currentValue;
         }
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		opt = mOptions.find("Stereo Mode");
-		if (opt == mOptions.end())
-			OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find stereo enabled options!", "OSXGLSupport::createWindow");
-		winOptions["stereoMode"] = opt->second.currentValue;
-#endif
 
 		return renderSystem->_createRenderWindow( windowTitle, w, h, fullscreen, &winOptions );
 	}

@@ -70,7 +70,7 @@ namespace Ogre {
     {
         mFB.swapBuffers();
     }
-
+    //-----------------------------------------------------------------------------
     bool GL3PlusFBORenderTexture::attachDepthBuffer( DepthBuffer *depthBuffer )
     {
         bool result;
@@ -79,19 +79,19 @@ namespace Ogre {
 
         return result;
     }
-
+    //-----------------------------------------------------------------------------
     void GL3PlusFBORenderTexture::detachDepthBuffer()
     {
         mFB.detachDepthBuffer();
         GL3PlusRenderTexture::detachDepthBuffer();
     }
-
+    //-----------------------------------------------------------------------------
     void GL3PlusFBORenderTexture::_detachDepthBuffer()
     {
         mFB.detachDepthBuffer();
         GL3PlusRenderTexture::_detachDepthBuffer();
     }
-
+   
     // Size of probe texture
 #define PROBE_SIZE 16
 
@@ -292,7 +292,7 @@ namespace Ogre {
             mProps[x].valid = false;
 
             // Fetch GL format token
-            GLenum fmt = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x);
+            GLenum fmt = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x, false);
             GLenum fmt2 = GL3PlusPixelUtil::getGLOriginFormat((PixelFormat)x);
             GLenum type = GL3PlusPixelUtil::getGLOriginDataType((PixelFormat)x);
             if(fmt == GL_NONE && x != 0)
