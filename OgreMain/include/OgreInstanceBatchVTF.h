@@ -76,7 +76,6 @@ namespace Ogre
     protected:
         typedef vector<uint8>::type HWBoneIdxVec;
         typedef vector<float>::type HWBoneWgtVec;
-        typedef vector<Matrix4>::type Matrix4Vec;
 
         size_t                  mMatricesPerInstance; //number of bone matrices per instance
         size_t                  mNumWorldMatrices;  //Num bones * num instances
@@ -94,7 +93,6 @@ namespace Ogre
         float*                  mTempTransformsArray3x4;
 
         // The state of the usage of bone matrix lookup
-        bool mUseBoneMatrixLookup;
         size_t mMaxLookupTableInstances;
 
         bool mUseBoneDualQuaternions;
@@ -143,9 +141,9 @@ namespace Ogre
         virtual InstancedEntity* generateInstancedEntity(size_t num);
 
     public:
-        BaseInstanceBatchVTF( InstanceManager *creator, MeshPtr &meshReference, const MaterialPtr &material,
-                            size_t instancesPerBatch, const Mesh::IndexMap *indexToBoneMap,
-                            const String &batchName);
+        BaseInstanceBatchVTF( IdType id, ObjectMemoryManager *objectMemoryManager,
+                            InstanceManager *creator, MeshPtr &meshReference, const MaterialPtr &material,
+                            size_t instancesPerBatch, const Mesh::IndexMap *indexToBoneMap );
         virtual ~BaseInstanceBatchVTF();
 
         /** @see InstanceBatch::buildFrom */
@@ -156,7 +154,7 @@ namespace Ogre
         unsigned short getNumWorldTransforms(void) const;
 
         /** Overloaded to be able to updated the vertex texture */
-        void _updateRenderQueue(RenderQueue* queue);
+        void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
 
         /** Sets the state of the usage of bone matrix lookup
         
@@ -170,13 +168,17 @@ namespace Ogre
         Note this feature only works in VTF_HW for now.
         This value needs to be set before adding any instanced entities
         */
-        void setBoneMatrixLookup(bool enable, size_t maxLookupTableInstances) { assert(mInstancedEntities.empty()); 
-            mUseBoneMatrixLookup = enable; mMaxLookupTableInstances = maxLookupTableInstances; }
+        void setBoneMatrixLookup(bool enable, size_t maxLookupTableInstances)
+        {
+            assert(mInstancedEntities.empty()); 
+            mTechnSupportsSkeletal = enable ? SKELETONS_LUT : SKELETONS_SUPPORTED;
+            mMaxLookupTableInstances = maxLookupTableInstances;
+        }
 
         /** Tells whether to use bone matrix lookup
         @see setBoneMatrixLookup()
         */
-        bool useBoneMatrixLookup() const { return mUseBoneMatrixLookup; }
+        bool useBoneMatrixLookup() const { return mTechnSupportsSkeletal == SKELETONS_LUT; }
 
         void setBoneDualQuaternions(bool enable) { assert(mInstancedEntities.empty());
             mUseBoneDualQuaternions = enable; mRowLength = (mUseBoneDualQuaternions ? 2 : 3); }
@@ -192,9 +194,6 @@ namespace Ogre
             mUseOneWeight = enable; }
 
         bool useOneWeight() const { return mUseOneWeight; }
-
-        /** @see InstanceBatch::useBoneWorldMatrices()  */
-        virtual bool useBoneWorldMatrices() const { return !mUseBoneMatrixLookup; }
 
         /** @return the maximum amount of shared transform entities when using lookup table*/
         virtual size_t getMaxLookupTableInstances() const { return mMaxLookupTableInstances; }
@@ -213,9 +212,9 @@ namespace Ogre
 
         virtual bool matricesTogetherPerRow() const { return false; }
     public:
-        InstanceBatchVTF( InstanceManager *creator, MeshPtr &meshReference, const MaterialPtr &material,
-                            size_t instancesPerBatch, const Mesh::IndexMap *indexToBoneMap,
-                            const String &batchName);
+        InstanceBatchVTF( IdType id, ObjectMemoryManager *objectMemoryManager, InstanceManager *creator,
+                            MeshPtr &meshReference, const MaterialPtr &material,
+                            size_t instancesPerBatch, const Mesh::IndexMap *indexToBoneMap );
         virtual ~InstanceBatchVTF();
 
         /** @see InstanceBatch::calculateMaxNumInstances */

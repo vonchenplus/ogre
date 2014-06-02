@@ -32,6 +32,7 @@ THE SOFTWARE.
 #import "OgreStringConverter.h"
 #import "OgreWindowEventUtilities.h"
 #import "OgreGL3PlusPixelFormat.h"
+#import "OgrePixelBox.h"
 
 #import "OgreGL3PlusRenderSystem.h"
 #import <AppKit/NSScreen.h>
@@ -174,17 +175,7 @@ namespace Ogre {
             opt = miscParams->find("contentScalingFactor");
             if(opt != miscParams->end())
                 mContentScalingFactor = StringConverter::parseReal(opt->second);
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-			opt = miscParams->find("stereoMode");
-			if (opt != miscParams->end())
-			{
-				StereoModeType stereoMode = StringConverter::parseStereoMode(opt->second);
-				if (SMT_NONE != stereoMode)
-					mStereoEnabled = true;
-			}
-#endif
-        }
+        }		
 
         if(miscParams->find("externalGLContext") == miscParams->end())
         {
@@ -229,12 +220,7 @@ namespace Ogre {
                 attribs[i++] = NSOpenGLPFASamples;
                 attribs[i++] = (NSOpenGLPixelFormatAttribute) fsaa_samples;
             }
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-			if (mStereoEnabled)
-				attribs[i++] = NSOpenGLPFAStereo;
-#endif
-
+            
             attribs[i++] = (NSOpenGLPixelFormatAttribute) 0;
 
             mGLPixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs];
@@ -583,7 +569,7 @@ namespace Ogre {
 
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it) 
         { 
-            (*it).second->_updateDimensions(); 
+            (*it)->_updateDimensions();
         }
     }
 
@@ -607,7 +593,7 @@ namespace Ogre {
 
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
         {
-            (*it).second->_updateDimensions();
+            (*it)->_updateDimensions();
         }
 		[mGLContext update];
     }

@@ -53,6 +53,8 @@ namespace Ogre {
         removeLodLevels();
         OGRE_DELETE vertexData;
         OGRE_DELETE indexData;
+
+        removeLodLevels();
     }
 
     //-----------------------------------------------------------------------
@@ -75,7 +77,10 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void SubMesh::_getRenderOperation(RenderOperation& ro, ushort lodIndex)
     {
-        if (lodIndex > 0 && static_cast< size_t >( lodIndex - 1 ) < mLodFaceList.size())
+        assert( !lodIndex || (lodIndex-1) < mLodFaceList.size() );
+
+        ro.useIndexes = indexData->indexCount != 0;
+        if (lodIndex > 0)
         {
             // lodIndex - 1 because we don't store full detail version in mLodFaceList
             ro.indexData = mLodFaceList[lodIndex-1];
@@ -84,7 +89,6 @@ namespace Ogre {
         {
             ro.indexData = indexData;
         }
-        ro.useIndexes = ro.indexData->indexCount != 0;
         ro.operationType = operationType;
         ro.vertexData = useSharedVertices? parent->sharedVertexData : vertexData;
 

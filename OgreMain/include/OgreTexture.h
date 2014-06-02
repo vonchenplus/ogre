@@ -38,13 +38,13 @@ THE SOFTWARE.
 namespace Ogre {
 
     /** \addtogroup Core
-     *  @{
-     */
+    *  @{
+    */
     /** \addtogroup Resources
-     *  @{
-     */
+    *  @{
+    */
     /** Enum identifying the texture usage
-     */
+    */
     enum TextureUsage
     {
         /// @copydoc HardwareBuffer::Usage
@@ -55,10 +55,10 @@ namespace Ogre {
         TU_DYNAMIC_WRITE_ONLY = HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY,
         TU_DYNAMIC_WRITE_ONLY_DISCARDABLE = HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE,
         /// Mipmaps will be automatically generated for this texture
-        TU_AUTOMIPMAP = 16,
+        TU_AUTOMIPMAP = 0x10,
         /** This texture will be a render target, i.e. used as a target for render to texture
             setting this flag will ignore all other texture usages except TU_AUTOMIPMAP */
-        TU_RENDERTARGET = 32,
+        TU_RENDERTARGET = 0x20,
         /// Default to automatic mipmap generation static textures
         TU_DEFAULT = TU_AUTOMIPMAP | TU_STATIC_WRITE_ONLY
     };
@@ -119,31 +119,36 @@ namespace Ogre {
         
         /** Sets the type of texture; can only be changed before load() 
         */
-        virtual void setTextureType(TextureType ttype ) { mTextureType = ttype; }
+        void setTextureType(TextureType ttype ) { mTextureType = ttype; }
 
         /** Gets the type of texture 
         */
-        virtual TextureType getTextureType(void) const { return mTextureType; }
+        TextureType getTextureType(void) const { return mTextureType; }
+
+        bool isTextureTypeArray(void) const
+        {
+            return mTextureType == TEX_TYPE_2D_ARRAY;
+        }
 
         /** Gets the number of mipmaps to be used for this texture.
         */
-        virtual uint8 getNumMipmaps(void) const {return mNumMipmaps;}
+        uint8 getNumMipmaps(void) const {return mNumMipmaps;}
 
         /** Sets the number of mipmaps to be used for this texture.
             @note
                 Must be set before calling any 'load' method.
         */
-        virtual void setNumMipmaps(uint8 num) {mNumRequestedMipmaps = mNumMipmaps = num;}
+        void setNumMipmaps(uint8 num) {mNumRequestedMipmaps = mNumMipmaps = num;}
 
         /** Are mipmaps hardware generated?
         @remarks
             Will only be accurate after texture load, or createInternalResources
         */
-        virtual bool getMipmapsHardwareGenerated(void) const { return mMipmapsHardwareGenerated; }
+        bool getMipmapsHardwareGenerated(void) const { return mMipmapsHardwareGenerated; }
 
         /** Returns the gamma adjustment factor applied to this texture on loading.
         */
-        virtual float getGamma(void) const { return mGamma; }
+        float getGamma(void) const { return mGamma; }
 
         /** Sets the gamma adjustment factor applied to this texture on loading the
             data.
@@ -153,7 +158,7 @@ namespace Ogre {
                 You can use setHardwareGamma if supported to apply gamma on 
                 sampling the texture instead.
         */
-        virtual void setGamma(float g) { mGamma = g; }
+        void setGamma(float g) { mGamma = g; }
 
         /** Sets whether this texture will be set up so that on sampling it, 
             hardware gamma correction is applied.
@@ -173,7 +178,7 @@ namespace Ogre {
             construction of the underlying hardware resources.
             Also note this only useful on textures using 8-bit colour channels.
         */
-        virtual void setHardwareGammaEnabled(bool enabled) { mHwGamma = enabled; }
+        void setHardwareGammaEnabled(bool enabled) { mHwGamma = enabled; }
 
         /** Gets whether this texture will be set up so that on sampling it, 
         hardware gamma correction is applied.
@@ -186,8 +191,10 @@ namespace Ogre {
             usage options on this texture, or if the hardware does not support it. 
         @param fsaa The number of samples
         @param fsaaHint Any hinting text (@see Root::createRenderWindow)
+        @param explicitResolve @See TextureDefinitionBase::TextureDefinition::fsaaExplicitResolve
         */
-        virtual void setFSAA(uint fsaa, const String& fsaaHint) { mFSAA = fsaa; mFSAAHint = fsaaHint; }
+        virtual void setFSAA(uint fsaa, const String& fsaaHint, bool explicitResolve)
+                    { mFSAA = fsaa; mFSAAHint = fsaaHint; mFsaaExplicitResolve = explicitResolve; }
 
         /** Get the level of multisample AA to be used if this texture is a 
         rendertarget.
@@ -200,40 +207,40 @@ namespace Ogre {
 
         /** Returns the height of the texture.
         */
-        virtual uint32 getHeight(void) const { return mHeight; }
+        uint32 getHeight(void) const { return mHeight; }
 
         /** Returns the width of the texture.
         */
-        virtual uint32 getWidth(void) const { return mWidth; }
+        uint32 getWidth(void) const { return mWidth; }
 
         /** Returns the depth of the texture (only applicable for 3D textures).
         */
-        virtual uint32 getDepth(void) const { return mDepth; }
+        uint32 getDepth(void) const { return mDepth; }
 
         /** Returns the height of the original input texture (may differ due to hardware requirements).
         */
-        virtual uint32 getSrcHeight(void) const { return mSrcHeight; }
+        uint32 getSrcHeight(void) const { return mSrcHeight; }
 
         /** Returns the width of the original input texture (may differ due to hardware requirements).
         */
-        virtual uint32 getSrcWidth(void) const { return mSrcWidth; }
+        uint32 getSrcWidth(void) const { return mSrcWidth; }
 
         /** Returns the original depth of the input texture (only applicable for 3D textures).
         */
-        virtual uint32 getSrcDepth(void) const { return mSrcDepth; }
+        uint32 getSrcDepth(void) const { return mSrcDepth; }
 
         /** Set the height of the texture; can only do this before load();
         */
-        virtual void setHeight(uint32 h) { mHeight = mSrcHeight = h; }
+        void setHeight(uint32 h) { mHeight = mSrcHeight = h; }
 
         /** Set the width of the texture; can only do this before load();
         */
-        virtual void setWidth(uint32 w) { mWidth = mSrcWidth = w; }
+        void setWidth(uint32 w) { mWidth = mSrcWidth = w; }
 
         /** Set the depth of the texture (only applicable for 3D textures);
             can only do this before load();
         */
-        virtual void setDepth(uint32 d)  { mDepth = mSrcDepth = d; }
+        void setDepth(uint32 d)  { mDepth = mSrcDepth = d; }
 
         /** Returns the TextureUsage identifier for this Texture
         */
@@ -301,13 +308,13 @@ namespace Ogre {
         virtual void _loadImages( const ConstImagePtrList& images );
 
         /** Returns the pixel format for the texture surface. */
-        virtual PixelFormat getFormat() const
+        PixelFormat getFormat() const
         {
             return mFormat;
         }
 
         /** Returns the desired pixel format for the texture surface. */
-        virtual PixelFormat getDesiredFormat(void) const
+        PixelFormat getDesiredFormat(void) const
         {
             return mDesiredFormat;
         }
@@ -315,7 +322,7 @@ namespace Ogre {
         /** Returns the pixel format of the original input texture (may differ due to
             hardware requirements and pixel format conversion).
         */
-        virtual PixelFormat getSrcFormat(void) const
+        PixelFormat getSrcFormat(void) const
         {
             return mSrcFormat;
         }
@@ -367,29 +374,29 @@ namespace Ogre {
 
         /** Return hardware pixel buffer for a surface. This buffer can then
             be used to copy data from and to a particular level of the texture.
-            @param face Face number, in case of a cubemap texture. Must be 0
-            for other types of textures.
-            For cubemaps, this is one of 
-            +X (0), -X (1), +Y (2), -Y (3), +Z (4), -Z (5)
-            @param mipmap Mipmap level. This goes from 0 for the first, largest
-            mipmap level to getNumMipmaps()-1 for the smallest.
-            @return A shared pointer to a hardware pixel buffer.
-            @remarks The buffer is invalidated when the resource is unloaded or destroyed.
-            Do not use it after the lifetime of the containing texture.
+            @param face     Face number, in case of a cubemap texture. Must be 0
+                            for other types of textures.
+                            For cubemaps, this is one of 
+                            +X (0), -X (1), +Y (2), -Y (3), +Z (4), -Z (5)
+            @param mipmap   Mipmap level. This goes from 0 for the first, largest
+                            mipmap level to getNumMipmaps()-1 for the smallest.
+            @return A shared pointer to a hardware pixel buffer
+            @remarks    The buffer is invalidated when the resource is unloaded or destroyed.
+                        Do not use it after the lifetime of the containing texture.
         */
         virtual HardwarePixelBufferSharedPtr getBuffer(size_t face=0, size_t mipmap=0) = 0;
 
 
         /** Populate an Image with the contents of this texture. 
-            @param destImage The target image (contents will be overwritten)
-            @param includeMipMaps Whether to embed mipmaps in the image
+        @param destImage The target image (contents will be overwritten)
+        @param includeMipMaps Whether to embed mipmaps in the image
         */
         virtual void convertToImage(Image& destImage, bool includeMipMaps = false);
         
         /** Retrieve a platform or API-specific piece of information from this texture.
-            This method of retrieving information should only be used if you know what you're doing.
-            @param name The name of the attribute to retrieve.
-            @param pData Pointer to memory matching the type of data you want to retrieve.
+         This method of retrieving information should only be used if you know what you're doing.
+         @param name The name of the attribute to retrieve
+         @param pData Pointer to memory matching the type of data you want to retrieve.
         */
         virtual void getCustomAttribute(const String& name, void* pData) {}
         
@@ -418,6 +425,7 @@ namespace Ogre {
         bool mHwGamma;
         uint mFSAA;
         String mFSAAHint;
+        bool mFsaaExplicitResolve;
 
         TextureType mTextureType;
         PixelFormat mFormat;

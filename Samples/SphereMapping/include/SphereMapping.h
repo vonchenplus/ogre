@@ -21,26 +21,29 @@ public:
             "Sphere maps are not wrapped, and look the same from all directions.";
         mInfo["Thumbnail"] = "thumb_spheremap.png";
         mInfo["Category"] = "Unsorted";
+        mBackgroundColour = ColourValue::White;
     }
 
 protected:
 
     void setupContent()
     {     
-        mViewport->setBackgroundColour(ColourValue::White);
-
         // setup some basic lighting for our scene
         mSceneMgr->setAmbientLight(ColourValue(0.3, 0.3, 0.3));
-        mSceneMgr->createLight()->setPosition(20, 80, 50);
+        SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        lightNode->setPosition(20, 80, 50);
+        lightNode->attachObject( mSceneMgr->createLight() );
 
         // set our camera to orbit around the origin and show cursor
         mCameraMan->setStyle(CS_ORBIT);
         mTrayMgr->showCursor();
 
         // create our model, give it the environment mapped material, and place it at the origin
-        Entity *ent = mSceneMgr->createEntity("Head", "ogrehead.mesh");
+        Entity *ent = mSceneMgr->createEntity( "ogrehead.mesh",
+                                                ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
+                                                SCENE_STATIC );
         ent->setMaterialName("Examples/SphereMappedRustySteel");
-        mSceneMgr->getRootSceneNode()->attachObject(ent);
+        mSceneMgr->getRootSceneNode( SCENE_STATIC )->attachObject(ent);
     }
 };
 

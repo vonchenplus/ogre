@@ -7,9 +7,9 @@ using namespace Ogre;
 //Constants (copied as is from sample)
 
 // Grid sizes (in vertices)
-#define X_SIZE_LOG2             6
-#define Y_SIZE_LOG2             6
-#define Z_SIZE_LOG2             6
+#define X_SIZE_LOG2     6
+#define Y_SIZE_LOG2     6
+#define Z_SIZE_LOG2     6
 #define TOTAL_POINTS    (1<<(X_SIZE_LOG2 + Y_SIZE_LOG2 + Z_SIZE_LOG2))
 #define CELLS_COUNT     (((1<<X_SIZE_LOG2) - 1) * ((1<<Y_SIZE_LOG2) - 1) * ((1<<Z_SIZE_LOG2) - 1))
 
@@ -54,9 +54,7 @@ MeshPtr ProceduralTools::generateTetrahedra()
 
     SubMesh* tetrahedraSubMesh = tetrahedraMesh->createSubMesh();
     tetrahedraSubMesh->operationType = RenderOperation::OT_LINE_LIST;
-    //tetrahedraSubMesh->operationType = RenderOperation::OT_TRIANGLE_STRIP;
-    tetrahedraSubMesh->setMaterialName("Ogre/Isosurf/TessellateTetrahedra");
-    //tetrahedraSubMesh->setMaterialName("BaseWhiteNoLighting");
+    tetrahedraSubMesh->setMaterialName("Ogre/IsoSurf/TessellateTetrahedra");
     
     Ogre::uint sizeLog2[3] = { X_SIZE_LOG2, Y_SIZE_LOG2, Z_SIZE_LOG2 };
     Ogre::uint nTotalBits = sizeLog2[0] + sizeLog2[1] + sizeLog2[2];
@@ -78,18 +76,17 @@ MeshPtr ProceduralTools::generateTetrahedra()
         HardwareIndexBuffer::IT_32BIT, 
         CELLS_COUNT * sizeof(Ogre::uint) * 24, 
         HardwareBuffer::HBU_STATIC_WRITE_ONLY);
-        
+    
     tetrahedraSubMesh->vertexData->vertexBufferBinding->setBinding(0, vertexBuffer);
     tetrahedraSubMesh->vertexData->vertexCount = nPointsTotal;
     tetrahedraSubMesh->vertexData->vertexStart = 0;
-        
+    
     tetrahedraSubMesh->indexData->indexBuffer = indexBuffer;
-        
+    
     float* positions = static_cast<float*>(vertexBuffer->lock(HardwareBuffer::HBL_DISCARD));
-        
+    
     //Generate positions
-    for (Ogre::uint i = 0; i < nPointsTotal; i++) 
-    {
+    for(Ogre::uint i=0; i<nPointsTotal; i++) {
         Ogre::uint pos[3];
         pos[0] = i & ((1<<X_SIZE_LOG2)-1);
         pos[1] = (i >> X_SIZE_LOG2) & ((1<<Y_SIZE_LOG2)-1);
@@ -101,14 +98,14 @@ MeshPtr ProceduralTools::generateTetrahedra()
         *positions++ = 1.0f;
     }
     vertexBuffer->unlock();
-        
+    
     Ogre::uint numIndices = 0;
 
-    // Generate indices
+    //Generate indices
     Ogre::uint32* indices = static_cast<Ogre::uint32*>(indexBuffer->lock(HardwareBuffer::HBL_DISCARD));
 
-    for (Ogre::uint i = 0; i < nPointsTotal; i++) 
-    {
+    for (Ogre::uint i = 0; i<nPointsTotal; i++) {
+
         Ogre::uint pos[3];
 #if SWIZZLE
         UnSwizzle(i, sizeLog2, pos);    // un-swizzle current index to get x, y, z for the current sampling point
@@ -118,9 +115,9 @@ MeshPtr ProceduralTools::generateTetrahedra()
         pos[2] = (i >> (X_SIZE_LOG2+Y_SIZE_LOG2)) & ((1<<Z_SIZE_LOG2)-1);
 #endif
         if ((int)pos[0] == (1 << sizeLog2[0]) - 1 || (int)pos[1] == (1 << sizeLog2[1]) - 1 || (int)pos[2] == (1 << sizeLog2[2]) - 1)
-            continue;       // skip extra cells
+            continue;   // skip extra cells
 
-        numIndices += 24; // Got to this point, adding 24 indices
+        numIndices += 24; //Got to this point, adding 24 indices
 
         // NOTE: order of vertices matters! important for backface culling
 
@@ -160,7 +157,7 @@ MeshPtr ProceduralTools::generateTetrahedra()
         *indices++ = MAKE_INDEX(pos[0] + 1, pos[1], pos[2] + 1, sizeLog2);
         *indices++ = MAKE_INDEX(pos[0] + 1, pos[1] + 1, pos[2] + 1, sizeLog2);
     }
-        
+    
     indexBuffer->unlock();
 
     tetrahedraSubMesh->indexData->indexCount = numIndices;

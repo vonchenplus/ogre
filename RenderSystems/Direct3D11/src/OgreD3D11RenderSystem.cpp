@@ -54,10 +54,6 @@ THE SOFTWARE.
 #include "OgreD3D11HardwarePixelBuffer.h"
 #include "OgreException.h"
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-#include "OgreD3D11StereoDriverBridge.h"
-#endif
-
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 && !defined(_WIN32_WINNT_WIN8)
 #define USE_DXERR_LIBRARY
 #endif
@@ -134,9 +130,6 @@ bail:
     //---------------------------------------------------------------------
     D3D11RenderSystem::D3D11RenderSystem()
 		: mDevice(NULL)
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		 ,mStereoDriver(NULL)
-#endif	
     {
         LogManager::getSingleton().logMessage( "D3D11 : " + getName() + " created." );
 
@@ -219,9 +212,8 @@ bail:
         ConfigOption optMaxFeatureLevels;
         ConfigOption optExceptionsErrorLevel;
         ConfigOption optDriverType;
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		ConfigOption optStereoMode;
-#endif
+
+
 
         driverList = this->getDirect3DDrivers();
 
@@ -349,15 +341,6 @@ bail:
         optDriverType.currentValue = "Hardware";
         optDriverType.immutable = false;
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		optStereoMode.name = "Stereo Mode";
-		optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_NONE));
-		optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_FRAME_SEQUENTIAL));
-		optStereoMode.currentValue = optStereoMode.possibleValues[0];
-		optStereoMode.immutable = false;
-		
-		mOptions[optStereoMode.name] = optStereoMode;
-#endif
 
         mOptions[optDevice.name] = optDevice;
         mOptions[optVideoMode.name] = optVideoMode;
@@ -775,12 +758,6 @@ bail:
 
             }
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-			// Stereo driver must be created before device is created
-			StereoModeType stereoMode = StringConverter::parseStereoMode(mOptions["Stereo Mode"].currentValue);
-			D3D11StereoDriverBridge* stereoBridge = OGRE_NEW D3D11StereoDriverBridge(stereoMode);
-#endif
-
             ID3D11DeviceN * device;
             // But, if creating WARP or software, don't use a selected adapter, it will be selected automatically
             
@@ -1055,18 +1032,12 @@ bail:
 
         attachRenderTarget( *win );
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		// Must be called after device has been linked to window
-		D3D11StereoDriverBridge::getSingleton().addRenderWindow(win);
-		win->_validateStereo();
-#endif
-
         // If this is the first window, get the D3D device and create the texture manager
         if( !mPrimaryWindow )
         {
             mPrimaryWindow = win;
             win->getCustomAttribute( "D3DDEVICE", &mDevice );
-            
+
             // Create the texture manager for use by others
             mTextureManager = new D3D11TextureManager( mDevice );
             // Also create hardware buffer manager
@@ -1146,6 +1117,11 @@ bail:
         convertHullShaderCaps(rsc);
         convertDomainShaderCaps(rsc);
         convertComputeShaderCaps(rsc);
+
+        rsc->setCapability(RSC_TEXTURE_2D_ARRAY);
+
+        if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_1)
+            rsc->setCapability(RSC_TEXTURE_CUBE_MAP_ARRAY);
 
         // Check support for dynamic linkage
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_11_0)
@@ -1626,10 +1602,6 @@ bail:
     //---------------------------------------------------------------------
     void D3D11RenderSystem::destroyRenderTarget(const String& name)
     {
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		D3D11StereoDriverBridge::getSingleton().removeRenderWindow(name);
-#endif
-
         detachRenderTargetImpl(name);
 
         // Do the real removal
@@ -1771,14 +1743,6 @@ bail:
     {
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::setShadingType( ShadeOptions so )
-    {
-    }
-    //---------------------------------------------------------------------
-    void D3D11RenderSystem::setLightingEnabled( bool enabled )
-    {
-    }
-    //---------------------------------------------------------------------
     void D3D11RenderSystem::_setViewMatrix( const Matrix4 &m )
     {
     }
@@ -1855,7 +1819,7 @@ bail:
             _setTexture(stage, true, tex);  
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::_setTesselationHullTexture(size_t stage, const TexturePtr& tex)
+    void D3D11RenderSystem::_setTessellationHullTexture(size_t stage, const TexturePtr& tex)
     {
         if (tex.isNull())
             _setTexture(stage, false, tex);
@@ -1863,7 +1827,7 @@ bail:
             _setTexture(stage, true, tex);  
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::_setTesselationDomainTexture(size_t stage, const TexturePtr& tex)
+    void D3D11RenderSystem::_setTessellationDomainTexture(size_t stage, const TexturePtr& tex)
     {
         if (tex.isNull())
             _setTexture(stage, false, tex);
@@ -2044,10 +2008,6 @@ bail:
             val |= D3D11_COLOR_WRITE_ENABLE_ALPHA;
 
         mBlendDesc.RenderTarget[0].RenderTargetWriteMask = val; 
-    }
-    //---------------------------------------------------------------------
-    void D3D11RenderSystem::_setFog( FogMode mode, const ColourValue& colour, Real densitiy, Real start, Real end )
-    {
     }
     //---------------------------------------------------------------------
     void D3D11RenderSystem::_setPolygonMode(PolygonMode level)
@@ -2243,11 +2203,6 @@ bail:
             //__SetRenderState(D3DRS_SRGBWRITEENABLE, target->isHardwareGammaEnabled());
             // TODO where has sRGB state gone?
             
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-			D3D11RenderWindowBase* d3d11Window = static_cast<D3D11RenderWindowBase*>(target);
-			d3d11Window->_validateStereo();
-#endif
-
             vp->_clearUpdatedFlag();
         }
 #if OGRE_PLATFORM == OGRE_PLATFORM_WINRT
@@ -2261,9 +2216,6 @@ bail:
     //---------------------------------------------------------------------
     void D3D11RenderSystem::_beginFrame()
     {
-    
-        if( !mActiveViewport )
-            OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Cannot begin frame - no viewport selected.", "D3D11RenderSystem::_beginFrame" );
     }
     //---------------------------------------------------------------------
     void D3D11RenderSystem::_endFrame()
@@ -2525,7 +2477,7 @@ bail:
                     "D3D11 device cannot set blend state\nError Description:" + errorDescription,
                     "D3D11RenderSystem::_render");
             }
-            if (mBoundGeometryProgram && mBindingType == TextureUnitState::BindingType::BT_GEOMETRY)
+            if (mBoundGeometryProgram && mBindingType == TextureUnitState::BT_GEOMETRY)
             {
                 {
                     mDevice.GetImmediateContext()->GSSetSamplers(static_cast<UINT>(0), static_cast<UINT>(opState->mSamplerStatesCount), opState->mSamplerStates);
@@ -2607,7 +2559,7 @@ bail:
             }
             
             /// Vertex Shader binding
-            if (mBindingType == TextureUnitState::BindingType::BT_VERTEX)
+            if (mBindingType == TextureUnitState::BT_VERTEX)
             {
                 if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
                 {
@@ -2637,7 +2589,7 @@ bail:
             }
 
             /// Compute Shader binding
-            if (mBoundComputeProgram && mBindingType == TextureUnitState::BindingType::BT_COMPUTE)
+            if (mBoundComputeProgram && mBindingType == TextureUnitState::BT_COMPUTE)
             {
                 if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
                 {
@@ -2667,7 +2619,7 @@ bail:
             }
 
             /// Hull Shader binding
-            if (mBoundTessellationHullProgram && mBindingType == TextureUnitState::BindingType::BT_TESSELLATION_HULL)
+            if (mBoundTessellationHullProgram && mBindingType == TextureUnitState::BT_TESSELLATION_HULL)
             {
                 if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
                 {
@@ -2697,7 +2649,7 @@ bail:
             }
             
             /// Domain Shader binding
-            if (mBoundTessellationDomainProgram && mBindingType == TextureUnitState::BindingType::BT_TESSELLATION_DOMAIN)
+            if (mBoundTessellationDomainProgram && mBindingType == TextureUnitState::BT_TESSELLATION_DOMAIN)
             {
                 if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
                 {
@@ -3201,10 +3153,6 @@ bail:
 
             break;
         }
-    }
-    //---------------------------------------------------------------------
-    void D3D11RenderSystem::setNormaliseNormals(bool normalise)
-    {
     }
     //---------------------------------------------------------------------
     void D3D11RenderSystem::bindGpuProgram(GpuProgram* prg)
@@ -4014,11 +3962,6 @@ bail:
         mUseNVPerfHUD = false;
         mHLSLProgramFactory = NULL;
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		OGRE_DELETE mStereoDriver;
-		mStereoDriver = NULL;
-#endif
-
         mBoundVertexProgram = NULL;
         mBoundFragmentProgram = NULL;
         mBoundGeometryProgram = NULL;
@@ -4146,15 +4089,6 @@ bail:
     {
         return mBoundComputeProgram;
     }
-	//---------------------------------------------------------------------
-	bool D3D11RenderSystem::setDrawBuffer(ColourBufferType colourBuffer)
-	{
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		return D3D11StereoDriverBridge::getSingleton().setDrawBuffer(colourBuffer);
-#else
-		return false;
-#endif
-	}
     //---------------------------------------------------------------------
     void D3D11RenderSystem::beginProfileEvent( const String &eventName )
     {

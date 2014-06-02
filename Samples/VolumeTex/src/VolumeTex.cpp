@@ -90,26 +90,36 @@ protected:
         //mRoot->getRenderSystem()->clearFrameBuffer(FBT_COLOUR, ColourValue(255,255,255,0));
 
         // Create a light
-        Light* l = mSceneMgr->createLight("MainLight");
+        Light* l = mSceneMgr->createLight();
+        l->setName("MainLight");
         l->setDiffuseColour(0.75, 0.75, 0.80);
         l->setSpecularColour(0.9, 0.9, 1);
-        l->setPosition(-100,80,50);
-        mSceneMgr->getRootSceneNode()->attachObject(l);
-        
+
+        SceneNode *lnode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        lnode->setPosition(-100,80,50);
+        lnode->attachObject(l);
+
         // Create volume renderable
-        snode = mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(0,0,0));      
+        snode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        snode->setPosition(Vector3(0,0,0));
         
-        vrend = new VolumeRenderable(32, 750.0f, "DynaTex");
+		vrend = new VolumeRenderable( Id::generateNewId<MovableObject>(),
+									  &mSceneMgr->_getEntityMemoryManager(SCENE_DYNAMIC),
+									  32, 750.0f, "DynaTex");
         snode->attachObject( vrend );
         
-        trend = new ThingRenderable(90.0f, 32, 7.5f);
+		trend = new ThingRenderable( Id::generateNewId<MovableObject>(),
+									 &mSceneMgr->_getEntityMemoryManager(SCENE_DYNAMIC),
+									 90.0f, 32, 7.5f );
         trend->setMaterial("Examples/VTDarkStuff");
         snode->attachObject(trend);
         
         // Ogre head node
-        fnode = mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(0,0,0));
+        fnode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        fnode->setPosition(Vector3(0,0,0));
         // Load ogre head
-        Entity* head = mSceneMgr->createEntity("head", "ogrehead.mesh");
+        Entity* head = mSceneMgr->createEntity("ogrehead.mesh");
+        head->setName("head");
         fnode->attachObject(head);
         
         // Animation for ogre head
@@ -118,7 +128,7 @@ protected:
         // Spline it for nice curves
         anim->setInterpolationMode(Animation::IM_SPLINE);
         // Create a track to animate the camera's node
-        NodeAnimationTrack* track = anim->createNodeTrack(0, fnode);
+		NodeAnimationTrack* track = anim->createNodeTrack(fnode);
         // Setup keyframes
         TransformKeyFrame* key = track->createNodeKeyFrame(0); // A startposition
         key->setTranslate(Vector3(0.0f, -15.0f, 0.0f));

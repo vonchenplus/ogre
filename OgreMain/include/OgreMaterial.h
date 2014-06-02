@@ -39,10 +39,6 @@ THE SOFTWARE.
 #include "OgreSharedPtr.h"
 
 namespace Ogre {
-
-    // Forward declaration
-    class LodStrategy;
-
     /** \addtogroup Core
     *  @{
     */
@@ -93,8 +89,8 @@ namespace Ogre {
 
     public:
         /// distance list used to specify LOD
-        typedef vector<Real>::type LodValueList;
-        typedef ConstVectorIterator<LodValueList> LodValueIterator;
+        typedef FastArray<Real> LodValueArray;
+        typedef ConstVectorIterator<LodValueArray> LodValueIterator;
     protected:
 
 
@@ -115,9 +111,8 @@ namespace Ogre {
         */
         BestTechniquesBySchemeList mBestTechniquesBySchemeList;
 
-        LodValueList mUserLodValues;
-        LodValueList mLodValues;
-        const LodStrategy *mLodStrategy;
+        LodValueArray mUserLodValues;
+        LodValueArray mLodValues;
         bool mReceiveShadows;
         bool mTransparencyCastsShadows;
         /// Does this material require compilation?
@@ -419,38 +414,16 @@ namespace Ogre {
         */
         void setSelfIllumination(const ColourValue& selfIllum);
 
-        /** Sets whether or not each Pass renders with depth-buffer checking on or not.
+        /** Sets the macroblock for all passes
         @note
             This property has been moved to the Pass class, which is accessible via the 
             Technique. For simplicity, this method allows you to set these properties for 
             every current Technique, and for every current Pass within those Techniques. If 
             you need more precision, retrieve the Technique and Pass instances and set the
             property there.
-        @see Pass::setDepthCheckEnabled
+        @see Pass::setMacroblock
         */
-        void setDepthCheckEnabled(bool enabled);
-
-        /** Sets whether or not each Pass renders with depth-buffer writing on or not.
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setDepthWriteEnabled
-        */
-        void setDepthWriteEnabled(bool enabled);
-
-        /** Sets the function used to compare depth values when depth checking is on.
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setDepthFunction
-        */
-        void setDepthFunction( CompareFunction func );
+        void setMacroblock( const HlmsMacroblock *macroblock );
 
         /** Sets whether or not colour buffer writing is enabled for each Pass.
         @note
@@ -462,39 +435,6 @@ namespace Ogre {
         @see Pass::setColourWriteEnabled
         */
         void setColourWriteEnabled(bool enabled);
-
-        /** Sets the culling mode for each pass  based on the 'vertex winding'.
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setCullingMode
-        */
-        void setCullingMode( CullingMode mode );
-
-        /** Sets the manual culling mode, performed by CPU rather than hardware.
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setManualCullingMode
-        */
-        void setManualCullingMode( ManualCullingMode mode );
-
-        /** Sets whether or not dynamic lighting is enabled for every Pass.
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setLightingEnabled
-        */
-        void setLightingEnabled(bool enabled);
 
         /** Sets the type of light shading required
         @note
@@ -522,17 +462,6 @@ namespace Ogre {
             const ColourValue& colour = ColourValue::White,
             Real expDensity = 0.001, Real linearStart = 0.0, Real linearEnd = 1.0 );
 
-        /** Sets the depth bias to be used for each Pass.
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setDepthBias
-        */
-        void setDepthBias(float constantBias, float slopeScaleBias);
-
         /** Set texture filtering for every texture unit in every Technique and Pass
         @note
             This property has been moved to the TextureUnitState class, which is accessible via the 
@@ -552,49 +481,16 @@ namespace Ogre {
         */
         void setTextureAnisotropy(int maxAniso);
 
-        /** Sets the kind of blending every pass has with the existing contents of the scene.
+        /** Sets the blendbock to every pass
         @note
             This property has been moved to the Pass class, which is accessible via the 
             Technique. For simplicity, this method allows you to set these properties for 
             every current Technique, and for every current Pass within those Techniques. If 
             you need more precision, retrieve the Technique and Pass instances and set the
             property there.
-        @see Pass::setSceneBlending
+        @see Pass::setBlendblock
         */
-        void setSceneBlending( const SceneBlendType sbt );
-
-        /** Sets the kind of blending every pass has with the existing contents of the scene, using individual factors for color and alpha channels
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setSeparateSceneBlending
-        */
-        void setSeparateSceneBlending( const SceneBlendType sbt, const SceneBlendType sbta );
-
-        /** Allows very fine control of blending every Pass with the existing contents of the scene.
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setSceneBlending
-        */
-        void setSceneBlending( const SceneBlendFactor sourceFactor, const SceneBlendFactor destFactor);
-
-        /** Allows very fine control of blending every Pass with the existing contents of the scene, using individual factors for color and alpha channels
-        @note
-            This property has been moved to the Pass class, which is accessible via the 
-            Technique. For simplicity, this method allows you to set these properties for 
-            every current Technique, and for every current Pass within those Techniques. If 
-            you need more precision, retrieve the Technique and Pass instances and set the
-            property there.
-        @see Pass::setSeparateSceneBlending
-        */
-        void setSeparateSceneBlending( const SceneBlendFactor sourceFactor, const SceneBlendFactor destFactor, const SceneBlendFactor sourceFactorAlpha, const SceneBlendFactor destFactorAlpha);
+        void setBlendblock( const HlmsBlendblock *blendblock );
 
         /** Tells the material that it needs recompilation. */
         void _notifyNeedsRecompile(void);
@@ -613,7 +509,9 @@ namespace Ogre {
             transformed by the strategy, so for the distance strategy this is an
             unsquared distance for example.
         */
-        void setLodLevels(const LodValueList& lodValues);
+        void setLodLevels(const LodValueArray& lodValues);
+
+        const LodValueArray* _getLodValues(void) const                      { return &mLodValues; }
 
         /** Gets an iterator over the list of values transformed by the LodStrategy at which each LOD comes into effect. 
         @remarks
@@ -632,18 +530,6 @@ namespace Ogre {
             values returned are after being transformed by LodStrategy::transformUserValue.
         */
         LodValueIterator getUserLodValueIterator(void) const;
-
-        /** Gets the LOD index to use at the given value. 
-        @note The value passed in is the 'transformed' value. If you are dealing with
-        an original source value (e.g. distance), use LodStrategy::transformUserValue
-        to turn this into a lookup value.
-        */
-        ushort getLodIndex(Real value) const;
-
-        /** Get LOD strategy used by this material. */
-        const LodStrategy *getLodStrategy() const;
-        /** Set the LOD strategy used by this material. */
-        void setLodStrategy(LodStrategy *lodStrategy);
 
         /** @copydoc Resource::touch
         */

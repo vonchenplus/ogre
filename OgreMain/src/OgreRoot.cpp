@@ -43,13 +43,12 @@ THE SOFTWARE.
 #include "OgreMeshManager.h"
 #include "OgreTextureManager.h"
 #include "OgreParticleSystemManager.h"
-#include "OgreSkeletonManager.h"
+#include "OgreOldSkeletonManager.h"
 #include "OgreProfiler.h"
 #include "OgreConfigDialog.h"
 #include "OgreArchiveManager.h"
 #include "OgrePlugin.h"
 #include "OgreFileSystem.h"
-#include "OgreShadowVolumeExtrudeProgram.h"
 #include "OgreResourceBackgroundQueue.h"
 #include "OgreEntity.h"
 #include "OgreBillboardSet.h"
@@ -57,13 +56,18 @@ THE SOFTWARE.
 #include "OgreRibbonTrail.h"
 #include "OgreLight.h"
 #include "OgreManualObject.h"
-#include "OgreRenderQueueInvocation.h"
 #include "OgrePlatformInformation.h"
 #include "OgreConvexBody.h"
+#include "OgreFrameStats.h"
 #include "OgreTimer.h"
-#include "OgreFrameListener.h"
 #include "OgreLodStrategyManager.h"
 #include "Threading/OgreDefaultWorkQueue.h"
+#include "OgreFrameListener.h"
+#include "OgreNameGenerator.h"
+#include "OgreHlmsManager.h"
+#include "OgreHlmsLowLevel.h"
+#include "Animation/OgreSkeletonManager.h"
+#include "Compositor/OgreCompositorManager2.h"
 
 #if OGRE_NO_FREEIMAGE == 0
 #include "OgreFreeImageCodec.h"
@@ -78,7 +82,6 @@ THE SOFTWARE.
 #include "OgreHardwareBufferManager.h"
 #include "OgreHighLevelGpuProgramManager.h"
 #include "OgreExternalTextureSourceManager.h"
-#include "OgreCompositorManager.h"
 #include "OgreScriptCompiler.h"
 #include "OgreWindowEventUtilities.h"
 
@@ -115,6 +118,8 @@ namespace Ogre {
       : mQueuedEnd(false)
       , mLogManager(0)
       , mRenderSystemCapabilitiesManager(0)
+      , mFrameStats(0)
+      , mCompositorManager2(0)
       , mNextFrame(0)
       , mFrameSmoothingTime(0.0f)
       , mRemoveQueueStructuresOnClear(false)
@@ -193,13 +198,13 @@ namespace Ogre {
         mMeshManager = OGRE_NEW MeshManager();
 
         // Skeleton manager
-        mSkeletonManager = OGRE_NEW SkeletonManager();
+        mOldSkeletonManager = OGRE_NEW OldSkeletonManager();
+        mSkeletonManager    = OGRE_NEW SkeletonManager();
 
         // ..particle system manager
         mParticleManager = OGRE_NEW ParticleSystemManager();
 
-        // Compiler manager
-        //mCompilerManager = OGRE_NEW ScriptCompilerManager();
+        mFrameStats = OGRE_NEW FrameStats();
 
         mTimer = OGRE_NEW Timer();
 
@@ -242,7 +247,9 @@ namespace Ogre {
         mHighLevelGpuProgramManager = OGRE_NEW HighLevelGpuProgramManager();
 
         mExternalTextureSourceManager = OGRE_NEW ExternalTextureSourceManager();
-        mCompositorManager = OGRE_NEW CompositorManager();
+
+        mHlmsManager        = OGRE_NEW HlmsManager();
+        mHlmsLowLevelProxy  = OGRE_NEW HlmsLowLevel();
 
         mCompilerManager = OGRE_NEW ScriptCompilerManager();
 
@@ -281,14 +288,19 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Root::~Root()
     {
+        LogManager::getSingleton().stream(LML_TRIVIAL)
+            << "Average FPS: " << mFrameStats->getAvgFps() << "\n"
+            << "Average time: \t"<< mFrameStats->getAvgTime() << " ms\n"
+            << "Best time: \t"  << mFrameStats->getBestTime() << " ms\n"
+            << "Worst time: \t" << mFrameStats->getWorstTime()<< " ms";
+
         shutdown();
         OGRE_DELETE mSceneManagerEnum;
         OGRE_DELETE mShadowTextureManager;
         OGRE_DELETE mRenderSystemCapabilitiesManager;
 
-        destroyAllRenderQueueInvocationSequences();
-        OGRE_DELETE mCompositorManager;
         OGRE_DELETE mExternalTextureSourceManager;
+
 #if OGRE_NO_FREEIMAGE == 0
         FreeImageCodec::shutdown();
 #endif
@@ -315,6 +327,7 @@ namespace Ogre {
 #   endif
         OGRE_DELETE mFileSystemArchiveFactory;
 
+        OGRE_DELETE mOldSkeletonManager;
         OGRE_DELETE mSkeletonManager;
         OGRE_DELETE mMeshManager;
         OGRE_DELETE mParticleManager;
@@ -322,9 +335,15 @@ namespace Ogre {
         OGRE_DELETE mControllerManager;
         OGRE_DELETE mHighLevelGpuProgramManager;
 
-        unloadPlugins();
         OGRE_DELETE mMaterialManager;
-        Pass::processPendingPassUpdates(); // make sure passes are cleaned
+
+        OGRE_DELETE mHlmsLowLevelProxy;
+        mHlmsLowLevelProxy = 0;
+        OGRE_DELETE mHlmsManager;
+        mHlmsManager = 0;
+
+        unloadPlugins();
+
         OGRE_DELETE mResourceBackgroundQueue;
         OGRE_DELETE mResourceGroupManager;
 
@@ -336,6 +355,8 @@ namespace Ogre {
         OGRE_DELETE mRibbonTrailFactory;
 
         OGRE_DELETE mWorkQueue;
+
+        OGRE_DELETE mFrameStats;
 
         OGRE_DELETE mTimer;
 
@@ -591,9 +612,14 @@ namespace Ogre {
         if( mActiveRenderer && mActiveRenderer != system )
         {
             mActiveRenderer->shutdown();
+
+            OGRE_DELETE mCompositorManager2;
         }
 
         mActiveRenderer = system;
+
+        mHlmsManager->_changeRenderSystem( mActiveRenderer );
+
         // Tell scene managers
         SceneManagerEnumerator::getSingleton().setRenderSystem(system);
 
@@ -699,6 +725,7 @@ namespace Ogre {
 
         // Initialise timer
         mTimer->reset();
+        mFrameStats->reset( mTimer->getMicroseconds() );
 
         // Init pools
         ConvexBody::_initialisePool();
@@ -747,16 +774,18 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    SceneManager* Root::createSceneManager(const String& typeName,
-        const String& instanceName)
+    SceneManager* Root::createSceneManager(const String& typeName, size_t numWorkerThreads,
+        InstancingTheadedCullingMethod threadedCullingMethod, const String& instanceName)
     {
-        return mSceneManagerEnum->createSceneManager(typeName, instanceName);
+        return mSceneManagerEnum->createSceneManager(typeName, numWorkerThreads,
+                                                     threadedCullingMethod, instanceName);
     }
     //-----------------------------------------------------------------------
-    SceneManager* Root::createSceneManager(SceneTypeMask typeMask,
-        const String& instanceName)
+    SceneManager* Root::createSceneManager(SceneTypeMask typeMask, size_t numWorkerThreads,
+        InstancingTheadedCullingMethod threadedCullingMethod, const String& instanceName)
     {
-        return mSceneManagerEnum->createSceneManager(typeMask, instanceName);
+        return mSceneManagerEnum->createSceneManager(typeMask, numWorkerThreads,
+                                                     threadedCullingMethod, instanceName);
     }
     //-----------------------------------------------------------------------
     void Root::destroySceneManager(SceneManager* sm)
@@ -970,8 +999,24 @@ namespace Ogre {
         if(!_fireFrameStarted())
             return false;
 
+        SceneManagerEnumerator::SceneManagerIterator itor = mSceneManagerEnum->getSceneManagerIterator();
+        while( itor.hasMoreElements() )
+        {
+            SceneManager *sceneManager = itor.getNext();
+            sceneManager->updateSceneGraph();
+        }
+
         if (!_updateAllRenderTargets())
             return false;
+
+        itor = mSceneManagerEnum->getSceneManagerIterator();
+        while( itor.hasMoreElements() )
+        {
+            SceneManager *sceneManager = itor.getNext();
+            sceneManager->clearFrameData();
+        }
+
+        mFrameStats->addSample( mTimer->getMicroseconds() );
 
         return _fireFrameEnded();
     }
@@ -987,10 +1032,26 @@ namespace Ogre {
         if(!_fireFrameStarted(evt))
             return false;
 
+        SceneManagerEnumerator::SceneManagerIterator itor = mSceneManagerEnum->getSceneManagerIterator();
+        while( itor.hasMoreElements() )
+        {
+            SceneManager *sceneManager = itor.getNext();
+            sceneManager->updateSceneGraph();
+        }
+
         if (!_updateAllRenderTargets(evt))
             return false;
 
-        now = mTimer->getMilliseconds();
+        itor = mSceneManagerEnum->getSceneManagerIterator();
+        while( itor.hasMoreElements() )
+        {
+            SceneManager *sceneManager = itor.getNext();
+            sceneManager->clearFrameData();
+        }
+
+        now = mTimer->getMicroseconds();
+        mFrameStats->addSample( now );
+        now /= 1000; // Convert to milliseconds.
         evt.timeSinceLastEvent = calculateEventTime(now, FETT_ANY);
 
         return _fireFrameEnded(evt);
@@ -1001,20 +1062,23 @@ namespace Ogre {
         if(mActiveRenderer)
             mActiveRenderer->_setViewport(NULL);
 
+		mHlmsManager->_changeRenderSystem( (RenderSystem*)0 );
+
         // Since background thread might be access resources,
         // ensure shutdown before destroying resource manager.
         mResourceBackgroundQueue->shutdown();
         mWorkQueue->shutdown();
 
+		OGRE_DELETE mCompositorManager2;
+        mCompositorManager2 = 0;
+
         SceneManagerEnumerator::getSingleton().shutdownAll();
         shutdownPlugins();
 
-        ShadowVolumeExtrudeProgram::shutdown();
         ResourceGroupManager::getSingleton().shutdownAll();
 
         // Destroy pools
         ConvexBody::_destroyPool();
-
 
         mIsInitialised = false;
 
@@ -1393,8 +1457,14 @@ namespace Ogre {
             // Background loader
             mResourceBackgroundQueue->initialise();
             mWorkQueue->startup();
+            //Do this now as we need the RS to be fully initialized
+            mHlmsManager->_changeRenderSystem( mActiveRenderer );
+
+            if( !mHlmsManager->getHlms( mHlmsLowLevelProxy->getType() ) )
+                mHlmsManager->registerHlms( mHlmsLowLevelProxy, false );
             // Initialise material manager
             mMaterialManager->initialise();
+            mCompositorManager2 = OGRE_NEW CompositorManager2( mActiveRenderer );
             // Init particle systems manager
             mParticleManager->_initialise();
             // Init mesh manager
@@ -1409,11 +1479,13 @@ namespace Ogre {
     bool Root::_updateAllRenderTargets(void)
     {
         // update all targets but don't swap buffers
-        mActiveRenderer->_updateAllRenderTargets(false);
+        //mActiveRenderer->_updateAllRenderTargets(false);
+        mCompositorManager2->_update();
+
         // give client app opportunity to use queued GPU time
         bool ret = _fireFrameRenderingQueued();
         // block for final swap
-        mActiveRenderer->_swapAllRenderTargetBuffers();
+        mCompositorManager2->_swapAllFinalTargets();
 
         // This belongs here, as all render targets must be updated before events are
         // triggered, otherwise targets could be mismatched.  This could produce artifacts,
@@ -1427,11 +1499,11 @@ namespace Ogre {
     bool Root::_updateAllRenderTargets(FrameEvent& evt)
     {
         // update all targets but don't swap buffers
-        mActiveRenderer->_updateAllRenderTargets(false);
+        mCompositorManager2->_update();
         // give client app opportunity to use queued GPU time
         bool ret = _fireFrameRenderingQueued(evt);
         // block for final swap
-        mActiveRenderer->_swapAllRenderTargetBuffers();
+        mCompositorManager2->_swapAllFinalTargets();
 
         // This belongs here, as all render targets must be updated before events are
         // triggered, otherwise targets could be mismatched.  This could produce artifacts,
@@ -1461,20 +1533,6 @@ namespace Ogre {
                 "Root::addMovableObjectFactory");
         }
 
-        if (fact->requestTypeFlags())
-        {
-            if (facti != mMovableObjectFactoryMap.end() && facti->second->requestTypeFlags())
-            {
-                // Copy type flags from the factory we're replacing
-                fact->_notifyTypeFlags(facti->second->getTypeFlags());
-            }
-            else
-            {
-                // Allocate new
-                fact->_notifyTypeFlags(_allocateNextMovableObjectTypeFlag());
-            }
-        }
-
         // Save
         mMovableObjectFactoryMap[fact->getType()] = fact;
 
@@ -1501,22 +1559,6 @@ namespace Ogre {
         return i->second;
     }
     //---------------------------------------------------------------------
-    uint32 Root::_allocateNextMovableObjectTypeFlag(void)
-    {
-        if (mNextMovableObjectTypeFlag == SceneManager::USER_TYPE_MASK_LIMIT)
-        {
-            OGRE_EXCEPT(Exception::ERR_DUPLICATE_ITEM,
-                "Cannot allocate a type flag since "
-                "all the available flags have been used.",
-                "Root::_allocateNextMovableObjectTypeFlag");
-
-        }
-        uint32 ret = mNextMovableObjectTypeFlag;
-        mNextMovableObjectTypeFlag <<= 1;
-        return ret;
-
-    }
-    //---------------------------------------------------------------------
     void Root::removeMovableObjectFactory(MovableObjectFactory* fact)
     {
         MovableObjectFactoryMap::iterator i = mMovableObjectFactoryMap.find(
@@ -1535,61 +1577,6 @@ namespace Ogre {
             mMovableObjectFactoryMap.end());
 
     }
-    //---------------------------------------------------------------------
-    RenderQueueInvocationSequence* Root::createRenderQueueInvocationSequence(
-        const String& name)
-    {
-        RenderQueueInvocationSequenceMap::iterator i =
-            mRQSequenceMap.find(name);
-        if (i != mRQSequenceMap.end())
-        {
-            OGRE_EXCEPT(Exception::ERR_DUPLICATE_ITEM,
-                "RenderQueueInvocationSequence with the name " + name +
-                    " already exists.",
-                "Root::createRenderQueueInvocationSequence");
-        }
-        RenderQueueInvocationSequence* ret = OGRE_NEW RenderQueueInvocationSequence(name);
-        mRQSequenceMap[name] = ret;
-        return ret;
-    }
-    //---------------------------------------------------------------------
-    RenderQueueInvocationSequence* Root::getRenderQueueInvocationSequence(
-        const String& name)
-    {
-        RenderQueueInvocationSequenceMap::iterator i =
-            mRQSequenceMap.find(name);
-        if (i == mRQSequenceMap.end())
-        {
-            OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND,
-                "RenderQueueInvocationSequence with the name " + name +
-                " not found.",
-                "Root::getRenderQueueInvocationSequence");
-        }
-        return i->second;
-    }
-    //---------------------------------------------------------------------
-    void Root::destroyRenderQueueInvocationSequence(
-        const String& name)
-    {
-        RenderQueueInvocationSequenceMap::iterator i =
-            mRQSequenceMap.find(name);
-        if (i != mRQSequenceMap.end())
-        {
-            OGRE_DELETE i->second;
-            mRQSequenceMap.erase(i);
-        }
-    }
-    //---------------------------------------------------------------------
-    void Root::destroyAllRenderQueueInvocationSequences(void)
-    {
-        for (RenderQueueInvocationSequenceMap::iterator i = mRQSequenceMap.begin();
-            i != mRQSequenceMap.end(); ++i)
-        {
-            OGRE_DELETE i->second;
-        }
-        mRQSequenceMap.clear();
-    }
-
     //---------------------------------------------------------------------
     unsigned int Root::getDisplayMonitorCount() const
     {

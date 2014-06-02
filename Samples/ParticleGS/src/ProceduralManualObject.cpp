@@ -22,7 +22,8 @@ namespace Ogre
         return ProceduralManualObjectFactory::FACTORY_TYPE_NAME;
     }
     //-----------------------------------------------------------------------------
-    void ProceduralManualObject::_updateRenderQueue(RenderQueue* queue)
+    void ProceduralManualObject::_updateRenderQueue(RenderQueue* queue, Camera *camera,
+                                                    const Camera *lodCamera)
     {
         mR2vbObject->update(mParentSceneManager);
         queue->addRenderable(this);
@@ -50,10 +51,11 @@ namespace Ogre
         return FACTORY_TYPE_NAME;
     }
     //-----------------------------------------------------------------------------
-    MovableObject* ProceduralManualObjectFactory::createInstanceImpl(
-        const String& name, const NameValuePairList* params)
+    MovableObject* ProceduralManualObjectFactory::createInstanceImpl( IdType id,
+                                            ObjectMemoryManager *objectMemoryManager,
+                                            const NameValuePairList* params )
     {
-        return new ProceduralManualObject();
+        return new ProceduralManualObject( id, objectMemoryManager );
     }
     //-----------------------------------------------------------------------------
     void ProceduralManualObjectFactory::destroyInstance( MovableObject* obj)

@@ -1,85 +1,50 @@
 /*
-  -----------------------------------------------------------------------------
-  This source file is part of OGRE
-  (Object-oriented Graphics Rendering Engine)
-  For the latest info, see http://www.ogre3d.org/
+-----------------------------------------------------------------------------
+This source file is part of OGRE
+    (Object-oriented Graphics Rendering Engine)
+For the latest info, see http://www.ogre3d.org/
 
 Copyright (c) 2000-2014 Torus Knot Software Ltd
 Also see acknowledgements in Readme.html
 
-  You may use this sample code for anything you like, it is not covered by the
-  conditions of the standard open source license.
-  -----------------------------------------------------------------------------
+You may use this sample code for anything you like, it is not covered by the
+conditions of the standard open source license.
+-----------------------------------------------------------------------------
 */
 
-#ifndef __HelperLogics_H__
-#define __HelperLogics_H__
+#ifndef _HelperLogics_H__
+#define _HelperLogics_H__
 
-#include "OgrePrerequisites.h"
-#include "OgreCompositorLogic.h"
-#include "OgreCompositorInstance.h"
+#include "Compositor/OgreCompositorWorkspaceListener.h"
 
-/**
-   The simple types of compositor logics will all do the same thing.
-   Attach a listener to the created compositor.
+//Demo note :
+//This file contains two listeners for the Heat Vision and Gaussian Blur postprocessing FXs.
+//If you wish to use these compositor nodes in your application, make sure to add this code as well.
 
-   Demo note:
-   This file contains three compositor logics for the HDR, Heat Vision
-   and Gaussian Blur compositors.  If you wish to use these
-   compositors in your application, make sure to add this code as
-   well.  This code fits the plugin architecture pretty well, but was
-   not exported to a plugin for simplification of the SDK package.
-   @see CompositorDemo::loadResources
-*/
-class ListenerFactoryLogic : public Ogre::CompositorLogic
+class SamplePostprocessWorkspaceListener : public Ogre::CompositorWorkspaceListener
 {
- public:
-    /** @copydoc CompositorLogic::compositorInstanceCreated */
-    virtual void compositorInstanceCreated(Ogre::CompositorInstance* newInstance)
-    {
-        Ogre::CompositorInstance::Listener* listener = createListener(newInstance);
-        newInstance->addListener(listener);
-        mListeners[newInstance] = listener;
-    }
+    //Heat vision's
+    float start, end, curr;
+    Ogre::Timer *timer;
 
-    /** @copydoc CompositorLogic::compositorInstanceDestroyed */
-    virtual void compositorInstanceDestroyed(Ogre::CompositorInstance* destroyedInstance)
-    {
-        delete mListeners[destroyedInstance];
-        mListeners.erase(destroyedInstance);
-    }
+    int mVpWidth, mVpHeight;
+    // Array params - have to pack in groups of 4 since this is how Cg generates them
+    // also prevents dependent texture read problems if ops don't require swizzle
+    float mBloomTexWeights[15][4];
+    float mBloomTexOffsetsHorz[15][4];
+    float mBloomTexOffsetsVert[15][4];
 
- protected:
-    /// This is the method that implementations will need to override.
-    virtual Ogre::CompositorInstance::Listener* createListener(Ogre::CompositorInstance* instance) = 0;
- private:
-    typedef std::map<Ogre::CompositorInstance*, Ogre::CompositorInstance::Listener*> ListenerMap;
-    ListenerMap mListeners;
+    void onHeatVision( Ogre::CompositorPass *pass );
+    void onGaussianBlurV( Ogre::CompositorPass *pass );
+    void onGaussianBlurH( Ogre::CompositorPass *pass );
+public:
+    SamplePostprocessWorkspaceListener();
+    ~SamplePostprocessWorkspaceListener();
 
-};
+    //Called when each pass is about to be executed.
+    virtual void passPreExecute( Ogre::CompositorPass *pass );
 
-/// The compositor logic for the heat vision compositor.
-class HeatVisionLogic : public ListenerFactoryLogic
-{
- protected:
-    /** @copydoc ListenerFactoryLogic::createListener */
-    virtual Ogre::CompositorInstance::Listener* createListener(Ogre::CompositorInstance* instance);
-};
-
-/// The compositor logic for the HDR compositor.
-class HDRLogic : public ListenerFactoryLogic
-{
- protected:
-    /** @copydoc ListenerFactoryLogic::createListener */
-    virtual Ogre::CompositorInstance::Listener* createListener(Ogre::CompositorInstance* instance);
-};
-
-/// The compositor logic for the gaussian blur compositor.
-class GaussianBlurLogic : public ListenerFactoryLogic
-{
- protected:
-    /** @copydoc ListenerFactoryLogic::createListener */
-    virtual Ogre::CompositorInstance::Listener* createListener(Ogre::CompositorInstance* instance);
+    void windowResized( unsigned int width, unsigned int height );
 };
 
 #endif

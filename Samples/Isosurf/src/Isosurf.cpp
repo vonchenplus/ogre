@@ -12,13 +12,13 @@ same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 /*
-  -----------------------------------------------------------------------------
-  Filename:    Isosurf.cpp
-  Description: Demonstrates the use of the geometry shader to tessellate an 
-  isosurface using marching tetrahedrons. Partial implementation of cg 
-  Isosurf sample from NVIDIA's OpenGL SDK 10 : 
-  http://developer.download.nvidia.com/SDK/10/opengl/samples.html
-  -----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+Filename:    IsoSurf.cpp
+Description: Demonstrates the use of the geometry shader to tessellate an 
+    isosurface using marching tetrahedrons. Partial implementation of cg 
+    Isosurf sample from NVIDIA's OpenGL SDK 10 : 
+    http://developer.download.nvidia.com/SDK/10/opengl/samples.html
+-----------------------------------------------------------------------------
 */
 
 #include "SdkSample.h"
@@ -35,9 +35,8 @@ class _OgreSampleClassExport Sample_Isosurf : public SdkSample
 {
     Entity* tetrahedra;
     MeshPtr mTetrahedraMesh;
-
- public:
-        
+public:
+    
     Sample_Isosurf() 
     { 
         mInfo["Title"] = "Isosurf";
@@ -74,11 +73,11 @@ class _OgreSampleClassExport Sample_Isosurf : public SdkSample
         mCamera->lookAt(0,0,0);
         mCamera->setNearClipDistance(0.1);
         mCamera->setFarClipDistance(100);
-        
+
         mTetrahedraMesh = ProceduralTools::generateTetrahedra();
-        // Create tetrahedra and add it to the root scene node
-        tetrahedra = mSceneMgr->createEntity("TetrahedraEntity", mTetrahedraMesh->getName());
-        //tetrahedra->setDebugDisplayEnabled(true);
+        //Create tetrahedra and add it to the root scene node
+        tetrahedra = mSceneMgr->createEntity(mTetrahedraMesh->getName());
+        //tetraHedra->setDebugDisplayEnabled(true);
         Ogre::SceneNode* parentNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         parentNode->attachObject(tetrahedra);
         parentNode->setScale(10,10,10);
@@ -102,7 +101,6 @@ class _OgreSampleClassExport Sample_Isosurf : public SdkSample
                 0.1 + Ogre::Math::Sin(seconds)*0.5, Ogre::Math::Cos(seconds)*0.5, 0.0, 0.1);
             renderPass->getVertexProgramParameters()->setNamedConstant("Metaballs[1]", timeParam);
         }
-        
         return SdkSample::frameRenderingQueued(evt); 
     }
 };

@@ -3,19 +3,39 @@
 
 #include "SdkSample.h"
 
+#include "Compositor/OgreCompositorWorkspaceListener.h"
+#include "Compositor/Pass/OgreCompositorPass.h"
+#include "Compositor/OgreCompositorWorkspace.h"
+
 using namespace Ogre;
 using namespace OgreBites;
 
-class _OgreSampleClassExport Sample_Fresnel : public SdkSample, public RenderTargetListener
+const uint32 NonRefractiveSurfaces  = 0x00000001;
+const uint32 RefractiveSurfaces     = 0x00000002;
+const uint32 ReflectedSurfaces      = 0x00000004;
+const uint32 RegularSurfaces        = NonRefractiveSurfaces|ReflectedSurfaces;
+
+class _OgreSampleClassExport Sample_Fresnel : public SdkSample, public CompositorWorkspaceListener
 {
+    uint32 mPreviousVisibilityFlags;
 public:
 
     Sample_Fresnel() : NUM_FISH(30), NUM_FISH_WAYPOINTS(10), FISH_PATH_LENGTH(200), FISH_SCALE(2)
     {
         mInfo["Title"] = "Fresnel";
-        mInfo["Description"] = "Shows how to create reflections and refractions using render-to-texture and shaders.";
+        mInfo["Description"] = "Shows how to create reflections and refractions using render-to-texture, "
+                                "shaders and visibility mask, completely controlled via the compositor.\n"
+                                "See Fresnel.compositor and C++ code on how to setup the pipeline.\n\n"
+                                "NOTE: This demo is a bit outdated. Typical AAA games use screen-space "
+                                "refractions, which are bit less accurate but avoid an extra scene pass.\n"
+                                "This other technique is explained in GPU Gems 2, Chapter 19 "
+                                "'Generic Refraction Simulation'";
         mInfo["Thumbnail"] = "thumb_fresnel.png";
-        mInfo["Category"] = "Unsorted";
+        mInfo["Category"] = "API Usage";
+    }
+
+    ~Sample_Fresnel()
+    {
     }
 
     StringVector getRequiredPlugins()
@@ -66,44 +86,54 @@ public:
         return SdkSample::frameRenderingQueued(evt);
     }
 
-    void preRenderTargetUpdate(const RenderTargetEvent& evt)
+    virtual void passPreExecute( CompositorPass *pass )
     {
-        mWater->setVisible(false);  // hide the water
-
-        if (evt.source == mReflectionTarget)  // for reflection, turn on camera reflection and hide submerged entities
+        //Demo Note: Be very careful when modifying the camera in a listener.
+        //Ogre 2.0 is more sensitive to changes mid-render than 1.x. For example,
+        //Ogre has already built the light list of all objects seen by all cameras.
+        //If we altered the camera's position, some entities would be incorrectly
+        //lit or shadowed.
+        if( pass->getDefinition()->mIdentifier == 59645 )
         {
+            mCamera->setAutoAspectRatio( false );
             mCamera->enableReflection(mWaterPlane);
-            for (std::vector<Entity*>::iterator i = mSubmergedEnts.begin(); i != mSubmergedEnts.end(); i++)
-                (*i)->setVisible(false);
+            mCamera->enableCustomNearClipPlane(mWaterPlane);
         }
-        else  // for refraction, hide surface entities
+        else if( pass->getDefinition()->mIdentifier == 59646 )
         {
-            for (std::vector<Entity*>::iterator i = mSurfaceEnts.begin(); i != mSurfaceEnts.end(); i++)
-                (*i)->setVisible(false);
+            mCamera->setAutoAspectRatio( false );
+            mCamera->enableCustomNearClipPlane(mInvWaterPlane);
+            mCamera->disableCustomNearClipPlane();
         }
-    }
-
-    void postRenderTargetUpdate(const RenderTargetEvent& evt)
-    {
-        mWater->setVisible(true);  // unhide the water
-
-        if (evt.source == mReflectionTarget)  // for reflection, turn off camera reflection and unhide submerged entities
+        else
         {
+            mCamera->setAutoAspectRatio( true );
             mCamera->disableReflection();
-            for (std::vector<Entity*>::iterator i = mSubmergedEnts.begin(); i != mSubmergedEnts.end(); i++)
-                (*i)->setVisible(true);
-        }
-        else  // for refraction, unhide surface entities
-        {
-            for (std::vector<Entity*>::iterator i = mSurfaceEnts.begin(); i != mSurfaceEnts.end(); i++)
-                (*i)->setVisible(true);
+            mCamera->disableCustomNearClipPlane();
         }
     }
 
 protected:
 
+    virtual CompositorWorkspace* setupCompositor()
+    {
+        // The compositor scripts are also part of this sample. Go to Fresnel.compositor
+        // to see the sample scripts on how to setup the rendering pipeline.
+        CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
+
+        const Ogre::IdString workspaceName( "FresnelSampleWorkspace" );
+        CompositorWorkspace *workspace = compositorManager->addWorkspace( mSceneMgr, mWindow,
+                                                                    mCamera, workspaceName, true );
+        workspace->setListener( this );
+
+        return workspace;
+    }
+
     void setupContent()
     {
+        mPreviousVisibilityFlags = MovableObject::getDefaultVisibilityFlags();
+        MovableObject::setDefaultVisibilityFlags( RegularSurfaces );
+
         mCamera->setPosition(-50, 125, 760);
         mCameraMan->setTopSpeed(280);
 
@@ -113,6 +143,7 @@ protected:
 
         // make the scene's main light come from above
         Light* l = mSceneMgr->createLight();
+        mSceneMgr->createSceneNode()->attachObject( l );
         l->setType(Light::LT_DIRECTIONAL);
         l->setDirection(Vector3::NEGATIVE_UNIT_Y);
 
@@ -123,36 +154,19 @@ protected:
 
     void setupWater()
     {
-        // create our reflection & refraction render textures, and setup their render targets
-        for (unsigned int i = 0; i < 2; i++)
-        {
-            TexturePtr tex = TextureManager::getSingleton().createManual(i == 0 ? "refraction" : "reflection",
-                ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, TEX_TYPE_2D, 512, 512, 0, PF_R8G8B8, TU_RENDERTARGET);
-
-            RenderTarget* rtt = tex->getBuffer()->getRenderTarget();
-            rtt->addViewport(mCamera)->setOverlaysEnabled(false);
-            rtt->addListener(this);
-
-            if (i == 0) mRefractionTarget = rtt;
-            else mReflectionTarget = rtt;
-        }
-
         // create our water plane mesh
         mWaterPlane = Plane(Vector3::UNIT_Y, 0);
+        mInvWaterPlane=Plane(Vector3::NEGATIVE_UNIT_Y, 0);
         MeshManager::getSingleton().createPlane("water", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
             mWaterPlane, 700, 1300, 10, 10, true, 1, 3, 5, Vector3::UNIT_Z);
 
         // create a water entity using our mesh, give it the shader material, and attach it to the origin
-        mWater = mSceneMgr->createEntity("Water", "water");
+        mWater = mSceneMgr->createEntity("water");
+        mWater->setName("Water");
         mWater->setMaterialName("Examples/FresnelReflectionRefraction");
+        mWater->setVisibilityFlags( RefractiveSurfaces );
+        mWater->setRenderQueueGroup( 95 );
         mSceneMgr->getRootSceneNode()->attachObject(mWater);
-    }
-
-    void windowUpdate()
-    {
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
-        mWindow->update();
-#endif
     }
 
     void setupProps()
@@ -164,22 +178,22 @@ protected:
         mTrayMgr->showBackdrop("SdkTrays/Shade");
 
         pb->setComment("Upper Bath");
-        windowUpdate();
-        ent = mSceneMgr->createEntity("UpperBath", "RomanBathUpper.mesh" );
+        ent = mSceneMgr->createEntity("RomanBathUpper.mesh" );
+        ent->setName("UpperBath");
         mSceneMgr->getRootSceneNode()->attachObject(ent);        
         mSurfaceEnts.push_back(ent);
         pb->setProgress(0.4);
 
         pb->setComment("Columns");
-        windowUpdate();
-        ent = mSceneMgr->createEntity("Columns", "columns.mesh");
-        mSceneMgr->getRootSceneNode()->attachObject(ent);        
+        ent = mSceneMgr->createEntity("columns.mesh");
+        ent->setName("Columns");
+        mSceneMgr->getRootSceneNode()->attachObject(ent);
         mSurfaceEnts.push_back(ent);
         pb->setProgress(0.5);
 
         pb->setComment("Ogre Head");
-        windowUpdate();
-        ent = mSceneMgr->createEntity("Head", "ogrehead.mesh");
+        ent = mSceneMgr->createEntity("ogrehead.mesh");
+        ent->setName("Head");
         ent->setMaterialName("RomanBath/OgreStone");
         mSurfaceEnts.push_back(ent);
         pb->setProgress(0.6);
@@ -190,12 +204,11 @@ protected:
         headNode->attachObject(ent);
 
         pb->setComment("Lower Bath");
-        windowUpdate();
-        ent = mSceneMgr->createEntity("LowerBath", "RomanBathLower.mesh");
+        ent = mSceneMgr->createEntity("RomanBathLower.mesh");
+        ent->setName("LowerBath");
         mSceneMgr->getRootSceneNode()->attachObject(ent);
         mSubmergedEnts.push_back(ent);
         pb->setProgress(1);
-        windowUpdate();
 
         mTrayMgr->destroyWidget(pb);
         mTrayMgr->hideBackdrop();
@@ -210,7 +223,9 @@ protected:
         for (unsigned int i = 0; i < NUM_FISH; i++)
         {
             // create fish entity
-            Entity* ent = mSceneMgr->createEntity("Fish" + StringConverter::toString(i + 1), "fish.mesh");
+            Entity* ent = mSceneMgr->createEntity("fish.mesh");
+            ent->setName("Fish" + StringConverter::toString(i + 1));
+            ent->setVisibilityFlags( NonRefractiveSurfaces ); //Fishes are underwater, and hence don't reflect
             mSubmergedEnts.push_back(ent);
 
             // create an appropriately scaled node and attach the entity
@@ -256,8 +271,9 @@ protected:
         mFishSplines.clear();
 
         MeshManager::getSingleton().remove("water");
-        TextureManager::getSingleton().remove("refraction");
-        TextureManager::getSingleton().remove("reflection");
+
+        //Restore global settings
+        MovableObject::setDefaultVisibilityFlags( mPreviousVisibilityFlags );
     }
 
     const unsigned int NUM_FISH;
@@ -266,9 +282,8 @@ protected:
     const Real FISH_SCALE;
     std::vector<Entity*> mSurfaceEnts;
     std::vector<Entity*> mSubmergedEnts;
-    RenderTarget* mRefractionTarget;
-    RenderTarget* mReflectionTarget;
     Plane mWaterPlane;
+    Plane mInvWaterPlane;
     Entity* mWater;
     std::vector<SceneNode*> mFishNodes;
     std::vector<AnimationState*> mFishAnimStates;
