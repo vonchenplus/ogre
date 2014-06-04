@@ -34,10 +34,12 @@ THE SOFTWARE.
 #import "OgreGLPixelFormat.h"
 #import "OgreGLUtil.h"
 #import "OgreGLRenderSystem.h"
+#import "OgreViewport.h"
 
 #import <AppKit/NSScreen.h>
 #import <AppKit/NSOpenGLView.h>
 #import <QuartzCore/CVDisplayLink.h>
+#import <iomanip>
 
 @implementation OgreWindow
 
@@ -74,7 +76,7 @@ namespace Ogre {
 
         destroy();
 
-        if(mWindow)
+        if(mWindow && !mIsExternal)
         {
             [mWindow release];
             mWindow = nil;
@@ -170,6 +172,16 @@ namespace Ogre {
             opt = miscParams->find("contentScalingFactor");
             if(opt != miscParams->end())
                 mContentScalingFactor = StringConverter::parseReal(opt->second);
+				
+#if OGRE_NO_QUAD_BUFFER_STEREO == 0
+			opt = miscParams->find("stereoMode");
+			if (opt != miscParams->end())
+			{
+				StereoModeType stereoMode = StringConverter::parseStereoMode(opt->second);
+				if (SMT_NONE != stereoMode)
+					mStereoEnabled = true;
+			}
+#endif
         }
 
         if(miscParams->find("externalGLContext") == miscParams->end())
@@ -212,6 +224,11 @@ namespace Ogre {
                 attribs[i++] = (NSOpenGLPixelFormatAttribute) fsaa_samples;
             }
             
+#if OGRE_NO_QUAD_BUFFER_STEREO == 0
+			if (mStereoEnabled)
+				attribs[i++] = NSOpenGLPFAStereo;
+#endif
+
             attribs[i++] = (NSOpenGLPixelFormatAttribute) 0;
 
             mGLPixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes: attribs];
@@ -375,7 +392,8 @@ namespace Ogre {
 
             if(mWindow)
             {
-                [mWindow performClose:nil];
+                if(!mIsExternal)
+                    [mWindow performClose:nil];
 
                 if(mGLPixelFormat)
                 {
