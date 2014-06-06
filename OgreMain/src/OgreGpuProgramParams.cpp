@@ -125,8 +125,7 @@ namespace Ogre
         AutoConstantDefinition(ACT_DERIVED_LIGHT_DIFFUSE_COLOUR_ARRAY,  "derived_light_diffuse_colour_array",   4, ET_REAL, ACDT_INT),
         AutoConstantDefinition(ACT_DERIVED_LIGHT_SPECULAR_COLOUR_ARRAY, "derived_light_specular_colour_array",  4, ET_REAL, ACDT_INT),
 
-        AutoConstantDefinition(ACT_LIGHT_NUMBER,                                          "light_number",  1, ET_REAL, ACDT_INT),
-        AutoConstantDefinition(ACT_LIGHT_CASTS_SHADOWS,                           "light_casts_shadows",  1, ET_REAL, ACDT_INT),
+        AutoConstantDefinition(ACT_LIGHT_CASTS_SHADOWS,               "light_casts_shadows",  1, ET_REAL, ACDT_INT),
         AutoConstantDefinition(ACT_LIGHT_CASTS_SHADOWS_ARRAY,     "light_casts_shadows_array",  1, ET_REAL, ACDT_INT),
 
         AutoConstantDefinition(ACT_SHADOW_EXTRUSION_DISTANCE,     "shadow_extrusion_distance",    1, ET_REAL, ACDT_INT),
@@ -140,6 +139,7 @@ namespace Ogre
         AutoConstantDefinition(ACT_SPOTLIGHT_VIEWPROJ_MATRIX_ARRAY, "spotlight_viewproj_matrix_array", 16, ET_REAL, ACDT_INT),
         AutoConstantDefinition(ACT_SPOTLIGHT_WORLDVIEWPROJ_MATRIX,  "spotlight_worldviewproj_matrix",16, ET_REAL, ACDT_INT),
         AutoConstantDefinition(ACT_SPOTLIGHT_WORLDVIEWPROJ_MATRIX_ARRAY,  "spotlight_worldviewproj_matrix_array",16, ET_REAL, ACDT_INT),
+        AutoConstantDefinition(ACT_PSSM_SPLITS,                   "pssm_splits",                  1, ET_REAL, ACDT_INT),
         AutoConstantDefinition(ACT_CUSTOM,                        "custom",                       4, ET_REAL, ACDT_INT),  // *** needs to be tested
         AutoConstantDefinition(ACT_TIME,                               "time",                               1, ET_REAL, ACDT_REAL),
         AutoConstantDefinition(ACT_TIME_0_X,                      "time_0_x",                     4, ET_REAL, ACDT_REAL),
@@ -1470,7 +1470,6 @@ namespace Ogre
         case ACT_LIGHT_POWER_SCALE:
         case ACT_LIGHT_DIFFUSE_COLOUR_POWER_SCALED:
         case ACT_LIGHT_SPECULAR_COLOUR_POWER_SCALED:
-        case ACT_LIGHT_NUMBER:
         case ACT_LIGHT_CASTS_SHADOWS:
         case ACT_LIGHT_CASTS_SHADOWS_ARRAY:
         case ACT_LIGHT_ATTENUATION:
@@ -1490,6 +1489,7 @@ namespace Ogre
         case ACT_TEXTURE_VIEWPROJ_MATRIX_ARRAY:
         case ACT_SPOTLIGHT_VIEWPROJ_MATRIX:
         case ACT_SPOTLIGHT_VIEWPROJ_MATRIX_ARRAY:
+        case ACT_PSSM_SPLITS:
         case ACT_LIGHT_CUSTOM:
 
             return (uint16)GPV_LIGHTS;
@@ -1619,7 +1619,7 @@ namespace Ogre
     }
     //---------------------------------------------------------------------
     GpuLogicalIndexUse* GpuProgramParameters::_getDoubleConstantLogicalIndexUse(
-        size_t logicalIndex, size_t requestedSize, uint16 variability)
+                   size_t logicalIndex, size_t requestedSize, uint16 variability)
     {
         if (mDoubleLogicalToPhysical.isNull())
             return 0;
@@ -2659,6 +2659,12 @@ namespace Ogre
                     for (size_t l = 0; l < i->data; ++l)
                         _writeRawConstant(i->physicalIndex + l*i->elementCount, source->getSpotlightWorldViewProjMatrix(i->data), i->elementCount);
                     break;
+                case ACT_PSSM_SPLITS:
+                    {
+                        const vector<Real>::type &pssmSplitPoints = source->getPssmSplits( i->data );
+                        _writeRawConstants(i->physicalIndex, &pssmSplitPoints[1], pssmSplitPoints.size()-1);
+                    }
+                    break;
                 case ACT_LIGHT_POSITION_OBJECT_SPACE:
                     _writeRawConstant(i->physicalIndex,
                                       source->getInverseWorldMatrix().transformAffine(
@@ -2863,14 +2869,14 @@ namespace Ogre
                     // of the world scaling to deal with scaled objects
                     source->getWorldMatrix().extract3x3Matrix(m3);
                     _writeRawConstant(i->physicalIndex, source->getShadowExtrusionDistance() /
-                                      Math::Sqrt(std::max(std::max(m3.GetColumn(0).squaredLength(), m3.GetColumn(1).squaredLength()), m3.GetColumn(2).squaredLength())));
+                                      Math::Sqrt(Ogre::max(Ogre::max(m3.GetColumn(0).squaredLength(), m3.GetColumn(1).squaredLength()), m3.GetColumn(2).squaredLength())));
                     break;
                 case ACT_SHADOW_SCENE_DEPTH_RANGE:
                     _writeRawConstant(i->physicalIndex, source->getShadowSceneDepthRange(i->data));
                     break;
                 case ACT_SHADOW_SCENE_DEPTH_RANGE_ARRAY:
                     for (size_t l = 0; l < i->data; ++l)
-                        _writeRawConstant(i->physicalIndex + l*i->elementCount, source->getShadowSceneDepthRange(i->data), i->elementCount);
+                        _writeRawConstant(i->physicalIndex + l*i->elementCount, source->getShadowSceneDepthRange(l), i->elementCount);
                     break;
                 case ACT_SHADOW_COLOUR:
                     _writeRawConstant(i->physicalIndex, source->getShadowColour(), i->elementCount);
@@ -2883,9 +2889,6 @@ namespace Ogre
                     break;
                 case ACT_LIGHT_SPECULAR_COLOUR_POWER_SCALED:
                     _writeRawConstant(i->physicalIndex, source->getLightSpecularColourWithPower(i->data), i->elementCount);
-                    break;
-                case ACT_LIGHT_NUMBER:
-                    _writeRawConstant(i->physicalIndex, source->getLightNumber(i->data));
                     break;
                 case ACT_LIGHT_CASTS_SHADOWS:
                     _writeRawConstant(i->physicalIndex, source->getLightCastsShadows(i->data));

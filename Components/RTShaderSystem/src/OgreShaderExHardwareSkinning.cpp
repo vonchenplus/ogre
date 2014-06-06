@@ -209,11 +209,12 @@ bool HardwareSkinning::preAddToRenderState(const RenderState* renderState, Pass*
                 mCreator->getCustomShadowCasterMaterial(mSkinningType, weightCount - 1));
         }
 
-        if (dstPass->getParent()->getShadowReceiverMaterial().isNull())
-        {
-            dstPass->getParent()->setShadowReceiverMaterial(
-                mCreator->getCustomShadowReceiverMaterial(mSkinningType, weightCount - 1));
-        }
+        // TODO fix it 
+        //if (dstPass->getParent()->getShadowReceiverMaterial().isNull())
+        //{
+        //  dstPass->getParent()->setShadowReceiverMaterial(
+        //      mCreator->getCustomShadowReceiverMaterial(mSkinningType, weightCount - 1));
+        //}
     }
 
     return true;
@@ -435,7 +436,7 @@ void HardwareSkinningFactory::prepareEntityForSkinning(const Entity* pEntity, Sk
                 ushort boneCount = 0,weightCount = 0;
                 bool isValid = extractSkeletonData(pCurEntity, indexSub, boneCount, weightCount);
 
-                SubEntity* pSubEntity = pCurEntity->getSubEntity(indexSub);
+                const SubEntity* pSubEntity = pCurEntity->getSubEntity(indexSub);
                 const MaterialPtr& pMat = pSubEntity->getMaterial();
                 imprintSkeletonData(pMat, isValid, boneCount, weightCount, skinningType, correctAntidpodalityHandling, shearScale);
             }

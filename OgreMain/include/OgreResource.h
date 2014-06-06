@@ -84,17 +84,7 @@ namespace Ogre {
             Listener() {}
             virtual ~Listener() {}
 
-            /** Callback to indicate that background loading has completed.
-            @deprecated
-                Use loadingComplete instead.
-            */
-            OGRE_DEPRECATED virtual void backgroundLoadingComplete(Resource*) {}
 
-            /** Callback to indicate that background preparing has completed.
-            @deprecated
-                Use preparingComplete instead.
-            */
-            OGRE_DEPRECATED virtual void backgroundPreparingComplete(Resource*) {}
 
             /** Called whenever the resource finishes loading. 
             @remarks
@@ -379,8 +369,8 @@ namespace Ogre {
         virtual bool isBackgroundLoaded(void) const { return mIsBackgroundLoaded; }
 
         /** Tells the resource whether it is background loaded or not.
-
-         @see Resource::isBackgroundLoaded. Note that calling this only
+        @remarks
+            @see Resource::isBackgroundLoaded . Note that calling this only
             defers the normal on-demand loading behaviour of a resource, it
             does not actually set up a thread to make sure the resource gets
             loaded in the background. You should use ResourceBackgroundLoadingQueue

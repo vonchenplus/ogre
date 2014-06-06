@@ -282,7 +282,7 @@ namespace Volume {
             }
             if (mShared->volumeVisible)
             {
-                mVisible = visible;
+                setVisible(visible);
             }
             if (mOctree)
             {

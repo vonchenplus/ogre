@@ -33,7 +33,11 @@ THE SOFTWARE.
 #include "OgreHardwareVertexBuffer.h"
 #include "OgreException.h"
 #include "OgreRoot.h"
+#include "OgreOverlay.h"
 #include "OgreRenderSystem.h"
+#include "OgreHlmsDatablock.h"
+#include "OgreHlms.h"
+#include "OgreHlmsManager.h"
 
 namespace Ogre {
     //---------------------------------------------------------------------
@@ -485,14 +489,14 @@ namespace Ogre {
     void BorderPanelOverlayElement::setBorderMaterialName(const String& name)
     {
         mBorderMaterialName = name;
-        mBorderMaterial = MaterialManager::getSingleton().getByName(name);
+        /*mBorderMaterial = MaterialManager::getSingleton().getByName(name);
         if (mBorderMaterial.isNull())
             OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find material " + name,
                 "BorderPanelOverlayElement::setBorderMaterialName" );
         mBorderMaterial->load();
         // Set some prerequisites to be sure
         mBorderMaterial->setLightingEnabled(false);
-        mBorderMaterial->setDepthCheckEnabled(false);
+        mBorderMaterial->setDepthCheckEnabled(false);*/
 
     }
     //---------------------------------------------------------------------
@@ -591,19 +595,19 @@ namespace Ogre {
         vbuf->unlock();
     }
     //---------------------------------------------------------------------
-    void BorderPanelOverlayElement::_updateRenderQueue(RenderQueue* queue)
+    void BorderPanelOverlayElement::_updateRenderQueue(RenderQueue* queue, Camera *camera,
+                                                       const Camera *lodCamera)
     {
         // Add self twice to the queue
         // Have to do this to allow 2 materials
         if (mVisible)
         {
-
             // Add outer
-            queue->addRenderable(mBorderRenderable, RENDER_QUEUE_OVERLAY, mZOrder);
+            queue->addRenderable( mBorderRenderable, mOverlay, false );
 
             // do inner last so the border artifacts don't overwrite the children
             // Add inner
-            PanelOverlayElement::_updateRenderQueue(queue);
+            PanelOverlayElement::_updateRenderQueue(queue, camera, lodCamera);
         }
     }
     //---------------------------------------------------------------------
@@ -637,6 +641,19 @@ namespace Ogre {
             mBottomBorderSize = mPixelBottomBorderSize * mPixelScaleY;
             mGeomPositionsOutOfDate = true;
         }
+
+        if( mBorderRenderable && mInitialised )
+        {
+            const HlmsDatablock *borderDatablock = mBorderRenderable->getDatablock();
+            if( !borderDatablock || borderDatablock->getName() != mBorderMaterialName )
+            {
+                HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+                Hlms *hlms = hlmsManager->getHlms( HLMS_GUI );
+                HlmsDatablock *datablock = hlms->getDatablock( mBorderMaterialName );
+                mBorderRenderable->setDatablock( datablock );
+            }
+        }
+
         PanelOverlayElement::_update();
     }
     //-----------------------------------------------------------------------

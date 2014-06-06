@@ -95,6 +95,8 @@ namespace Ogre {
             /// List of background thread contexts
             GLES2ContextList mBackgroundContextList;
 
+            bool mScissorsEnabled;
+
             GLES2GpuProgramManager *mGpuProgramManager;
             GLSLESProgramFactory* mGLSLESProgramFactory;
 #if !OGRE_NO_GLES2_CG_SUPPORT
@@ -129,6 +131,8 @@ namespace Ogre {
                                         vector<GLuint>::type &attribsBound,
                                         vector<GLuint>::type &instanceAttribsBound,
                                         bool updateVAO);
+
+            void correctViewport( GLint x, GLint &y, GLint &w, GLint &h, RenderTarget *renderTarget );
 
             // Mipmap count of the actual bounded texture
             size_t mCurTexMipCount;
@@ -185,14 +189,6 @@ namespace Ogre {
               RenderSystem
              */
             void setAmbientLight(float r, float g, float b) { };   // Not supported
-            /** See
-              RenderSystem
-             */
-            void setShadingType(ShadeOptions so) { };   // Not supported
-            /** See
-              RenderSystem
-             */
-            void setLightingEnabled(bool enabled) { };   // Not supported
 
             /// @copydoc RenderSystem::_createRenderWindow
             RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height, 
@@ -220,10 +216,6 @@ namespace Ogre {
               RenderSystem
              */
             VertexElementType getColourVertexElementType(void) const;
-            /** See
-              RenderSystem
-             */
-            void setNormaliseNormals(bool normalise) { };   // Not supported
 
             // -----------------------------
             // Low-level overridden members
@@ -301,6 +293,11 @@ namespace Ogre {
              RenderSystem
              */
             void _setViewport(Viewport *vp);
+
+			virtual void _setHlmsMacroblock( const HlmsMacroblock *macroblock );
+			virtual void _setHlmsBlendblock( const HlmsBlendblock *blendblock );
+			virtual void _setProgramsFromHlms( const HlmsCache *hlmsCache );
+
             /** See
              RenderSystem
              */
@@ -337,10 +334,6 @@ namespace Ogre {
              RenderSystem
              */
             void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha);
-            /** See
-             RenderSystem
-             */
-            void _setFog(FogMode mode, const ColourValue& colour, Real density, Real start, Real end);
             /** See
              RenderSystem
              */
@@ -433,10 +426,6 @@ namespace Ogre {
              RenderSystem
              */
             void _render(const RenderOperation& op);
-            /** See
-             RenderSystem
-             */
-            void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
 
             void clearFrameBuffer(unsigned int buffers,
                 const ColourValue& colour = ColourValue::Black,

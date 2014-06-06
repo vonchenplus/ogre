@@ -39,6 +39,12 @@ THE SOFTWARE.
 #include "OgreRenderTexture.h"
 #include "OgreSceneNode.h"
 
+#include "Compositor/OgreCompositorManager2.h"
+#include "Compositor/OgreCompositorWorkspace.h"
+#include "Compositor/OgreCompositorWorkspaceDef.h"
+#include "Compositor/OgreCompositorNodeDef.h"
+#include "Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h"
+
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
 // we do lots of conversions here, casting them all is tedious & cluttered, we know what we're doing
 #   pragma warning (disable : 4244)
@@ -55,6 +61,7 @@ namespace Ogre
         , mCompositeMapSM(0)
         , mCompositeMapCam(0)
         , mCompositeMapRTT(0)
+        , mWorkspace(0)
         , mCompositeMapPlane(0)
         , mCompositeMapLight(0)
     {
@@ -66,11 +73,19 @@ namespace Ogre
         for (ProfileList::iterator i = mProfiles.begin(); i != mProfiles.end(); ++i)
             OGRE_DELETE *i;
 
+        if (mWorkspace && Root::getSingletonPtr())
+        {
+            CompositorManager2 *compositorManager = Root::getSingleton().getCompositorManager2();
+            compositorManager->removeWorkspace( mWorkspace );
+            mWorkspace = 0;
+        }
+
         if (mCompositeMapRTT && TextureManager::getSingletonPtr())
         {
             TextureManager::getSingleton().remove(mCompositeMapRTT->getHandle());
             mCompositeMapRTT = 0;
         }
+
         if (mCompositeMapSM && Root::getSingletonPtr())
         {
             // will also delete cam and objects etc
@@ -87,8 +102,24 @@ namespace Ogre
     {
         if (!mCompositeMapSM)
         {
+#if OGRE_DEBUG_MODE
+            // Debugging multithreaded code is a PITA, disable it.
+            const size_t numThreads = 1;
+            Ogre::InstancingTheadedCullingMethod threadedCullingMethod = Ogre::INSTANCING_CULLING_SINGLETHREAD;
+#else
+            //getNumLogicalCores() may return 0 if couldn't detect
+            const size_t numThreads = std::max<size_t>( 1, Ogre::PlatformInformation::getNumLogicalCores() );
+
+            Ogre::InstancingTheadedCullingMethod threadedCullingMethod = Ogre::INSTANCING_CULLING_SINGLETHREAD;
+
+            //See doxygen documentation regarding culling methods.
+            //In some cases you may still want to use single thread.
+            if( numThreads > 1 )
+                threadedCullingMethod = Ogre::INSTANCING_CULLING_THREADED;
+#endif
+
             // dedicated SceneManager
-            mCompositeMapSM = Root::getSingleton().createSceneManager(DefaultSceneManagerFactory::FACTORY_TYPE_NAME);
+            mCompositeMapSM = Root::getSingleton().createSceneManager(Ogre::ST_GENERIC, numThreads, threadedCullingMethod);
             float camDist = 100;
             float halfCamDist = camDist * 0.5f;
             mCompositeMapCam = mCompositeMapSM->createCamera("cam");
@@ -101,6 +132,8 @@ namespace Ogre
 
             // Just in case material relies on light auto params
             mCompositeMapLight = mCompositeMapSM->createLight();
+            SceneNode *lightNode = mCompositeMapSM->getRootSceneNode()->createChildSceneNode();
+            lightNode->attachObject( mCompositeMapLight );
             mCompositeMapLight->setType(Light::LT_DIRECTIONAL);
 
             RenderSystem* rSys = Root::getSingleton().getRenderSystem();
@@ -146,13 +179,43 @@ namespace Ogre
                 mCompositeMapSM->getName() + "/compRTT", 
                 ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, TEX_TYPE_2D, static_cast<uint>(size), static_cast<uint>(size), 0, PF_BYTE_RGBA,
                 TU_RENDERTARGET).get();
-            RenderTarget* rtt = mCompositeMapRTT->getBuffer()->getRenderTarget();
-            // don't render all the time, only on demand
-            rtt->setAutoUpdated(false);
-            Viewport* vp = rtt->addViewport(mCompositeMapCam);
-            // don't render overlays
-            vp->setOverlaysEnabled(false);
 
+            CompositorManager2 *compositorManager = Root::getSingleton().getCompositorManager2();
+
+            IdString workspaceName( "Ogre Terrain Material Generator" );
+            
+            if( !compositorManager->hasWorkspaceDefinition( workspaceName ) )
+            {
+                CompositorNodeDef *nodeDef = compositorManager->addNodeDefinition(
+                                                            "Ogre Terrain Material Generator Node" );
+
+                //Input texture
+                nodeDef->addTextureSourceName( "RTT", 0, TextureDefinitionBase::TEXTURE_INPUT );
+
+                nodeDef->setNumTargetPass( 1 );
+                {
+                    CompositorTargetDef *targetDef = nodeDef->addTargetPass( "RTT" );
+                    targetDef->setNumPasses( 2 );
+                    {
+                        {
+                            targetDef->addPass( PASS_CLEAR );
+                        }
+                        {
+                            CompositorPassSceneDef *passScene = static_cast<CompositorPassSceneDef*>
+                                                                    ( targetDef->addPass( PASS_SCENE ) );
+                            passScene->mIncludeOverlays = false;
+                        }
+                    }
+                }
+
+                CompositorWorkspaceDef *workDef =
+                                            compositorManager->addWorkspaceDefinition( workspaceName );
+                workDef->connectOutput( nodeDef->getName(), 0 );
+            }
+
+            mWorkspace = compositorManager->addWorkspace( mCompositeMapSM,
+                                             mCompositeMapRTT->getBuffer()->getRenderTarget(),
+                                             mCompositeMapCam, workspaceName, true, 0 );
         }
 
         // calculate the area we need to update
@@ -161,10 +224,7 @@ namespace Ogre
         Real vpright = (Real)rect.right / (Real)size;
         Real vpbottom = (Real)rect.bottom / (Real)size;
 
-        RenderTarget* rtt = mCompositeMapRTT->getBuffer()->getRenderTarget();
         mCompositeMapCam->setWindow(vpleft, vptop, vpright, vpbottom);
-
-        rtt->update();
 
         // We have an RTT, we want to copy the results into a regular texture
         // That's because in non-update scenarios we don't want to keep an RTT

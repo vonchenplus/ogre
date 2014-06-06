@@ -32,8 +32,9 @@ THE SOFTWARE.
 #include "OgreD3D9ResourceManager.h"
 #include "OgreD3D9RenderWindow.h"
 #include "OgreRoot.h"
-#include "OgreLogManager.h"
+#include "OgrePixelBox.h"
 #include "OgreHardwareBufferManager.h"
+#include "OgreLogManager.h"
 
 namespace Ogre
 {

@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "OgreException.h"
 #include "OgreLogManager.h"
 #include "OgreRenderTargetListener.h"
+#include "OgrePixelBox.h"
 #include "OgreRoot.h"
 #include "OgreDepthBuffer.h"
 #include "OgreProfiler.h"
@@ -45,16 +46,10 @@ namespace Ogre {
         , mDepthBufferPoolId(DepthBuffer::POOL_DEFAULT)
         , mDepthBuffer(0)
         , mActive(true)
-        , mAutoUpdate(true)
         , mHwGamma(false)
         , mFSAA(0)
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		, mStereoEnabled(true)
-#else
-		, mStereoEnabled(false)
-#endif
+        , mFsaaResolveDirty(false)
     {
-        mTimer = Root::getSingleton().getTimer();
         resetStatistics();
     }
 
@@ -64,21 +59,15 @@ namespace Ogre {
         for (ViewportList::iterator i = mViewportList.begin();
             i != mViewportList.end(); ++i)
         {
-            fireViewportRemoved(i->second);
-            OGRE_DELETE (*i).second;
+            fireViewportRemoved( *i );
+            OGRE_DELETE *i;
         }
 
         //DepthBuffer keeps track of us, avoid a dangling pointer
         detachDepthBuffer();
 
-
         // Write closing message
-        LogManager::getSingleton().stream(LML_TRIVIAL)
-            << "Render Target '" << mName << "' "
-            << "Average FPS: " << mStats.avgFPS << " "
-            << "Best FPS: " << mStats.bestFPS << " "
-            << "Worst FPS: " << mStats.worstFPS; 
-
+        LogManager::getSingleton().stream(LML_TRIVIAL) << "Render Target '" << mName << "' ";
     }
 
     const String& RenderTarget::getName(void) const
@@ -154,13 +143,6 @@ namespace Ogre {
         mDepthBuffer = 0;
     }
 
-    void RenderTarget::updateImpl(void)
-    {
-        _beginUpdate();
-        _updateAutoUpdatedViewports(true);
-        _endUpdate();
-    }
-
     void RenderTarget::_beginUpdate()
     {
         // notify listeners (pre)
@@ -168,22 +150,8 @@ namespace Ogre {
 
         mStats.triangleCount = 0;
         mStats.batchCount = 0;
-    }
 
-    void RenderTarget::_updateAutoUpdatedViewports(bool updateStatistics)
-    {
-        // Go through viewports in Z-order
-        // Tell each to refresh
-        ViewportList::iterator it = mViewportList.begin();
-        while (it != mViewportList.end())
-        {
-            Viewport* viewport = (*it).second;
-            if(viewport->isAutoUpdated())
-            {
-                _updateViewport(viewport,updateStatistics);
-            }
-            ++it;
-        }
+        OgreProfileBeginGPUEvent("RenderTarget: " + getName());
     }
 
     void RenderTarget::_endUpdate()
@@ -191,124 +159,86 @@ namespace Ogre {
          // notify listeners (post)
         firePostUpdate();
 
-        // Update statistics (always on top)
-        updateStats();
+        OgreProfileEndGPUEvent("RenderTarget: " + getName());
     }
 
-    void RenderTarget::_updateViewport(Viewport* viewport, bool updateStatistics)
+    void RenderTarget::_updateViewportCullPhase01( Viewport* viewport, Camera *camera,
+                                                   const Camera *lodCamera, uint8 firstRq, uint8 lastRq )
     {
-        assert(viewport->getTarget() == this &&
-                "RenderTarget::_updateViewport the requested viewport is "
-                "not bound to the rendertarget!");
+        assert( viewport->getTarget() == this &&
+                "RenderTarget::_updateViewportCullPhase the requested viewport is "
+                "not bound to the rendertarget!" );
 
         fireViewportPreUpdate(viewport);
-        viewport->update();
+        viewport->_updateCullPhase01( camera, lodCamera, firstRq, lastRq );
+    }
+    //-----------------------------------------------------------------------
+    void RenderTarget::_updateViewportRenderPhase02( Viewport* viewport, Camera *camera,
+                                                     const Camera *lodCamera, uint8 firstRq,
+                                                     uint8 lastRq, bool updateStatistics )
+    {
+        assert( viewport->getTarget() == this &&
+                "RenderTarget::_updateViewport the requested viewport is "
+                "not bound to the rendertarget!" );
+
+        viewport->_updateRenderPhase02( camera, lodCamera, firstRq, lastRq );
         if(updateStatistics)
         {
-            mStats.triangleCount += viewport->_getNumRenderedFaces();
-            mStats.batchCount += viewport->_getNumRenderedBatches();
+            mStats.triangleCount += camera->_getNumRenderedFaces();
+            mStats.batchCount += camera->_getNumRenderedBatches();
         }
         fireViewportPostUpdate(viewport);
     }
-
-    void RenderTarget::_updateViewport(int zorder, bool updateStatistics)
-    {
-        ViewportList::iterator it = mViewportList.find(zorder);
-        if (it != mViewportList.end())
-        {
-            _updateViewport((*it).second,updateStatistics);
-        }
-        else
-        {
-            OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND,"No viewport with given zorder : "
-                + StringConverter::toString(zorder), "RenderTarget::_updateViewport");
-        }
-    }
-
-    Viewport* RenderTarget::addViewport(Camera* cam, int ZOrder, float left, float top ,
-        float width , float height)
+    //-----------------------------------------------------------------------
+    Viewport* RenderTarget::addViewport( float left, float top, float width, float height )
     {       
-        // Check no existing viewport with this Z-order
-        ViewportList::iterator it = mViewportList.find(ZOrder);
-
-        if (it != mViewportList.end())
-        {
-            StringStream str;
-            str << "Can't create another viewport for "
-                << mName << " with Z-order " << ZOrder
-                << " because a viewport exists with this Z-order already.";
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, str.str(), "RenderTarget::addViewport");
-        }
         // Add viewport to list
-        // Order based on Z-order
-        Viewport* vp = OGRE_NEW Viewport(cam, this, left, top, width, height, ZOrder);
+        Viewport* vp = OGRE_NEW Viewport( this, left, top, width, height );
+        mViewportList.push_back( vp );
 
-        mViewportList.insert(ViewportList::value_type(ZOrder, vp));
+        vp->mGlobalIndex = mViewportList.size() - 1;
 
         fireViewportAdded(vp);
 
         return vp;
     }
     //-----------------------------------------------------------------------
-    void RenderTarget::removeViewport(int ZOrder)
+    void RenderTarget::removeViewport( Viewport *vp )
     {
-        ViewportList::iterator it = mViewportList.find(ZOrder);
-
-        if (it != mViewportList.end())
+        if( vp->mGlobalIndex >= mViewportList.size() ||
+            vp != *(mViewportList.begin() + vp->mGlobalIndex) )
         {
-            fireViewportRemoved((*it).second);
-            OGRE_DELETE (*it).second;
-            mViewportList.erase(ZOrder);
+            OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Viewport had it's mGlobalIndex out of "
+                "date!!! (or Viewport wasn't created by this RenderTarget",
+                "RenderTarget::removeViewport" );
         }
+
+        ViewportList::iterator itor = mViewportList.begin() + vp->mGlobalIndex;
+
+        fireViewportRemoved( vp );
+        OGRE_DELETE vp;
+
+        itor = efficientVectorRemove( mViewportList, itor );
+
+        //The Viewport that was at the end got swapped and has now a different index
+        if( itor != mViewportList.end() )
+            (*itor)->mGlobalIndex = itor - mViewportList.begin();
     }
 
     void RenderTarget::removeAllViewports(void)
     {
-
-
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
         {
-            fireViewportRemoved(it->second);
-            OGRE_DELETE (*it).second;
+            fireViewportRemoved( *it );
+            OGRE_DELETE *it;
         }
 
         mViewportList.clear();
-
-    }
-
-    void RenderTarget::getStatistics(float& lastFPS, float& avgFPS,
-        float& bestFPS, float& worstFPS) const
-    {
-
-        // Note - the will have been updated by the last render
-        lastFPS = mStats.lastFPS;
-        avgFPS = mStats.avgFPS;
-        bestFPS = mStats.bestFPS;
-        worstFPS = mStats.worstFPS;
-
-
     }
 
     const RenderTarget::FrameStats& RenderTarget::getStatistics(void) const
     {
         return mStats;
-    }
-
-    float RenderTarget::getLastFPS() const
-    {
-        return mStats.lastFPS;
-    }
-    float RenderTarget::getAverageFPS() const
-    {
-        return mStats.avgFPS;
-    }
-    float RenderTarget::getBestFPS() const
-    {
-        return mStats.bestFPS;
-    }
-    float RenderTarget::getWorstFPS() const
-    {
-        return mStats.worstFPS;
     }
 
     size_t RenderTarget::getTriangleCount(void) const
@@ -321,64 +251,10 @@ namespace Ogre {
         return mStats.batchCount;
     }
 
-    float RenderTarget::getBestFrameTime() const
-    {
-        return (float)mStats.bestFrameTime;
-    }
-
-    float RenderTarget::getWorstFrameTime() const
-    {
-        return (float)mStats.worstFrameTime;
-    }
-
     void RenderTarget::resetStatistics(void)
     {
-        mStats.avgFPS = 0.0;
-        mStats.bestFPS = 0.0;
-        mStats.lastFPS = 0.0;
-        mStats.worstFPS = 999.0;
         mStats.triangleCount = 0;
         mStats.batchCount = 0;
-        mStats.bestFrameTime = 999999;
-        mStats.worstFrameTime = 0;
-        mStats.vBlankMissCount = 0;
-
-        mLastTime = mTimer->getMilliseconds();
-        mLastSecond = mLastTime;
-        mFrameCount = 0;
-    }
-
-    void RenderTarget::updateStats(void)
-    {
-        ++mFrameCount;
-        unsigned long thisTime = mTimer->getMilliseconds();
-
-        // check frame time
-        unsigned long frameTime = thisTime - mLastTime ;
-        mLastTime = thisTime ;
-
-        mStats.bestFrameTime = std::min(mStats.bestFrameTime, frameTime);
-        mStats.worstFrameTime = std::max(mStats.worstFrameTime, frameTime);
-
-        // check if new second (update only once per second)
-        if (thisTime - mLastSecond > 1000) 
-        { 
-            // new second - not 100% precise
-            mStats.lastFPS = (float)mFrameCount / (float)(thisTime - mLastSecond) * 1000.0f;
-
-            if (mStats.avgFPS == 0)
-                mStats.avgFPS = mStats.lastFPS;
-            else
-                mStats.avgFPS = (mStats.avgFPS + mStats.lastFPS) / 2; // not strictly correct, but good enough
-
-            mStats.bestFPS = std::max(mStats.bestFPS, mStats.lastFPS);
-            mStats.worstFPS = std::min(mStats.worstFPS, mStats.lastFPS);
-
-            mLastSecond = thisTime ;
-            mFrameCount  = 0;
-
-        }
-
     }
 
     void RenderTarget::getCustomAttribute(const String& name, void* pData)
@@ -448,29 +324,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Viewport* RenderTarget::getViewport(unsigned short index)
     {
-        assert (index < mViewportList.size() && "Index out of bounds");
-
-        ViewportList::iterator i = mViewportList.begin();
-        while (index--)
-            ++i;
-        return i->second;
-    }
-    //-----------------------------------------------------------------------
-    Viewport* RenderTarget::getViewportByZOrder(int ZOrder)
-    {
-        ViewportList::iterator i = mViewportList.find(ZOrder);
-        if(i == mViewportList.end())
-        {
-            OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND,"No viewport with given Z-order: "
-                + StringConverter::toString(ZOrder), "RenderTarget::getViewportByZOrder");
-        }
-        return i->second;
-    }
-    //-----------------------------------------------------------------------
-    bool RenderTarget::hasViewportWithZOrder(int ZOrder)
-    {
-        ViewportList::iterator i = mViewportList.find(ZOrder);
-        return i != mViewportList.end();
+        return mViewportList[index];
     }
     //-----------------------------------------------------------------------
     bool RenderTarget::isActive() const
@@ -555,7 +409,8 @@ namespace Ogre {
             << "_" << std::setw(2) << std::setfill('0') << pTime->tm_hour
             << std::setw(2) << std::setfill('0') << pTime->tm_min
             << std::setw(2) << std::setfill('0') << pTime->tm_sec
-            << std::setw(3) << std::setfill('0') << (mTimer->getMilliseconds() % 1000);
+            << std::setw(3) << std::setfill('0') <<
+                        (Root::getSingleton().getTimer()->getMilliseconds() % 1000);
         String filename = filenamePrefix + oss.str() + filenameSuffix;
         writeContentsToFile(filename);
         return filename;
@@ -576,61 +431,14 @@ namespace Ogre {
         OGRE_FREE(data, MEMCATEGORY_RENDERSYS);
     }
     //-----------------------------------------------------------------------
-    void RenderTarget::_notifyCameraRemoved(const Camera* cam)
-    {
-        ViewportList::iterator i, iend;
-        iend = mViewportList.end();
-        for (i = mViewportList.begin(); i != iend; ++i)
-        {
-            Viewport* v = i->second;
-            if (v->getCamera() == cam)
-            {
-                // disable camera link
-                v->setCamera(0);
-            }
-        }
-    }
-    //-----------------------------------------------------------------------
-    void RenderTarget::setAutoUpdated(bool autoup)
-    {
-        mAutoUpdate = autoup;
-    }
-    //-----------------------------------------------------------------------
-    bool RenderTarget::isAutoUpdated(void) const
-    {
-        return mAutoUpdate;
-    }
-    //-----------------------------------------------------------------------
     bool RenderTarget::isPrimary(void) const
     {
         // RenderWindow will override and return true for the primary window
         return false;
-    }  
-	//-----------------------------------------------------------------------
-    bool RenderTarget::isStereoEnabled(void) const
-    {
-        return mStereoEnabled;
     }
     //-----------------------------------------------------------------------
     RenderTarget::Impl *RenderTarget::_getImpl()
     {
         return 0;
     }
-    //-----------------------------------------------------------------------
-    void RenderTarget::update(bool swap)
-    {
-        OgreProfileBeginGPUEvent("RenderTarget: " + getName());
-        // call implementation
-        updateImpl();
-
-
-        if (swap)
-        {
-            // Swap buffers
-            swapBuffers();
-        }
-        OgreProfileEndGPUEvent("RenderTarget: " + getName());
-    }
-    
-
-}        
+}

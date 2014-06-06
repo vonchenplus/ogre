@@ -30,294 +30,350 @@ THE SOFTWARE.
 #include "OgreRenderQueue.h"
 
 #include "OgreMaterial.h"
-#include "OgreRenderQueueSortingGrouping.h"
 #include "OgrePass.h"
 #include "OgreMaterialManager.h"
 #include "OgreSceneManager.h"
 #include "OgreMovableObject.h"
 #include "OgreSceneManagerEnumerator.h"
 #include "OgreTechnique.h"
+#include "OgreHlmsDatablock.h"
+#include "OgreHlmsManager.h"
+#include "OgreHlms.h"
 
 
-namespace Ogre {
+namespace Ogre
+{
+    const HlmsCache c_dummyCache( 0, HLMS_MAX );
 
+    const int SubRqIdBits           = 3;
+    const int TransparencyBits      = 1;
+    const int MacroblockBits        = 10;
+    const int ShaderBits            = 10;    //The higher 3 bits contain HlmsTypes
+    const int MeshBits              = 14;
+    const int TextureBits           = 11;
+    const int DepthBits             = 15;
+
+    #define OGRE_MAKE_MASK( x ) ( (1 << x) - 1 )
+
+    const int SubRqIdShift          = 64                - SubRqIdBits;      //60
+    const int TransparencyShift     = SubRqIdShift      - TransparencyBits; //59
+    const int MacroblockShift       = TransparencyShift - MacroblockBits;   //49
+    const int ShaderShift           = MacroblockShift   - ShaderBits;       //40
+    const int MeshShift             = ShaderShift       - MeshBits;         //26
+    const int TextureShift          = MeshShift         - TextureBits;      //15
+    const int DepthShift            = TextureShift      - DepthBits;        //0
+
+    const int DepthShiftTransp      = TransparencyShift - DepthBits;        //44
+    const int MacroblockShiftTransp = DepthShiftTransp  - MacroblockBits;   //34
+    const int ShaderShiftTransp     = MacroblockShiftTransp - ShaderBits;   //25
+    const int MeshShiftTransp       = ShaderShiftTransp - MeshBits;         //11
+    const int TextureShiftTransp    = MeshShiftTransp   - TextureBits;      //0
     //---------------------------------------------------------------------
-    RenderQueue::RenderQueue()
-        : mSplitPassesByLightingType(false)
-        , mSplitNoShadowPasses(false)
-        , mShadowCastersCannotBeReceivers(false)
-        , mRenderableListener(0)
+    RenderQueue::RenderQueue( HlmsManager *hlmsManager, SceneManager *sceneManager ) :
+        mHlmsManager( hlmsManager ),
+        mSceneManager( sceneManager ),
+        mLastMacroblock( 0 ),
+        mLastBlendblock( 0 ),
+        mLastVertexData( 0 ),
+        mLastIndexData( 0 ),
+        mLastHlmsCache( &c_dummyCache ),
+        mLastTextureHash( 0 )
     {
-        // Create the 'main' queue up-front since we'll always need that
-        mGroups.insert(
-            RenderQueueGroupMap::value_type(
-                RENDER_QUEUE_MAIN, 
-                OGRE_NEW RenderQueueGroup(this,
-                    mSplitPassesByLightingType,
-                    mSplitNoShadowPasses,
-                    mShadowCastersCannotBeReceivers)
-                )
-            );
-
-        // set default queue
-        mDefaultQueueGroup = RENDER_QUEUE_MAIN;
-        mDefaultRenderablePriority = OGRE_RENDERABLE_DEFAULT_PRIORITY;
-
     }
     //---------------------------------------------------------------------
     RenderQueue::~RenderQueue()
     {
-        
-        // trigger the pending pass updates, otherwise we could leak
-        Pass::processPendingPassUpdates();
-        
-        // Destroy the queues for good
-        RenderQueueGroupMap::iterator i, iend;
-        i = mGroups.begin();
-        iend = mGroups.end();
-        for (; i != iend; ++i)
-        {
-            OGRE_DELETE i->second;
-        }
-        mGroups.clear();
     }
     //-----------------------------------------------------------------------
-    void RenderQueue::addRenderable(Renderable* pRend, uint8 groupID, ushort priority)
+    void RenderQueue::clear(void)
     {
-        // Find group
-        RenderQueueGroup* pGroup = getQueueGroup(groupID);
-
-        Technique* pTech;
-
-        // tell material it's been used
-        if (!pRend->getMaterial().isNull())
-            pRend->getMaterial()->touch();
-
-        // Check material & technique supplied (the former since the default implementation
-        // of getTechnique is based on it for backwards compatibility
-        if(pRend->getMaterial().isNull() || !pRend->getTechnique())
+        for( size_t i=0; i<256; ++i )
         {
-            // Use default base white
-            MaterialPtr baseWhite = MaterialManager::getSingleton().getByName("BaseWhite");
-            pTech = baseWhite->getTechnique(0);
+            mRenderQueues[i].mQueuedRenderables.clear();
+            mRenderQueues[i].mSorted = false;
+        }
+    }
+    //-----------------------------------------------------------------------
+    void RenderQueue::clearState(void)
+    {
+        mLastMacroblock = 0;
+        mLastBlendblock = 0;
+        mLastVertexData = 0;
+        mLastIndexData  = 0;
+        mLastHlmsCache  = &c_dummyCache;
+        mLastTextureHash= 0;
+    }
+    //-----------------------------------------------------------------------
+    void RenderQueue::addRenderable( Renderable* pRend, const MovableObject *pMovableObject,
+                                     bool casterPass )
+    {
+        uint8 rqId  = pMovableObject->getRenderQueueGroup();
+        uint8 subId = pMovableObject->getRenderQueueSubGroup();
+        RealAsUint depth = pMovableObject->getCachedDistanceToCamera();
+
+        assert( !mRenderQueues[rqId].mSorted &&
+                "Called addRenderable after render and before clear" );
+        assert( subId < OGRE_MAKE_MASK( SubRqIdBits ) );
+
+        uint32 hlmsHash = casterPass ? pRend->getHlmsCasterHash() : pRend->getHlmsHash();
+        const HlmsDatablock *datablock = pRend->getDatablock();
+
+        bool opaque = datablock->mIsOpaque;
+
+        uint16 macroblock = datablock->mMacroblockHash;
+        uint16 texturehash= datablock->mTextureHash;
+
+        //Flip the float to deal with negative & positive numbers
+#if OGRE_DOUBLE_PRECISION == 0
+        RealAsUint mask = -int(depth >> 31) | 0x80000000;
+        depth = (depth ^ mask);
+#else
+        RealAsUint mask = -int64(depth >> 63) | 0x8000000000000000;
+        depth = (depth ^ mask) >> 32;
+#endif
+        uint32 quantizedDepth = static_cast<uint32>( depth );
+
+        RenderOperation op;
+        pRend->getRenderOperation( op ); //TODO
+        uint32 meshHash; //TODO
+        //TODO: Account for skeletal animation in any of the hashes (preferently on the material side)
+        //TODO: Account for auto instancing animation in any of the hashes
+
+        uint64 hash;
+        if( opaque )
+        {
+            //Opaque objects are first sorted by material, then by mesh, then by depth front to back.
+            hash =
+                ( uint64(subId          & OGRE_MAKE_MASK( SubRqIdBits ))        << SubRqIdShift )       |
+                ( uint64(opaque         & OGRE_MAKE_MASK( TransparencyBits ))   << TransparencyShift )  |
+                ( uint64(macroblock     & OGRE_MAKE_MASK( MacroblockBits ))     << MacroblockShift )    |
+                ( uint64(hlmsHash       & OGRE_MAKE_MASK( ShaderBits ))         << ShaderShift )        |
+                ( uint64(meshHash       & OGRE_MAKE_MASK( MeshBits ))           << MeshShift )          |
+                ( uint64(texturehash    & OGRE_MAKE_MASK( TextureBits ))        << TextureShift )       |
+                ( uint64(quantizedDepth & OGRE_MAKE_MASK( DepthBits ))          << DepthShift );
         }
         else
-            pTech = pRend->getTechnique();
-
-        if (mRenderableListener)
         {
-            // Allow listener to override technique and to abort
-            if (!mRenderableListener->renderableQueued(pRend, groupID, priority, 
-                &pTech, this))
-                return; // rejected
-
-            // tell material it's been used (incase changed)
-            pTech->getParent()->touch();
+            //Transparent objects are sorted by depth back to front, then by material, then by mesh.
+            quantizedDepth = quantizedDepth ^ 0xffffffff;
+            hash =
+                ( uint64(subId          & OGRE_MAKE_MASK( SubRqIdBits ))        << SubRqIdShift )       |
+                ( uint64(opaque         & OGRE_MAKE_MASK( TransparencyBits ))   << TransparencyShift )  |
+                ( uint64(quantizedDepth & OGRE_MAKE_MASK( DepthBits ))          << DepthShiftTransp )   |
+                ( uint64(macroblock     & OGRE_MAKE_MASK( MacroblockBits ))    << MacroblockShiftTransp)|
+                ( uint64(hlmsHash       & OGRE_MAKE_MASK( ShaderBits ))         << ShaderShiftTransp )  |
+                ( uint64(meshHash       & OGRE_MAKE_MASK( MeshBits ))           << MeshShiftTransp );
         }
-        
-        pGroup->addRenderable(pRend, pTech, priority);
 
+        mRenderQueues[rqId].mQueuedRenderables.push_back( QueuedRenderable( hash, pRend,
+                                                                            pMovableObject ) );
     }
     //-----------------------------------------------------------------------
-    void RenderQueue::clear(bool destroyPassMaps)
+    /*void RenderQueue::render( uint8 firstRq, uint8 lastRq )
     {
-        // Clear the queues
-        SceneManagerEnumerator::SceneManagerIterator scnIt =
-            SceneManagerEnumerator::getSingleton().getSceneManagerIterator();
+        //mBatchesToRender.push_back( 0 ); TODO First batch is always dummy
+        float *texBufferPtr; //TODO
 
-        // Note: We clear dirty passes from all RenderQueues in all 
-        // SceneManagers, because the following recalculation of pass hashes
-        // also considers all RenderQueues and could become inconsistent, otherwise.
-        while (scnIt.hasMoreElements())
+        for( size_t i=firstRq; i<lastRq; ++i )
         {
-            SceneManager* sceneMgr = scnIt.getNext();
-            RenderQueue* queue = sceneMgr->getRenderQueue();
+            QueuedRenderableArray &queuedRenderables = mRenderQueues[i].mQueuedRenderables;
 
-            RenderQueueGroupMap::iterator i, iend;
-            i = queue->mGroups.begin();
-            iend = queue->mGroups.end();
-            for (; i != iend; ++i)
+            if( !mRenderQueues[i].mSorted )
             {
-                i->second->clear(destroyPassMaps);
+                std::sort( queuedRenderables.begin(), queuedRenderables.end() );
+                mRenderQueues[i].mSorted = true;
             }
-        }
 
-        // Now trigger the pending pass updates
-        Pass::processPendingPassUpdates();
+            QueuedRenderableArray::const_iterator itor = queuedRenderables.begin();
+            QueuedRenderableArray::const_iterator end  = queuedRenderables.end();
 
-        // NB this leaves the items present (but empty)
-        // We're assuming that frame-by-frame, the same groups are likely to 
-        //  be used, so no point destroying the vectors and incurring the overhead
-        //  that would cause, let them be destroyed in the destructor.
-    }
-    //-----------------------------------------------------------------------
-    RenderQueue::QueueGroupIterator RenderQueue::_getQueueGroupIterator(void)
-    {
-        return QueueGroupIterator(mGroups.begin(), mGroups.end());
-    }
-    //-----------------------------------------------------------------------
-    RenderQueue::ConstQueueGroupIterator RenderQueue::_getQueueGroupIterator(void) const
-    {
-        return ConstQueueGroupIterator(mGroups.begin(), mGroups.end());
-    }
-    //-----------------------------------------------------------------------
-    void RenderQueue::addRenderable(Renderable* pRend, uint8 groupID)
-    {
-        addRenderable(pRend, groupID, mDefaultRenderablePriority);
-    }
-    //-----------------------------------------------------------------------
-    void RenderQueue::addRenderable(Renderable* pRend)
-    {
-        addRenderable(pRend, mDefaultQueueGroup, mDefaultRenderablePriority);
-    }
-    //-----------------------------------------------------------------------
-    uint8 RenderQueue::getDefaultQueueGroup(void) const
-    {
-        return mDefaultQueueGroup;
-    }
-    //-----------------------------------------------------------------------
-    void RenderQueue::setDefaultQueueGroup(uint8 grp)
-    {
-        mDefaultQueueGroup = grp;
-    }
-    //-----------------------------------------------------------------------
-    ushort RenderQueue::getDefaultRenderablePriority(void) const
-    {
-        return mDefaultRenderablePriority;
-    }
-    //-----------------------------------------------------------------------
-    void RenderQueue::setDefaultRenderablePriority(ushort priority)
-    {
-        mDefaultRenderablePriority = priority;
-    }
-    
-    
-    //-----------------------------------------------------------------------
-    RenderQueueGroup* RenderQueue::getQueueGroup(uint8 groupID)
-    {
-        // Find group
-        RenderQueueGroupMap::iterator groupIt;
-        RenderQueueGroup* pGroup;
-
-        groupIt = mGroups.find(groupID);
-        if (groupIt == mGroups.end())
-        {
-            // Insert new
-            pGroup = OGRE_NEW RenderQueueGroup(this,
-                mSplitPassesByLightingType,
-                mSplitNoShadowPasses,
-                mShadowCastersCannotBeReceivers);
-            mGroups.insert(RenderQueueGroupMap::value_type(groupID, pGroup));
-        }
-        else
-        {
-            pGroup = groupIt->second;
-        }
-
-        return pGroup;
-
-    }
-    //-----------------------------------------------------------------------
-    void RenderQueue::setSplitPassesByLightingType(bool split)
-    {
-        mSplitPassesByLightingType = split;
-
-        RenderQueueGroupMap::iterator i, iend;
-        i = mGroups.begin();
-        iend = mGroups.end();
-        for (; i != iend; ++i)
-        {
-            i->second->setSplitPassesByLightingType(split);
-        }
-    }
-    //-----------------------------------------------------------------------
-    bool RenderQueue::getSplitPassesByLightingType(void) const
-    {
-        return mSplitPassesByLightingType;
-    }
-    //-----------------------------------------------------------------------
-    void RenderQueue::setSplitNoShadowPasses(bool split)
-    {
-        mSplitNoShadowPasses = split;
-
-        RenderQueueGroupMap::iterator i, iend;
-        i = mGroups.begin();
-        iend = mGroups.end();
-        for (; i != iend; ++i)
-        {
-            i->second->setSplitNoShadowPasses(split);
-        }
-    }
-    //-----------------------------------------------------------------------
-    bool RenderQueue::getSplitNoShadowPasses(void) const
-    {
-        return mSplitNoShadowPasses;
-    }
-    //-----------------------------------------------------------------------
-    void RenderQueue::setShadowCastersCannotBeReceivers(bool ind)
-    {
-        mShadowCastersCannotBeReceivers = ind;
-
-        RenderQueueGroupMap::iterator i, iend;
-        i = mGroups.begin();
-        iend = mGroups.end();
-        for (; i != iend; ++i)
-        {
-            i->second->setShadowCastersCannotBeReceivers(ind);
-        }
-    }
-    //-----------------------------------------------------------------------
-    bool RenderQueue::getShadowCastersCannotBeReceivers(void) const
-    {
-        return mShadowCastersCannotBeReceivers;
-    }
-    //-----------------------------------------------------------------------
-    void RenderQueue::merge( const RenderQueue* rhs )
-    {
-        ConstQueueGroupIterator it = rhs->_getQueueGroupIterator( );
-
-        while( it.hasMoreElements() )
-        {
-            uint8 groupID = it.peekNextKey();
-            RenderQueueGroup* pSrcGroup = it.getNext();
-            RenderQueueGroup* pDstGroup = getQueueGroup( groupID );
-
-            pDstGroup->merge( pSrcGroup );
-        }
-    }
-
-    //---------------------------------------------------------------------
-    void RenderQueue::processVisibleObject(MovableObject* mo, 
-        Camera* cam, 
-        bool onlyShadowCasters, 
-        VisibleObjectsBoundsInfo* visibleBounds)
-    {
-        mo->_notifyCurrentCamera(cam);
-        if (mo->isVisible())
-        {
-            bool receiveShadows = getQueueGroup(mo->getRenderQueueGroup())->getShadowsEnabled()
-                && mo->getReceivesShadows();
-
-            if (!onlyShadowCasters || mo->getCastShadows())
+            while( itor != end )
             {
-                mo -> _updateRenderQueue( this );
-                if (visibleBounds)
+                const QueuedRenderable &queuedRenderable = *itor;
+                RenderOperation op;
+                queuedRenderable.renderable->getRenderOperation( op );
+
+                //TODO
+                uint32 renderOpHash;
+                size_t elementsPerInstance;
+
+                //const Hlms *hlms = queuedRenderable.renderable->getHlms();
+                //size_t hlmsElements = hlms->getNumElements( queuedRenderable.renderable );
+                //size_t elementsPerInstance = numWorldTransforms + hlmsElements;
+
+                Batch *batch = &mBatchesToRender.back();
+                if( batch->renderOpHash != renderOpHash ||
+                    batch->start + elementsPerInstance < batch->bufferBucket->numElements )
                 {
-                    visibleBounds->merge(mo->getWorldBoundingBox(true), 
-                        mo->getWorldBoundingSphere(true), cam, 
-                        receiveShadows);
+                    mBatchesToRender.push_back( Batch() ); //TODO
+                    batch = &mBatchesToRender.back();
                 }
+
+                unsigned short numWorldTransforms = queuedRenderable.renderable->getNumWorldTransforms();
+                if( numWorldTransforms <= 1 )
+                {
+                    queuedRenderable.renderable->writeSingleTransform3x4( texBufferPtr );
+                    texBufferPtr += 12;
+                }
+                else
+                {
+                    queuedRenderable.renderable->writeAnimatedTransform3x4( texBufferPtr );
+                    texBufferPtr += 12 * numWorldTransforms;
+                }
+
+                hlms->writeElements( queuedRenderable.renderable, texBufferPtr );
+                texBufferPtr += hlmsElements;
+
+                ++batch->count;
+
+                //itor->
+                ++itor;
             }
-            // not shadow caster, receiver only?
-            else if (onlyShadowCasters && !mo->getCastShadows() && 
-                receiveShadows)
+        }
+    }*/
+    void RenderQueue::renderES2( RenderSystem *rs, uint8 firstRq, uint8 lastRq,
+                                 bool casterPass, bool dualParaboloid )
+    {
+        HlmsCache passCache[HLMS_MAX];
+
+        for( size_t i=0; i<HLMS_MAX; ++i )
+        {
+            Hlms *hlms = mHlmsManager->getHlms( static_cast<HlmsTypes>( i ) );
+            if( hlms )
             {
-                visibleBounds->mergeNonRenderedButInFrustum(mo->getWorldBoundingBox(true), 
-                    mo->getWorldBoundingSphere(true), cam);
+                passCache[i] = hlms->preparePassHash( mSceneManager->getCurrentShadowNode(), casterPass,
+                                                      dualParaboloid, mSceneManager );
             }
         }
 
-    }
+        HlmsMacroblock const *lastMacroblock = mLastMacroblock;
+        HlmsBlendblock const *lastBlendblock = mLastBlendblock;
+        VertexData const *lastVertexData = mLastVertexData;
+        IndexData const *lastIndexData = mLastIndexData;
+        HlmsCache const *lastHlmsCache = mLastHlmsCache;
+        uint32 lastTextureHash = mLastTextureHash;
+        //uint32 lastVertexDataId = ~0;
 
+        for( size_t i=firstRq; i<lastRq; ++i )
+        {
+            QueuedRenderableArray &queuedRenderables = mRenderQueues[i].mQueuedRenderables;
+
+            if( !mRenderQueues[i].mSorted )
+            {
+                std::sort( queuedRenderables.begin(), queuedRenderables.end() );
+                mRenderQueues[i].mSorted = true;
+            }
+
+            QueuedRenderableArray::const_iterator itor = queuedRenderables.begin();
+            QueuedRenderableArray::const_iterator end  = queuedRenderables.end();
+
+            while( itor != end )
+            {
+                const QueuedRenderable &queuedRenderable = *itor;
+                RenderOperation op;
+                queuedRenderable.renderable->getRenderOperation( op );
+                /*uint32 hlmsHash = casterPass ? queuedRenderable.renderable->getHlmsCasterHash() :
+                                               queuedRenderable.renderable->getHlmsHash();*/
+                const HlmsDatablock *datablock = queuedRenderable.renderable->getDatablock();
+
+                if( lastMacroblock != datablock->mMacroblock )
+                {
+                    rs->_setHlmsMacroblock( datablock->mMacroblock );
+                    lastMacroblock = datablock->mMacroblock;
+                }
+
+                if( lastBlendblock != datablock->mBlendblock )
+                {
+                    rs->_setHlmsBlendblock( datablock->mBlendblock );
+                    lastBlendblock = datablock->mBlendblock;
+                }
+
+                if( lastVertexData != op.vertexData )
+                {
+                    lastVertexData = op.vertexData;
+                }
+                if( lastIndexData != op.indexData )
+                {
+                    lastIndexData = op.indexData;
+                }
+
+                Hlms *hlms = mHlmsManager->getHlms( static_cast<HlmsTypes>( datablock->mType ) );
+
+                const HlmsCache *hlmsCache = hlms->getMaterial( lastHlmsCache,
+                                                                passCache[datablock->mType],
+                                                                queuedRenderable,
+                                                                casterPass );
+                if( lastHlmsCache != hlmsCache )
+                    rs->_setProgramsFromHlms( hlmsCache );
+
+                hlms->fillBuffersFor( hlmsCache, queuedRenderable, casterPass,
+                                      lastHlmsCache, lastTextureHash );
+
+                rs->_render( op );
+
+                lastHlmsCache   = hlmsCache;
+                lastTextureHash = datablock->mTextureHash;
+
+                ++itor;
+            }
+        }
+
+        mLastMacroblock     = lastMacroblock;
+        mLastBlendblock     = lastBlendblock;
+        mLastVertexData     = lastVertexData;
+        mLastIndexData      = lastIndexData;
+        mLastHlmsCache      = lastHlmsCache;
+        mLastTextureHash    = lastTextureHash;
+    }
+    //-----------------------------------------------------------------------
+    void RenderQueue::renderSingleObject( Renderable* pRend, const MovableObject *pMovableObject,
+                                          RenderSystem *rs, bool casterPass, bool dualParaboloid )
+    {
+        const HlmsDatablock *datablock = pRend->getDatablock();
+
+        Hlms *hlms = datablock->getCreator();
+        HlmsCache passCache = hlms->preparePassHash( mSceneManager->getCurrentShadowNode(), casterPass,
+                                                     dualParaboloid, mSceneManager );
+
+        const QueuedRenderable queuedRenderable( 0, pRend, pMovableObject );
+        RenderOperation op;
+        queuedRenderable.renderable->getRenderOperation( op );
+        /*uint32 hlmsHash = casterPass ? queuedRenderable.renderable->getHlmsCasterHash() :
+                                       queuedRenderable.renderable->getHlmsHash();*/
+
+        if( mLastMacroblock != datablock->mMacroblock )
+        {
+            rs->_setHlmsMacroblock( datablock->mMacroblock );
+            mLastMacroblock = datablock->mMacroblock;
+        }
+
+        if( mLastBlendblock != datablock->mBlendblock )
+        {
+            rs->_setHlmsBlendblock( datablock->mBlendblock );
+            mLastBlendblock = datablock->mBlendblock;
+        }
+
+        if( mLastVertexData != op.vertexData )
+        {
+            mLastVertexData = op.vertexData;
+        }
+        if( mLastIndexData != op.indexData )
+        {
+            mLastIndexData = op.indexData;
+        }
+
+        const HlmsCache *hlmsCache = hlms->getMaterial( mLastHlmsCache, passCache,
+                                                        queuedRenderable, casterPass );
+        if( mLastHlmsCache != hlmsCache )
+            rs->_setProgramsFromHlms( hlmsCache );
+
+        hlms->fillBuffersFor( hlmsCache, queuedRenderable, casterPass,
+                              mLastHlmsCache, mLastTextureHash );
+
+        rs->_render( op );
+
+        mLastHlmsCache   = hlmsCache;
+        mLastTextureHash = datablock->mTextureHash;
+    }
 }
 

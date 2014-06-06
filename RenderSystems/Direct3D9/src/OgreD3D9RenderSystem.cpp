@@ -49,14 +49,10 @@ THE SOFTWARE.
 #include "OgreD3D9HardwareOcclusionQuery.h"
 #include "OgreFrustum.h"
 #include "OgreD3D9MultiRenderTarget.h"
-#include "OgreCompositorManager.h"
 #include "OgreD3D9DeviceManager.h"
 #include "OgreD3D9ResourceManager.h"
 #include "OgreD3D9DepthBuffer.h"
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-#include "OgreD3D9StereoDriverBridge.h"
-#endif
+#include "OgreRenderOperation.h"
 
 #define FLOAT2DWORD(f) *((DWORD*)&f)
 
@@ -66,12 +62,9 @@ namespace Ogre
 
     //---------------------------------------------------------------------
     D3D9RenderSystem::D3D9RenderSystem( HINSTANCE hInstance ) :
-        mMultiheadUse(mutAuto)
-        ,mAllowDirectX9Ex(false)
-        ,mIsDirectX9Ex(false)
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        ,mStereoDriver (NULL)
-#endif
+        mMultiheadUse(mutAuto),
+        mAllowDirectX9Ex(false),
+        mIsDirectX9Ex(false)
     {
         LogManager::getSingleton().logMessage( "D3D9 : " + getName() + " created." );
 
@@ -153,11 +146,6 @@ namespace Ogre
             mResourceManager = NULL;
         }
         
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        OGRE_DELETE mStereoDriver;
-        mStereoDriver = NULL;
-#endif
-
         LogManager::getSingleton().logMessage( "D3D9 : " + getName() + " destroyed." );
 
         msD3D9RenderSystem = NULL;
@@ -213,9 +201,6 @@ namespace Ogre
         ConfigOption optResourceCeationPolicy;
         ConfigOption optMultiDeviceMemHint;
         ConfigOption optEnableFixedPipeline;
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        ConfigOption optStereoMode;
-#endif
 
         driverList = this->getDirect3DDrivers();
 
@@ -324,16 +309,6 @@ namespace Ogre
         optEnableFixedPipeline.possibleValues.push_back( "No" );
         optEnableFixedPipeline.currentValue = "Yes";
         optEnableFixedPipeline.immutable = false;
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        optStereoMode.name = "Stereo Mode";
-        optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_NONE));
-        optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_FRAME_SEQUENTIAL));
-        optStereoMode.currentValue = optStereoMode.possibleValues[0];
-        optStereoMode.immutable = false;
-
-        mOptions[optStereoMode.name] = optStereoMode;
-#endif
 
         mOptions[optDevice.name] = optDevice;
         mOptions[optAllowDirectX9Ex.name] = optAllowDirectX9Ex;
@@ -836,12 +811,7 @@ namespace Ogre
                 "exists.  You cannot create a new window with this name.";
             OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, msg, "D3D9RenderSystem::_createRenderWindow" );
         }
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        // Stereo driver must be created before device is created
-        createStereoDriver(miscParams);
-#endif
-
+                
         D3D9RenderWindow* renderWindow = OGRE_NEW D3D9RenderWindow(mhInstance);
         
         renderWindow->create(name, width, height, fullScreen, miscParams);
@@ -870,12 +840,6 @@ namespace Ogre
 
         attachRenderTarget( *renderWindow );
         
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        // Must be called after device has been linked to window
-        D3D9StereoDriverBridge::getSingleton().addRenderWindow(renderWindow);
-        renderWindow->_validateStereo();
-#endif
-
         return renderWindow;
     }   
     //---------------------------------------------------------------------
@@ -1623,10 +1587,6 @@ namespace Ogre
     //---------------------------------------------------------------------
     void D3D9RenderSystem::destroyRenderTarget(const String& name)
     {       
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-        D3D9StereoDriverBridge::getSingleton().removeRenderWindow(name);
-#endif
-
         detachRenderTargetImpl(name);
 
         // Do the real removal
@@ -1752,7 +1712,7 @@ namespace Ogre
         unsigned short num = 0;
         for (i = lights.begin(); i != iend && num < limit; ++i, ++num)
         {
-            setD3D9Light(num, *i);
+            setD3D9Light(num, i->light);
         }
         // Disable extra lights
         for (; num < mCurrentLights[activeDevice]; ++num)
@@ -1763,23 +1723,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    void D3D9RenderSystem::setShadingType( ShadeOptions so )
-    {
-        HRESULT hr = __SetRenderState( D3DRS_SHADEMODE, D3D9Mappings::get(so) );
-        if( FAILED( hr ) )
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-            "Failed to set render stat D3DRS_SHADEMODE", "D3D9RenderSystem::setShadingType" );
-    }
-    //---------------------------------------------------------------------
-    void D3D9RenderSystem::setLightingEnabled( bool enabled )
-    {
-        HRESULT hr;
-        if( FAILED( hr = __SetRenderState( D3DRS_LIGHTING, enabled ) ) )
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-            "Failed to set render state D3DRS_LIGHTING", "D3D9RenderSystem::setLightingEnabled" );
-    }
-    //---------------------------------------------------------------------
-    void D3D9RenderSystem::setD3D9Light( size_t index, Light* lt )
+    void D3D9RenderSystem::setD3D9Light( size_t index, const Light* lt )
     {
         HRESULT hr;
 
@@ -1822,7 +1766,7 @@ namespace Ogre
             Vector3 vec;
             if( lt->getType() != Light::LT_DIRECTIONAL )
             {
-                vec = lt->getDerivedPosition(true);
+                vec = lt->getParentNode()->_getDerivedPosition();
                 d3dLight.Position = D3DXVECTOR3( vec.x, vec.y, vec.z );
             }
             if( lt->getType() != Light::LT_POINT )
@@ -2700,46 +2644,6 @@ namespace Ogre
             "D3D9RenderSystem::_setColourBufferWriteEnabled");
     }
     //---------------------------------------------------------------------
-    void D3D9RenderSystem::_setFog( FogMode mode, const ColourValue& colour, Real densitiy, Real start, Real end )
-    {
-        HRESULT hr;
-
-        D3DRENDERSTATETYPE fogType, fogTypeNot;
-
-        if (mDeviceManager->getActiveDevice()->getD3D9DeviceCaps().RasterCaps & D3DPRASTERCAPS_FOGTABLE)
-        {
-            fogType = D3DRS_FOGTABLEMODE;
-            fogTypeNot = D3DRS_FOGVERTEXMODE;
-        }
-        else
-        {
-            fogType = D3DRS_FOGVERTEXMODE;
-            fogTypeNot = D3DRS_FOGTABLEMODE;
-        }
-
-        if( mode == FOG_NONE)
-        {
-            // just disable
-            hr = __SetRenderState(fogType, D3DFOG_NONE );
-            hr = __SetRenderState(D3DRS_FOGENABLE, FALSE);
-        }
-        else
-        {
-            // Allow fog
-            hr = __SetRenderState( D3DRS_FOGENABLE, TRUE );
-            hr = __SetRenderState( fogTypeNot, D3DFOG_NONE );
-            hr = __SetRenderState( fogType, D3D9Mappings::get(mode) );
-
-            hr = __SetRenderState( D3DRS_FOGCOLOR, colour.getAsARGB() );
-            hr = __SetFloatRenderState( D3DRS_FOGSTART, start );
-            hr = __SetFloatRenderState( D3DRS_FOGEND, end );
-            hr = __SetFloatRenderState( D3DRS_FOGDENSITY, densitiy );
-        }
-
-        if( FAILED( hr ) )
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Error setting render state", "D3D9RenderSystem::_setFog" );
-    }
-    //---------------------------------------------------------------------
     void D3D9RenderSystem::_setPolygonMode(PolygonMode level)
     {
         HRESULT hr = __SetRenderState(D3DRS_FILLMODE, D3D9Mappings::get(level));
@@ -3113,10 +3017,6 @@ namespace Ogre
                 // also make sure we validate the device; if this never went 
                 // through update() it won't be set
                 window->_validateDevice();
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-                window->_validateStereo();
-#endif
             }
 
             // Retrieve render surfaces (up to OGRE_MAX_MULTIPLE_RENDER_TARGETS)
@@ -3221,10 +3121,6 @@ namespace Ogre
     void D3D9RenderSystem::_beginFrame()
     {
         HRESULT hr;
-
-        if( !mActiveViewport )
-            OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Cannot begin frame - no viewport selected.", "D3D9RenderSystem::_beginFrame" );
-
         if( FAILED( hr = getActiveD3D9Device()->BeginScene() ) )
         {
             String msg = DXGetErrorDescription(hr);
@@ -3232,12 +3128,6 @@ namespace Ogre
         }
 
         mLastVertexSourceCount = 0;
-
-        // Clear left overs of previous viewport.
-        // I.E: Viewport A can use 3 different textures and light states
-        // When trying to render viewport B these settings should be cleared, otherwise 
-        // graphical artifacts might occur.
-        mDeviceManager->getActiveDevice()->clearDeviceStreams();
     }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::_endFrame()
@@ -3245,6 +3135,8 @@ namespace Ogre
         HRESULT hr;
         if( FAILED( hr = getActiveD3D9Device()->EndScene() ) )
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Error ending frame", "D3D9RenderSystem::_endFrame" );
+
+        mDeviceManager->getActiveDevice()->clearDeviceStreams();
 
         mDeviceManager->destroyInactiveRenderDevices();
     }
@@ -3581,12 +3473,6 @@ namespace Ogre
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to DrawPrimitive : " + msg, "D3D9RenderSystem::_render" );
         }
 
-    }
-    //---------------------------------------------------------------------
-    void D3D9RenderSystem::setNormaliseNormals(bool normalise)
-    {
-        __SetRenderState(D3DRS_NORMALIZENORMALS, 
-            normalise ? TRUE : FALSE);
     }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::bindGpuProgram(GpuProgram* prg)
@@ -4342,11 +4228,6 @@ namespace Ogre
         mFragmentProgramBound = false;
         mLastVertexSourceCount = 0;
 
-        
-        // Force all compositors to reconstruct their internal resources
-        // render textures will have been changed without their knowledge
-        CompositorManager::getSingleton()._reconstructAllCompositorResources();
-        
         // Restore previous active device.
 
         // Invalidate active view port.
@@ -4508,27 +4389,4 @@ namespace Ogre
 
         fireEvent(name, &params);
     }
-    //---------------------------------------------------------------------
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-    void D3D9RenderSystem::createStereoDriver(const NameValuePairList* miscParams)
-    {
-        // Get the value used to create the render system.  If none, get the parameter value used to create the window.
-        StereoModeType stereoMode = StringConverter::parseStereoMode(mOptions["Stereo Mode"].currentValue);
-        if (stereoMode == SMT_NONE)
-        {
-            NameValuePairList::const_iterator iter = miscParams->find("stereoMode");
-            if (iter != miscParams->end())
-              stereoMode = StringConverter::parseStereoMode((*iter).second);
-        }
-
-        // Always create the stereo bridge regardless of the mode
-        mStereoDriver = OGRE_NEW D3D9StereoDriverBridge(stereoMode);
-    }
-    //---------------------------------------------------------------------
-    bool D3D9RenderSystem::setDrawBuffer(ColourBufferType colourBuffer)
-    {
-        return D3D9StereoDriverBridge::getSingleton().setDrawBuffer(colourBuffer);
-    }
-    //---------------------------------------------------------------------
-#endif
 }

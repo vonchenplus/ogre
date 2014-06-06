@@ -17,6 +17,7 @@ public:
         mInfo["Description"] = "Shows how to use skyboxes (fixed-distance cubes used for backgrounds).";
         mInfo["Thumbnail"] = "thumb_skybox.png";
         mInfo["Category"] = "Environment";
+        mBackgroundColour = ColourValue( 0.6f, 0.0f, 0.6f );
     }
 
 protected:
@@ -25,12 +26,14 @@ protected:
     {
         // setup some basic lighting for our scene
         mSceneMgr->setAmbientLight(ColourValue(0.3, 0.3, 0.3));
-        mSceneMgr->createLight()->setPosition(20, 80, 50);
+        SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        lightNode->setPosition(20, 80, 50);
+        lightNode->attachObject( mSceneMgr->createLight() );
         
         mSceneMgr->setSkyBox(true, "Examples/SpaceSkyBox", 5000);  // set our skybox
 
         // create a spaceship model, and place it at the origin
-        mSceneMgr->getRootSceneNode()->attachObject(mSceneMgr->createEntity("Razor", "razor.mesh"));
+        mSceneMgr->getRootSceneNode()->attachObject(mSceneMgr->createEntity("razor.mesh"));
 
         // create a particle system with 200 quota, then set its material and dimensions
         ParticleSystem* thrusters = mSceneMgr->createParticleSystem(25);
@@ -53,7 +56,7 @@ protected:
         }
 
         // attach our thruster particles to the rear of the ship
-        mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(0, 6.5, -67))->attachObject(thrusters);
+        mSceneMgr->getRootSceneNode()->createChildSceneNode( SCENE_DYNAMIC, Vector3(0, 6.5, -67))->attachObject(thrusters);
 
         // set the camera's initial position and orientation
         mCamera->setPosition(0, 0, 150);

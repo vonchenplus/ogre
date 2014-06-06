@@ -52,11 +52,13 @@ namespace Ogre {
             errorMsg = "Out of memory.";
             break;            
         case ZZIP_DIR_OPEN:
+            errorMsg = "Unable to open zip file.";
+            break;
         case ZZIP_DIR_STAT: 
         case ZZIP_DIR_SEEK:
         case ZZIP_DIR_READ:
             errorMsg = "Unable to read zip file.";
-            break;            
+            break;
         case ZZIP_UNSUPP_COMPR:
             errorMsg = "Unsupported compression format.";
             break;            

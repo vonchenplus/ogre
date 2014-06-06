@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include "OgreSubMesh.h"
 #include "OgreLogManager.h"
 #include "OgreMeshSerializer.h"
-#include "OgreSkeletonManager.h"
+#include "OgreOldSkeletonManager.h"
 #include "OgreHardwareBufferManager.h"
 #include "OgreIteratorWrappers.h"
 #include "OgreException.h"
@@ -40,12 +40,15 @@ THE SOFTWARE.
 #include "OgreAnimation.h"
 #include "OgreAnimationState.h"
 #include "OgreAnimationTrack.h"
-#include "OgreBone.h"
+#include "OgreOldBone.h"
 #include "OgreOptimisedUtil.h"
 #include "OgreSkeleton.h"
 #include "OgreTangentSpaceCalc.h"
 #include "OgreLodStrategyManager.h"
 #include "OgrePixelCountLodStrategy.h"
+
+#include "Animation/OgreSkeletonDef.h"
+#include "Animation/OgreSkeletonManager.h"
 
 namespace Ogre {
     //-----------------------------------------------------------------------
@@ -55,7 +58,7 @@ namespace Ogre {
         mBoundRadius(0.0f),
         mBoneBoundingRadius(0.0f),
         mBoneAssignmentsOutOfDate(false),
-        mLodStrategy(LodStrategyManager::getSingleton().getDefaultStrategy()),
+        mLodStrategyName( LodStrategyManager::getSingleton().getDefaultStrategy()->getName() ),
         mHasManualLodLevel(false),
         mNumLods(1),
         mVertexBufferUsage(HardwareBuffer::HBU_STATIC_WRITE_ONLY),
@@ -74,10 +77,11 @@ namespace Ogre {
         // Init first (manual) lod
         MeshLodUsage lod;
         lod.userValue = 0; // User value not used for base LOD level
-        lod.value = getLodStrategy()->getBaseValue();
+        lod.value = LodStrategyManager::getSingleton().getDefaultStrategy()->getBaseValue();
         lod.edgeData = NULL;
         lod.manualMesh.setNull();
         mMeshLodUsageList.push_back(lod);
+        mLodValues.push_back( lod.value );
     }
     //-----------------------------------------------------------------------
     Mesh::~Mesh()
@@ -211,9 +215,16 @@ namespace Ogre {
         // The loading process accesses LOD usages directly, so
         // transformation of user values must occur after loading is complete.
 
+        LodStrategy *lodStrategy = LodStrategyManager::getSingleton().getDefaultStrategy();
+
+        assert( mLodValues.size() == mMeshLodUsageList.size()  );
+        LodValueArray::iterator lodValueIt = mLodValues.begin();
         // Transform user LOD values (starting at index 1, no need to transform base value)
-        for (MeshLodUsageList::iterator i = mMeshLodUsageList.begin() + 1; i != mMeshLodUsageList.end(); ++i)
-            i->value = mLodStrategy->transformUserValue(i->userValue);
+        for (MeshLodUsageList::iterator i = mMeshLodUsageList.begin(); i != mMeshLodUsageList.end(); ++i)
+        {
+            i->value = lodStrategy->transformUserValue(i->userValue);
+            *lodValueIt++ = i->value;
+        }
 #endif
     }
     //-----------------------------------------------------------------------
@@ -341,32 +352,34 @@ namespace Ogre {
         newMesh->mAutoBuildEdgeLists = mAutoBuildEdgeLists;
         newMesh->mEdgeListsBuilt = mEdgeListsBuilt;
 
-#if !OGRE_NO_MESHLOD
-        newMesh->mHasManualLodLevel = mHasManualLodLevel;
-        newMesh->mLodStrategy = mLodStrategy;
+		newMesh->mLodStrategyName = mLodStrategyName;
+		newMesh->mHasManualLodLevel = mHasManualLodLevel;
         newMesh->mNumLods = mNumLods;
-        newMesh->mMeshLodUsageList = mMeshLodUsageList;
-#endif
+        newMesh->mMeshLodUsageList  = mMeshLodUsageList;
+        newMesh->mLodValues         = mLodValues;
+
         // Unreference edge lists, otherwise we'll delete the same lot twice, build on demand
         MeshLodUsageList::iterator lodi, lodOldi;
         lodOldi = mMeshLodUsageList.begin();
-        for (lodi = newMesh->mMeshLodUsageList.begin(); lodi != newMesh->mMeshLodUsageList.end(); ++lodi, ++lodOldi) {
+        for (lodi = newMesh->mMeshLodUsageList.begin(); lodi != newMesh->mMeshLodUsageList.end(); ++lodi, ++lodOldi)
+		{
             MeshLodUsage& newLod = *lodi;
             MeshLodUsage& lod = *lodOldi;
             newLod.manualName = lod.manualName;
             newLod.userValue = lod.userValue;
             newLod.value = lod.value;
-            if (lod.edgeData) {
+            if (lod.edgeData)
                 newLod.edgeData = lod.edgeData->clone();
         }
-        }
+
         newMesh->mVertexBufferUsage = mVertexBufferUsage;
         newMesh->mIndexBufferUsage = mIndexBufferUsage;
         newMesh->mVertexBufferShadowBuffer = mVertexBufferShadowBuffer;
         newMesh->mIndexBufferShadowBuffer = mIndexBufferShadowBuffer;
 
         newMesh->mSkeletonName = mSkeletonName;
-        newMesh->mSkeleton = mSkeleton;
+        newMesh->mOldSkeleton = mOldSkeleton;
+        newMesh->mSkeleton    = mSkeleton;
 
         // Keep prepared shadow volume info (buffers may already be prepared)
         newMesh->mPreparedForShadowVolumes = mPreparedForShadowVolumes;
@@ -501,16 +514,21 @@ namespace Ogre {
             if (skelName.empty())
             {
                 // No skeleton
+                mOldSkeleton.setNull();
                 mSkeleton.setNull();
             }
             else
             {
                 // Load skeleton
                 try {
-                    mSkeleton = SkeletonManager::getSingleton().load(skelName, mGroup).staticCast<Skeleton>();
+                    mOldSkeleton = OldSkeletonManager::getSingleton().load(skelName, mGroup).staticCast<Skeleton>();
+
+                    //TODO: put mOldSkeleton in legacy mode only.
+                    mSkeleton = SkeletonManager::getSingleton().getSkeletonDef( mOldSkeleton.get() );
                 }
                 catch (...)
                 {
+                    mOldSkeleton.setNull();
                     mSkeleton.setNull();
                     // Log this error
                     String msg = "Unable to load skeleton ";
@@ -533,9 +551,9 @@ namespace Ogre {
         return !(mSkeletonName.empty());
     }
     //-----------------------------------------------------------------------
-    const SkeletonPtr& Mesh::getSkeleton(void) const
+    const SkeletonPtr& Mesh::getOldSkeleton(void) const
     {
-        return mSkeleton;
+        return mOldSkeleton;
     }
     //-----------------------------------------------------------------------
     void Mesh::addBoneAssignment(const VertexBoneAssignment& vertBoneAssign)
@@ -554,14 +572,13 @@ namespace Ogre {
     void Mesh::_initAnimationState(AnimationStateSet* animSet)
     {
         // Animation states for skeletal animation
-        if (!mSkeleton.isNull())
+        if (!mOldSkeleton.isNull())
         {
             // Delegate to Skeleton
-            mSkeleton->_initAnimationState(animSet);
+            mOldSkeleton->_initAnimationState(animSet);
 
             // Take the opportunity to update the compiled bone assignments
             _updateCompiledBoneAssignments();
-
         }
 
         // Animation states for vertex animation
@@ -584,9 +601,9 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void Mesh::_refreshAnimationState(AnimationStateSet* animSet)
     {
-        if (!mSkeleton.isNull())
+        if (!mOldSkeleton.isNull())
         {
-            mSkeleton->_refreshAnimationState(animSet);
+            mOldSkeleton->_refreshAnimationState(animSet);
         }
 
         // Merge in any new vertex animations
@@ -975,20 +992,20 @@ namespace Ogre {
             vector< vector<ushort>::type >::type boneChildren;  // for each bone, a list of children
             {
                 // extract binding pose bone positions, and also indices for child bones
-                size_t numBones = mSkeleton->getNumBones();
-                mSkeleton->setBindingPose();
-                mSkeleton->_updateTransforms();
+                size_t numBones = mOldSkeleton->getNumBones();
+                mOldSkeleton->setBindingPose();
+                mOldSkeleton->_updateTransforms();
                 bonePositions.resize( numBones );
                 boneChildren.resize( numBones );
                 // for each bone,
                 for (size_t iBone = 0; iBone < numBones; ++iBone)
                 {
-                    Bone* bone = mSkeleton->getBone( iBone );
+                    OldBone* bone = mOldSkeleton->getBone( iBone );
                     bonePositions[ iBone ] = bone->_getDerivedPosition();
                     boneChildren[ iBone ].reserve( bone->numChildren() );
                     for (size_t iChild = 0; iChild < bone->numChildren(); ++iChild)
                     {
-                        Bone* child = static_cast<Bone*>( bone->getChild( iChild ) );
+                        OldBone* child = static_cast<OldBone*>( bone->getChild( iChild ) );
                         boneChildren[ iBone ].push_back( child->getHandle() );
                     }
                 }
@@ -1027,8 +1044,10 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void Mesh::_notifySkeleton(SkeletonPtr& pSkel)
     {
-        mSkeleton = pSkel;
+        mOldSkeleton = pSkel;
         mSkeletonName = pSkel->getName();
+
+        mSkeleton = SkeletonManager::getSingleton().getSkeletonDef( mOldSkeleton.get() );
     }
     //---------------------------------------------------------------------
     Mesh::BoneAssignmentIterator Mesh::getBoneAssignmentIterator(void)
@@ -1050,7 +1069,7 @@ namespace Ogre {
     const MeshLodUsage& Mesh::getLodLevel(ushort index) const
     {
 #if !OGRE_NO_MESHLOD
-        index = std::min(index, (ushort)(mMeshLodUsageList.size() - 1));
+        assert( index < mMeshLodUsageList.size() );
         if (this->_isManualLodLevel(index) && index > 0 && mMeshLodUsageList[index].manualMesh.isNull())
         {
             // Load the mesh now
@@ -1082,19 +1101,9 @@ namespace Ogre {
 #endif
     }
     //---------------------------------------------------------------------
-    ushort Mesh::getLodIndex(Real value) const
-    {
-#if !OGRE_NO_MESHLOD
-        // Get index from strategy
-        return mLodStrategy->getIndex(value, mMeshLodUsageList);
-#else
-        return 0;
-#endif
-    }
-    //---------------------------------------------------------------------
-#if !OGRE_NO_MESHLOD
-    void Mesh::updateManualLodLevel(ushort index, const String& meshName)
-    {
+
+	void Mesh::updateManualLodLevel(ushort index, const String& meshName)
+	{
 
         // Basic prerequisites
         assert(index != 0 && "Can't modify first LOD level (full detail)");
@@ -1117,6 +1126,7 @@ namespace Ogre {
 
         mNumLods = numLevels;
         mMeshLodUsageList.resize(numLevels);
+        mLodValues.resize(numLevels);
         // Resize submesh face data lists too
         for (SubMeshList::iterator i = mSubMeshList.begin(); i != mSubMeshList.end(); ++i)
         {
@@ -1131,10 +1141,13 @@ namespace Ogre {
         // Basic prerequisites
         assert(level != 0 && "Can't modify first LOD level (full detail)");
         assert(level < mMeshLodUsageList.size() && "Index out of bounds");
+        assert( mLodValues.size() == mMeshLodUsageList.size() );
 
         mMeshLodUsageList[level] = usage;
+        mLodValues[level] = usage.userValue;
 
-        if(!mMeshLodUsageList[level].manualName.empty()){
+        if( !mMeshLodUsageList[level].manualName.empty() )
+		{
             mHasManualLodLevel = true;
         }
     }
@@ -1153,7 +1166,6 @@ namespace Ogre {
         SubMesh* sm = mSubMeshList[subIdx];
         sm->mLodFaceList[level - 1] = facedata;
     }
-#endif
     //---------------------------------------------------------------------
     bool Mesh::_isManualLodLevel( unsigned short level ) const
     {
@@ -1186,12 +1198,17 @@ namespace Ogre {
         }
 
         freeEdgeList();
+        mMeshLodUsageList.clear();
+        mLodValues.clear();
+
+        LodStrategy *lodStrategy = LodStrategyManager::getSingleton().getDefaultStrategy();
 
         // Reinitialise
         mNumLods = 1;
         mMeshLodUsageList.resize(1);
         mMeshLodUsageList[0].edgeData = NULL;
         // TODO: Shouldn't we rebuild edge lists after freeing them?
+        mLodValues.push_back( lodStrategy->getBaseValue() );
 #endif
     }
 
@@ -2453,25 +2470,5 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    const LodStrategy *Mesh::getLodStrategy() const
-    {
-        return mLodStrategy;
-    }
-#if !OGRE_NO_MESHLOD
-    //---------------------------------------------------------------------
-    void Mesh::setLodStrategy(LodStrategy *lodStrategy)
-    {
-        mLodStrategy = lodStrategy;
-
-        assert(mMeshLodUsageList.size());
-        mMeshLodUsageList[0].value = mLodStrategy->getBaseValue();
-
-        // Re-transform user LOD values (starting at index 1, no need to transform base value)
-        for (MeshLodUsageList::iterator i = mMeshLodUsageList.begin()+1; i != mMeshLodUsageList.end(); ++i)
-            i->value = mLodStrategy->transformUserValue(i->userValue);
-
-    }
-#endif
-
 }
 

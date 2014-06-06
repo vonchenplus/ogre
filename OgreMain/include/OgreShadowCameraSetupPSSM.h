@@ -30,7 +30,7 @@ THE SOFTWARE.
 #define __ShadowCameraSetupPSSM_H__
 
 #include "OgrePrerequisites.h"
-#include "OgreShadowCameraSetupLiSPSM.h"
+#include "OgreShadowCameraSetupFocused.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -53,16 +53,14 @@ namespace Ogre
         the number of shadow textures available (via SceneManager) to match the 
         number of shadow maps required (default is 3 per light). 
     */
-    class _OgreExport PSSMShadowCameraSetup : public Ogre::LiSPSMShadowCameraSetup
+    class _OgreExport PSSMShadowCameraSetup : public FocusedShadowCameraSetup
     {
     public:
         typedef vector<Real>::type SplitPointList;
-        typedef vector<Real>::type OptimalAdjustFactorList;
 
     protected:
         uint mSplitCount;
         SplitPointList mSplitPoints;
-        OptimalAdjustFactorList mOptimalAdjustFactors;
         Real mSplitPadding;
 
         mutable size_t mCurrentIteration;
@@ -107,19 +105,11 @@ namespace Ogre
 
         /// Returns a LiSPSM shadow camera with PSSM splits base on iteration.
         virtual void getShadowCamera(const Ogre::SceneManager *sm, const Ogre::Camera *cam,
-            const Ogre::Viewport *vp, const Ogre::Light *light, Ogre::Camera *texCam, size_t iteration) const;
+                                const Ogre::Light *light, Ogre::Camera *texCam, size_t iteration) const;
 
         /// Returns the calculated split points.
         inline const SplitPointList& getSplitPoints() const
         { return mSplitPoints; }
-
-        /// Returns the optimal adjust factor for a given split.
-        inline Real getOptimalAdjustFactor(size_t splitIndex) const
-        { return mOptimalAdjustFactors[splitIndex]; }
-
-        /// Overridden, recommended internal use only since depends on current iteration
-        Real getOptimalAdjustFactor() const;
-
     };
     /** @} */
     /** @} */

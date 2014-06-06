@@ -994,7 +994,7 @@ namespace Ogre {
             ACT_RENDER_TARGET_FLIPPING,
 
             /** -1 if the winding has been inverted (e.g. for reflections), +1 otherwise.
-             */
+            */
             ACT_VERTEX_WINDING,
 
             /// Fog colour
@@ -1126,13 +1126,6 @@ namespace Ogre {
             ACT_DERIVED_LIGHT_DIFFUSE_COLOUR_ARRAY,
             /// Array of derived light specular colours (count set by extra param)
             ACT_DERIVED_LIGHT_SPECULAR_COLOUR_ARRAY,
-            /** The absolute light number of a local light index. Each pass may have
-                a number of lights passed to it, and each of these lights will have
-                an index in the overall light list, which will differ from the local
-                light index due to factors like setStartLight and setIteratePerLight.
-                This binding provides the global light index for a local index.
-            */
-            ACT_LIGHT_NUMBER,
             /// Returns (int) 1 if the  given light casts shadows, 0 otherwise (index set in extra param)
             ACT_LIGHT_CASTS_SHADOWS,
             /// Returns (int) 1 if the  given light casts shadows, 0 otherwise (index set in extra param)
@@ -1350,6 +1343,11 @@ namespace Ogre {
             ACT_LOD_CAMERA_POSITION_OBJECT_SPACE,
             /** Binds custom per-light constants to the shaders. */
             ACT_LIGHT_CUSTOM,
+
+			/** Array of PSSM split points (pixel depth must be lower) in projection space.
+                Extra param indicates which shadow map it comes from.
+            */
+            ACT_PSSM_SPLITS,
 
             ACT_UNKNOWN = 999
         };

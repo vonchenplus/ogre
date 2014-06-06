@@ -167,8 +167,6 @@ namespace Ogre
 
         mutable AxisAlignedBox mBoundingBox;
         mutable VertexData mVertexData;
-
-        MaterialPtr mMaterial;
         mutable Vector3 mWorldSpaceCorners[8];
 
         /// Is this frustum to act as a reflection of itself?
@@ -194,7 +192,7 @@ namespace Ogre
     public:
 
         /// Named constructor
-        Frustum(const String& name = BLANKSTRING);
+        Frustum( IdType id, ObjectMemoryManager *objectMemoryManager );
 
         virtual ~Frustum();
         /** Sets the Y-dimension Field Of View (FOV) of the frustum.
@@ -468,26 +466,14 @@ namespace Ogre
         */
         virtual bool isVisible(const Vector3& vert, FrustumPlane* culledBy = 0) const;
 
-        /// Overridden from MovableObject::getTypeFlags
-        uint32 getTypeFlags(void) const;
-
         /** Overridden from MovableObject */
         const AxisAlignedBox& getBoundingBox(void) const;
-
-        /** Overridden from MovableObject */
-        Real getBoundingRadius(void) const;
-
-        /** Overridden from MovableObject */
-        void _updateRenderQueue(RenderQueue* queue);
 
         /** Overridden from MovableObject */
         const String& getMovableType(void) const;
 
         /** Overridden from MovableObject */
         void _notifyCurrentCamera(Camera* cam);
-
-        /** Overridden from Renderable */
-        const MaterialPtr& getMaterial(void) const;
 
         /** Overridden from Renderable */
         void getRenderOperation(RenderOperation& op);
@@ -500,6 +486,10 @@ namespace Ogre
 
         /** Overridden from Renderable */
         const LightList& getLights(void) const;
+
+        void getCustomWorldSpaceCorners(
+                    ArrayVector3 outCorners[(8 + ARRAY_PACKED_REALS - 1) / ARRAY_PACKED_REALS],
+                    Real customFarPlane ) const;
 
         /** Gets the world space corners of the frustum.
         @remarks

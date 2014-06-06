@@ -39,10 +39,6 @@ THE SOFTWARE.
 #include "OgreD3D9DeviceManager.h"
 #include "OgreDepthBuffer.h"
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-#include "OgreD3D9StereoDriverBridge.h"
-#endif
-
 namespace Ogre
 {
     D3D9RenderWindow::D3D9RenderWindow(HINSTANCE instance)
@@ -445,7 +441,7 @@ namespace Ogre
             // Notify viewports of resize
             ViewportList::iterator it = mViewportList.begin();
             while( it != mViewportList.end() )
-                (*it++).second->_updateDimensions();    
+                (*it++)->_updateDimensions();   
         }
     } 
 
@@ -848,11 +844,14 @@ namespace Ogre
         RenderWindow::_beginUpdate();
     }
     //---------------------------------------------------------------------
-    void D3D9RenderWindow::_updateViewport(Viewport* viewport, bool updateStatistics)
+    void D3D9RenderWindow::_updateViewportRenderPhase02( Viewport* viewport, Camera *camera, 
+                                                         const Camera *lodCamera, uint8 firstRq,
+                                                         uint8 lastRq, bool updateStatistics )
     {
         if (mDeviceValid)
         {
-            RenderWindow::_updateViewport(viewport, updateStatistics);
+            RenderWindow::_updateViewportRenderPhase02( viewport, camera, lodCamera,
+                                                        firstRq, lastRq, updateStatistics );
         }
     }
     //---------------------------------------------------------------------
@@ -860,6 +859,7 @@ namespace Ogre
     {
         RenderWindow::_endUpdate();
 
+        mStats.vBlankMissCount = mDevice->getVBlankMissCount(this);
         D3D9RenderSystem::getDeviceManager()->setActiveRenderTargetDevice(NULL);    
 
     }
@@ -942,16 +942,11 @@ namespace Ogre
             // Notify viewports of resize
             ViewportList::iterator it = mViewportList.begin();
             while( it != mViewportList.end() )
-                (*it++).second->_updateDimensions();            
+                (*it++)->_updateDimensions();           
         }   
 
     }
-    //-----------------------------------------------------------------------------
-    void D3D9RenderWindow::updateStats( void )
-    {
-        RenderTarget::updateStats();
-        mStats.vBlankMissCount = mDevice->getVBlankMissCount(this);
-    }
+
     //-----------------------------------------------------------------------------
     bool D3D9RenderWindow::isNvPerfHUDEnable() const
     {
@@ -963,12 +958,4 @@ namespace Ogre
         mDeviceValid = mDevice->validate(this);
         return mDeviceValid;
     }
-	//---------------------------------------------------------------------
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-	void D3D9RenderWindow::_validateStereo()
-	{
-		mStereoEnabled = D3D9StereoDriverBridge::getSingleton().isStereoEnabled(this->getName());
-	}
-#endif
-	//---------------------------------------------------------------------
 }

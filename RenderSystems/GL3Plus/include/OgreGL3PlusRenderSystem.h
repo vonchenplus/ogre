@@ -76,6 +76,8 @@ namespace Ogre {
         /// Holds texture type settings for every stage
         GLenum mTextureTypes[OGRE_MAX_TEXTURE_LAYERS];
 
+        GLfloat mLargestSupportedAnisotropy;
+
         /// Number of fixed-function texture units
         unsigned short mFixedFunctionTextureUnits;
 
@@ -86,6 +88,9 @@ namespace Ogre {
 
         /// Store last depth write state
         bool mDepthWrite;
+
+        /// Store last scissor enable state
+        bool mScissorsEnabled;
 
         /// Store last stencil mask state
         uint32 mStencilWriteMask;
@@ -133,11 +138,6 @@ namespace Ogre {
         vector<GLuint>::type mRenderAttribsBound;
         vector<GLuint>::type mRenderInstanceAttribsBound;
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		/// @copydoc RenderSystem::setDrawBuffer
-		virtual bool setDrawBuffer(ColourBufferType colourBuffer);
-#endif
-
         /**
             Cache the polygon mode value
         */
@@ -161,6 +161,8 @@ namespace Ogre {
                                      vector<GLuint>::type &attribsBound,
                                      vector<GLuint>::type &instanceAttribsBound,
                                      bool updateVAO);
+
+        void transformViewportCoords( int x, int &y, int width, int height );
 
     public:
         // Default constructor / destructor
@@ -212,14 +214,6 @@ namespace Ogre {
             RenderSystem
         */
         void setAmbientLight(float r, float g, float b) { };   // Not supported
-        /** See
-            RenderSystem
-        */
-        void setShadingType(ShadeOptions so) { };   // Not supported
-        /** See
-            RenderSystem
-        */
-        void setLightingEnabled(bool enabled) { };   // Not supported
 
         /// @copydoc RenderSystem::_createRenderWindow
         RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height,
@@ -251,10 +245,6 @@ namespace Ogre {
             RenderSystem
         */
         VertexElementType getColourVertexElementType(void) const;
-        /** See
-            RenderSystem
-        */
-        void setNormaliseNormals(bool normalise) { };   // Not supported
 
         // -----------------------------
         // Low-level overridden members
@@ -310,11 +300,11 @@ namespace Ogre {
         /** See
          RenderSystem
          */
-        void _setTesselationHullTexture(size_t unit, const TexturePtr &tex);
+        void _setTessellationHullTexture(size_t unit, const TexturePtr &tex);
         /** See
          RenderSystem
          */
-        void _setTesselationDomainTexture(size_t unit, const TexturePtr &tex);
+        void _setTessellationDomainTexture(size_t unit, const TexturePtr &tex);
         /** See
             RenderSystem
         */
@@ -352,6 +342,9 @@ namespace Ogre {
             RenderSystem
         */
         void _setViewport(Viewport *vp);
+        virtual void _setHlmsMacroblock( const HlmsMacroblock *macroblock );
+        virtual void _setHlmsBlendblock( const HlmsBlendblock *blendblock );
+        virtual void _setProgramsFromHlms( const HlmsCache *hlmsCache );
         /** See
             RenderSystem
         */
@@ -388,10 +381,6 @@ namespace Ogre {
             RenderSystem
         */
         void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha);
-        /** See
-            RenderSystem
-        */
-        void _setFog(FogMode mode, const ColourValue& colour, Real density, Real start, Real end);
         /** See
             RenderSystem
         */
@@ -475,10 +464,6 @@ namespace Ogre {
             RenderSystem
         */
         void _render(const RenderOperation& op);
-        /** See
-            RenderSystem
-        */
-        void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
 
         void clearFrameBuffer(unsigned int buffers,
                               const ColourValue& colour = ColourValue::Black,
@@ -537,9 +522,6 @@ namespace Ogre {
         void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
         /// @copydoc RenderSystem::getDisplayMonitorCount
         unsigned int getDisplayMonitorCount() const;
-
-        /// Internal method for anisotropy validation
-        GLfloat _getCurrentAnisotropy(size_t unit);
 
         GLenum _getPolygonMode(void) { return mPolygonMode; }
 

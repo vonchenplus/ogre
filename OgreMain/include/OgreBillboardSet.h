@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreRadixSort.h"
 #include "OgreCommon.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreRenderQueue.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -110,15 +111,6 @@ namespace Ogre {
     class _OgreExport BillboardSet : public MovableObject, public Renderable
     {
     protected:
-        /** Private constructor (instances cannot be created directly).
-        */
-        BillboardSet();
-
-        /// Bounds of all billboards in this set
-        AxisAlignedBox mAABB;
-        /// Bounding radius
-        Real mBoundingRadius;
-
         /// Origin of each billboard
         BillboardOrigin mOriginType;
         /// Rotation type of each billboard
@@ -128,11 +120,6 @@ namespace Ogre {
         Real mDefaultWidth;
         /// Default height of each billboard
         Real mDefaultHeight;
-
-        /// Name of the material to use
-        String mMaterialName;
-        /// Pointer to the material to use
-        MaterialPtr mMaterial;
 
         /// True if no billboards in this set have been resized - greater efficiency.
         bool mAllDefaultSize;
@@ -188,8 +175,6 @@ namespace Ogre {
         /// Vector3 vLeftOff, vRightOff, vTopOff, vBottomOff;
         /// Final vertex offsets, used where sizes all default to save calcs
         Vector3 mVOffset[4];
-        /// Current camera
-        Camera* mCurrentCamera;
         /// Parametric offsets of origin
         Real mLeftOff, mRightOff, mTopOff, mBottomOff;
         /// Camera axes in billboard space
@@ -219,7 +204,7 @@ namespace Ogre {
         Vector3 mCommonUpVector;
 
         /// Internal method for culling individual billboards
-        inline bool billboardVisible(Camera* cam, const Billboard& bill);
+        inline bool billboardVisible(const Camera* cam, const Billboard& bill);
 
         /// Number of visible billboards (will be == getNumBillboards if mCullIndividual == false)
         unsigned short mNumVisibleBillboards;
@@ -329,8 +314,9 @@ namespace Ogre {
         @see
             BillboardSet::setAutoextend
         */
-        BillboardSet( const String& name, unsigned int poolSize = 20, 
-            bool externalDataSource = false);
+        BillboardSet( IdType id, ObjectMemoryManager *objectMemoryManager,
+                        unsigned int poolSize = 20, bool externalDataSource = false,
+                        uint8 renderQueueId=0 );
 
         virtual ~BillboardSet();
 
@@ -525,17 +511,6 @@ namespace Ogre {
         /** See setDefaultDimensions - this gets 1 component individually. */
         virtual Real getDefaultHeight(void) const;
 
-        /** Sets the name of the material to be used for this billboard set.
-        @param name
-            The new name of the material to use for this set.
-        */
-        virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
-
-        /** Sets the name of the material to be used for this billboard set.
-        @return The name of the material that is used for this set.
-        */
-        virtual const String& getMaterialName(void) const;
-
         /** Overridden from MovableObject
         @see
             MovableObject
@@ -549,7 +524,7 @@ namespace Ogre {
         */
         void beginBillboards(size_t numBillboards = 0);
         /** Define a billboard. */
-        void injectBillboard(const Billboard& bb);
+        void injectBillboard(const Billboard& bb, const Camera *camera);
         /** Finish defining billboards. */
         void endBillboards(void);
         /** Set the bounds of the BillboardSet.
@@ -557,37 +532,13 @@ namespace Ogre {
             You may need to call this if you're injecting billboards manually, 
             and you're relying on the BillboardSet to determine culling.
         */
-        void setBounds(const AxisAlignedBox& box, Real radius);
-
-
-        /** Overridden from MovableObject
-        @see
-            MovableObject
-        */
-        virtual const AxisAlignedBox& getBoundingBox(void) const;
+        void setBounds(const Aabb& aabb, Real radius);
 
         /** Overridden from MovableObject
         @see
             MovableObject
         */
-        virtual Real getBoundingRadius(void) const;
-        /** Overridden from MovableObject
-        @see
-            MovableObject
-        */
-        virtual void _updateRenderQueue(RenderQueue* queue);
-
-        /** Overridden from MovableObject
-        @see
-            MovableObject
-        */
-        virtual const MaterialPtr& getMaterial(void) const;
-
-        /** Sets the name of the material to be used for this billboard set.
-        @param material
-            The new material to use for this set.
-         */
-        virtual void setMaterial( const MaterialPtr& material );
+        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
 
         /** Overridden from MovableObject
         @see
@@ -833,9 +784,6 @@ namespace Ogre {
         /** Returns whether point rendering is enabled. */
         virtual bool isPointRenderingEnabled(void) const
         { return mPointRendering; }
-        
-        /// Override to return specific type flag
-        uint32 getTypeFlags(void) const;
 
         /** Set the auto update state of this billboard set.
         @remarks
@@ -863,7 +811,8 @@ namespace Ogre {
     class _OgreExport BillboardSetFactory : public MovableObjectFactory
     {
     protected:
-        MovableObject* createInstanceImpl( const String& name, const NameValuePairList* params);
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                    const NameValuePairList* params = 0 );
     public:
         BillboardSetFactory() {}
         ~BillboardSetFactory() {}

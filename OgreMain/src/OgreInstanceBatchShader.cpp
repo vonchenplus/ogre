@@ -36,11 +36,12 @@ THE SOFTWARE.
 
 namespace Ogre
 {
-    InstanceBatchShader::InstanceBatchShader( InstanceManager *creator, MeshPtr &meshReference,
+    InstanceBatchShader::InstanceBatchShader( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                        InstanceManager *creator, MeshPtr &meshReference,
                                         const MaterialPtr &material, size_t instancesPerBatch,
-                                        const Mesh::IndexMap *indexToBoneMap, const String &batchName ) :
-                InstanceBatch( creator, meshReference, material, instancesPerBatch,
-                                indexToBoneMap, batchName ),
+                                        const Mesh::IndexMap *indexToBoneMap ) :
+                InstanceBatch( id, objectMemoryManager, creator, meshReference, material,
+                                instancesPerBatch, indexToBoneMap ),
                 mNumWorldMatrices( instancesPerBatch )
     {
     }
@@ -54,8 +55,9 @@ namespace Ogre
     {
         const size_t numBones = std::max<size_t>( 1, baseSubMesh->blendIndexToBoneIndexMap.size() );
 
-        mMaterial->load();
-        Technique *technique = mMaterial->getBestTechnique();
+        MaterialPtr material = getMaterial();
+        material->load();
+        Technique *technique = material->getBestTechnique();
         if( technique )
         {
             GpuProgramParametersSharedPtr vertexParam = technique->getPass(0)->getVertexProgramParameters();
@@ -102,7 +104,7 @@ namespace Ogre
                         {
                             LogManager::getSingleton().logMessage( "InstanceBatchShader: Mesh " +
                                         mMeshReference->getName() + " using material " +
-                                        mMaterial->getName() + " contains many bones. The amount of "
+                                        material->getName() + " contains many bones. The amount of "
                                         "instances per batch is very low. Performance benefits will "
                                         "be minimal, if any. It might be even slower!",
                                         LML_NORMAL );
@@ -115,7 +117,7 @@ namespace Ogre
 
             //Reaching here means material is supported, but malformed
             OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, 
-            "Material '" + mMaterial->getName() + "' is malformed for this instancing technique",
+            "Material '" + material->getName() + "' is malformed for this instancing technique",
             "InstanceBatchShader::calculateMaxNumInstances");
         }
 
@@ -126,7 +128,7 @@ namespace Ogre
     //-----------------------------------------------------------------------
     void InstanceBatchShader::buildFrom( const SubMesh *baseSubMesh, const RenderOperation &renderOperation )
     {
-        if( mMeshReference->hasSkeleton() && !mMeshReference->getSkeleton().isNull() )
+        if( mMeshReference->hasSkeleton() && !mMeshReference->getOldSkeleton().isNull() )
             mNumWorldMatrices = mInstancesPerBatch * baseSubMesh->blendIndexToBoneIndexMap.size();
         InstanceBatch::buildFrom( baseSubMesh, renderOperation );
     }
@@ -145,7 +147,7 @@ namespace Ogre
         HardwareBufferManager::getSingleton().destroyVertexDeclaration( thisVertexData->vertexDeclaration );
         thisVertexData->vertexDeclaration = baseVertexData->vertexDeclaration->clone();
 
-        if( mMeshReference->hasSkeleton() && !mMeshReference->getSkeleton().isNull() )
+        if( mMeshReference->hasSkeleton() && !mMeshReference->getOldSkeleton().isNull() )
         {
             //Building hw skinned batches follow a different path
             setupHardwareSkinned( baseSubMesh, thisVertexData, baseVertexData );

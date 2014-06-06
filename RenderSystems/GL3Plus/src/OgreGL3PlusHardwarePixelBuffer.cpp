@@ -42,8 +42,9 @@ namespace Ogre {
 
     GL3PlusHardwarePixelBuffer::GL3PlusHardwarePixelBuffer(uint32 inWidth, uint32 inHeight,
                                                            uint32 inDepth, PixelFormat inFormat,
+                                                           bool hwGamma,
                                                            HardwareBuffer::Usage usage)
-        : HardwarePixelBuffer(inWidth, inHeight, inDepth, inFormat, usage, false, false),
+        : HardwarePixelBuffer(inWidth, inHeight, inDepth, inFormat, hwGamma, usage, false, false),
           mBuffer(inWidth, inHeight, inDepth, inFormat),
           mGLInternalFormat(GL_NONE)
     {
@@ -56,13 +57,13 @@ namespace Ogre {
         delete [] (uint8*)mBuffer.data;
     }
 
-    void GL3PlusHardwarePixelBuffer::allocateBuffer()
+    void GL3PlusHardwarePixelBuffer::allocateBuffer( size_t bytes )
     {
         if (mBuffer.data)
             // Already allocated
             return;
 
-        mBuffer.data = new uint8[mSizeInBytes];
+        mBuffer.data = new uint8[bytes];
     }
 
     void GL3PlusHardwarePixelBuffer::freeBuffer()
@@ -75,17 +76,29 @@ namespace Ogre {
         }
     }
 
-    PixelBox GL3PlusHardwarePixelBuffer::lockImpl(const Image::Box &lockBox,  LockOptions options)
+    PixelBox GL3PlusHardwarePixelBuffer::lockImpl( const Image::Box &lockBox, LockOptions options )
     {
-        allocateBuffer();
+        allocateBuffer( PixelUtil::getMemorySize( lockBox.getWidth(), lockBox.getHeight(),
+                                                  lockBox.getDepth(), mFormat ) );
+
+        mBuffer = PixelBox( lockBox.getWidth(), lockBox.getHeight(),
+                            lockBox.getDepth(), mFormat, mBuffer.data );
+        mCurrentLock = mBuffer;
+        mCurrentLock.left    = lockBox.left;
+        mCurrentLock.right  += lockBox.left;
+        mCurrentLock.top     = lockBox.top;
+        mCurrentLock.bottom += lockBox.top;
+
         if(options != HardwareBuffer::HBL_DISCARD)
         {
             // Download the old contents of the texture
-            download(mBuffer);
+            download( mCurrentLock );
         }
         mCurrentLockOptions = options;
         mLockedBox = lockBox;
-        return mBuffer.getSubVolume(lockBox);
+        mCurrentLock = mBuffer;
+
+        return mBuffer;
     }
 
     void GL3PlusHardwarePixelBuffer::unlockImpl(void)
@@ -96,6 +109,8 @@ namespace Ogre {
             upload(mCurrentLock, mLockedBox);
         }
         freeBuffer();
+
+        mBuffer = PixelBox( mWidth, mHeight, mDepth, mFormat );
     }
 
     void GL3PlusHardwarePixelBuffer::blitFromMemory(const PixelBox &src, const Image::Box &dstBox)
@@ -115,7 +130,7 @@ namespace Ogre {
         {
             // Scale to destination size.
             // This also does pixel format conversion if needed.
-            allocateBuffer();
+            allocateBuffer( mSizeInBytes );
             scaled = mBuffer.getSubVolume(dstBox);
             Image::scale(src, scaled, Image::FILTER_BILINEAR);
         }
@@ -123,13 +138,13 @@ namespace Ogre {
         {
             // Extents match, but format is not accepted as valid
             // source format for GL. Do conversion in temporary buffer.
-            allocateBuffer();
+            allocateBuffer( mSizeInBytes );
             scaled = mBuffer.getSubVolume(dstBox);
             PixelUtil::bulkPixelConversion(src, scaled);
         }
         else
         {
-            allocateBuffer();
+            allocateBuffer( mSizeInBytes );
             // No scaling or conversion needed.
             scaled = src;
         }
@@ -162,7 +177,7 @@ namespace Ogre {
         else
         {
             // Use buffer for intermediate copy
-            allocateBuffer();
+            allocateBuffer( mSizeInBytes );
             // Download entire buffer
             download(mBuffer);
             if(srcBox.getWidth() != dst.getWidth() ||
@@ -207,7 +222,7 @@ namespace Ogre {
         GLenum format, uint32 width, uint32 height, GLsizei numSamples)
         : GL3PlusHardwarePixelBuffer(
             width, height, 1,
-            GL3PlusPixelUtil::getClosestOGREFormat(format), HBU_WRITE_ONLY),
+            GL3PlusPixelUtil::getClosestOGREFormat(format), false, HBU_WRITE_ONLY),
           mRenderbufferID(0)
     {
         mGLInternalFormat = format;
