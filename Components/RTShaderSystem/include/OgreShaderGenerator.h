@@ -500,7 +500,7 @@ protected:
     };
 
     typedef vector<SGPass*>::type                   SGPassList;
-    typedef SGPassList::iterator                        SGPassIterator;
+    typedef SGPassList::iterator                    SGPassIterator;
     typedef SGPassList::const_iterator              SGPassConstIterator;
 
     typedef vector<SGTechnique*>::type              SGTechniqueList;
@@ -508,17 +508,17 @@ protected:
     typedef SGTechniqueList::const_iterator         SGTechniqueConstIterator;
 
     typedef map<SGTechnique*, SGTechnique*>::type   SGTechniqueMap;
-    typedef SGTechniqueMap::iterator                    SGTechniqueMapIterator;
+    typedef SGTechniqueMap::iterator                SGTechniqueMapIterator;
     
     typedef map<MatGroupPair, SGMaterial*, MatGroupPair_less>::type SGMaterialMap;
     typedef SGMaterialMap::iterator                 SGMaterialIterator;
     typedef SGMaterialMap::const_iterator           SGMaterialConstIterator;
 
-    typedef map<String, SGScheme*>::type                SGSchemeMap;
+    typedef map<String, SGScheme*>::type            SGSchemeMap;
     typedef SGSchemeMap::iterator                   SGSchemeIterator;
     typedef SGSchemeMap::const_iterator             SGSchemeConstIterator;
 
-    typedef map<String, ScriptTranslator*>::type        SGScriptTranslatorMap;
+    typedef map<String, ScriptTranslator*>::type    SGScriptTranslatorMap;
     typedef SGScriptTranslatorMap::iterator         SGScriptTranslatorIterator;
     typedef SGScriptTranslatorMap::const_iterator   SGScriptTranslatorConstIterator;
 

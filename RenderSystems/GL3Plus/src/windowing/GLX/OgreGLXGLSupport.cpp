@@ -169,9 +169,6 @@ namespace Ogre
         ConfigOption optRTTMode;
         ConfigOption optSRGB;
         ConfigOption optEnableFixedPipeline;
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		ConfigOption optStereoMode;
-#endif
 
         optFullScreen.name = "Full Screen";
         optFullScreen.immutable = false;
@@ -249,19 +246,8 @@ namespace Ogre
 
         optSRGB.currentValue = optSRGB.possibleValues[0];
 
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-		optStereoMode.name = "Stereo Mode";
-		optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_NONE));
-		optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_FRAME_SEQUENTIAL));
-		optStereoMode.currentValue = optStereoMode.possibleValues[0];
-		optStereoMode.immutable = false;
-
-		mOptions[optStereoMode.name] = optStereoMode;
-#endif
-
         mOptions[optFullScreen.name] = optFullScreen;
         mOptions[optVideoMode.name] = optVideoMode;
-        mOptions[optColourDepth.name] = optColourDepth;
         mOptions[optDisplayFrequency.name] = optDisplayFrequency;
         mOptions[optVSync.name] = optVSync;
         mOptions[optRTTMode.name] = optRTTMode;
@@ -387,13 +373,6 @@ namespace Ogre
                 OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find Fixed Pipeline enabled options!", "Win32GLSupport::createWindow");
             bool enableFixedPipeline = (opt->second.currentValue == "Yes");
             renderSystem->setFixedPipelineEnabled(enableFixedPipeline);
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-			opt = mOptions.find("Stereo Mode");
-			if (opt == mOptions.end())
-				OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find stereo enabled options!", "GLXGLSupport::createWindow");
-			miscParams["stereoMode"] = opt->second.currentValue;			
-#endif
 
             window = renderSystem->_createRenderWindow(windowTitle, w, h, fullscreen, &miscParams);
         }
@@ -550,7 +529,7 @@ namespace Ogre
         if (! fbConfig)
         {
             int minAttribs[] = {
-                GLX_DRAWABLE_TYPE,  GLX_WINDOW_BIT || GLX_PIXMAP_BIT,
+                GLX_DRAWABLE_TYPE,  GLX_WINDOW_BIT | GLX_PIXMAP_BIT,
                 GLX_RENDER_TYPE,        GLX_RGBA_BIT,
                 GLX_RED_SIZE,      1,
                 GLX_BLUE_SIZE,    1,
@@ -848,6 +827,9 @@ namespace Ogre
                 GLX_CONTEXT_MAJOR_VERSION_ARB, 5,
                 GLX_CONTEXT_MINOR_VERSION_ARB, 0,
                 GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+#if OGRE_DEBUG_MODE
+                GLX_CONTEXT_DEBUG_BIT_ARB,
+#endif
                 None
             };
 

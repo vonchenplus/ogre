@@ -121,13 +121,13 @@ namespace Ogre {
             OGRE_DELETE mImpl;
         }
 
-        /// Utility function to get the correct GL usage based on HBU's.
-        static GLenum getGLUsage(unsigned int usage)
-        { return GL3PlusHardwareBufferManagerBase::getGLUsage(usage); }
+        /// Utility function to get the correct GL usage based on HBU's
+        static GLenum getGLUsage(unsigned int usage) 
+            { return GL3PlusHardwareBufferManagerBase::getGLUsage(usage); }
 
-        /// Utility function to get the correct GL type based on VET's.
+        /// Utility function to get the correct GL type based on VET's
         static GLenum getGLType(unsigned int type)
-        { return GL3PlusHardwareBufferManagerBase::getGLType(type); }
+            { return GL3PlusHardwareBufferManagerBase::getGLType(type); }
 
         /** Allocator method to allow us to use a pool of memory as a scratch
             area for hardware buffers. This is because glMapBuffer is incredibly
@@ -147,8 +147,8 @@ namespace Ogre {
             static_cast<GL3PlusHardwareBufferManagerBase*>(mImpl)->deallocateScratch(ptr);
         }
 
-        /** Threshold after which glMapBuffer is used and not glBufferSubData.
-         */
+        /** Threshold after which glMapBuffer is used and not glBufferSubData
+        */
         size_t getGLMapBufferThreshold() const
         {
             return static_cast<GL3PlusHardwareBufferManagerBase*>(mImpl)->getGLMapBufferThreshold();

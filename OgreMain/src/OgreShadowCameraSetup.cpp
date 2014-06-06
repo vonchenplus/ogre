@@ -45,15 +45,17 @@ namespace Ogre
     
     /// Default shadow camera setup implementation
     void DefaultShadowCameraSetup::getShadowCamera (const SceneManager *sm, const Camera *cam, 
-        const Viewport *vp, const Light *light, Camera *texCam, size_t iteration) const
+                                    const Light *light, Camera *texCam, size_t iteration) const
     {
         Vector3 pos, dir;
 
         // reset custom view / projection matrix in case already set
         texCam->setCustomViewMatrix(false);
         texCam->setCustomProjectionMatrix(false);
-        texCam->setNearClipDistance(light->_deriveShadowNearClipDistance(cam));
-        texCam->setFarClipDistance(light->_deriveShadowFarClipDistance(cam));
+        mMinDistance = light->_deriveShadowNearClipDistance(cam);
+        mMaxDistance = light->_deriveShadowFarClipDistance(cam);
+        texCam->setNearClipDistance( mMinDistance );
+        texCam->setFarClipDistance( mMaxDistance );
 
         // get the shadow frustum's far distance
         Real shadowDist = light->getShadowFarDistance();
@@ -67,6 +69,9 @@ namespace Ogre
         // Directional lights 
         if (light->getType() == Light::LT_DIRECTIONAL)
         {
+            const AxisAlignedBox &casterBox = sm->getCurrentCastersBox();
+            mMaxDistance = casterBox.getMinimum().distance( casterBox.getMaximum() );
+
             // set up the shadow texture
             // Set ortho projection
             texCam->setProjectionType(PT_ORTHOGRAPHIC);
@@ -95,7 +100,7 @@ namespace Ogre
             //~ pos.x -= fmod(pos.x, worldTexelSize);
             //~ pos.y -= fmod(pos.y, worldTexelSize);
             //~ pos.z -= fmod(pos.z, worldTexelSize);
-            Real worldTexelSize = (shadowDist * 2) / texCam->getViewport()->getActualWidth();
+            Real worldTexelSize = (shadowDist * 2) / texCam->getLastViewport()->getActualWidth();
 
              //get texCam orientation
 
@@ -124,7 +129,9 @@ namespace Ogre
 
              //convert back to world space
              pos = q * lightSpacePos;
-            
+
+             // Finally set position
+             texCam->setPosition(pos);
         }
         // Spotlight
         else if (light->getType() == Light::LT_SPOTLIGHT)
@@ -139,11 +146,11 @@ namespace Ogre
             texCam->setFOVy(fovy);
 
             // Calculate position, which same as spotlight position
-            pos = light->getDerivedPosition();
+            /*pos = light->getParentNode()->_getDerivedPosition();
 
             // Calculate direction, which same as spotlight direction
             dir = - light->getDerivedDirection(); // backwards since point down -z
-            dir.normalise();
+            dir.normalise();*/
         }
         // Point light
         else
@@ -160,47 +167,44 @@ namespace Ogre
                 (cam->getDerivedDirection() * shadowOffset);
 
             // Calculate position, which same as point light position
-            pos = light->getDerivedPosition();
+            pos = light->getParentNode()->_getDerivedPosition();
 
             dir = (pos - target); // backwards since point down -z
             dir.normalise();
-        }
 
-        // Finally set position
-        texCam->setPosition(pos);
+            // Calculate orientation based on direction calculated above
+            /*
+            // Next section (camera oriented shadow map) abandoned
+            // Always point in the same direction, if we don't do this then
+            // we get 'shadow swimming' as camera rotates
+            // As it is, we get swimming on moving but this is less noticeable
 
-        // Calculate orientation based on direction calculated above
-        /*
-        // Next section (camera oriented shadow map) abandoned
-        // Always point in the same direction, if we don't do this then
-        // we get 'shadow swimming' as camera rotates
-        // As it is, we get swimming on moving but this is less noticeable
-
-        // calculate up vector, we want it aligned with cam direction
-        Vector3 up = cam->getDerivedDirection();
-        // Check it's not coincident with dir
-        if (up.dotProduct(dir) >= 1.0f)
-        {
-        // Use camera up
-        up = cam->getUp();
-        }
-        */
-        Vector3 up = Vector3::UNIT_Y;
-        // Check it's not coincident with dir
-        if (Math::Abs(up.dotProduct(dir)) >= 1.0f)
-        {
+            // calculate up vector, we want it aligned with cam direction
+            Vector3 up = cam->getDerivedDirection();
+            // Check it's not coincident with dir
+            if (up.dotProduct(dir) >= 1.0f)
+            {
             // Use camera up
-            up = Vector3::UNIT_Z;
+            up = cam->getUp();
+            }
+            */
+            Vector3 up = Vector3::UNIT_Y;
+            // Check it's not coincident with dir
+            if (Math::Abs(up.dotProduct(dir)) >= 1.0f)
+            {
+                // Use camera up
+                up = Vector3::UNIT_Z;
+            }
+            // cross twice to rederive, only direction is unaltered
+            Vector3 left = dir.crossProduct(up);
+            left.normalise();
+            up = dir.crossProduct(left);
+            up.normalise();
+            // Derive quaternion from axes
+            Quaternion q;
+            q.FromAxes(left, up, dir);
+            texCam->setOrientation(q);
         }
-        // cross twice to rederive, only direction is unaltered
-        Vector3 left = dir.crossProduct(up);
-        left.normalise();
-        up = dir.crossProduct(left);
-        up.normalise();
-        // Derive quaternion from axes
-        Quaternion q;
-        q.FromAxes(left, up, dir);
-        texCam->setOrientation(q);
     }
 
 

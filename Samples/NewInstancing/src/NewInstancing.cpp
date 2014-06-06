@@ -1,6 +1,9 @@
 #include "SamplePlugin.h"
 #include "NewInstancing.h"
 
+#include "Compositor/OgreCompositorShadowNodeDef.h"
+#include "Compositor/Pass/PassClear/OgreCompositorPassClearDef.h"
+
 using namespace Ogre;
 using namespace OgreBites;
 
@@ -73,19 +76,33 @@ static const char *c_meshNames[] =
 };
 
 //------------------------------------------------------------------------------
-Sample_NewInstancing::Sample_NewInstancing() : NUM_INST_ROW(50), NUM_INST_COLUMN(50), mCurrentManager(0), mCurrentMaterialSet(c_materialsTechniques), mCurrentFlags(0), mSkinningTechniques(NULL)
+Sample_NewInstancing::Sample_NewInstancing() : NUM_INST_ROW(14), NUM_INST_COLUMN(50), mCurrentManager(0), mCurrentMaterialSet(c_materialsTechniques), mCurrentFlags(0), mSkinningTechniques(NULL)
 {
     mInfo["Title"] = "New Instancing";
     mInfo["Description"] = "Demonstrates how to use the new InstancedManager to setup many dynamic"
-        " instances of the same mesh with much less performance impact";
+        " instances of the same mesh with much less performance impact\n"
+        "Press Space to switch Instancing Techniques.\n"
+        "Changes in the slider take effect after switching instancing technique\n\n"
+        "Instancing requires shader knowledge (it cannot work w/out shaders). Take a look at the materials"
+        " used in the samples (their names are stored in 'c_materialsTechniques').\n"
+        "The best gain is achieved when all instances use the same material (if each instance uses a "
+        "different material, there are no advantages, only its disadvantages).\n\n"
+        "This sample stresses many skeletally animated instances in different conditions, with different "
+        "instancing techniques. Refer to the 2.0 porting manual for the differences in each technique.\n"
+        "Shadow mapping often skyrockets the API draw calls per frame, and hence there is an option "
+        "to toggle shadows, showing the difference in scalability.\n\n"
+        "Different batch sizes give different results depending on CPU culling and instance numbers on "
+        "the scene (batch count is hard coded in C++ code).\n"
+        "If performance is too slow after, try defragmenting batches once in a while";
     mInfo["Thumbnail"] = "thumb_newinstancing.png";
-    mInfo["Category"] = "Environment";
+    mInfo["Category"] = "Use Case";
     mInfo["Help"] = "Press Space to switch Instancing Techniques.\n"
         "Press B to toggle bounding boxes.\n\n"
         "Changes in the slider take effect after switching instancing technique\n"
         "Different batch sizes give different results depending on CPU culling"
         " and instance numbers on the scene.\n\n"
         "If performance is too slow, try defragmenting batches once in a while";
+    mBackgroundColour = ColourValue( 0.6f, 0.0f, 0.6f );
 }
 
 
@@ -129,25 +146,30 @@ void Sample_NewInstancing::setupContent()
 
     checkHardwareSupport();
 
-    mSceneMgr->setShadowTechnique( SHADOWTYPE_TEXTURE_ADDITIVE_INTEGRATED );
-    mSceneMgr->setShadowTextureSelfShadow( true );
-    mSceneMgr->setShadowCasterRenderBackFaces( true );
+    CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
 
-    if (Ogre::Root::getSingletonPtr()->getRenderSystem()->getName().find("OpenGL ES 2") == String::npos)
+    //Setup the shadow node. (it's waaay easier when done in a compositor script. But gotta showcase...)
+    CompositorShadowNodeDef *shadowNode = compositorManager->addShadowNodeDefinition(
+                                                                "NewInstancing Shadows" );
+    shadowNode->setNumShadowTextureDefinitions( 1 );
+    ShadowTextureDefinition *texDef = shadowNode->addShadowTextureDefinition(0, 0, "shadowmap0", false);
+    texDef->width   = 2048;
+    texDef->height  = 2048;
+    texDef->formatList.push_back( PF_FLOAT32_R );
+    texDef->shadowMapTechnique = SHADOWMAP_FOCUSED;
+
+    shadowNode->setNumTargetPass( 1 );
     {
-        mSceneMgr->setShadowTextureConfig( 0, 2048, 2048, PF_FLOAT32_R );
+        CompositorTargetDef *targetDef = shadowNode->addTargetPass( "shadowmap0" );
+        targetDef->setNumPasses( 2 );
+        {
+            CompositorPassDef *passDef = targetDef->addPass( PASS_CLEAR );
+            static_cast<CompositorPassClearDef*>(passDef)->mColourValue = ColourValue::White;
+            passDef = targetDef->addPass( PASS_SCENE );
+            passDef->mShadowMapIdx = 0;
+            passDef->mIncludeOverlays = false;
+        }
     }
-    else
-    {
-        // Use a smaller texture for GL ES 3.0
-        mSceneMgr->setShadowTextureConfig( 0, 512, 512, PF_FLOAT32_R );
-    }
-
-    //LiSPSMShadowCameraSetup *shadowCameraSetup = new LiSPSMShadowCameraSetup();
-    FocusedShadowCameraSetup *shadowCameraSetup = new FocusedShadowCameraSetup();
-    //PlaneOptimalShadowCameraSetup *shadowCameraSetup = new PlaneOptimalShadowCameraSetup();
-
-    mSceneMgr->setShadowCameraSetup( ShadowCameraSetupPtr(shadowCameraSetup) );
 
     mEntities.reserve( NUM_INST_ROW * NUM_INST_COLUMN );
     mSceneNodes.reserve( NUM_INST_ROW * NUM_INST_COLUMN );
@@ -159,10 +181,12 @@ void Sample_NewInstancing::setupContent()
         Plane(Vector3::UNIT_Y, 0), 10000, 10000, 20, 20, true, 1, 6, 6, Vector3::UNIT_Z);
 
     // create a ground entity from our mesh and attach it to the origin
-    Entity* ground = mSceneMgr->createEntity("Ground", "ground");
+    Entity* ground = mSceneMgr->createEntity( "ground",
+                                                ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                                                SCENE_STATIC );
     ground->setMaterialName("Examples/Instancing/Misc/Grass");
     ground->setCastShadows(false);
-    mSceneMgr->getRootSceneNode()->attachObject(ground);
+    mSceneMgr->getRootSceneNode( SCENE_STATIC )->attachObject(ground);
 
     setupLighting();
 
@@ -185,24 +209,27 @@ void Sample_NewInstancing::setupLighting()
     ColourValue lightColour( 1, 0.5, 0.3 );
 
     //Create main (point) light
+    SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     Light* light = mSceneMgr->createLight();
+    lightNode->attachObject( light );
     light->setDiffuseColour(lightColour);
-    light->setPosition( 0.0f, 25.0f, 0.0f );
+    lightNode->setPosition( 0.0f, 25.0f, 0.0f );
     light->setSpecularColour( 0.6, 0.82, 1.0 );
     light->setAttenuation( 3500, 0.085, 0.00008, 0.00006 );
     light->setCastShadows( false );
 
     //Create a dummy spot light for shadows
+    lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     light = mSceneMgr->createLight();
+    lightNode->attachObject( light );
     light->setType( Light::LT_SPOTLIGHT );
     light->setDiffuseColour( ColourValue( 0.15f, 0.35f, 0.44f ) );
-    light->setPosition( 250.0f, 200.0f, 250.0f );
+    lightNode->setPosition( 250.0f, 200.0f, 250.0f );
     light->setDirection( (Vector3::UNIT_SCALE * -1.0f).normalisedCopy() );
     light->setSpecularColour( 0.2, 0.12, 0.11 );
     light->setAttenuation( 3500, 0.005, 0.00002, 0.00001 );
     light->setSpotlightRange( Degree(80), Degree(90) );
     light->setCastShadows( true );
-    light->setLightMask( 0x00000000 );
 }
 
 //------------------------------------------------------------------------------
@@ -285,20 +312,12 @@ void Sample_NewInstancing::switchInstancingTechnique()
         mInstancingTechnique == InstanceManager::HWInstancingVTF ||
         mInstancingTechnique == InstanceManager::HWInstancingVTF + 1) // instancing with lookup
     {
-        if( mSetStatic->isChecked() )
-            mCurrentManager->setBatchesAsStaticAndUpdate( mSetStatic->isChecked() );
+        /**if( mSetStatic->isChecked() )
+            mCurrentManager->setBatchesAsStaticAndUpdate( mSetStatic->isChecked() );*/
         mSetStatic->show();
     }
     else
         mSetStatic->hide();
-    if( mInstancingTechnique < NUM_TECHNIQUES)
-    {
-        mUseSceneNodes->show();
-    }
-    else
-    {
-        mUseSceneNodes->hide();
-    }
 }
 
 //------------------------------------------------------------------------------
@@ -342,41 +361,47 @@ void Sample_NewInstancing::createEntities()
 
         //Get the animation
         AnimationState *anim = ent->getAnimationState( "Walk" );
-        if (mAnimations.insert( anim ).second)
-        {
-            anim->setEnabled( true );
-            anim->addTime( randGenerator.nextFloat() * 10 ); //Random start offset
-        }
+        mAnimationsLegacy.push_back( anim );
+        anim->setEnabled( true );
+        anim->addTime( randGenerator.nextFloat() * 10 ); //Random start offset
     }
 }
 //------------------------------------------------------------------------------
 void Sample_NewInstancing::createInstancedEntities()
 {
-
+    SceneMemoryMgrTypes sceneMemoryMgrType = mSetStatic->isChecked() ? SCENE_STATIC : SCENE_DYNAMIC;
     for( int i=0; i<NUM_INST_ROW; ++i )
     {
         for( int j=0; j<NUM_INST_COLUMN; ++j )
         {
             //Create the instanced entity
-        InstancedEntity *ent = mCurrentManager->createInstancedEntity(mCurrentMaterialSet[mInstancingTechnique] );
+            InstancedEntity *ent = mCurrentManager->createInstancedEntity(
+                                        mCurrentMaterialSet[mInstancingTechnique], sceneMemoryMgrType );
             mEntities.push_back( ent );
 
             //HWInstancingBasic is the only technique without animation support
             if( mInstancingTechnique != InstanceManager::HWInstancingBasic)
             {
+#ifndef OGRE_LEGACY_ANIMATIONS
+                //Get the animation
+                SkeletonInstance *skeletonInstance = ent->getSkeleton();
+                SkeletonAnimation *anim = skeletonInstance->getAnimation( "Walk" );
+
+                //Some techniques (i.e. LUT) may share the animations,
+                //so ensure we add the pointer only once
+                if( std::find( mAnimations.begin(), mAnimations.end(), anim ) == mAnimations.end() )
+                {
+                    anim->setEnabled( true );
+                    anim->addTime(randGenerator.nextFloat() * 10); //Random start offset
+                    mAnimations.push_back( anim );
+                }
+#else
                 //Get the animation
                 AnimationState *anim = ent->getAnimationState( "Walk" );
                 anim->setEnabled( true );
                 anim->addTime( randGenerator.nextFloat() * 10); //Random start offset
-                mAnimations.insert( anim );
-            }
-
-            if ((mInstancingTechnique < NUM_TECHNIQUES) && (!mUseSceneNodes->isChecked()))
-            {
-                mMovedInstances.push_back( ent );
-                ent->setOrientation(Quaternion(Radian(randGenerator.nextFloat() * 10 * 3.14159265359f), Vector3::UNIT_Y));
-                ent->setPosition( Ogre::Vector3(mEntities[0]->getBoundingRadius() * (i - NUM_INST_ROW * 0.5f), 0,
-                    mEntities[0]->getBoundingRadius() * (j - NUM_INST_COLUMN * 0.5f)) );
+                mAnimationsLegacy.push_back( anim );
+#endif
             }
         }
     }
@@ -386,23 +411,20 @@ void Sample_NewInstancing::createSceneNodes()
 {
     //Here the SceneNodes are created. Since InstancedEntities derive from MovableObject,
     //they behave like regular Entities on this.
-    SceneNode *rootNode = mSceneMgr->getRootSceneNode();
+    SceneMemoryMgrTypes sceneMemoryMgrType = mSetStatic->isChecked() ? SCENE_STATIC : SCENE_DYNAMIC;
+    SceneNode *rootNode = mSceneMgr->getRootSceneNode( sceneMemoryMgrType );
 
     for( int i=0; i<NUM_INST_ROW; ++i )
     {
         for( int j=0; j<NUM_INST_COLUMN; ++j )
         {
             int idx = i * NUM_INST_COLUMN + j;
-            if ((mInstancingTechnique >= NUM_TECHNIQUES) || (mUseSceneNodes->isChecked()))
-            {
-                SceneNode *sceneNode = rootNode->createChildSceneNode();
-                sceneNode->attachObject( mEntities[idx] );
-                sceneNode->yaw( Radian( randGenerator.nextFloat() * 10 * 3.14159265359f )); //Random orientation
-                sceneNode->setPosition( mEntities[idx]->getBoundingRadius() * (i - NUM_INST_ROW * 0.5f), 0,
-                    mEntities[idx]->getBoundingRadius() * (j - NUM_INST_COLUMN * 0.5f) );
-                mSceneNodes.push_back( sceneNode );
-            }
-            
+            SceneNode *sceneNode = rootNode->createChildSceneNode( sceneMemoryMgrType );
+            sceneNode->attachObject( mEntities[idx] );
+            sceneNode->yaw( Radian( randGenerator.nextFloat() * 10 * 3.14159265359f )); //Random orientation
+            sceneNode->setPosition( mEntities[idx]->getWorldRadiusUpdated() * (i - NUM_INST_ROW * 0.5f), 0,
+                                    mEntities[idx]->getWorldRadiusUpdated() * (j - NUM_INST_COLUMN * 0.5f) );
+            mSceneNodes.push_back( sceneNode );
         }
     }
 }
@@ -418,12 +440,10 @@ void Sample_NewInstancing::clearScene()
     {
         SceneNode *sceneNode = (*itor)->getParentSceneNode();
         if (sceneNode)
-        {
-            sceneNode->detachAllObjects();
-            sceneNode->getParentSceneNode()->removeAndDestroyChild( sceneNode->getName() );
-        }
+            sceneNode->getParentSceneNode()->removeAndDestroyChild( sceneNode );
+
         if( mInstancingTechnique == NUM_TECHNIQUES )
-            mSceneMgr->destroyEntity( (*itor)->getName() );
+            mSceneMgr->destroyEntity( static_cast<Entity*>(*itor) );
         else
             mSceneMgr->destroyInstancedEntity( static_cast<InstancedEntity*>(*itor) );
 
@@ -436,14 +456,17 @@ void Sample_NewInstancing::clearScene()
         mCurrentManager->cleanupEmptyBatches();
 
     mEntities.clear();
-    mMovedInstances.clear();
     mSceneNodes.clear();
+    mAnimationsLegacy.clear();
+#ifndef OGRE_LEGACY_ANIMATIONS
     mAnimations.clear();
+#endif
 }
 //-----------------------------------------------------------------------------------
 void Sample_NewInstancing::destroyManagers()
 {
-    mSceneMgr->destroyInstanceManager(mCurrentManager);;
+    if( mCurrentManager )
+        mSceneMgr->destroyInstanceManager(mCurrentManager);
 }
 
 //------------------------------------------------------------------------------
@@ -457,16 +480,31 @@ void Sample_NewInstancing::cleanupContent()
 //------------------------------------------------------------------------------
 void Sample_NewInstancing::animateUnits( float timeSinceLast )
 {
-    //Iterates through all AnimationSets and updates the animation being played. Demonstrates the
-    //animation is unique and independent to each instance
-    std::set<AnimationState*>::const_iterator itor = mAnimations.begin();
-    std::set<AnimationState*>::const_iterator end  = mAnimations.end();
-
-    while( itor != end )
     {
-        (*itor)->addTime( timeSinceLast );
-        ++itor;
+        //Iterates through all AnimationSets and updates the animation being played. Demonstrates the
+        //animation is unique and independent to each instance
+        std::vector<AnimationState*>::const_iterator itor = mAnimationsLegacy.begin();
+        std::vector<AnimationState*>::const_iterator end  = mAnimationsLegacy.end();
+
+        while( itor != end )
+        {
+            (*itor)->addTime( timeSinceLast );
+            ++itor;
+        }
     }
+
+#ifndef OGRE_LEGACY_ANIMATIONS
+    {
+        std::vector<SkeletonAnimation*>::const_iterator itor = mAnimations.begin();
+        std::vector<SkeletonAnimation*>::const_iterator end  = mAnimations.end();
+
+        while( itor != end )
+        {
+            (*itor)->addTime( timeSinceLast );
+            ++itor;
+        }
+    }
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -475,100 +513,48 @@ void Sample_NewInstancing::moveUnits( float timeSinceLast )
     Real fMovSpeed = 1.0f;
 
     if( !mEntities.empty() )
-        fMovSpeed = mEntities[0]->getBoundingRadius() * 0.30f;
+        fMovSpeed = mEntities[0]->getWorldRadius() * 0.30f;
 
-    if (!mSceneNodes.empty())
+    //Randomly move the units along their normal, bouncing around invisible walls
+    std::vector<SceneNode*>::const_iterator itor = mSceneNodes.begin();
+    std::vector<SceneNode*>::const_iterator end  = mSceneNodes.end();
+
+    while( itor != end )
     {
-        //Randomly move the units along their normal, bouncing around invisible walls
-        std::vector<SceneNode*>::const_iterator itor = mSceneNodes.begin();
-        std::vector<SceneNode*>::const_iterator end  = mSceneNodes.end();
-
-        while( itor != end )
+        //Calculate bounces
+        Vector3 entityPos = (*itor)->getPosition();
+        Vector3 planeNormal = Vector3::ZERO;
+        if( (*itor)->getPosition().x < -5000.0f )
         {
-            //Calculate bounces
-            Vector3 entityPos = (*itor)->getPosition();
-            Vector3 planeNormal = Vector3::ZERO;
-            if( (*itor)->getPosition().x < -5000.0f )
-            {
-                planeNormal = Vector3::UNIT_X;
-                entityPos.x = -4999.0f;
-            }
-            else if( (*itor)->getPosition().x > 5000.0f )
-            {
-                planeNormal = Vector3::NEGATIVE_UNIT_X;
-                entityPos.x = 4999.0f;
-            }
-            else if( (*itor)->getPosition().z < -5000.0f )
-            {
-                planeNormal = Vector3::UNIT_Z;
-                entityPos.z = -4999.0f;
-            }
-            else if( (*itor)->getPosition().z > 5000.0f )
-            {
-                planeNormal = Vector3::NEGATIVE_UNIT_Z;
-                entityPos.z = 4999.0f;
-            }
-
-            if( planeNormal != Vector3::ZERO )
-            {
-                const Vector3 vDir( (*itor)->getOrientation().xAxis().normalisedCopy() );
-                (*itor)->setOrientation( lookAt( planeNormal.reflect( vDir ).normalisedCopy() ) );
-                (*itor)->setPosition( entityPos );
-            }
-
-            //Move along the direction we're looking to
-            (*itor)->translate( Vector3::UNIT_X * timeSinceLast * fMovSpeed, Node::TS_LOCAL );
-            ++itor;
+            planeNormal = Vector3::UNIT_X;
+            entityPos.x = -4999.0f;
         }
-    }
-    else
-    {
-        //No scene nodes (instanced entities only) 
-        //Update instanced entities directly
-
-        //Randomly move the units along their normal, bouncing around invisible walls
-        std::vector<InstancedEntity*>::const_iterator itor = mMovedInstances.begin();
-        std::vector<InstancedEntity*>::const_iterator end  = mMovedInstances.end();
-
-        while( itor != end )
+        else if( (*itor)->getPosition().x > 5000.0f )
         {
-            //Calculate bounces
-            InstancedEntity* pEnt = *itor;
-            Vector3 entityPos = pEnt->getPosition();
-            Vector3 planeNormal = Vector3::ZERO;
-            if( pEnt->getPosition().x < -5000.0f )
-            {
-                planeNormal = Vector3::UNIT_X;
-                entityPos.x = -4999.0f;
-            }
-            else if( pEnt->getPosition().x > 5000.0f )
-            {
-                planeNormal = Vector3::NEGATIVE_UNIT_X;
-                entityPos.x = 4999.0f;
-            }
-            else if( pEnt->getPosition().z < -5000.0f )
-            {
-                planeNormal = Vector3::UNIT_Z;
-                entityPos.z = -4999.0f;
-            }
-            else if( pEnt->getPosition().z > 5000.0f )
-            {
-                planeNormal = Vector3::NEGATIVE_UNIT_Z;
-                entityPos.z = 4999.0f;
-            }
-
-            if( planeNormal != Vector3::ZERO )
-            {
-                const Vector3 vDir(pEnt->getOrientation().xAxis().normalisedCopy() );
-                pEnt->setOrientation( lookAt( planeNormal.reflect( vDir ).normalisedCopy() ), false );
-                pEnt->setPosition( entityPos, false);
-            }
-
-            //Move along the direction we're looking to
-            Vector3 transAmount = Vector3::UNIT_X * timeSinceLast * fMovSpeed;
-            pEnt->setPosition( pEnt->getPosition() + pEnt->getOrientation() * transAmount );
-            ++itor;
+            planeNormal = Vector3::NEGATIVE_UNIT_X;
+            entityPos.x = 4999.0f;
         }
+        else if( (*itor)->getPosition().z < -5000.0f )
+        {
+            planeNormal = Vector3::UNIT_Z;
+            entityPos.z = -4999.0f;
+        }
+        else if( (*itor)->getPosition().z > 5000.0f )
+        {
+            planeNormal = Vector3::NEGATIVE_UNIT_Z;
+            entityPos.z = 4999.0f;
+        }
+
+        if( planeNormal != Vector3::ZERO )
+        {
+            const Vector3 vDir( (*itor)->getOrientation().xAxis().normalisedCopy() );
+            (*itor)->setOrientation( lookAt( planeNormal.reflect( vDir ).normalisedCopy() ) );
+            (*itor)->setPosition( entityPos );
+        }
+
+        //Move along the direction we're looking to
+        (*itor)->translate( Vector3::UNIT_X * timeSinceLast * fMovSpeed, Node::TS_LOCAL );
+        ++itor;
     }
 }
 
@@ -633,11 +619,6 @@ void Sample_NewInstancing::setupGUI()
     mSetStatic = mTrayMgr->createCheckBox(TL_TOPRIGHT, "SetStatic", "Set Static", 175);
     mSetStatic->setChecked(false);
 
-    //Checkbox to toggle use of scene nodes
-    mUseSceneNodes = mTrayMgr->createCheckBox(TL_TOPRIGHT, "UseSceneNodes",
-        "Use Scene Nodes", 175);
-    mUseSceneNodes->setChecked(true, false);
-
     //Controls to control batch defragmentation on the fly
     mDefragmentBatches =  mTrayMgr->createButton(TL_RIGHT, "DefragmentBatches",
         "Defragment Batches", 175);
@@ -680,17 +661,21 @@ void Sample_NewInstancing::checkBoxToggled( CheckBox* box )
 {
     if( box == mEnableShadows )
     {
-        mSceneMgr->setShadowTechnique( mEnableShadows->isChecked() ?
-            SHADOWTYPE_TEXTURE_ADDITIVE_INTEGRATED : SHADOWTYPE_NONE );
+        const IdString workspaceName( "NewInstancingWorkspace" );
+        CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
+        compositorManager->removeAllWorkspaces();
+        compositorManager->removeAllWorkspaceDefinitions();
+        compositorManager->removeAllNodeDefinitions();
+        compositorManager->createBasicWorkspaceDef( workspaceName, ColourValue( 0.6f, 0.0f, 0.6f ),
+                                                    mEnableShadows->isChecked() ?
+                                                        "NewInstancing Shadows" : IdString() );
+        compositorManager->addWorkspace( mSceneMgr, mWindow, mCamera, workspaceName, true );
     }
     else if( box == mSetStatic && mCurrentManager )
     {
-        mCurrentManager->setBatchesAsStaticAndUpdate( mSetStatic->isChecked() );
-    }
-    else if (box == mUseSceneNodes)
-    {
         clearScene();
         switchInstancingTechnique();
+        //mCurrentManager->setBatchesAsStaticAndUpdate( mSetStatic->isChecked() );
     }
 }
 

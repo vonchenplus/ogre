@@ -105,7 +105,7 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX)
     check_cxx_compiler_flag(-msse OGRE_GCC_HAS_SSE)
   endif()
   if (OGRE_GCC_HAS_SSE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2")
   endif ()
   # This is a set of sensible warnings that provide meaningful output
   set(OGRE_WARNING_FLAGS "-Wall -Winit-self -Wno-overloaded-virtual -Wcast-qual -Wwrite-strings -Wextra -Wno-unused-parameter -Wshadow -Wno-missing-field-initializers -Wno-long-long")
@@ -121,7 +121,7 @@ if (MSVC)
     # set variable to state that we are using nmake makefiles
 	set(NMAKE TRUE)
   endif ()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:fast")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:fast /arch:SSE2")
   # Enable intrinsics on MSVC in debug mode
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Oi")
   if (CMAKE_CL_64)
@@ -129,6 +129,8 @@ if (MSVC)
 	# this flag is set...
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
+  else()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:fast")
   endif ()
   if (OGRE_UNITY_BUILD)
     # object files can get large with Unity builds
@@ -230,8 +232,6 @@ set(OGRE_MeshLodGenerator_LIBRARIES OgreMeshLodGenerator)
 set(OGRE_Paging_LIBRARIES OgrePaging)
 set(OGRE_Terrain_LIBRARIES OgreTerrain)
 set(OGRE_Volume_LIBRARIES OgreVolume)
-set(OGRE_Plugin_PCZSceneManager_LIBRARIES Plugin_PCZSceneManager)
-set(OGRE_Plugin_OctreeZone_LIBRARIES Plugin_OctreeZone)
 
 # Specify build paths
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OGRE_BINARY_DIR}/lib")
@@ -264,13 +264,13 @@ if (OGRE_BUILD_PLATFORM_APPLE_IOS)
   set(XCODE_ATTRIBUTE_LLVM_VECTORIZE_LOOPS "YES")
   set(XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer")
   set(XCODE_ATTRIBUTE_GCC_PRECOMPILE_PREFIX_HEADER "YES")
-  set(OGRE_BUILD_RENDERSYSTEM_GLES TRUE CACHE BOOL "Forcing OpenGL ES RenderSystem for iOS" FORCE)
   set(OGRE_BUILD_RENDERSYSTEM_GLES2 TRUE CACHE BOOL "Forcing OpenGL ES 2 RenderSystem for iOS" FORCE)
   set(OGRE_STATIC TRUE CACHE BOOL "Forcing static build for iOS" FORCE)
   set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.yourcompany.\${PRODUCT_NAME:rfc1034identifier}")
   add_definitions(-mno-thumb)
 
   set(CMAKE_OSX_ARCHITECTURES "$(ARCHS_STANDARD_INCLUDING_64_BIT)")
+  string (REPLACE "-msse2" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
   string (REPLACE "-msse" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 elseif (ANDROID)
   set(TargetPlatform "Android")
@@ -280,21 +280,19 @@ elseif (ANDROID)
   if( NOT ANDROID_GLES_ONLY )
    set(OGRE_CONFIG_ENABLE_GLES2_VAO_SUPPORT FALSE CACHE BOOL "Disable VAO on Android" FORCE)
    set(OGRE_BUILD_RENDERSYSTEM_GLES2 TRUE CACHE BOOL "Forcing OpenGL ES 2 RenderSystem for Android" FORCE)
-   set(OGRE_BUILD_RENDERSYSTEM_GLES FALSE CACHE BOOL "Disable OpenGL ES 1 RenderSystem for Android" FORCE)
   else()
-   set(OGRE_BUILD_RENDERSYSTEM_GLES2 FALSE CACHE BOOL "Disable OpenGL ES 2 RenderSystem for Android" FORCE)
-   set(OGRE_BUILD_RENDERSYSTEM_GLES TRUE CACHE BOOL "Forcing OpenGL ES 1 RenderSystem for Android" FORCE)
    set(OGRE_BUILD_COMPONENT_RTSHADERSYSTEM FALSE CACHE BOOL "Disable RTSS component on Android ES1" FORCE)
    set(OGRE_BUILD_COMPONENT_VOLUME FALSE CACHE BOOL "Disable volume component on Android ES1" FORCE)
    set(OGRE_BUILD_COMPONENT_PAGING FALSE CACHE BOOL "Disable paging component on Android ES1" FORCE)
    set(OGRE_BUILD_COMPONENT_TERRAIN FALSE CACHE BOOL "Disable terrain component on Android ES1" FORCE)
   endif()
 
-  set(OGRE_BUILD_PLUGIN_PCZ FALSE CACHE BOOL "Disable pcz on Android" FORCE)
-  set(OGRE_BUILD_PLUGIN_BSP FALSE CACHE BOOL "Disable bsp scenemanager on Android" FORCE)
   set(OGRE_BUILD_TESTS FALSE CACHE BOOL "Disable tests on Android" FORCE)
   set(OGRE_BUILD_TOOLS FALSE CACHE BOOL "Disable tools on Android" FORCE)
   set(OGRE_STATIC TRUE CACHE BOOL "Forcing static build for Android" FORCE)
+  set(OGRE_SIMD FALSE CACHE BOOL "Disable SIMD on Android" FORCE)
+  set(OGRE_RESTRICT_ALIASING FALSE CACHE BOOL "Disable strict aliasing on Android" FORCE)
+
 elseif(EMSCRIPTEN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-c++11-extensions")
   add_definitions(-DEMSCRIPTEN=1 -D__EMSCRIPTEN__=1)
@@ -302,7 +300,6 @@ elseif(EMSCRIPTEN)
   set(OGRE_PLATFORM OGRE_PLATFORM_EMSCRIPTEN)
 
   set(OGRE_BUILD_RENDERSYSTEM_GLES2 TRUE CACHE BOOL "Forcing OpenGL ES 2 RenderSystem for Emscripten" FORCE)
-  set(OGRE_BUILD_RENDERSYSTEM_GL FALSE CACHE BOOL "Disable OpenGL RenderSystem for Emscripten" FORCE)
 
   set(OGRE_CONFIG_ENABLE_STBI TRUE CACHE BOOL "Enable STBIImageCodec on Emscripten (Smaller Footprint)" FORCE)
   set(OGRE_CONFIG_ENABLE_FREEIMAGE FALSE CACHE BOOL "Disable Freeimage on Emscripten (Smaller Footprint)" FORCE)
@@ -340,7 +337,6 @@ elseif (APPLE AND NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 10.7)
 
   # Make sure that the OpenGL render system is selected for non-iOS Apple builds
-  set(OGRE_BUILD_RENDERSYSTEM_GLES FALSE)
   set(OGRE_BUILD_RENDERSYSTEM_GLES2 FALSE)
 elseif (OGRE_BUILD_PLATFORM_WINRT)
   set(OGRE_BUILD_RENDERSYSTEM_D3D11 TRUE CACHE BOOL "Forcing Direct3D11 RenderSystem for WinRT" FORCE)
@@ -355,7 +351,7 @@ if(OGRE_CONFIG_ENABLE_GLES3_SUPPORT)
 endif()
 
 # Enable the PVRTC codec if OpenGL ES is being built
-if(OGRE_BUILD_RENDERSYSTEM_GLES OR OGRE_BUILD_RENDERSYSTEM_GLES2)
+if(OGRE_BUILD_RENDERSYSTEM_GLES2)
   set(OGRE_CONFIG_ENABLE_PVRTC TRUE CACHE BOOL "Forcing PVRTC codec for OpenGL ES" FORCE)
   set(OGRE_CONFIG_ENABLE_ETC TRUE CACHE BOOL "Forcing ETC codec for OpenGL ES" FORCE)
 endif()
@@ -373,18 +369,21 @@ endif()
 cmake_dependent_option(OGRE_STATIC "Static build" FALSE "" TRUE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_D3D9 "Build Direct3D9 RenderSystem" TRUE "WIN32;DirectX9_FOUND;NOT OGRE_BUILD_PLATFORM_WINRT;NOT OGRE_BUILD_PLATFORM_WINDOWS_PHONE" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_D3D11 "Build Direct3D11 RenderSystem [EXPERIMENTAL]" TRUE "WIN32;DirectX11_FOUND  OR OGRE_BUILD_PLATFORM_WINRT OR OGRE_BUILD_PLATFORM_WINDOWS_PHONE" FALSE)
-cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GL3PLUS "Build OpenGL 3+ RenderSystem [EXPERIMENTAL]" FALSE "OPENGL_FOUND; NOT OGRE_BUILD_RENDERSYSTEM_GLES; NOT OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
-cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GL "Build OpenGL RenderSystem" TRUE "OPENGL_FOUND;NOT OGRE_BUILD_PLATFORM_APPLE_IOS;NOT OGRE_BUILD_PLATFORM_WINRT;NOT OGRE_BUILD_PLATFORM_WINDOWS_PHONE" FALSE)
-cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GLES "Build OpenGL ES 1.x RenderSystem" FALSE "OPENGLES_FOUND;NOT OGRE_BUILD_PLATFORM_WINRT;NOT OGRE_BUILD_PLATFORM_WINDOWS_PHONE" FALSE)
+cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GL3PLUS "Build OpenGL 3+ RenderSystem [EXPERIMENTAL]" FALSE "OPENGL_FOUND; NOT OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GLES2 "Build OpenGL ES 2.x RenderSystem" FALSE "OPENGLES2_FOUND;NOT OGRE_BUILD_PLATFORM_WINRT;NOT OGRE_BUILD_PLATFORM_WINDOWS_PHONE" FALSE)
 cmake_dependent_option(OGRE_BUILD_PLATFORM_NACL "Build Ogre for Google's Native Client (NaCl)" FALSE "OPENGLES2_FOUND" FALSE)
 cmake_dependent_option(OGRE_BUILD_PLATFORM_WINRT "Build Ogre for Metro style application (WinRT)" FALSE "WIN32" FALSE)
 cmake_dependent_option(OGRE_BUILD_PLATFORM_WINDOWS_PHONE "Build Ogre for Windows Phone" FALSE "WIN32" FALSE)
-option(OGRE_BUILD_PLUGIN_BSP "Build BSP SceneManager plugin" TRUE)
-option(OGRE_BUILD_PLUGIN_OCTREE "Build Octree SceneManager plugin" TRUE)
 option(OGRE_BUILD_PLUGIN_PFX "Build ParticleFX plugin" TRUE)
 
-cmake_dependent_option(OGRE_BUILD_PLUGIN_PCZ "Build PCZ SceneManager plugin" TRUE "" FALSE)
+cmake_dependent_option(OGRE_BUILD_COMPONENT_HLMS_PBS_MOBILE
+"PBS Stands for Physically Based Shading and it's the default material for most entities and meshes. This is the 'mobile' version for OpenGL ES 2.0.
+If you're targetting only GL ES 3.0 and above; you shouldn't use this component and use the non-mobile instead. Although this component may work with
+ES 3.0, GL3+ and even DX11 render systems, the mobile version uses uniform variables and limited shader based instancing, whereas non-mobile uses
+uniform buffers, texture arrays and true hardware instancing for lower API overhead" TRUE "" FALSE)
+cmake_dependent_option(OGRE_BUILD_COMPONENT_HLMS_GUI2D_MOBILE
+"GUI material system supporting texture animations, multiple diffuse texture units (aka multitexturing) with Photoshop-like blend modes. This is the
+'mobile' version for OpenGL ES 2.0. If you're targetting only GL ES 3.0 and above; you shouldn't use this component and use the non-mobile instead." TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_PAGING "Build Paging component" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_MESHLODGENERATOR "Build MeshLodGenerator component" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_TERRAIN "Build Terrain component" TRUE "" FALSE)
@@ -411,7 +410,8 @@ set(OGRE_CONFIG_ALLOCATOR 4 CACHE STRING
   1 - Standard allocator
   2 - nedmalloc
   3 - User-provided allocator
-  4 - nedmalloc with pooling"
+  4 - nedmalloc with pooling
+  5 - Debug allocator that will assert on most forms of memory corruption and provides deterministic memory addressing (for easier debugging w/ data breakpoints). Not indended for release or deployment."
 )
 endif ()
 
@@ -433,7 +433,7 @@ option(OGRE_CONFIG_ENABLE_VIEWPORT_ORIENTATIONMODE "Include Viewport orientation
 cmake_dependent_option(OGRE_CONFIG_ENABLE_GLES2_CG_SUPPORT "Enable Cg support to ES 2 render system" FALSE "OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
 cmake_dependent_option(OGRE_CONFIG_ENABLE_GLES2_GLSL_OPTIMISER "Enable GLSL optimiser use in GLES 2 render system" FALSE "OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
 cmake_dependent_option(OGRE_CONFIG_ENABLE_GLES2_VAO_SUPPORT "Use VertexArrayObjects if possible." FALSE "OGRE_BUILD_RENDERSYSTEM_GLES2" FALSE)
-cmake_dependent_option(OGRE_CONFIG_ENABLE_GL_STATE_CACHE_SUPPORT "Enable OpenGL state cache management" FALSE "OGRE_BUILD_RENDERSYSTEM_GL OR OGRE_BUILD_RENDERSYSTEM_GLES OR OGRE_BUILD_RENDERSYSTEM_GLES2 OR OGRE_BUILD_RENDERSYSTEM_GL3PLUS" FALSE)
+cmake_dependent_option(OGRE_CONFIG_ENABLE_GL_STATE_CACHE_SUPPORT "Enable OpenGL state cache management" FALSE "OGRE_BUILD_RENDERSYSTEM_GLES2 OR OGRE_BUILD_RENDERSYSTEM_GL3PLUS" FALSE)
 cmake_dependent_option(OGRE_CONFIG_ENABLE_GLES3_SUPPORT "Enable OpenGL ES 3.x Features" FALSE "OPENGLES3_FOUND;OGRE_BUILD_RENDERSYSTEM_GLES2;NOT OGRE_BUILD_PLATFORM_WINRT;NOT OGRE_BUILD_PLATFORM_WINDOWS_PHONE" FALSE)
 cmake_dependent_option(OGRE_USE_BOOST "Use Boost extensions" TRUE "Boost_FOUND" FALSE)
 # Customise what to install
@@ -444,6 +444,10 @@ option(OGRE_INSTALL_SAMPLES_SOURCE "Install samples source files." FALSE)
 cmake_dependent_option(OGRE_INSTALL_PDB "Install debug pdb files" TRUE "MSVC" FALSE)
 cmake_dependent_option(OGRE_FULL_RPATH "Build executables with the full required RPATH to run from their install location." FALSE "NOT WIN32" FALSE)
 option(OGRE_PROFILING "Enable internal profiling support." FALSE)
+option(OGRE_LEGACY_ANIMATIONS "Use the skeletal animation from 1.x. It's much slower, but the new system is still experimental" TRUE)
+option(OGRE_SIMD_SSE2 "Enable SIMD (Include SSE2 files)." TRUE)
+option(OGRE_SIMD_NEON "Enable SIMD (Include NEON files)." TRUE)
+option(OGRE_RESTRICT_ALIASING "Restrict aliasing." TRUE)
 cmake_dependent_option(OGRE_CONFIG_STATIC_LINK_CRT "Statically link the MS CRT dlls (msvcrt)" FALSE "MSVC" FALSE)
 set(OGRE_LIB_DIRECTORY "lib${LIB_SUFFIX}" CACHE STRING "Install path for libraries, e.g. 'lib64' on some 64-bit Linux distros.")
 if (WIN32)

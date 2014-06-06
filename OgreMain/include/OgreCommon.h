@@ -29,6 +29,15 @@ THE SOFTWARE.
 #define __Common_H__
 // Common stuff
 
+#include "OgrePlatformInformation.h"
+
+#if OGRE_CPU == OGRE_CPU_X86
+    #include <xmmintrin.h>
+    #include <emmintrin.h>
+#elif OGRE_CPU == OGRE_CPU_ARM
+    #include <arm_neon.h>
+#endif
+
 #if defined ( OGRE_GCC_VISIBILITY )
 #   pragma GCC visibility push(default)
 #endif
@@ -74,6 +83,27 @@ namespace Ogre {
         CMPF_GREATER
     };
 
+    /// Enum describing the various actions which can be taken on the stencil buffer
+    enum StencilOperation
+    {
+        /// Leave the stencil buffer unchanged
+        SOP_KEEP,
+        /// Set the stencil value to zero
+        SOP_ZERO,
+        /// Set the stencil value to the reference value
+        SOP_REPLACE,
+        /// Increase the stencil value by 1, clamping at the maximum value
+        SOP_INCREMENT,
+        /// Decrease the stencil value by 1, clamping at 0
+        SOP_DECREMENT,
+        /// Increase the stencil value by 1, wrapping back to 0 when incrementing the maximum value
+        SOP_INCREMENT_WRAP,
+        /// Decrease the stencil value by 1, wrapping when decrementing 0
+        SOP_DECREMENT_WRAP,
+        /// Invert the bits of the stencil buffer
+        SOP_INVERT
+    };
+
     /** High-level filtering options providing shortcuts to settings the
         minification, magnification and mip filters. */
     enum TextureFilterOptions
@@ -110,7 +140,7 @@ namespace Ogre {
         FO_ANISOTROPIC
     };
 
-    /** Light shading modes. */
+    /** Light shading modes. DEPRECATED */
     enum ShadeOptions
     {
         SO_FLAT,
@@ -132,7 +162,19 @@ namespace Ogre {
     };
 
     /** Hardware culling modes based on vertex winding.
-        This setting applies to how the hardware API culls triangles it is sent. */
+        This setting applies to how the hardware API culls triangles it is sent.
+    @par
+        A typical way for the rendering engine to cull triangles is based on the 'vertex winding' of
+        triangles. Vertex winding refers to the direction in which the vertices are passed or indexed
+        to in the rendering operation as viewed from the camera, and will wither be clockwise or
+        anticlockwise (that's 'counterclockwise' for you Americans out there ;) The default is
+        CULL_CLOCKWISE i.e. that only triangles whose vertices are passed/indexed in anticlockwise order
+        are rendered - this is a common approach and is used in 3D studio models for example. You can
+        alter this culling mode if you wish but it is not advised unless you know what you are doing.
+    @par
+        You may wish to use the CULL_NONE option for mesh data that you cull yourself where the vertex
+        winding is uncertain.
+    */
     enum CullingMode
     {
         /// Hardware never culls triangles and renders everything it receives.
@@ -141,21 +183,6 @@ namespace Ogre {
         CULL_CLOCKWISE = 2,
         /// Hardware culls triangles whose vertices are listed anticlockwise in the view.
         CULL_ANTICLOCKWISE = 3
-    };
-
-    /** Manual culling modes based on vertex normals.
-        This setting applies to how the software culls triangles before sending them to the 
-        hardware API. This culling mode is used by scene managers which choose to implement it -
-        normally those which deal with large amounts of fixed world geometry which is often 
-        planar (software culling movable variable geometry is expensive). */
-    enum ManualCullingMode
-    {
-        /// No culling so everything is sent to the hardware.
-        MANUAL_CULL_NONE = 1,
-        /// Cull triangles whose normal is pointing away from the camera (default).
-        MANUAL_CULL_BACK = 2,
-        /// Cull triangles whose normal is pointing towards the camera.
-        MANUAL_CULL_FRONT = 3
     };
 
     /** Enumerates the wave types usable with the Ogre engine. */
@@ -187,92 +214,6 @@ namespace Ogre {
         PM_SOLID = 3
     };
 
-    /** An enumeration of broad shadow techniques */
-    enum ShadowTechnique
-    {
-        /** No shadows */
-        SHADOWTYPE_NONE = 0x00,
-        /** Mask for additive shadows (not for direct use, use  SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_ADDITIVE = 0x01,
-        /** Mask for modulative shadows (not for direct use, use  SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_MODULATIVE = 0x02,
-        /** Mask for integrated shadows (not for direct use, use SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_INTEGRATED = 0x04,
-        /** Mask for stencil shadows (not for direct use, use  SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_STENCIL = 0x10,
-        /** Mask for texture shadows (not for direct use, use  SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_TEXTURE = 0x20,
-        
-        /** Stencil shadow technique which renders all shadow volumes as
-            a modulation after all the non-transparent areas have been 
-            rendered. This technique is considerably less fillrate intensive 
-            than the additive stencil shadow approach when there are multiple
-            lights, but is not an accurate model. 
-        */
-        SHADOWTYPE_STENCIL_MODULATIVE = 0x12,
-        /** Stencil shadow technique which renders each light as a separate
-            additive pass to the scene. This technique can be very fillrate
-            intensive because it requires at least 2 passes of the entire
-            scene, more if there are multiple lights. However, it is a more
-            accurate model than the modulative stencil approach and this is
-            especially apparent when using coloured lights or bump mapping.
-        */
-        SHADOWTYPE_STENCIL_ADDITIVE = 0x11,
-        /** Texture-based shadow technique which involves a monochrome render-to-texture
-            of the shadow caster and a projection of that texture onto the 
-            shadow receivers as a modulative pass. 
-        */
-        SHADOWTYPE_TEXTURE_MODULATIVE = 0x22,
-        
-        /** Texture-based shadow technique which involves a render-to-texture
-            of the shadow caster and a projection of that texture onto the 
-            shadow receivers, built up per light as additive passes. 
-            This technique can be very fillrate intensive because it requires numLights + 2 
-            passes of the entire scene. However, it is a more accurate model than the 
-            modulative approach and this is especially apparent when using coloured lights 
-            or bump mapping.
-        */
-        SHADOWTYPE_TEXTURE_ADDITIVE = 0x21,
-
-        /** Texture-based shadow technique which involves a render-to-texture
-        of the shadow caster and a projection of that texture on to the shadow
-        receivers, with the usage of those shadow textures completely controlled
-        by the materials of the receivers.
-        This technique is easily the most flexible of all techniques because 
-        the material author is in complete control over how the shadows are
-        combined with regular rendering. It can perform shadows as accurately
-        as SHADOWTYPE_TEXTURE_ADDITIVE but more efficiently because it requires
-        less passes. However it also requires more expertise to use, and 
-        in almost all cases, shader capable hardware to really use to the full.
-        @note The 'additive' part of this mode means that the colour of
-        the rendered shadow texture is by default plain black. It does
-        not mean it does the adding on your receivers automatically though, how you
-        use that result is up to you.
-        */
-        SHADOWTYPE_TEXTURE_ADDITIVE_INTEGRATED = 0x25,
-        /** Texture-based shadow technique which involves a render-to-texture
-            of the shadow caster and a projection of that texture on to the shadow
-            receivers, with the usage of those shadow textures completely controlled
-            by the materials of the receivers.
-            This technique is easily the most flexible of all techniques because 
-            the material author is in complete control over how the shadows are
-            combined with regular rendering. It can perform shadows as accurately
-            as SHADOWTYPE_TEXTURE_ADDITIVE but more efficiently because it requires
-            less passes. However it also requires more expertise to use, and 
-            in almost all cases, shader capable hardware to really use to the full.
-            @note The 'modulative' part of this mode means that the colour of
-            the rendered shadow texture is by default the 'shadow colour'. It does
-            not mean it modulates on your receivers automatically though, how you
-            use that result is up to you.
-        */
-        SHADOWTYPE_TEXTURE_MODULATIVE_INTEGRATED = 0x26
-    };
-
     /** An enumeration describing which material properties should track the vertex colours */
     typedef int TrackVertexColourType;
     enum TrackVertexColourEnum {
@@ -297,21 +238,6 @@ namespace Ogre {
         FBT_COLOUR  = 0x1,
         FBT_DEPTH   = 0x2,
         FBT_STENCIL = 0x4
-    };
-	
-	/** Defines the colour buffer types. */
-    enum ColourBufferType
-    {
-      CBT_BACK = 0x0,
-      CBT_BACK_LEFT,
-      CBT_BACK_RIGHT
-    };
-	
-	/** Defines the stereo mode types. */
-    enum StereoModeType
-    {
-      SMT_NONE = 0x0,
-      SMT_FRAME_SEQUENTIAL
     };
 
     /** Flags for the Instance Manager when calculating ideal number of instances per batch */
@@ -340,7 +266,58 @@ namespace Ogre {
 
         IM_USEALL       = IM_USE16BIT|IM_VTFBESTFIT|IM_USEONEWEIGHT
     };
-    
+
+    /** The types of NodeMemoryManager & ObjectMemoryManagers
+    @remarks
+        By default all objects are dynamic. Static objects can save a lot of performance on CPU side
+        (and sometimes GPU side, for example with some instancing techniques) by telling the engine
+        they won't be changing often.
+    @par
+        What it means for Nodes:
+            Nodes created with SCENE_STATIC won't update their derived position/rotation/scale every
+            frame.
+            This means that modifying (eg) a static node position won't actually take effect until
+            SceneManager::notifyStaticDirty( mySceneNode ) is called or some other similar call.
+
+            If the static scene node is child of a dynamic parent node, modifying the dynamic node
+            will not cause the static one to notice the change until explicitly notifying the
+            SceneManager that the child node should be updated.
+
+            If a static scene node is child of another static scene node, explicitly notifying the
+            SceneManager of the parent's change automatically causes the child to be updated as well
+
+            Having a dynamic node to be child of a static node is perfectly pausible and encouraged,
+            for example a moving pendulum hanging from a static clock.
+            Having a static node being child of a dynamic node doesn't make much sense, and is probably
+            a bug (unless the parent is the root node).
+    @par
+        What it means for Entities (and InstancedEntities, etc)
+            Static entities are scheduled for culling and rendering like dynamic ones, but won't update
+            their world AABB bounds (even if their scene node they're attached to changes)
+            
+            Static entities will update their aabb if user calls
+            SceneManager::notifyStaticDirty( myEntity ) or the static node they're attached to was also
+            flagged as dirty. Note that updating the node's position doesn't flag the node as dirty
+            (it's not implicit) and hence the entity won't be updated either.
+            
+            Static entities can only be attached to static nodes, and dynamic entities can only be
+            attached to dynamic nodes.
+    @par    
+        Note that on most cases, changing a single static entity or node (or creating more) can cause
+        a lot of other static objects to be scheduled to update, so don't do it often, and do it all
+        in the same frame. An example is doing it at startup (i.e. during loading time)
+    @par
+        Entities & Nodes can switch between dynamic & static at runtime. However InstancedEntities can't.
+        You need to destroy the InstancedEntity and create a new one if you wish to switch (which, by
+        the way, isn't expensive because batches preallocate the instances)
+        InstancedEntities with different SceneMemoryMgrTypes will never share the same batch.
+    */
+    enum SceneMemoryMgrTypes
+    {
+        SCENE_DYNAMIC = 0,
+        SCENE_STATIC,
+        NUM_SCENE_MEMORY_MANAGER_TYPES
+    };
     
     /** A hashed vector.
     */
@@ -555,8 +532,40 @@ namespace Ogre {
     };
 
     class Light;
-    typedef HashedVector<Light*> LightList;
+    typedef FastArray<Light*> LightArray;
 
+    /// Used as the light list, sorted
+    struct LightClosest
+    {
+        Light const *light;
+        size_t      globalIndex; //Index to SceneManager::mGlobalLightList
+        Real        distance;
+
+        LightClosest() : light( 0 ),globalIndex(0),distance( 0.0f ) {}
+        LightClosest( Light *_light, size_t _globalIndex, Real _distance ) :
+            light( _light ), globalIndex( _globalIndex ),
+            distance( _distance ) {}
+
+        inline bool operator < ( const LightClosest &right ) const;
+    };
+    /// Holds all lights in SoA after being culled over all frustums
+    struct LightListInfo
+    {
+        LightArray                      lights;
+        ///Copy from lights[i]->getVisibilityFlags(), this copy avoids one level of indirection
+        uint32  * RESTRICT_ALIAS        visibilityMask;
+        Sphere  * RESTRICT_ALIAS        boundingSphere;
+
+        LightListInfo() : visibilityMask(0), boundingSphere(0) {}
+        ~LightListInfo()
+        {
+            OGRE_FREE_SIMD( visibilityMask, MEMCATEGORY_SCENE_CONTROL );
+            OGRE_FREE_SIMD( boundingSphere, MEMCATEGORY_SCENE_CONTROL );
+        }
+    };
+    typedef HashedVector<LightClosest> LightList;
+    typedef vector<LightClosest>::type LightClosestVec;
+    typedef FastArray<LightClosest> LightClosestArray;
 
     /// Constant blank string, useful for returning by ref where local does not exist
     const String BLANKSTRING;
@@ -783,6 +792,74 @@ namespace Ogre {
 
     /** @} */
     /** @} */
+
+    /** Used for efficient removal in std::vector and std::deque (like an std::list)
+        However it assumes the order of elements in container is not important or
+        something external to the container holds the index of an element in it
+        (but still should be kept deterministically across machines)
+        Basically it swaps the iterator with the last iterator, and pops back
+        Returns the next iterator
+    */
+    template<typename T>
+    typename T::iterator efficientVectorRemove( T& container, typename T::iterator& iterator )
+    {
+        const size_t idx = iterator - container.begin();
+        *iterator = container.back();
+        container.pop_back();
+
+        return container.begin() + idx;
+    }
+
+#if OGRE_CPU == OGRE_CPU_X86
+    //VS 2012 translates this to a single maxss/maxpd instruction! :)
+    //(plus some memory loading if arguments weren't loaded)
+    inline float min( const float &left, const float &right )
+    {
+        float retVal;
+        _mm_store_ss( &retVal, _mm_min_ss( _mm_set_ss( left ), _mm_set_ss( right ) ) );
+        return retVal;
+    }
+    inline float max( const float &left, const float &right )
+    {
+        float retVal;
+        _mm_store_ss( &retVal, _mm_max_ss( _mm_set_ss( left ), _mm_set_ss( right ) ) );
+        return retVal;
+    }
+    inline double min( const double &left, const double &right )
+    {
+        double retVal;
+        _mm_store_sd( &retVal, _mm_min_sd( _mm_set_sd( left ), _mm_set_sd( right ) ) );
+        return retVal;
+    }
+    inline double max( const double &left, const double &right )
+    {
+        double retVal;
+        _mm_store_sd( &retVal, _mm_max_sd( _mm_set_sd( left ), _mm_set_sd( right ) ) );
+        return retVal;
+    }
+#else
+    //At least VS 2012 translates this to conditional moves. Using
+    //"const float" instead of "const float&" and becomes a jump
+    inline const float& min( const float &a, const float &b )
+    {
+        return a < b ? a : b;
+    }
+
+    inline const float& max( const float &a, const float &b )
+    {
+        return a > b ? a : b;
+    }
+
+    inline const double& min( const double &a, const double &b )
+    {
+        return a < b ? a : b;
+    }
+
+    inline const double& max( const double &a, const double &b )
+    {
+        return a > b ? a : b;
+    }
+#endif
 }
 
 #include "OgreHeaderSuffix.h"

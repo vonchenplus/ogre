@@ -65,11 +65,11 @@ namespace __gnu_cxx
 
 namespace Ogre {
     /** \addtogroup Core
-     *  @{
-     */
+    *  @{
+    */
     /** \addtogroup General
-     *  @{
-     */
+    *  @{
+    */
 
     /** Utility class for manipulating Strings.  */
     class _OgreExport StringUtil
@@ -102,9 +102,9 @@ namespace Ogre {
             or in the <code>doubleDelims</code> argument, which is used to include (normal)
             delimeters in the tokenised string. For example, "strings like this".
             @param
-            delims A list of delimiter characters to split by
+                delims A list of delimiter characters to split by
             @param
-            doubleDelims A list of double delimeters characters to tokenise by
+                doubleDelims A list of double delimeters characters to tokenise by
             @param
             maxSplits The maximum number of splits to perform (0 for unlimited splits). If this
             parameters is > 0, the splitting process will stop after this many splits, left to right.
@@ -112,7 +112,7 @@ namespace Ogre {
         static vector<String>::type tokenise( const String& str, const String& delims = "\t\n ", const String& doubleDelims = "\"", unsigned int maxSplits = 0);
 
         /** Lower-cases all the characters in the string.
-         */
+        */
         static void toLowerCase( String& str );
 
         /** Upper-cases all the characters in the string.

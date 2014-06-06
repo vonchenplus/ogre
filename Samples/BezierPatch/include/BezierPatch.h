@@ -53,7 +53,9 @@ protected:
     {
         // setup some basic lighting for our scene
         mSceneMgr->setAmbientLight(ColourValue(0.5, 0.5, 0.5));
-        mSceneMgr->createLight()->setPosition(100, 100, 100);
+        SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        lightNode->setPosition(100, 100, 100);
+        lightNode->attachObject( mSceneMgr->createLight() );
 
         // define the control point vertices for our patch
         PatchVertex verts[9] =
@@ -82,7 +84,7 @@ protected:
         mPatch->setSubdivision(0);   // start at 0 detail
 
         // create a patch entity from the mesh, give it a material, and attach it to the origin
-        Entity* ent = mSceneMgr->createEntity("Patch", "patch");
+        Entity* ent = mSceneMgr->createEntity("patch");
         ent->setMaterialName("Examples/BumpyMetal");
         mSceneMgr->getRootSceneNode()->attachObject(ent);
 

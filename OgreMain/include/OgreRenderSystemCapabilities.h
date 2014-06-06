@@ -92,8 +92,9 @@ namespace Ogre
         RSC_VERTEX_PROGRAM          = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 9),
         /// Supports fragment programs (pixel shaders)
         RSC_FRAGMENT_PROGRAM        = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 10),
-        /// Supports performing a scissor test to exclude areas of the screen
-        RSC_SCISSOR_TEST            = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 11),
+        // Removed. All targetted APIs by Ogre 2.0 support this feature.
+        // Feel free to overwrite this with another useful flag
+        //RSC_SCISSOR_TEST            = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 11),
         /// Supports separate stencil updates for both front and back faces
         RSC_TWO_SIDED_STENCIL       = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON, 12),
         /// Supports wrapping the stencil value at the range extremeties
@@ -154,7 +155,9 @@ namespace Ogre
         /// Supports Alpha to Coverage (A2C)
         RSC_ALPHA_TO_COVERAGE = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 11),
         /// Supports Blending operations other than +
-        RSC_ADVANCED_BLEND_OPERATIONS = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 12),
+        // Removed. All targetted APIs by Ogre 2.0 support this feature.
+        // Feel free to overwrite this with another useful flag
+        //RSC_ADVANCED_BLEND_OPERATIONS = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 12),
         /// Supports a separate depth buffer for RTTs. D3D 9 & 10, OGL w/FBO (RSC_FBO implies this flag)
         RSC_RTT_SEPARATE_DEPTHBUFFER = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 13),
         /// Supports using the MAIN depth buffer for RTTs. D3D 9&10, OGL w/FBO support unknown
@@ -185,6 +188,13 @@ namespace Ogre
         RSC_ATOMIC_COUNTERS = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 25),
         /// Supports reading back the inactive depth-stencil buffer as texture
         RSC_READ_BACK_AS_TEXTURE = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 26),
+        /// Explicit FSAA resolves (i.e. sample MSAA textures directly in the shader without resolving)
+        RSC_EXPLICIT_FSAA_RESOLVE = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 27),
+        /// TEX_TYPE_2D_ARRAY is supported
+        RSC_TEXTURE_2D_ARRAY = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 28),
+        /// TEX_TYPE_CUBE_MAP_ARRAY is supported
+        RSC_TEXTURE_CUBE_MAP_ARRAY = OGRE_CAPS_VALUE(CAPS_CATEGORY_COMMON_2, 29),
+
         // ***** DirectX specific caps *****
         /// Is DirectX feature "per stage constants" supported
         RSC_PERSTAGECONSTANT = OGRE_CAPS_VALUE(CAPS_CATEGORY_D3D9, 0),
@@ -333,6 +343,12 @@ namespace Ogre
         ushort mFragmentProgramConstantBoolCount;
         /// The number of simultaneous render targets supported
         ushort mNumMultiRenderTargets;
+        /// Maximum texture width/height for 2D textures
+        ushort mMaxTextureResolution2D;
+        /// Maximum texture width/height for 3D (volume) textures
+        ushort mMaxTextureResolution3D;
+        /// Maximum texture width/height for cube maps
+        ushort mMaxTextureResolutionCubemap;
         /// The maximum point size
         Real mMaxPointSize;
         /// Are non-POW2 textures feature-limited?
@@ -686,6 +702,28 @@ namespace Ogre
         void setFragmentProgramConstantBoolCount(ushort c)
         {
             mFragmentProgramConstantBoolCount = c;           
+        }
+        /// Maximum resolution (width or height)
+        void setMaximumResolutions( ushort res2d, ushort res3d, ushort resCube )
+        {
+            mMaxTextureResolution2D = res2d;
+            mMaxTextureResolution3D = res3d;
+            mMaxTextureResolutionCubemap = resCube;
+        }
+        /// Maximum resolution (width or height)
+        ushort getMaximumResolution2D(void) const
+        {
+            return mMaxTextureResolution2D;
+        }
+        /// Maximum resolution (width or height)
+        ushort getMaximumResolution3D(void) const
+        {
+            return mMaxTextureResolution3D;
+        }
+        /// Maximum resolution (width or height)
+        ushort getMaximumResolutionCubemap(void) const
+        {
+            return mMaxTextureResolutionCubemap;
         }
         /// Maximum point screen size in pixels
         void setMaxPointSize(Real s)

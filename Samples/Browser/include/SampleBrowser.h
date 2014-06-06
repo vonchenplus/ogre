@@ -31,6 +31,7 @@
 #include "Ogre.h"
 #include "SampleContext.h"
 #include "SamplePlugin.h"
+#include "Compositor/OgreCompositorManager2.h"
 #include "SdkTrays.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
@@ -52,11 +53,22 @@
 #endif
 
 #ifdef OGRE_STATIC_LIB
-#   ifdef OGRE_BUILD_PLUGIN_BSP
-#       include "BSP.h"
-#   endif
 #   ifdef INCLUDE_RTSHADER_SYSTEM
 #       include "ShaderSystem.h"
+#       include "DualQuaternion.h"
+#       include "DeferredShadingDemo.h"
+#       include "NewInstancing.h"
+#       include "TextureArray.h"
+#       include "SSAO.h"
+#       include "OceanDemo.h"
+#       ifdef OGRE_BUILD_COMPONENT_VOLUME
+#           include "VolumeCSG.h"
+#           include "VolumeTerrain.h"
+#       endif
+#       ifdef OGRE_BUILD_COMPONENT_TERRAIN
+#           include "EndlessWorld.h"
+#           include "Terrain.h"
+#       endif
 #   endif
 #   include "DualQuaternion.h"
 #   include "DeferredShadingDemo.h"
@@ -219,7 +231,7 @@ namespace OgreBites
     {
     public:
 
-    SampleBrowser(bool nograb = false, int startSampleIndex = -1) : SampleContext()
+        SampleBrowser(bool nograb = false, int startSampleIndex = -1) : SampleContext()
         {
             mIsShuttingDown = false;
             mNoGrabInput = nograb;
@@ -261,17 +273,17 @@ namespace OgreBites
             mNativeWindow = nativeWindow;
 #   if (OGRE_WINRT_TARGET_TYPE == DESKTOP_APP)
             mNativeControl = nullptr;
-#       endif // (OGRE_WINRT_TARGET_TYPE == DESKTOP_APP)
+#   endif // (OGRE_WINRT_TARGET_TYPE == DESKTOP_APP)
             mInputContext = inputContext;
         }
-#       if (OGRE_WINRT_TARGET_TYPE == DESKTOP_APP)
+#   if (OGRE_WINRT_TARGET_TYPE == DESKTOP_APP)
         void initAppForWinRT( Windows::UI::Xaml::Shapes::Rectangle ^ nativeControl, InputContext inputContext)
         {
             mNativeWindow = nullptr;
             mNativeControl = nativeControl;
             mInputContext = inputContext;
         }
-#       endif // (OGRE_WINRT_TARGET_TYPE == DESKTOP_APP)
+#   endif // (OGRE_WINRT_TARGET_TYPE == DESKTOP_APP)
 #endif // (OGRE_PLATFORM == OGRE_PLATFORM_WINRT)
         /*-----------------------------------------------------------------------------
           | init data members needed only by NaCl
@@ -365,11 +377,12 @@ namespace OgreBites
 
                 try
                 {
+                    mWindow->removeAllViewports(); // wipe viewports
 #ifdef INCLUDE_RTSHADER_SYSTEM
-                    if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION))
+                    /*if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION))
                     {
                         createDummyScene();
-                    }
+                    }*/
 
                     s->setShaderGenerator(mShaderGenerator);
 #endif
@@ -637,7 +650,7 @@ namespace OgreBites
                     mDescBox->setText("");
                 }
 
-                bool all = selectedCategory == "All";
+                bool all = selectedCategory == " All";
                 Ogre::StringVector sampleTitles;
                 Ogre::MaterialPtr templateMat = Ogre::MaterialManager::getSingleton().getByName("SdkTrays/SampleThumbnail");
 
@@ -1065,8 +1078,11 @@ namespace OgreBites
         virtual void setup()
         {
             if(mWindow == NULL)
+            {
                 mWindow = createWindow();
-
+                mRoot->initialiseCompositor();
+            }
+            
             setupInput(mNoGrabInput);
             locateResources();
 
@@ -1089,8 +1105,7 @@ namespace OgreBites
             mPluginNameMap["Sample_Grass"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_Grass();
             
             mPluginNameMap["Sample_DualQuaternion"]     = (OgreBites::SdkSample *) OGRE_NEW Sample_DualQuaternion();
-            mPluginNameMap["Sample_Instancing"]                 = (OgreBites::SdkSample *) OGRE_NEW Sample_Instancing();
-            mPluginNameMap["Sample_NewInstancing"]              = (OgreBites::SdkSample *) OGRE_NEW Sample_NewInstancing();
+            mPluginNameMap["Sample_NewInstancing"]      = (OgreBites::SdkSample *) OGRE_NEW Sample_NewInstancing();
             mPluginNameMap["Sample_TextureArray"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_TextureArray();
             mPluginNameMap["Sample_Tessellation"]       = (OgreBites::SdkSample *) OGRE_NEW Sample_Tessellation();
             mPluginNameMap["Sample_PNTriangles"]                = (OgreBites::SdkSample *) OGRE_NEW Sample_PNTriangles();
@@ -1119,9 +1134,6 @@ namespace OgreBites
 #if defined(INCLUDE_RTSHADER_SYSTEM) && OGRE_PLATFORM != OGRE_PLATFORM_WINRT
             if(hasProgrammableGPU)
             {
-#   ifdef OGRE_BUILD_PLUGIN_BSP
-                mPluginNameMap["Sample_BSP"]                = (OgreBites::SdkSample *) OGRE_NEW Sample_BSP();
-#   endif
                 mPluginNameMap["Sample_CelShading"]         = (OgreBites::SdkSample *) OGRE_NEW Sample_CelShading();
                 mPluginNameMap["Sample_Compositor"]         = (OgreBites::SdkSample *) OGRE_NEW Sample_Compositor();
                 mPluginNameMap["Sample_CubeMapping"]        = (OgreBites::SdkSample *) OGRE_NEW Sample_CubeMapping();
@@ -1218,9 +1230,9 @@ namespace OgreBites
             }
 #endif // (OGRE_PLATFORM == OGRE_PLATFORM_WINRT) && (OGRE_WINRT_TARGET_TYPE == DESKTOP_APP)
             mWindow->windowMovedOrResized();    // notify window
-            windowResized(mWindow);                             // notify window event listeners
+            windowResized(mWindow);             // notify window event listeners
         }
-
+        
     protected:
 
         /*-----------------------------------------------------------------------------
@@ -1301,15 +1313,40 @@ namespace OgreBites
         }
 
         /*-----------------------------------------------------------------------------
-          | Creates dummy scene to allow rendering GUI in viewport.
-          -----------------------------------------------------------------------------*/
+        | Creates dummy scene to allow rendering GUI in viewport.
+        -----------------------------------------------------------------------------*/
         virtual void createDummyScene()
         {
-            mWindow->removeAllViewports();
-            Ogre::SceneManager* sm = mRoot->createSceneManager(Ogre::ST_GENERIC, "DummyScene");
+#if OGRE_DEBUG_MODE
+            //Debugging multithreaded code is a PITA, disable it.
+            const size_t numThreads = 1;
+            Ogre::InstancingTheadedCullingMethod threadedCullingMethod = Ogre::INSTANCING_CULLING_SINGLETHREAD;
+#else
+            //getNumLogicalCores() may return 0 if couldn't detect
+            const size_t numThreads = std::max<Ogre::uint32>
+                                           ( 1, Ogre::PlatformInformation::getNumLogicalCores() );
+
+            Ogre::InstancingTheadedCullingMethod threadedCullingMethod = Ogre::INSTANCING_CULLING_SINGLETHREAD;
+
+            //See doxygen documentation regarding culling methods.
+            //In some cases you may still want to use single thread.
+            if( numThreads > 1 )
+                threadedCullingMethod = Ogre::INSTANCING_CULLING_THREADED;
+#endif
+            Ogre::SceneManager* sm = mRoot->createSceneManager(Ogre::ST_GENERIC, numThreads,
+                                                                threadedCullingMethod, "DummyScene");
             sm->addRenderQueueListener(mOverlaySystem);
             Ogre::Camera* cam = sm->createCamera("DummyCamera");
-            mWindow->addViewport(cam);
+
+            Ogre::CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
+            if( !compositorManager->hasWorkspaceDefinition( "SampleBrowserWorkspace" ) )
+            {
+                compositorManager->createBasicWorkspaceDef( "SampleBrowserWorkspace",
+                                                            Ogre::ColourValue( 0.6f, 0.0f, 0.6f ),
+                                                            Ogre::IdString() );
+            }
+            compositorManager->addWorkspace( sm, mWindow, cam,
+                                            "SampleBrowserWorkspace", true );
 #ifdef INCLUDE_RTSHADER_SYSTEM
             // Initialize shader generator.
             // Must be before resource loading in order to allow parsing extended material attributes.
@@ -1336,9 +1373,9 @@ namespace OgreBites
                 if(baseWhite->getNumTechniques() > 1)
                 {
                     baseWhite->getTechnique(0)->getPass(0)->setVertexProgram(
-                        baseWhite->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
+                    baseWhite->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
                     baseWhite->getTechnique(0)->getPass(0)->setFragmentProgram(
-                        baseWhite->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
+                    baseWhite->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
                 }
 
                 // creates shaders for base material BaseWhiteNoLighting using the RTSS
@@ -1352,9 +1389,9 @@ namespace OgreBites
                 if(baseWhite->getNumTechniques() > 1)
                 {
                     baseWhiteNoLighting->getTechnique(0)->getPass(0)->setVertexProgram(
-                        baseWhiteNoLighting->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
+                    baseWhiteNoLighting->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
                     baseWhiteNoLighting->getTechnique(0)->getPass(0)->setFragmentProgram(
-                        baseWhiteNoLighting->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
+                    baseWhiteNoLighting->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
                 }
             }
 #endif // INCLUDE_RTSHADER_SYSTEM
@@ -1386,7 +1423,7 @@ namespace OgreBites
             sampleList.push_back("Sample_ParticleFX");
 #   ifdef INCLUDE_RTSHADER_SYSTEM
             sampleList.push_back("Sample_ShaderSystem");
-#       endif
+#   endif
             sampleList.push_back("Sample_Lighting");
             sampleList.push_back("Sample_MeshLod");
             sampleList.push_back("Sample_SkyBox");
@@ -1549,7 +1586,7 @@ namespace OgreBites
                 }
             }
 
-            if (!mLoadedSamples.empty()) mSampleCategories.insert("All");   // insert a category for all samples
+            if (!mLoadedSamples.empty()) mSampleCategories.insert(" All");   // insert a category for all samples
 
             if (!unloadedSamplePlugins.empty())   // show error message summarising missing or invalid plugins
             {
@@ -1629,10 +1666,10 @@ namespace OgreBites
             mSampleMenu = mTrayMgr->createThickSelectMenu(TL_LEFT, "SampleMenu", "Select Sample", 120, 10);
             mSampleSlider = mTrayMgr->createThickSlider(TL_LEFT, "SampleSlider", "Slide Samples", 120, 42, 0, 0, 0);
 #else
-            mDescBox = mTrayMgr->createTextBox(TL_LEFT, "SampleInfo", "Sample Info", 250, 208);
-            mCategoryMenu = mTrayMgr->createThickSelectMenu(TL_LEFT, "CategoryMenu", "Select Category", 250, 10);
-            mSampleMenu = mTrayMgr->createThickSelectMenu(TL_LEFT, "SampleMenu", "Select Sample", 250, 10);
-            mSampleSlider = mTrayMgr->createThickSlider(TL_LEFT, "SampleSlider", "Slide Samples", 250, 80, 0, 0, 0);
+            mDescBox = mTrayMgr->createTextBox(TL_LEFT, "SampleInfo", "Sample Info", 450, 308);
+            mCategoryMenu = mTrayMgr->createThickSelectMenu(TL_LEFT, "CategoryMenu", "Select Category", 450, 10); 
+            mSampleMenu = mTrayMgr->createThickSelectMenu(TL_LEFT, "SampleMenu", "Select Sample", 450, 10);
+            mSampleSlider = mTrayMgr->createThickSlider(TL_LEFT, "SampleSlider", "Slide Samples", 450, 80, 0, 0, 0);
 #endif
             /* Sliders do not notify their listeners on creation, so we manually call the callback here
                to format the slider value correctly. */
@@ -1800,10 +1837,12 @@ namespace OgreBites
 #ifdef INCLUDE_RTSHADER_SYSTEM
             mShaderGenerator->removeSceneManager(dummyScene);
 #endif
+            Ogre::CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
+            compositorManager->removeAllWorkspaces();
+
             dummyScene->removeRenderQueueListener(mOverlaySystem);
-            mWindow->removeAllViewports();
             mRoot->destroySceneManager(dummyScene);
-        }
+        }   
 
         /*-----------------------------------------------------------------------------
           | Extend to temporarily hide a sample's overlays while in the pause menu.
@@ -1983,8 +2022,8 @@ namespace OgreBites
         Ogre::uint32 mInitHeight;
 #endif
 #ifdef INCLUDE_RTSHADER_SYSTEM
-        Ogre::RTShader::ShaderGenerator*                        mShaderGenerator;                       // The Shader generator instance.
-        ShaderGeneratorTechniqueResolverListener*       mMaterialMgrListener;           // Shader generator material manager listener.
+        Ogre::RTShader::ShaderGenerator*            mShaderGenerator;           // The Shader generator instance.
+        ShaderGeneratorTechniqueResolverListener*   mMaterialMgrListener;       // Shader generator material manager listener.  
 #endif // INCLUDE_RTSHADER_SYSTEM
     public:
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS

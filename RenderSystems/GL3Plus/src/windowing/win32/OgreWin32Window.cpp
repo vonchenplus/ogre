@@ -42,6 +42,7 @@ THE SOFTWARE.
 #include "OgreWindowEventUtilities.h"
 #include "OgreGL3PlusPixelFormat.h"
 #include "OgreDepthBuffer.h"
+#include "OgrePixelBox.h"
 
 namespace Ogre {
 
@@ -148,15 +149,6 @@ namespace Ogre {
 
             if ((opt = miscParams->find("gamma")) != end)
                 hwGamma = StringConverter::parseBool(opt->second);
-
-#if OGRE_NO_QUAD_BUFFER_STEREO == 0
-			if ((opt = miscParams->find("stereoMode")) != end)
-			{
-				StereoModeType stereoMode = StringConverter::parseStereoMode(opt->second);
-				if (SMT_NONE != stereoMode)
-					mStereoEnabled = true;
-			}
-#endif
 
             if ((opt = miscParams->find("externalWindowHandle")) != end)
             {
@@ -808,9 +800,9 @@ namespace Ogre {
             mHeight = rc.bottom - rc.top;
 
             // Notify viewports of resize
-            ViewportList::iterator it = mViewportList.begin();
+            ViewportList::const_iterator it = mViewportList.begin();
             while( it != mViewportList.end() )
-                (*it++).second->_updateDimensions();            
+                (*it++)->_updateDimensions();
         }
     }
 

@@ -60,14 +60,13 @@ class _OgreSampleClassExport Sample_Tessellation : public SdkSample
         tMat->getBestTechnique()->getPass(0);
 
         // create a plain with float3 tex cord
-        ManualObject* tObject = mSceneMgr->createManualObject("TesselatedObject");
-
-        // create a triangle that uses our material
+        ManualObject* tObject = mSceneMgr->createManualObject();
+        
+        // create a triangle that uses our material 
         tObject->begin(tMat->getName(), RenderOperation::OT_TRIANGLE_LIST);
-        tObject->position(10, 10, 0);
-        tObject->position(0, 10, 0);
         tObject->position(0, 0, 0);
-        //tObject->triangle(0, 1, 2);
+        tObject->position(0, 10, 0);
+        tObject->position(10, 10, 0);
         tObject->end();
 
         // attach it to a node and position appropriately

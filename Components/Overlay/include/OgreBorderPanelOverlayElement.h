@@ -173,7 +173,7 @@ namespace Ogre {
         const String& getBorderMaterialName(void) const;
 
         /** @copydoc OverlayContainer::_updateRenderQueue */
-        void _updateRenderQueue(RenderQueue* queue);
+        void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
         /// @copydoc OverlayElement::visitRenderables
         void visitRenderables(Renderable::Visitor* visitor, 
             bool debugRenderables = false);
@@ -328,11 +328,9 @@ namespace Ogre {
             mUseIdentityProjection = true;
             mUseIdentityView = true;
         }
-        const MaterialPtr& getMaterial(void) const { return mParent->mBorderMaterial; }
         void getRenderOperation(RenderOperation& op) { op = mParent->mRenderOp2; }
         void getWorldTransforms(Matrix4* xform) const { mParent->getWorldTransforms(xform); }
         unsigned short getNumWorldTransforms(void) const { return 1; }
-        Real getSquaredViewDepth(const Camera* cam) const { return mParent->getSquaredViewDepth(cam); }
         const LightList& getLights(void) const
         {
             // N/A, panels are not lit

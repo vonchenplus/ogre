@@ -12,26 +12,33 @@ same license as the rest of the engine.
 -----------------------------------------------------------------------------
 */
 #include "VolumeRenderable.h"
-#include "OgreCamera.h"
-#include "OgreSceneNode.h"
-#include "OgreHardwareVertexBuffer.h"
-#include "OgreHardwareIndexBuffer.h"
-#include "OgreHardwareBufferManager.h"
-#include "OgreMaterial.h"
-#include "OgreTechnique.h"
-#include "OgrePass.h"
-#include "OgreTextureUnitState.h"
-#include "OgreTextureManager.h"
-#include "OgreMaterialManager.h"
+#include <OgreCamera.h>
+#include <OgreSceneNode.h>
+#include <OgreHardwareVertexBuffer.h>
+#include <OgreHardwareIndexBuffer.h>
+#include <OgreHardwareBufferManager.h>
+#include <OgreMaterial.h>
+#include <OgreTechnique.h>
+#include <OgrePass.h>
+#include <OgreTextureUnitState.h>
+#include <OgreTextureManager.h>
+#include <OgreMaterialManager.h>
+#include <Math/Array/OgreObjectMemoryManager.h>
+
 using namespace Ogre;
 
-VolumeRenderable::VolumeRenderable(size_t nSlices, float size, const String &texture):
+VolumeRenderable::VolumeRenderable(IdType id, ObjectMemoryManager *objectMemoryManager,
+								   size_t nSlices, float size, const String &texture):
+    SimpleRenderable(id, objectMemoryManager),
     mSlices(nSlices),
     mSize(size),
     mTexture(texture)
 {
-    mRadius = sqrtf(size*size+size*size+size*size)/2.0f;
-    mBox = Ogre::AxisAlignedBox(-size, -size, -size, size, size, size);
+    Aabb aabb( Vector3::ZERO, Vector3( size ) );
+    mObjectData.mLocalAabb->setFromAabb( aabb, mObjectData.mIndex );
+    mObjectData.mLocalRadius[mObjectData.mIndex] = aabb.getRadius();
+
+    mBox = AxisAlignedBox::AxisAlignedBox( aabb.getMinimum(), aabb.getMaximum() );
     
     // No shadows
     setCastShadows(false);
@@ -48,14 +55,12 @@ VolumeRenderable::~VolumeRenderable()
 
 }
 
-void VolumeRenderable::_notifyCurrentCamera( Camera* cam )
+void VolumeRenderable::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
 {
-    MovableObject::_notifyCurrentCamera(cam);
-
     // Fake orientation toward camera
-    Vector3 zVec = getParentNode()->_getDerivedPosition() - cam->getDerivedPosition();
+    Vector3 zVec = getParentNode()->_getDerivedPosition() - camera->getDerivedPosition();
     zVec.normalise();
-    Vector3 fixedAxis = cam->getDerivedOrientation() * Vector3::UNIT_Y ;
+    Vector3 fixedAxis = camera->getDerivedOrientation() * Vector3::UNIT_Y ;
     
     Vector3 xVec = fixedAxis.crossProduct( zVec );
     xVec.normalise();
@@ -76,6 +81,8 @@ void VolumeRenderable::_notifyCurrentCamera( Camera* cam )
     rotMat = tempMat;
     rotMat.setTrans(Vector3(0.5f, 0.5f, 0.5f));
     mUnit->setTextureTransform(rotMat);
+
+    SimpleRenderable::_updateRenderQueue( queue, camera, lodCamera );
 }
 
 
@@ -225,10 +232,6 @@ void VolumeRenderable::initialise()
     mMaterial = material;
 }
 
-Ogre::Real VolumeRenderable::getBoundingRadius() const
-{
-    return mRadius;
-}
 Ogre::Real VolumeRenderable::getSquaredViewDepth(const Ogre::Camera* cam) const
 {
     Ogre::Vector3 min, max, mid, dist;

@@ -222,7 +222,7 @@ protected:
     Ogre::RTShader::UniformParameterPtr mPSSegmentedLightTexture;
     //Ogre::RTShader::UniformParameterPtr mPSLightAreaBounds;
 
-    static Ogre::Light msBlankLight;                    // Shared blank light.
+    static Ogre::Light *msBlankLight;                   // Shared blank light.
 
 };
 

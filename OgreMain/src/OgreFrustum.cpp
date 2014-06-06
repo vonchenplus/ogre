@@ -40,12 +40,15 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 #include "OgreMovablePlane.h"
 
+#include "Math/Array/OgreArrayMatrixAf4x3.h"
+
 namespace Ogre {
 
     String Frustum::msMovableType = "Frustum";
     const Real Frustum::INFINITE_FAR_PLANE_ADJUST = 0.00001;
     //-----------------------------------------------------------------------
-    Frustum::Frustum(const String& name) : 
+    Frustum::Frustum( IdType id, ObjectMemoryManager *objectMemoryManager ) : 
+        MovableObject( id, objectMemoryManager, 0 ),
         mProjType(PT_PERSPECTIVE), 
         mFOVy(Radian(Math::PI/4.0f)), 
         mFarDist(100000.0f), 
@@ -70,13 +73,11 @@ namespace Ogre {
         mObliqueDepthProjection(false), 
         mLinkedObliqueProjPlane(0)
     {
-        // Initialise material
-        mMaterial = MaterialManager::getSingleton().getByName("BaseWhiteNoLighting");
+        mObjectData.mQueryFlags[mObjectData.mIndex] = SceneManager::QUERY_FRUSTUM_DEFAULT_MASK;
         
         // Alter superclass members
-        mVisible = false;
+        setVisible( false );
         mParentNode = 0;
-        mName = name;
 
         mLastLinkedReflectionPlane.normal = Vector3::ZERO;
         mLastLinkedObliqueProjPlane.normal = Vector3::ZERO;
@@ -312,11 +313,6 @@ namespace Ogre {
         }
 
         return true;
-    }
-    //---------------------------------------------------------------------
-    uint32 Frustum::getTypeFlags(void) const
-    {
-        return SceneManager::FRUSTUM_TYPE_MASK;
     }
     //-----------------------------------------------------------------------
     void Frustum::calcProjectionParameters(Real& left, Real& right, Real& bottom, Real& top) const
@@ -700,26 +696,20 @@ namespace Ogre {
     bool Frustum::isViewOutOfDate(void) const
     {
         // Attached to node?
-        if (mParentNode)
+        if( mParentNode )
         {
+            const Quaternion derivedOrient( mParentNode->_getDerivedOrientationUpdated() );
+            const Vector3 derivedPos( mParentNode->_getDerivedPosition() );
+
             if (mRecalcView ||
-                mParentNode->_getDerivedOrientation() != mLastParentOrientation ||
-                mParentNode->_getDerivedPosition() != mLastParentPosition)
+                derivedOrient != mLastParentOrientation ||
+                derivedPos != mLastParentPosition)
             {
                 // Ok, we're out of date with SceneNode we're attached to
-                mLastParentOrientation = mParentNode->_getDerivedOrientation();
-                mLastParentPosition = mParentNode->_getDerivedPosition();
+                mLastParentOrientation = derivedOrient;
+                mLastParentPosition = derivedPos;
                 mRecalcView = true;
             }
-        }
-        // Deriving reflection from linked plane?
-        if (mLinkedReflectPlane && 
-            !(mLastLinkedReflectionPlane == mLinkedReflectPlane->_getDerivedPlane()))
-        {
-            mReflectPlane = mLinkedReflectPlane->_getDerivedPlane();
-            mReflectMatrix = Math::buildReflectionMatrix(mReflectPlane);
-            mLastLinkedReflectionPlane = mLinkedReflectPlane->_getDerivedPlane();
-            mRecalcView = true;
         }
 
         return mRecalcView;
@@ -901,9 +891,74 @@ namespace Ogre {
         {
             updateWorldSpaceCornersImpl();
         }
-
     }
+    //-----------------------------------------------------------------------
+    void Frustum::getCustomWorldSpaceCorners(
+                ArrayVector3 outCorners[(8 + ARRAY_PACKED_REALS - 1) / ARRAY_PACKED_REALS],
+                Real customFarPlane ) const
+    {
+        updateView();
 
+        ArrayMatrixAf4x3 eyeToWorld;
+        eyeToWorld.setAll( mViewMatrix.inverseAffine() );
+
+        // Note: Even though we can dealing with general projection matrix here,
+        //       but because it's incompatibly with infinite far plane, thus, we
+        //       still need to working with projection parameters.
+
+        // Calc near plane corners
+        Real nearLeft, nearRight, nearBottom, nearTop;
+        calcProjectionParameters(nearLeft, nearRight, nearBottom, nearTop);
+
+        // Treat infinite fardist as some arbitrary far value
+        Real farDist = (customFarPlane == 0) ? 100000 : customFarPlane;
+
+        // Calc far palne corners
+        Real radio = mProjType == PT_PERSPECTIVE ? farDist / mNearDist : 1;
+        Real farLeft = nearLeft * radio;
+        Real farRight = nearRight * radio;
+        Real farBottom = nearBottom * radio;
+        Real farTop = nearTop * radio;
+
+        ArrayVector3 corners[(8 + ARRAY_PACKED_REALS - 1) / ARRAY_PACKED_REALS];
+
+        //We need 32 scalarCorners (8 vertices x 4 elements per vertex) but starting
+        //ARRAY_PACKED_REALS > 8; we need more to prevent buffer overruns
+        OGRE_ALIGNED_DECL( Real, scalarCorners[8 * 4 * (ARRAY_PACKED_REALS <= 8 ?
+                                               1 : (ARRAY_PACKED_REALS / 8))],
+                           OGRE_SIMD_ALIGNMENT );
+        memset( scalarCorners, 0, sizeof( scalarCorners ) );
+
+        //near
+        scalarCorners[0] = nearRight;   scalarCorners[1] = nearTop;     scalarCorners[2] = -mNearDist;
+        scalarCorners[4] = nearLeft;    scalarCorners[5] = nearTop;     scalarCorners[6] = -mNearDist;
+        scalarCorners[8] = nearLeft;    scalarCorners[9] = nearBottom;  scalarCorners[10]= -mNearDist;
+        scalarCorners[12]= nearRight;   scalarCorners[13]= nearBottom;  scalarCorners[14]= -mNearDist;
+        scalarCorners[3] = scalarCorners[7] = scalarCorners[11] = scalarCorners[15] = 0;
+
+        // far
+        scalarCorners[16]= farRight;    scalarCorners[17]= farTop;      scalarCorners[18]= -farDist;
+        scalarCorners[20]= farLeft;     scalarCorners[21]= farTop;      scalarCorners[22]= -farDist;
+        scalarCorners[24]= farLeft;     scalarCorners[25]= farBottom;   scalarCorners[26]= -farDist;
+        scalarCorners[28]= farRight;    scalarCorners[29]= farBottom;   scalarCorners[30]= -farDist;
+        scalarCorners[19] = scalarCorners[23] = scalarCorners[27] = scalarCorners[31] = 0;
+
+        //For ARRAY_PACKED_REALS > 8; repeat the last point (to make
+        //functions like CollapseMin & CollapseMax work correctly)
+        for( size_t i=32; i<ARRAY_PACKED_REALS * 8; i += 4 )
+        {
+            scalarCorners[i+0] = farRight;
+            scalarCorners[i+1] = farBottom;
+            scalarCorners[i+2] = -farDist;
+            scalarCorners[i+3] = 0;
+        }
+
+        for( size_t i=0; i<(8 + ARRAY_PACKED_REALS - 1) / ARRAY_PACKED_REALS; ++i )
+        {
+            corners[i].loadFromAoS( scalarCorners + i * ARRAY_PACKED_REALS * 4 );
+            outCorners[i] = eyeToWorld * corners[i];
+        }
+    }
     //-----------------------------------------------------------------------
     Real Frustum::getAspectRatio(void) const
     {
@@ -923,29 +978,17 @@ namespace Ogre {
         return mBoundingBox;
     }
     //-----------------------------------------------------------------------
-    void Frustum::_updateRenderQueue(RenderQueue* queue)
-    {
-        if (mDebugDisplay)
-        {
-            // Add self 
-            queue->addRenderable(this);
-        }
-    }
-    //-----------------------------------------------------------------------
     const String& Frustum::getMovableType(void) const
     {
         return msMovableType;
     }
     //-----------------------------------------------------------------------
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
     Real Frustum::getBoundingRadius(void) const
     {
         return (mFarDist == 0)? 100000 : mFarDist;
     }
-    //-----------------------------------------------------------------------
-    const MaterialPtr& Frustum::getMaterial(void) const
-    {
-        return mMaterial;
-    }
+#endif
     //-----------------------------------------------------------------------
     void Frustum::getRenderOperation(RenderOperation& op) 
     {
@@ -958,20 +1001,13 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Frustum::getWorldTransforms(Matrix4* xform) const 
     {
-        if (mParentNode)
-            *xform = mParentNode->_getFullTransform();
-        else
-            *xform = Matrix4::IDENTITY;
+        *xform = mParentNode->_getFullTransform();
     }
     //-----------------------------------------------------------------------
     Real Frustum::getSquaredViewDepth(const Camera* cam) const 
     {
         // Calc from centre
-        if (mParentNode)
-            return (cam->getDerivedPosition() 
-                - mParentNode->_getDerivedPosition()).squaredLength();
-        else
-            return 0;
+        return (cam->getDerivedPosition() - mParentNode->_getDerivedPosition()).squaredLength();
     }
     //-----------------------------------------------------------------------
     const LightList& Frustum::getLights(void) const 
@@ -984,10 +1020,9 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Frustum::_notifyCurrentCamera(Camera* cam)
     {
+        //TODO: (dark_sylinc)
         // Make sure bounding box up-to-date
         updateFrustum();
-
-        MovableObject::_notifyCurrentCamera(cam);
     }
 
     // -------------------------------------------------------------------
@@ -1129,11 +1164,11 @@ namespace Ogre {
                     Real Px0 = -(Pz0 * Nz0) / Nx0;
                     if (Px0 > eyeSpacePos.x)
                     {
-                        *right = std::min(*right, relx0.x);
+                        *right = Ogre::min(*right, relx0.x);
                     }
                     else
                     {
-                        *left = std::max(*left, relx0.x);
+                        *left = Ogre::max(*left, relx0.x);
                     }
                 }
                 Real Pz1 = (Lxz - rsq) / (eyeSpacePos.z - ((Nz1 / Nx1) * eyeSpacePos.x));
@@ -1149,11 +1184,11 @@ namespace Ogre {
                     Real Px1 = -(Pz1 * Nz1) / Nx1;
                     if (Px1 > eyeSpacePos.x)
                     {
-                        *right = std::min(*right, relx1.x);
+                        *right = Ogre::min(*right, relx1.x);
                     }
                     else
                     {
-                        *left = std::max(*left, relx1.x);
+                        *left = Ogre::max(*left, relx1.x);
                     }
                 }
             }
@@ -1197,11 +1232,11 @@ namespace Ogre {
                     Real Py0 = -(Pz0 * Nz0) / Ny0;
                     if (Py0 > eyeSpacePos.y)
                     {
-                        *top = std::min(*top, rely0.y);
+                        *top = Ogre::min(*top, rely0.y);
                     }
                     else
                     {
-                        *bottom = std::max(*bottom, rely0.y);
+                        *bottom = Ogre::max(*bottom, rely0.y);
                     }
                 }
                 Real Pz1 = (Lyz - rsq) / (eyeSpacePos.z - ((Nz1 / Ny1) * eyeSpacePos.y));
@@ -1217,11 +1252,11 @@ namespace Ogre {
                     Real Py1 = -(Pz1 * Nz1) / Ny1;
                     if (Py1 > eyeSpacePos.y)
                     {
-                        *top = std::min(*top, rely1.y);
+                        *top = Ogre::min(*top, rely1.y);
                     }
                     else
                     {
-                        *bottom = std::max(*bottom, rely1.y);
+                        *bottom = Ogre::max(*bottom, rely1.y);
                     }
                 }
             }

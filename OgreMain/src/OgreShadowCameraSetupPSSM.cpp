@@ -38,11 +38,6 @@ namespace Ogre
         : mSplitPadding(1.0f), mCurrentIteration(0)
     {
         calculateSplitPoints(3, 100, 100000);
-        setOptimalAdjustFactor(0, 5);
-        setOptimalAdjustFactor(1, 1);
-        setOptimalAdjustFactor(2, 0);
-
-
     }
     //---------------------------------------------------------------------
     PSSMShadowCameraSetup::~PSSMShadowCameraSetup()
@@ -56,7 +51,6 @@ namespace Ogre
             "PSSMShadowCameraSetup::calculateSplitPoints");
 
         mSplitPoints.resize(splitCount + 1);
-        mOptimalAdjustFactors.resize(splitCount);
         mSplitCount = splitCount;
 
         mSplitPoints[0] = nearDist;
@@ -79,26 +73,10 @@ namespace Ogre
             "PSSMShadowCameraSetup::setSplitPoints");
         mSplitCount = static_cast<uint>(newSplitPoints.size() - 1);
         mSplitPoints = newSplitPoints;
-        mOptimalAdjustFactors.resize(mSplitCount);
-    }
-    //---------------------------------------------------------------------
-    void PSSMShadowCameraSetup::setOptimalAdjustFactor(size_t splitIndex, Real factor)
-    {
-        if (splitIndex >= mOptimalAdjustFactors.size())
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Split index out of range", 
-            "PSSMShadowCameraSetup::setOptimalAdjustFactor");
-        mOptimalAdjustFactors[splitIndex] = factor;
-        
-    }
-    //---------------------------------------------------------------------
-    Real PSSMShadowCameraSetup::getOptimalAdjustFactor() const
-    {
-        // simplifies the overriding of the LiSPSM opt adjust factor use
-        return mOptimalAdjustFactors[mCurrentIteration];
     }
     //---------------------------------------------------------------------
     void PSSMShadowCameraSetup::getShadowCamera(const Ogre::SceneManager *sm, const Ogre::Camera *cam,
-        const Ogre::Viewport *vp, const Ogre::Light *light, Ogre::Camera *texCam, size_t iteration) const
+                                const Ogre::Light *light, Ogre::Camera *texCam, size_t iteration) const
     {
         // apply the right clip distance.
         Real nearDist = mSplitPoints[iteration];
@@ -108,6 +86,7 @@ namespace Ogre
         if (iteration > 0)
         {
             nearDist -= mSplitPadding;
+            nearDist = std::max( nearDist, mSplitPoints[0] );
         }
         if (iteration < mSplitCount - 1)
         {
@@ -124,7 +103,7 @@ namespace Ogre
         _cam->setNearClipDistance(nearDist);
         _cam->setFarClipDistance(farDist);
 
-        LiSPSMShadowCameraSetup::getShadowCamera(sm, cam, vp, light, texCam, iteration);
+        FocusedShadowCameraSetup::getShadowCamera(sm, cam,  light, texCam, iteration);
 
         // restore near/far
         _cam->setNearClipDistance(oldNear);

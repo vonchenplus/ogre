@@ -48,8 +48,9 @@ namespace Ogre
     *  @{
     */
 
+    class FrameStats;
     typedef vector<RenderSystem*>::type RenderSystemList;
-    
+
     /** The root class of the Ogre system.
         @remarks
             The Ogre::Root class represents a starting point for the client
@@ -88,6 +89,7 @@ namespace Ogre
         MaterialManager* mMaterialManager;
         MeshManager* mMeshManager;
         ParticleSystemManager* mParticleManager;
+        OldSkeletonManager* mOldSkeletonManager;
         SkeletonManager* mSkeletonManager;
         
         ArchiveFactory *mZipArchiveFactory;
@@ -105,12 +107,15 @@ namespace Ogre
         ScriptCompilerManager *mCompilerManager;
         LodStrategyManager *mLodStrategyManager;
 
+        FrameStats* mFrameStats;
         Timer* mTimer;
         RenderWindow* mAutoWindow;
         Profiler* mProfiler;
         HighLevelGpuProgramManager* mHighLevelGpuProgramManager;
         ExternalTextureSourceManager* mExternalTextureSourceManager;
-        CompositorManager* mCompositorManager;      
+        HlmsManager         *mHlmsManager;
+        HlmsLowLevel        *mHlmsLowLevelProxy;
+        CompositorManager2 *mCompositorManager2;
         unsigned long mNextFrame;
         Real mFrameSmoothingTime;
         bool mRemoveQueueStructuresOnClear;
@@ -136,9 +141,6 @@ namespace Ogre
         MovableObjectFactory* mManualObjectFactory;
         MovableObjectFactory* mBillboardChainFactory;
         MovableObjectFactory* mRibbonTrailFactory;
-
-        typedef map<String, RenderQueueInvocationSequence*>::type RenderQueueInvocationSequenceMap;
-        RenderQueueInvocationSequenceMap mRQSequenceMap;
 
         /// Are we initialised yet?
         bool mIsInitialised;
@@ -311,6 +313,11 @@ namespace Ogre
         */
         RenderSystem* getRenderSystem(void);
 
+        /// Gets the HlmsManager, which is needed to register generators at startup.
+        HlmsManager* getHlmsManager(void) const                     { return mHlmsManager; }
+
+        CompositorManager2* getCompositorManager2() const           { return mCompositorManager2; }
+
         /** Initialises the renderer.
             @remarks
                 This method can only be called after a renderer has been
@@ -329,8 +336,8 @@ namespace Ogre
         RenderWindow* initialise(bool autoCreateWindow, const String& windowTitle = "OGRE Render Window",
                                     const String& customCapabilitiesConfig = BLANKSTRING);
 
-        /** Returns whether the system is initialised or not. */
-        bool isInitialised(void) const { return mIsInitialised; }
+		/** Returns whether the system is initialised or not. */
+		bool isInitialised(void) const { return mIsInitialised; }
 
         /** Requests active RenderSystem to use custom RenderSystemCapabilities
         @remarks
@@ -386,9 +393,20 @@ namespace Ogre
         @param typeName String identifying a unique SceneManager type
         @param instanceName Optional name to given the new instance that is
             created. If you leave this blank, an auto name will be assigned.
+        @param numWorkerThreads
+            Number of worker threads. Must be greater than 0; you should not
+            oversubscribe the system. I.e. if the system has 4 cores (excluding
+            HyperThreading) and you intend to run your logic 100% in one of the cores,
+            set this value to 3. If you intend to fully use 2 cores for your own stuff,
+            set this value to 2.
+        @param threadedCullingMethod
+            @See InstancingTheadedCullingMethod. Note: When numWorkerThreads is 1,
+            this value is forced to INSTANCING_CULLING_SINGLETHREAD (as otherwise
+            it would only degrade performance).
         */
-        SceneManager* createSceneManager(const String& typeName, 
-            const String& instanceName = BLANKSTRING);
+        SceneManager* createSceneManager(const String& typeName, size_t numWorkerThreads,
+                                        InstancingTheadedCullingMethod threadedCullingMethod,
+                                        const String& instanceName = BLANKSTRING);
 
         /** Create a SceneManager instance based on scene type support.
         @remarks
@@ -401,9 +419,20 @@ namespace Ogre
         @param typeMask A mask containing one or more SceneType flags
         @param instanceName Optional name to given the new instance that is
             created. If you leave this blank, an auto name will be assigned.
+        @param numWorkerThreads
+            Number of worker threads. Must be greater than 0; you should not
+            oversubscribe the system. I.e. if the system has 4 cores (excluding
+            HyperThreading) and you intend to run your logic 100% in one of the cores,
+            set this value to 3. If you intend to fully use 2 cores for your own stuff,
+            set this value to 2.
+        @param threadedCullingMethod
+            @See InstancingTheadedCullingMethod. Note: When numWorkerThreads is 1,
+            this value is forced to INSTANCING_CULLING_SINGLETHREAD (as otherwise
+            it would only degrade performance).
         */
-        SceneManager* createSceneManager(SceneTypeMask typeMask, 
-            const String& instanceName = BLANKSTRING);
+        SceneManager* createSceneManager(SceneTypeMask typeMask, size_t numWorkerThreads, 
+                                        InstancingTheadedCullingMethod threadedCullingMethod,
+                                        const String& instanceName = BLANKSTRING);
 
         /** Destroy an instance of a SceneManager. */
         void destroySceneManager(SceneManager* sm);
@@ -491,6 +520,8 @@ namespace Ogre
                 Root, Root::queueEndRendering, Root::startRendering
         */
         bool endRenderingQueued(void);
+
+        const FrameStats* getFrameStats(void) const             { return mFrameStats; }
 
         /** Starts / restarts the automatic rendering cycle.
             @remarks
@@ -897,33 +928,6 @@ namespace Ogre
         */
         bool _updateAllRenderTargets(FrameEvent& evt);
 
-        /** Create a new RenderQueueInvocationSequence, useful for linking to
-            Viewport instances to perform custom rendering.
-        @param name The name to give the new sequence
-        */
-        RenderQueueInvocationSequence* createRenderQueueInvocationSequence(
-            const String& name);
-
-        /** Get a RenderQueueInvocationSequence. 
-        @param name The name to identify the sequence
-        */
-        RenderQueueInvocationSequence* getRenderQueueInvocationSequence(
-            const String& name);
-
-        /** Destroy a RenderQueueInvocationSequence. 
-        @remarks
-            You must ensure that no Viewports are using this sequence.
-        @param name The name to identify the sequence
-        */
-        void destroyRenderQueueInvocationSequence(
-            const String& name);
-
-        /** Destroy all RenderQueueInvocationSequences. 
-        @remarks
-            You must ensure that no Viewports are using custom sequences.
-        */
-        void destroyAllRenderQueueInvocationSequences(void);
-
         /** Override standard Singleton retrieval.
             @remarks
                 Why do we do this? Well, it's because the Singleton
@@ -1009,12 +1013,6 @@ namespace Ogre
         bool hasMovableObjectFactory(const String& typeName) const;
         /// Get a MovableObjectFactory for the given type
         MovableObjectFactory* getMovableObjectFactory(const String& typeName);
-        /** Allocate the next MovableObject type flag.
-        @remarks
-            This is done automatically if MovableObjectFactory::requestTypeFlags
-            returns true; don't call this manually unless you're sure you need to.
-        */
-        uint32 _allocateNextMovableObjectTypeFlag(void);
 
         typedef ConstMapIterator<MovableObjectFactoryMap> MovableObjectFactoryIterator;
         /** Return an iterator over all the MovableObjectFactory instances currently
