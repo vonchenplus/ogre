@@ -139,13 +139,10 @@ namespace Ogre {
 // Pre-declare classes
 // Allows use of pointers in header files without including individual .h
 // so decreases dependencies between files
+
     struct Aabb;
     class Angle;
     class AnimableValue;
-    class Animation;
-    class AnimationState;
-    class AnimationStateSet;
-    class AnimationTrack;
     class ArrayMatrix4;
     class ArrayMatrixAf4x3;
     class ArrayQuaternion;
@@ -154,16 +151,16 @@ namespace Ogre {
     class Archive;
     class ArchiveFactory;
     class ArchiveManager;
+    class AsyncTicket;
     class AutoParamDataSource;
     class AxisAlignedBox;
     class AxisAlignedBoxSceneQuery;
     class Barrier;
-    class Billboard;
-    class BillboardChain;
-    class BillboardSet;
     class Bone;
     class BoneMemoryManager;
     struct BoneTransform;
+    class BufferInterface;
+    class BufferPacked;
     class Camera;
     class Codec;
     class ColourValue;
@@ -178,9 +175,6 @@ namespace Ogre {
     class DepthBuffer;
     class DynLib;
     class DynLibManager;
-    class EdgeData;
-    class EdgeListBuilder;
-    class Entity;
     class ErrorDialog;
     class ExternalTextureSourceManager;
     class Factory;
@@ -194,11 +188,7 @@ namespace Ogre {
     class GpuProgram;
     class GpuProgramManager;
     class GpuProgramUsage;
-    class HardwareIndexBuffer;
     class HardwareOcclusionQuery;
-    class HardwareVertexBuffer;
-    class HardwarePixelBuffer;
-    class HardwarePixelBufferSharedPtr;
     class HighLevelGpuProgram;
     class HighLevelGpuProgramManager;
     class HighLevelGpuProgramFactory;
@@ -213,6 +203,7 @@ namespace Ogre {
     struct HlmsSamplerblock;
     class HlmsTextureManager;
     struct HlmsTexturePack;
+    class IndexBufferPacked;
     class IndexData;
     class InstanceBatch;
     class InstanceBatchHW;
@@ -224,7 +215,7 @@ namespace Ogre {
     class IntersectionSceneQuery;
     class IntersectionSceneQueryListener;
     class Image;
-    class KeyFrame;
+    class Item;
     struct KfTransform;
     class Light;
     class Log;
@@ -232,7 +223,6 @@ namespace Ogre {
     class LodStrategy;
     class LodStrategyManager;
     class ManualResourceLoader;
-    class ManualObject;
     class Material;
     class MaterialManager;
     class Math;
@@ -241,22 +231,14 @@ namespace Ogre {
     class MemoryDataStream;
     class MemoryManager;
     class Mesh;
-    class MeshSerializer;
-    class MeshSerializerImpl;
     class MeshManager;
     class MovableObject;
     class MovablePlane;
+    class MultiSourceVertexBufferPool;
 	class Node;
     class NodeMemoryManager;
-    class NumericAnimationTrack;
-    class NumericKeyFrame;
     struct ObjectData;
     class ObjectMemoryManager;
-	class OldBone;
-    class OldNode;
-	class OldNodeAnimationTrack;
-    class OldSkeletonInstance;
-    class OldSkeletonManager;
     class Particle;
     class ParticleAffector;
     class ParticleAffectorFactory;
@@ -268,12 +250,10 @@ namespace Ogre {
     class ParticleSystemRendererFactory;
     class ParticleVisualData;
     class Pass;
-    class PatchMesh;
     class PixelBox;
     class Plane;
     class PlaneBoundedVolume;
     class Plugin;
-    class Pose;
     class Profile;
     class Profiler;
     class Quaternion;
@@ -293,15 +273,12 @@ namespace Ogre {
     class RenderTarget;
     class RenderTargetListener;
     class RenderTexture;
-    class RenderToVertexBuffer;
     class MultiRenderTarget;
     class RenderWindow;
-    class RenderOperation;
     class Resource;
     class ResourceBackgroundQueue;
     class ResourceGroupManager;
     class ResourceManager;
-    class RibbonTrail;
     class Root;
     class SceneManager;
     class SceneManagerEnumerator;
@@ -315,21 +292,18 @@ namespace Ogre {
     class ShadowCameraSetup;
     class ShadowTextureManager;
     class SimpleMatrixAf4x3;
-    class SimpleRenderable;
     class SimpleSpline;
-    class Skeleton;
     class SkeletonDef;
     class SkeletonInstance;
     class SkeletonManager;
     class Sphere;
     class SphereSceneQuery;
-    class StaticGeometry;
+    class StagingBuffer;
     class StreamSerialiser;
     class StringConverter;
     class StringInterface;
-    class SubEntity;
+    class SubItem;
     class SubMesh;
-    class TagPoint;
     class Technique;
     class TempBlendedBufferInfo;
     class ExternalTextureSource;
@@ -337,18 +311,16 @@ namespace Ogre {
     class Texture;
     class TextureManager;
     struct Transform;
-    class TransformKeyFrame;
     class Timer;
     class UserObjectBindings;
+    class VaoManager;
     class Vector2;
     class Vector3;
     class Vector4;
     class Viewport;
     class VertexAnimationTrack;
-    class VertexBufferBinding;
-    class VertexData;
-    class VertexDeclaration;
-    class VertexMorphKeyFrame;
+    struct VertexArrayObject;
+    class VertexBufferPacked;
     class WireBoundingBox;
     class WorkQueue;
     class CompositorManager2;
@@ -366,13 +338,68 @@ namespace Ogre {
     typedef SharedPtr<Material> MaterialPtr;
     typedef SharedPtr<MemoryDataStream> MemoryDataStreamPtr;
     typedef SharedPtr<Mesh> MeshPtr;
-    typedef SharedPtr<PatchMesh> PatchMeshPtr;
-    typedef SharedPtr<RenderToVertexBuffer> RenderToVertexBufferSharedPtr;
     typedef SharedPtr<Resource> ResourcePtr;
     typedef SharedPtr<ShadowCameraSetup> ShadowCameraSetupPtr;
-    typedef SharedPtr<Skeleton> SkeletonPtr;
     typedef SharedPtr<SkeletonDef> SkeletonDefPtr;
     typedef SharedPtr<Texture> TexturePtr;
+
+    namespace v1
+    {
+        class Animation;
+        class AnimationState;
+        class AnimationStateSet;
+        class AnimationTrack;
+        class Billboard;
+        class BillboardChain;
+        class BillboardSet;
+        class EdgeData;
+        class EdgeListBuilder;
+        class Entity;
+        class HardwareIndexBuffer;
+        class HardwareVertexBuffer;
+        class HardwarePixelBuffer;
+        class HardwarePixelBufferSharedPtr;
+        class IndexData;
+        class InstanceBatch;
+        class InstanceBatchHW;
+        class InstanceBatchHW_VTF;
+        class InstanceBatchShader;
+        class InstanceBatchVTF;
+        class InstanceManager;
+        class InstancedEntity;
+        class KeyFrame;
+        class ManualObject;
+        class Mesh;
+        class MeshManager;
+        class NumericAnimationTrack;
+        class NumericKeyFrame;
+        class OldBone;
+        class OldNode;
+        class OldNodeAnimationTrack;
+        class OldSkeletonInstance;
+        class OldSkeletonManager;
+        class PatchMesh;
+        class Pose;
+        class RenderOperation;
+        class RenderToVertexBuffer;
+        class RibbonTrail;
+        class SimpleRenderable;
+        class Skeleton;
+        class StaticGeometry;
+        class SubEntity;
+        class SubMesh;
+        class TagPoint;
+        class TransformKeyFrame;
+        class VertexBufferBinding;
+        class VertexData;
+        class VertexDeclaration;
+        class VertexMorphKeyFrame;
+
+        typedef SharedPtr<Mesh> MeshPtr;
+        typedef SharedPtr<PatchMesh> PatchMeshPtr;
+        typedef SharedPtr<RenderToVertexBuffer> RenderToVertexBufferSharedPtr;
+        typedef SharedPtr<Skeleton> SkeletonPtr;
+    }
 }
 
 /* Include all the standard header *after* all the configuration

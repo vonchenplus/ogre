@@ -39,7 +39,7 @@
 #include "OgreGLSLSeparableProgram.h"
 
 namespace Ogre {
-
+namespace v1 {
     GL3PlusHardwarePixelBuffer::GL3PlusHardwarePixelBuffer(uint32 inWidth, uint32 inHeight,
                                                            uint32 inDepth, PixelFormat inFormat,
                                                            bool hwGamma,
@@ -259,5 +259,5 @@ namespace Ogre {
                                                       GL_RENDERBUFFER, mRenderbufferID));
     }
 
-
+}
 }

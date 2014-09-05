@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 
 namespace Ogre {
+namespace v1 {
 
     //-----------------------------------------------------------------------------
     HardwareVertexBuffer::HardwareVertexBuffer(HardwareBufferManagerBase* mgr, size_t vertexSize,  
@@ -148,20 +149,12 @@ namespace Ogre {
             return sizeof(double)*3;
         case VET_DOUBLE4:
             return sizeof(double)*4;
-        case VET_SHORT1:
-            return sizeof(short);
         case VET_SHORT2:
             return sizeof(short)*2;
-        case VET_SHORT3:
-            return sizeof(short)*3;
         case VET_SHORT4:
             return sizeof(short)*4;
-        case VET_USHORT1:
-            return sizeof(unsigned short);
         case VET_USHORT2:
             return sizeof(unsigned short)*2;
-        case VET_USHORT3:
-            return sizeof(unsigned short)*3;
         case VET_USHORT4:
             return sizeof(unsigned short)*4;
         case VET_INT1:
@@ -182,6 +175,10 @@ namespace Ogre {
             return sizeof(unsigned int)*4;
         case VET_UBYTE4:
             return sizeof(unsigned char)*4;
+        case VET_HALF2:
+            return sizeof(float);
+        case VET_HALF4:
+            return sizeof(float) * 2;
         }
         return 0;
     }
@@ -194,8 +191,6 @@ namespace Ogre {
         case VET_COLOUR_ABGR:
         case VET_COLOUR_ARGB:
         case VET_FLOAT1:
-        case VET_SHORT1:
-        case VET_USHORT1:
         case VET_UINT1:
         case VET_INT1:
         case VET_DOUBLE1:
@@ -206,10 +201,9 @@ namespace Ogre {
         case VET_UINT2:
         case VET_INT2:
         case VET_DOUBLE2:
+        case VET_HALF2:
             return 2;
         case VET_FLOAT3:
-        case VET_SHORT3:
-        case VET_USHORT3:
         case VET_UINT3:
         case VET_INT3:
         case VET_DOUBLE3:
@@ -221,6 +215,7 @@ namespace Ogre {
         case VET_INT4:
         case VET_DOUBLE4:
         case VET_UBYTE4:
+        case VET_HALF4:
             return 4;
         }
         OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Invalid type", 
@@ -247,17 +242,28 @@ namespace Ogre {
                 break;
             }
             break;
-        case VET_SHORT1:
+        case VET_SHORT2:
             switch(count)
             {
             case 1:
-                return VET_SHORT1;
             case 2:
                 return VET_SHORT2;
             case 3:
-                return VET_SHORT3;
             case 4:
                 return VET_SHORT4;
+            default:
+                break;
+            }
+            break;
+        case VET_HALF2:
+            switch(count)
+            {
+            case 1:
+            case 2:
+                return VET_HALF2;
+            case 3:
+            case 4:
+                return VET_HALF4;
             default:
                 break;
             }
@@ -349,16 +355,15 @@ namespace Ogre {
                 return VET_COLOUR_ABGR;
             case VET_COLOUR_ARGB:
                 return VET_COLOUR_ARGB;
-            case VET_SHORT1:
             case VET_SHORT2:
-            case VET_SHORT3:
             case VET_SHORT4:
-                return VET_SHORT1;
-            case VET_USHORT1:
+                return VET_SHORT2;
             case VET_USHORT2:
-            case VET_USHORT3:
             case VET_USHORT4:
-                return VET_USHORT1;
+                return VET_USHORT2;
+            case VET_HALF2:
+            case VET_HALF4:
+                return VET_HALF2;
             case VET_UBYTE4:
                 return VET_UBYTE4;
         };
@@ -817,8 +822,5 @@ namespace Ogre {
     {
 
     }
-
-
-
-
+}
 }

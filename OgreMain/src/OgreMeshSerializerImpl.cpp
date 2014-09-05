@@ -48,6 +48,7 @@ THE SOFTWARE.
 
 
 namespace Ogre {
+namespace v1 {
 
     /// stream overhead = ID + size
     const long MSTREAM_OVERHEAD_SIZE = sizeof(uint16) + sizeof(uint32);
@@ -1651,11 +1652,11 @@ namespace Ogre {
                     case VET_DOUBLE1:
                         typeSize = sizeof(double);
                         break;
-                    case VET_SHORT1:
-                        typeSize = sizeof(short);
+                    case VET_SHORT2:
+                        typeSize = sizeof(short) * 2;
                         break;
-                    case VET_USHORT1:
-                        typeSize = sizeof(unsigned short);
+                    case VET_USHORT2:
+                        typeSize = sizeof(unsigned short) * 2;
                         break;
                     case VET_INT1:
                         typeSize = sizeof(int);
@@ -4251,7 +4252,7 @@ namespace Ogre {
 
 
 
-
+}
 }
 
 

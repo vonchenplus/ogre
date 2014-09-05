@@ -42,7 +42,11 @@ namespace Ogre {
     class GL3PlusRTTManager;
     class GLSLShaderManager;
     class GLSLShaderFactory;
-    class HardwareBufferManager;
+
+    namespace v1
+    {
+        class HardwareBufferManager;
+    }
 
     /**
        Implementation of GL 3 as a rendering system.
@@ -115,7 +119,7 @@ namespace Ogre {
 
         GLSLShaderManager *mShaderManager;
         GLSLShaderFactory* mGLSLShaderFactory;
-        HardwareBufferManager* mHardwareBufferManager;
+        v1::HardwareBufferManager* mHardwareBufferManager;
 
         /** Manager object for creating render textures.
             Direct render to texture via FBO is preferable
@@ -133,6 +137,7 @@ namespace Ogre {
 
         /// Check if the GL system has already been initialised
         bool mGLInitialised;
+        bool mUseAdjacency;
 
         // local data members of _render that were moved here to improve performance
         // (save allocations)
@@ -158,7 +163,8 @@ namespace Ogre {
         GLenum getBlendMode(SceneBlendFactor ogreBlend) const;
 
         bool activateGLTextureUnit(size_t unit);
-        void bindVertexElementToGpu( const VertexElement &elem, HardwareVertexBufferSharedPtr vertexBuffer,
+        void bindVertexElementToGpu( const v1::VertexElement &elem,
+                                     v1::HardwareVertexBufferSharedPtr vertexBuffer,
                                      const size_t vertexStart,
                                      vector<GLuint>::type &attribsBound,
                                      vector<GLuint>::type &instanceAttribsBound,
@@ -456,19 +462,22 @@ namespace Ogre {
         /** See
             RenderSystem
         */
-        void setVertexDeclaration(VertexDeclaration* decl) {}
+        void setVertexDeclaration(v1::VertexDeclaration* decl) {}
         /** See
             RenderSystem
         */
-        void setVertexDeclaration(VertexDeclaration* decl, VertexBufferBinding* binding) {}
+        void setVertexDeclaration(v1::VertexDeclaration* decl, v1::VertexBufferBinding* binding) {}
         /** See
             RenderSystem.
         */
-        void setVertexBufferBinding(VertexBufferBinding* binding) {}
+        void setVertexBufferBinding(v1::VertexBufferBinding* binding) {}
         /** See
             RenderSystem
         */
-        void _render(const RenderOperation& op);
+        void _render(const v1::RenderOperation& op);
+
+        virtual void _setVertexArrayObject( const VertexArrayObject *vao );
+        virtual void _render( const VertexArrayObject *vao );
 
         void clearFrameBuffer(unsigned int buffers,
                               const ColourValue& colour = ColourValue::Black,

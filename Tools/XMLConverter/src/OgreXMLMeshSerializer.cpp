@@ -47,6 +47,7 @@ THE SOFTWARE.
 #endif
 
 namespace Ogre {
+namespace v1 {
 
     //---------------------------------------------------------------------
     XMLMeshSerializer::XMLMeshSerializer()
@@ -458,14 +459,8 @@ namespace Ogre {
                         case VET_COLOUR_ABGR: 
                             type = "colour"; 
                             break;
-                        case VET_SHORT1: 
-                            type = "short1"; 
-                            break;
                         case VET_SHORT2: 
                             type = "short2"; 
-                            break;
-                        case VET_SHORT3: 
-                            type = "short3"; 
                             break;
                         case VET_SHORT4: 
                             type = "short4"; 
@@ -593,20 +588,10 @@ namespace Ogre {
                             dataNode->SetAttribute("w", StringConverter::toString(*pFloat++));
                             dataNode->SetAttribute("x", StringConverter::toString(*pFloat++));
                             break;
-                        case VET_SHORT1:
-                            elem.baseVertexPointerToElement(pVert, &pShort);
-                            dataNode->SetAttribute("u", StringConverter::toString(*pShort++ / 65535.0f));
-                            break;
                         case VET_SHORT2:
                             elem.baseVertexPointerToElement(pVert, &pShort);
                             dataNode->SetAttribute("u", StringConverter::toString(*pShort++ / 65535.0f));
                             dataNode->SetAttribute("v", StringConverter::toString(*pShort++ / 65535.0f));
-                            break;
-                        case VET_SHORT3:
-                            elem.baseVertexPointerToElement(pVert, &pShort);
-                            dataNode->SetAttribute("u", StringConverter::toString(*pShort++ / 65535.0f));
-                            dataNode->SetAttribute("v", StringConverter::toString(*pShort++ / 65535.0f));
-                            dataNode->SetAttribute("w", StringConverter::toString(*pShort++ / 65535.0f));
                             break;
                         case VET_SHORT4:
                             elem.baseVertexPointerToElement(pVert, &pShort);
@@ -998,12 +983,8 @@ namespace Ogre {
                             vtype = VET_FLOAT3;
                         else if (!::strcmp(attrib,"float4"))
                             vtype = VET_FLOAT4;
-                        else if (!::strcmp(attrib,"short1"))
-                            vtype = VET_SHORT1;
                         else if (!::strcmp(attrib,"short2"))
                             vtype = VET_SHORT2;
-                        else if (!::strcmp(attrib,"short3"))
-                            vtype = VET_SHORT3;
                         else if (!::strcmp(attrib,"short4"))
                             vtype = VET_SHORT4;
                         else if (!::strcmp(attrib,"ubyte4"))
@@ -1250,28 +1231,12 @@ namespace Ogre {
                             *pFloat++ = StringConverter::parseReal(xmlElem->Attribute("x"));
                             break;
 
-                        case VET_SHORT1:
-                            elem.baseVertexPointerToElement(pVert, &pShort);
-                            *pShort++ = static_cast<uint16>(65535.0f * StringConverter::parseReal(xmlElem->Attribute("u")));
-                            break;
-
                         case VET_SHORT2:
                             if (!xmlElem->Attribute("v"))
                                 OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, "Texcoord 'v' attribute not found.", "XMLMeshSerializer::readGeometry");
                             elem.baseVertexPointerToElement(pVert, &pShort);
                             *pShort++ = static_cast<uint16>(65535.0f * StringConverter::parseReal(xmlElem->Attribute("u")));
                             *pShort++ = static_cast<uint16>(65535.0f * StringConverter::parseReal(xmlElem->Attribute("v")));
-                            break;
-
-                        case VET_SHORT3:
-                            if (!xmlElem->Attribute("v"))
-                                OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, "Texcoord 'v' attribute not found.", "XMLMeshSerializer::readGeometry");
-                            if (!xmlElem->Attribute("w"))
-                                OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, "Texcoord 'w' attribute not found.", "XMLMeshSerializer::readGeometry");
-                            elem.baseVertexPointerToElement(pVert, &pShort);
-                            *pShort++ = static_cast<uint16>(65535.0f * StringConverter::parseReal(xmlElem->Attribute("u")));
-                            *pShort++ = static_cast<uint16>(65535.0f * StringConverter::parseReal(xmlElem->Attribute("v")));
-                            *pShort++ = static_cast<uint16>(65535.0f * StringConverter::parseReal(xmlElem->Attribute("w")));
                             break;
 
                         case VET_SHORT4:
@@ -2317,8 +2282,5 @@ namespace Ogre {
 
     }
 
-
-
-
 }
-
+}

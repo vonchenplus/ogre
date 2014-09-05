@@ -549,16 +549,16 @@ namespace Ogre
 
         /** Returns the global instance vertex buffer.
         */
-        HardwareVertexBufferSharedPtr getGlobalInstanceVertexBuffer() const;
+        v1::HardwareVertexBufferSharedPtr getGlobalInstanceVertexBuffer() const;
         /** Sets the global instance vertex buffer.
         */
-        void setGlobalInstanceVertexBuffer(const HardwareVertexBufferSharedPtr &val);
+        void setGlobalInstanceVertexBuffer(const v1::HardwareVertexBufferSharedPtr &val);
         /** Gets vertex declaration for the global vertex buffer for the global instancing
         */
-        VertexDeclaration* getGlobalInstanceVertexBufferVertexDeclaration() const;
+        v1::VertexDeclaration* getGlobalInstanceVertexBufferVertexDeclaration() const;
         /** Sets vertex declaration for the global vertex buffer for the global instancing
         */
-        void setGlobalInstanceVertexBufferVertexDeclaration( VertexDeclaration* val);
+        void setGlobalInstanceVertexBufferVertexDeclaration( v1::VertexDeclaration* val);
         /** Gets the global number of instances.
         */
         size_t getGlobalNumberOfInstances() const;
@@ -895,6 +895,10 @@ namespace Ogre
         * Ends rendering of a frame to the current viewport.
         */
         virtual void _endFrame(void) = 0;
+
+        /// Called once per frame, regardless of how many active workspaces there are
+        void _update(void);
+
         /**
         Sets the provided viewport as the active one for future
         rendering operations. This viewport is aware of it's own
@@ -1164,9 +1168,9 @@ namespace Ogre
 
 
         /** Sets the current vertex declaration, ie the source of vertex data. */
-        virtual void setVertexDeclaration(VertexDeclaration* decl) = 0;
+        virtual void setVertexDeclaration(v1::VertexDeclaration* decl) = 0;
         /** Sets the current vertex buffer binding state. */
-        virtual void setVertexBufferBinding(VertexBufferBinding* binding) = 0;
+        virtual void setVertexBufferBinding(v1::VertexBufferBinding* binding) = 0;
 
         /**
         Render something to the active viewport.
@@ -1180,7 +1184,16 @@ namespace Ogre
         @param op A rendering operation instance, which contains
         details of the operation to be performed.
         */
-        virtual void _render(const RenderOperation& op);
+        virtual void _render(const v1::RenderOperation& op);
+
+        /** Part of the low level rendering interface. Tells the RS which VAO will be bound now.
+            (i.e. Vertex Formats, buffers being bound, etc.)
+            You don't need to rebind if the VAO's mRenderQueueId is the same as previous call.
+        */
+        virtual void _setVertexArrayObject( const VertexArrayObject *vao ) = 0;
+
+        /// Renders the VAO. Assumes _setVertexArrayObject has already been called.
+        virtual void _render( const VertexArrayObject *vao );
 
         virtual void _renderUsingReadBackAsTexture(unsigned int secondPass,Ogre::String variableName,unsigned int StartSlot);
 
@@ -1228,6 +1241,8 @@ namespace Ogre
 
         /** Returns whether or not a Gpu program of the given type is currently bound. */
         virtual bool isGpuProgramBound(GpuProgramType gptype);
+
+        VaoManager* getVaoManager(void) const           { return mVaoManager; }
 
         /**
          * Gets the native shading language version for this render system.
@@ -1482,6 +1497,8 @@ namespace Ogre
         // managed by the RenderSystem
         TextureManager* mTextureManager;
 
+        VaoManager   *mVaoManager;
+
         // Active viewport (dest for future rendering operations)
         Viewport* mActiveViewport;
 
@@ -1511,9 +1528,9 @@ namespace Ogre
         float mDerivedDepthBiasSlopeScale;
 
         /// a global vertex buffer for global instancing
-        HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
+        v1::HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
         /// a vertex declaration for the global vertex buffer for the global instancing
-        VertexDeclaration* mGlobalInstanceVertexBufferVertexDeclaration;
+        v1::VertexDeclaration* mGlobalInstanceVertexBufferVertexDeclaration;
         /// the number of global instances (this number will be multiply by the render op instance number) 
         size_t mGlobalNumberOfInstances;
 
