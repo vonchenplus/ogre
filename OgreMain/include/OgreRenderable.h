@@ -45,6 +45,8 @@ THE SOFTWARE.
 
 namespace Ogre {
 
+    typedef FastArray<VertexArrayObject*> VertexArrayObjectArray;
+
     /** \addtogroup Core
     *  @{
     */
@@ -90,7 +92,7 @@ namespace Ogre {
 
         /** Gets the render operation required to send this object to the frame buffer.
         */
-        virtual void getRenderOperation(RenderOperation& op) = 0;
+        virtual void getRenderOperation(v1::RenderOperation& op) = 0;
 
         /** Called just prior to the Renderable being rendered. 
         @remarks
@@ -400,6 +402,8 @@ namespace Ogre {
             mRenderSystemData = val; 
         }
 
+        const VertexArrayObjectArray& getVaos(void) const   { return mVaoPerLod; }
+
         uint32 getHlmsHash(void) const          { return mHlmsHash; }
         uint32 getHlmsCasterHash(void) const    { return mHlmsCasterHash; }
         HlmsDatablock* getDatablock(void) const { return mHlmsDatablock; }
@@ -440,6 +444,7 @@ namespace Ogre {
     protected:
         typedef map<size_t, Vector4>::type CustomParameterMap;
         CustomParameterMap mCustomParameters;
+        VertexArrayObjectArray  mVaoPerLod;
         uint32              mHlmsHash;
         uint32              mHlmsCasterHash;
         HlmsDatablock       *mHlmsDatablock;

@@ -33,6 +33,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     Rectangle2D::Rectangle2D( bool bQuad, IdType id, ObjectMemoryManager *objectMemoryManager ) :
             MovableObject( id, objectMemoryManager, 0 ),
             mPosition( Vector3::ZERO ),
@@ -279,4 +281,5 @@ namespace Ogre
     {
         OGRE_DELETE obj;
     }
+}
 }

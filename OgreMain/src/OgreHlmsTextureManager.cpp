@@ -122,9 +122,9 @@ namespace Ogre
                                                 textureType, 4, 4, 1, 0, PF_R8G8B8A8, TU_DEFAULT, 0,
                                                 false, 0, BLANKSTRING, false );
 
-                HardwarePixelBufferSharedPtr pixelBufferBuf = mBlankTexture->getBuffer(0);
+                v1::HardwarePixelBufferSharedPtr pixelBufferBuf = mBlankTexture->getBuffer(0);
                 const PixelBox &currImage = pixelBufferBuf->lock( Box( 0, 0, 0, 4, 4, 1 ),
-                                                                  HardwareBuffer::HBL_DISCARD );
+                                                                  v1::HardwareBuffer::HBL_DISCARD );
                 uint8 *data = reinterpret_cast<uint8*>( currImage.data );
                 for( size_t y=0; y<currImage.getHeight(); ++y )
                 {
@@ -158,12 +158,12 @@ namespace Ogre
                                             dst->getNumMipmaps() ) + 1;
         for( uint8 j=0; j<minMipmaps; ++j )
         {
-            HardwarePixelBufferSharedPtr pixelBufferBuf = dst->getBuffer(0, j);
+            v1::HardwarePixelBufferSharedPtr pixelBufferBuf = dst->getBuffer(0, j);
             const PixelBox &currImage = pixelBufferBuf->lock( Box( 0, 0, entryIdx,
                                                                    pixelBufferBuf->getWidth(),
                                                                    pixelBufferBuf->getHeight(),
                                                                    entryIdx + 1 ),
-                                                              HardwareBuffer::HBL_DISCARD );
+                                                              v1::HardwareBuffer::HBL_DISCARD );
             PixelUtil::bulkPixelConversion( srcImage.getPixelBox(0, j + srcBaseMip), currImage );
             pixelBufferBuf->unlock();
         }
@@ -203,14 +203,14 @@ namespace Ogre
                                             dst->getNumMipmaps() ) + 1;
         for( uint8 j=0; j<minMipmaps; ++j )
         {
-            HardwarePixelBufferSharedPtr pixelBufferBuf = dst->getBuffer(0, j);
+            v1::HardwarePixelBufferSharedPtr pixelBufferBuf = dst->getBuffer(0, j);
             const PixelBox &currImage = pixelBufferBuf->lock( Box( xBlock * pixelBufferBuf->getWidth(),
                                                                    yBlock * pixelBufferBuf->getHeight(),
                                                                    0,
                                                                    nextX * pixelBufferBuf->getWidth(),
                                                                    nextY * pixelBufferBuf->getHeight(),
                                                                    dst->getDepth() ),
-                                                              HardwareBuffer::HBL_DISCARD );
+                                                              v1::HardwareBuffer::HBL_DISCARD );
             if( isNormalMap )
                 PixelUtil::convertForNormalMapping( srcImage.getPixelBox(0, j + srcBaseMip), currImage );
             else

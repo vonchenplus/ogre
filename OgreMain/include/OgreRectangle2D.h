@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "OgreRenderable.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -115,6 +116,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
+}
 }// namespace
 
 #endif

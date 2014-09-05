@@ -1413,21 +1413,21 @@ namespace Ogre
 
         setProperty( HlmsBaseProp::Skeleton, renderable->hasSkeletonAnimation() );
 
-        RenderOperation op;
+        v1::RenderOperation op;
         renderable->getRenderOperation( op );
-        VertexDeclaration *vertexDecl = op.vertexData->vertexDeclaration;
-        const VertexDeclaration::VertexElementList &elementList = vertexDecl->getElements();
-        VertexDeclaration::VertexElementList::const_iterator itor = elementList.begin();
-        VertexDeclaration::VertexElementList::const_iterator end  = elementList.end();
+        v1::VertexDeclaration *vertexDecl = op.vertexData->vertexDeclaration;
+        const v1::VertexDeclaration::VertexElementList &elementList = vertexDecl->getElements();
+        v1::VertexDeclaration::VertexElementList::const_iterator itor = elementList.begin();
+        v1::VertexDeclaration::VertexElementList::const_iterator end  = elementList.end();
 
         uint numTexCoords = 0;
         while( itor != end )
         {
-            const VertexElement &vertexElem = *itor;
+            const v1::VertexElement &vertexElem = *itor;
             switch( vertexElem.getSemantic() )
             {
             case VES_NORMAL:
-                if( VertexElement::getTypeCount( vertexElem.getType() ) < 4 )
+                if( v1::VertexElement::getTypeCount( vertexElem.getType() ) < 4 )
                 {
                     setProperty( HlmsBaseProp::Normal, 1 );
                 }
@@ -1445,11 +1445,11 @@ namespace Ogre
             case VES_TEXTURE_COORDINATES:
                 numTexCoords = std::max<uint>( numTexCoords, vertexElem.getIndex() + 1 );
                 setProperty( *HlmsBaseProp::UvCountPtrs[vertexElem.getIndex()],
-                              VertexElement::getTypeCount( vertexElem.getType() ) );
+                              v1::VertexElement::getTypeCount( vertexElem.getType() ) );
                 break;
             case VES_BLEND_WEIGHTS:
                 setProperty( HlmsBaseProp::BonesPerVertex,
-                             VertexElement::getTypeCount( vertexElem.getType() ) );
+                             v1::VertexElement::getTypeCount( vertexElem.getType() ) );
                 break;
             default:
                 break;

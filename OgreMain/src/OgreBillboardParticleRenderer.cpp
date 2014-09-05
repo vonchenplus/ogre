@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "Math/Array/OgreObjectMemoryManager.h"
 
 namespace Ogre {
+namespace v1 {
     String rendererTypeName = "billboard";
 
     //-----------------------------------------------------------------------
@@ -504,7 +505,7 @@ namespace Ogre {
         static_cast<BillboardParticleRenderer*>(target)->setUseAccurateFacing(
             StringConverter::parseBool(val));
     }
-
+}
 }
 
 

@@ -125,8 +125,8 @@ namespace Ogre {
         bool                    mLastWasCasterPass;
         HlmsMacroblock const    *mLastMacroblock;
         HlmsBlendblock const    *mLastBlendblock;
-        VertexData const        *mLastVertexData;
-        IndexData const         *mLastIndexData;
+        v1::VertexData const    *mLastVertexData;
+        v1::IndexData const     *mLastIndexData;
         HlmsCache const         *mLastHlmsCache;
         uint32                  mLastTextureHash;
 

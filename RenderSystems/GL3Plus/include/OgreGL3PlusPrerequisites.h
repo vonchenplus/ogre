@@ -34,6 +34,7 @@ THE SOFTWARE.
 
 namespace Ogre {
     // Forward declarations
+    class GL3PlusStagingBuffer;
     class GL3PlusSupport;
     class GL3PlusRenderSystem;
     class GL3PlusTexture;
@@ -41,11 +42,16 @@ namespace Ogre {
     class GL3PlusContext;
     class GL3PlusRTTManager;
     class GL3PlusFBOManager;
-    class GL3PlusHardwarePixelBuffer;
-    class GL3PlusRenderBuffer;
     class GL3PlusDepthBuffer;
+    class GL3PlusVaoManager;
     
     class GLSLShader;
+
+    namespace v1
+    {
+        class GL3PlusHardwarePixelBuffer;
+        class GL3PlusRenderBuffer;
+    }
 
     typedef SharedPtr<GLSLShader> GLSLShaderPtr;
     typedef SharedPtr<GL3PlusTexture> GL3PlusTexturePtr;

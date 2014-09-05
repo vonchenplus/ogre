@@ -135,14 +135,17 @@ namespace Ogre {
     class DefaultRaySceneQuery;
     class DefaultSphereSceneQuery;
     class DefaultAxisAlignedBoxSceneQuery;
-    class Rectangle2D;
     class LodListener;
     struct MovableObjectLodChangedEvent;
     struct EntityMeshLodChangedEvent;
     struct EntityMaterialLodChangedEvent;
-    class CompositorChain;
     class CompositorShadowNode;
     class UniformScalableTask;
+
+    namespace v1
+    {
+        class Rectangle2D;
+    }
 
     /// All variables are read-only for the worker threads.
     struct CullFrustumRequest
@@ -463,10 +466,10 @@ namespace Ogre {
         FrustumVec  mVisibleCameras;
         FrustumVec  mCubeMapCameras;
 
-        typedef map<String, StaticGeometry* >::type StaticGeometryList;
+        typedef map<String, v1::StaticGeometry* >::type StaticGeometryList;
         StaticGeometryList mStaticGeometryList;
 
-        typedef vector<InstanceManager*>::type      InstanceManagerVec;
+        typedef vector<v1::InstanceManager*>::type  InstanceManagerVec;
         InstanceManagerVec  mInstanceManagers;
 
         typedef vector<SceneNode*>::type SceneNodeList;
@@ -513,9 +516,9 @@ namespace Ogre {
 
         // Sky params
         // Sky plane
-        Entity* mSkyPlaneEntity;
-        Entity* mSkyDomeEntity[5];
-        ManualObject* mSkyBoxObj;
+        v1::Entity* mSkyPlaneEntity;
+        v1::Entity* mSkyDomeEntity[5];
+        v1::ManualObject* mSkyBoxObj;
 
         SceneNode* mSkyPlaneNode;
         SceneNode* mSkyDomeNode;
@@ -631,7 +634,7 @@ namespace Ogre {
 
         /* Internal utility method for creating the planes of a skybox.
         */
-        virtual MeshPtr createSkyboxPlane(
+        virtual v1::MeshPtr createSkyboxPlane(
             BoxPlane bp,
             Real distance,
             const Quaternion& orientation,
@@ -639,7 +642,7 @@ namespace Ogre {
 
         /* Internal utility method for creating the planes of a skydome.
         */
-        virtual MeshPtr createSkydomePlane(
+        virtual v1::MeshPtr createSkydomePlane(
             BoxPlane bp,
             Real curvature, Real tiling, Real distance,
             const Quaternion& orientation,
@@ -650,10 +653,10 @@ namespace Ogre {
         bool mDisplayNodes;
 
         /// Storage of animations, lookup by name
-        typedef map<String, Animation*>::type AnimationList;
+        typedef map<String, v1::Animation*>::type AnimationList;
         AnimationList mAnimationsList;
         OGRE_MUTEX(mAnimationsListMutex);
-        AnimationStateSet mAnimationStates;
+        v1::AnimationStateSet mAnimationStates;
 
 
         /** Internal method used by _renderSingleObject to deal with renderables
@@ -732,13 +735,12 @@ namespace Ogre {
         /// Utility class for calculating automatic parameters for gpu programs
         AutoParamDataSource* mAutoParamDataSource;
 
-        CompositorChain* mActiveCompositorChain;
         bool mLateMaterialResolving;
 
         ColourValue mShadowColour;
-        HardwareIndexBufferSharedPtr mShadowIndexBuffer;
+        v1::HardwareIndexBufferSharedPtr mShadowIndexBuffer;
         size_t mShadowIndexBufferUsedSize;
-        Rectangle2D* mFullScreenQuad;
+        v1::Rectangle2D* mFullScreenQuad;
         Real mShadowDirLightExtrudeDist;
         IlluminationRenderStage mIlluminationStage;
         bool mShadowCasterRenderBackFaces;
@@ -814,7 +816,6 @@ namespace Ogre {
             RenderQueue* renderQueue;   
             Viewport* viewport;
             Camera* camera;
-            CompositorChain* activeChain;
             RenderSystem::RenderSystemContext* rsContext;
         };
 
@@ -1230,19 +1231,43 @@ namespace Ogre {
         ObjectMemoryManager& _getEntityMemoryManager(SceneMemoryMgrTypes sceneType)
                                                             { return mEntityMemoryManager[sceneType]; }
 
+        /** Create an Item (instance of a discrete mesh).
+            @param
+                meshName The name of the Mesh it is to be based on (e.g. 'knot.oof'). The
+                mesh will be loaded if it is not already.
+        */
+        virtual Item* createItem( const String& meshName,
+                                  const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
+                                  SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
+
+        /** Create an Item (instance of a discrete mesh).
+            @param
+                pMesh The pointer to the Mesh it is to be based on.
+        */
+        virtual Item* createItem( const MeshPtr& pMesh,
+                                  SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
+
+        /// Removes & destroys an Item from the SceneManager.
+        virtual void destroyItem( Item *item );
+
+        /// Removes & destroys all Items.
+        virtual void destroyAllItems(void);
+
         /** Create an Entity (instance of a discrete mesh).
             @param
                 meshName The name of the Mesh it is to be based on (e.g. 'knot.oof'). The
                 mesh will be loaded if it is not already.
         */
-        virtual Entity* createEntity( const String& meshName, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
-                                        SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
+        virtual v1::Entity* createEntity( const String& meshName,
+                                          const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
+                                          SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
 
         /** Create an Entity (instance of a discrete mesh).
             @param
                 pMesh The pointer to the Mesh it is to be based on.
         */
-        virtual Entity* createEntity( const MeshPtr& pMesh, SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
+        virtual v1::Entity* createEntity( const v1::MeshPtr& pMesh,
+                                          SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
 
         /** Prefab shapes available without loading a model.
             @note
@@ -1259,7 +1284,8 @@ namespace Ogre {
         /** Create an Entity (instance of a discrete mesh) from a range of prefab shapes
             @param ptype The prefab type.
         */
-        virtual Entity* createEntity( PrefabType ptype, SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
+        virtual v1::Entity* createEntity( PrefabType ptype,
+                                          SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
 
         /** Removes & destroys an Entity from the SceneManager.
             @warning
@@ -1269,7 +1295,7 @@ namespace Ogre {
             @see
                 SceneManager::clearScene
         */
-        virtual void destroyEntity(Entity* ent);
+        virtual void destroyEntity(v1::Entity* ent);
 
         /** Removes & destroys all Entities.
             @warning
@@ -1354,30 +1380,30 @@ namespace Ogre {
         /** Create a ManualObject, an object which you populate with geometry
             manually through a GL immediate-mode style interface.
         */
-        virtual ManualObject* createManualObject( SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
+        virtual v1::ManualObject* createManualObject( SceneMemoryMgrTypes sceneType = SCENE_DYNAMIC );
         /** Removes & destroys a ManualObject from the SceneManager.
         */
-        virtual void destroyManualObject(ManualObject* obj);
+        virtual void destroyManualObject(v1::ManualObject* obj);
         /** Removes & destroys all ManualObjects from the SceneManager.
         */
         virtual void destroyAllManualObjects(void);
         /** Create a BillboardChain, an object which you can use to render
             a linked chain of billboards.
         */
-        virtual BillboardChain* createBillboardChain();
+        virtual v1::BillboardChain* createBillboardChain();
         /** Removes & destroys a BillboardChain from the SceneManager.
         */
-        virtual void destroyBillboardChain(BillboardChain* obj);
+        virtual void destroyBillboardChain(v1::BillboardChain* obj);
         /** Removes & destroys all BillboardChains from the SceneManager.
         */
         virtual void destroyAllBillboardChains(void);       
         /** Create a RibbonTrail, an object which you can use to render
             a linked chain of billboards which follows one or more nodes.
         */
-        virtual RibbonTrail* createRibbonTrail();
+        virtual v1::RibbonTrail* createRibbonTrail();
         /** Removes & destroys a RibbonTrail from the SceneManager.
         */
-        virtual void destroyRibbonTrail(RibbonTrail* obj);
+        virtual void destroyRibbonTrail(v1::RibbonTrail* obj);
         /** Removes & destroys all RibbonTrails from the SceneManager.
         */
         virtual void destroyAllRibbonTrails(void);      
@@ -2153,7 +2179,7 @@ namespace Ogre {
             @see
                 BillboardSet
         */
-        virtual BillboardSet* createBillboardSet(unsigned int poolSize = 20);
+        virtual v1::BillboardSet* createBillboardSet(unsigned int poolSize = 20);
 
         /** Removes & destroys an BillboardSet from the SceneManager.
             @warning
@@ -2161,7 +2187,7 @@ namespace Ogre {
                 to a SceneNode. It may be safer to wait to clear the whole
                 scene. If you are unsure, use clearScene.
         */
-        virtual void destroyBillboardSet(BillboardSet* set);
+        virtual void destroyBillboardSet(v1::BillboardSet* set);
 
         /** Removes & destroys all BillboardSets.
         @warning
@@ -2205,12 +2231,12 @@ namespace Ogre {
         @param name The name of the animation, must be unique within this SceneManager.
         @param length The total length of the animation.
         */
-        virtual Animation* createAnimation(const String& name, Real length);
+        virtual v1::Animation* createAnimation(const String& name, Real length);
 
         /** Looks up an Animation object previously created with createAnimation. 
         @note Throws an exception if the named instance does not exist
         */
-        virtual Animation* getAnimation(const String& name) const;
+        virtual v1::Animation* getAnimation(const String& name) const;
         /** Returns whether an animation with the given name exists.
         */
         virtual bool hasAnimation(const String& name) const;
@@ -2252,12 +2278,12 @@ namespace Ogre {
             default). @see AnimableValue::setAsBaseValue.
         @param animName The name of an animation created already with createAnimation.
         */
-        virtual AnimationState* createAnimationState(const String& animName);
+        virtual v1::AnimationState* createAnimationState(const String& animName);
 
         /** Retrieves animation state as previously created using createAnimationState. 
         @note Throws an exception if the named instance does not exist
         */
-        virtual AnimationState* getAnimationState(const String& animName) const;
+        virtual v1::AnimationState* getAnimationState(const String& animName) const;
         /** Returns whether an animation state with the given name exists.
         */
         virtual bool hasAnimationState(const String& name) const;
@@ -2295,7 +2321,7 @@ namespace Ogre {
             otherwise not. You should leave this as false if you are calling
             this within the main render loop.
         */
-        virtual void manualRender(RenderOperation* rend, Pass* pass, Viewport* vp, 
+        virtual void manualRender(v1::RenderOperation* rend, Pass* pass, Viewport* vp,
             const Matrix4& worldMatrix, const Matrix4& viewMatrix, const Matrix4& projMatrix, 
             bool doBeginEndFrame = false) ;
 
@@ -2441,7 +2467,7 @@ namespace Ogre {
         */
         const AnimationList& getAnimations() const { return mAnimationsList; }
         /** Returns a specialised MapIterator over all animation states in the scene. */
-        AnimationStateIterator getAnimationStateIterator(void) {
+        v1::AnimationStateIterator getAnimationStateIterator(void) {
             return mAnimationStates.getAnimationStateIterator();
         }
 
@@ -2579,11 +2605,6 @@ namespace Ogre {
         void _setCurrentShadowNode( CompositorShadowNode *shadowNode );
         const CompositorShadowNode* getCurrentShadowNode(void) const    { return mCurrentShadowNode; }
 
-        /** Sets the active compositor chain of the current scene being rendered.
-            @note CompositorChain does this automatically, no need to call manually.
-        */
-        virtual void _setActiveCompositorChain(CompositorChain* chain) { mActiveCompositorChain = chain; }
-
         /** Sets whether to use late material resolving or not. If set, materials will be resolved
             from the materials at the pass-setting stage and not at the render queue building stage.
             This is useful when the active material scheme during the render queue building stage
@@ -2594,9 +2615,6 @@ namespace Ogre {
         /** Gets whether using late material resolving or not.
             @see setLateMaterialResolving */
         virtual bool isLateMaterialResolving() const { return mLateMaterialResolving; }
-
-        /** Gets the active compositor chain of the current scene being rendered */
-        virtual CompositorChain* _getActiveCompositorChain() const { return mActiveCompositorChain; }
 
         /** Add a listener which will get called back on scene manager events.
         */
@@ -2614,15 +2632,15 @@ namespace Ogre {
         @param name The name to give the new object
         @return The new StaticGeometry instance
         */
-        virtual StaticGeometry* createStaticGeometry(const String& name);
+        virtual v1::StaticGeometry* createStaticGeometry(const String& name);
         /** Retrieve a previously created StaticGeometry instance. 
         @note Throws an exception if the named instance does not exist
         */
-        virtual StaticGeometry* getStaticGeometry(const String& name) const;
+        virtual v1::StaticGeometry* getStaticGeometry(const String& name) const;
         /** Returns whether a static geometry instance with the given name exists. */
         virtual bool hasStaticGeometry(const String& name) const;
         /** Remove & destroy a StaticGeometry instance. */
-        virtual void destroyStaticGeometry(StaticGeometry* geom);
+        virtual void destroyStaticGeometry(v1::StaticGeometry* geom);
         /** Remove & destroy a StaticGeometry instance. */
         virtual void destroyStaticGeometry(const String& name);
         /** Remove & destroy all StaticGeometry instances. */
@@ -2646,16 +2664,17 @@ namespace Ogre {
         says which submesh to pick (must be <= Mesh::getNumSubMeshes())
         @return The new InstanceManager instance
         */
-        virtual InstanceManager* createInstanceManager( const String &customName, const String &meshName,
-                                                        const String &groupName,
-                                                        InstanceManager::InstancingTechnique technique,
-                                                        size_t numInstancesPerBatch, uint16 flags=0,
-                                                        unsigned short subMeshIdx=0 );
+        virtual v1::InstanceManager* createInstanceManager( const String &customName,
+                                                            const String &meshName,
+                                                            const String &groupName,
+                                                            v1::InstanceManager::InstancingTechnique technique,
+                                                            size_t numInstancesPerBatch, uint16 flags=0,
+                                                            unsigned short subMeshIdx=0 );
 
         /** Retrieves an existing InstanceManager by it's name.
         @note Throws an exception if the named InstanceManager does not exist
         */
-        virtual InstanceManager* getInstanceManager( IdString name ) const;
+        virtual v1::InstanceManager* getInstanceManager( IdString name ) const;
 
     /** Returns whether an InstanceManager with the given name exists. */
     virtual bool hasInstanceManager( IdString managerName ) const;
@@ -2667,7 +2686,7 @@ namespace Ogre {
         @param name Name of the manager to remove
         */
         virtual void destroyInstanceManager( IdString name );
-        virtual void destroyInstanceManager( InstanceManager *instanceManager );
+        virtual void destroyInstanceManager( v1::InstanceManager *instanceManager );
 
         virtual void destroyAllInstanceManagers(void);
 
@@ -2685,7 +2704,7 @@ namespace Ogre {
         */
         virtual size_t getNumInstancesPerBatch( const String &meshName, const String &groupName,
                                                 const String &materialName,
-                                                InstanceManager::InstancingTechnique technique,
+                                                v1::InstanceManager::InstancingTechnique technique,
                                                 size_t numInstancesPerBatch, uint16 flags=0,
                                                 unsigned short subMeshIdx=0 );
 
@@ -2700,14 +2719,14 @@ namespace Ogre {
         @param managerName Name of the instance manager
         @return An InstancedEntity ready to be attached to a SceneNode
         */
-        virtual InstancedEntity* createInstancedEntity( const String &materialName,
-                                                        const String &managerName );
+        virtual v1::InstancedEntity* createInstancedEntity( const String &materialName,
+                                                            const String &managerName );
 
         /** Removes an InstancedEntity, @see SceneManager::createInstancedEntity &
             @see InstanceBatch::removeInstancedEntity
         @param instancedEntity Instance to remove
         */
-        virtual void destroyInstancedEntity( InstancedEntity *instancedEntity );
+        virtual void destroyInstancedEntity( v1::InstancedEntity *instancedEntity );
 
         /** Create a movable object of the type specified without a name.
         @remarks

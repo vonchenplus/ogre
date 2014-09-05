@@ -33,6 +33,8 @@ THE SOFTWARE.
 #include "OgreMeshManager.h"
 #include "OgreEntity.h"
 #include "OgreSubEntity.h"
+#include "OgreItem.h"
+#include "OgreMesh2.h"
 #include "OgreLight.h"
 #include "OgreControllerManager.h"
 #include "OgreMaterialManager.h"
@@ -114,7 +116,6 @@ mFlipCullingOnNegativeScale(true),
 mShadowCasterPlainBlackPass(0),
 mDisplayNodes(false),
 mShowBoundingBoxes(false),
-mActiveCompositorChain(0),
 mLateMaterialResolving(false),
 mShadowColour(ColourValue(0.25, 0.25, 0.25)),
 mShadowIndexBufferUsedSize(0),
@@ -387,7 +388,35 @@ void SceneManager::destroyAllLights(void)
     destroyAllMovableObjectsByType(LightFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-Entity* SceneManager::createEntity( PrefabType ptype, SceneMemoryMgrTypes sceneType )
+Item* SceneManager::createItem( const String& meshName,
+                                const String& groupName, /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */
+                                SceneMemoryMgrTypes sceneType /*= SCENE_DYNAMIC */ )
+{
+    // delegate to factory implementation
+    NameValuePairList params;
+    params["mesh"] = meshName;
+    params["resourceGroup"] = groupName;
+    return static_cast<Item*>( createMovableObject( ItemFactory::FACTORY_TYPE_NAME,
+                                                    &mEntityMemoryManager[sceneType], &params) );
+
+}
+//---------------------------------------------------------------------
+Item* SceneManager::createItem( const MeshPtr& pMesh, SceneMemoryMgrTypes sceneType )
+{
+    return createItem(pMesh->getName(), pMesh->getGroup(), sceneType);
+}
+//-----------------------------------------------------------------------
+void SceneManager::destroyItem( Item *i )
+{
+    destroyMovableObject( i );
+}
+//-----------------------------------------------------------------------
+void SceneManager::destroyAllItems(void)
+{
+    destroyAllMovableObjectsByType(ItemFactory::FACTORY_TYPE_NAME);
+}
+//-----------------------------------------------------------------------
+v1::Entity* SceneManager::createEntity( PrefabType ptype, SceneMemoryMgrTypes sceneType )
 {
     switch (ptype)
     {
@@ -407,32 +436,32 @@ Entity* SceneManager::createEntity( PrefabType ptype, SceneMemoryMgrTypes sceneT
     OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Unknown prefab type", "SceneManager::createEntity" );
 }
 //-----------------------------------------------------------------------
-Entity* SceneManager::createEntity(const String& meshName,
-                                   const String& groupName, /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */
-                                   SceneMemoryMgrTypes sceneType /*= SCENE_DYNAMIC */ )
+v1::Entity* SceneManager::createEntity( const String& meshName,
+                                        const String& groupName, /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */
+                                        SceneMemoryMgrTypes sceneType /*= SCENE_DYNAMIC */ )
 {
     // delegate to factory implementation
     NameValuePairList params;
     params["mesh"] = meshName;
     params["resourceGroup"] = groupName;
-    return static_cast<Entity*>( createMovableObject( EntityFactory::FACTORY_TYPE_NAME,
-                                                        &mEntityMemoryManager[sceneType], &params) );
+    return static_cast<v1::Entity*>( createMovableObject( v1::EntityFactory::FACTORY_TYPE_NAME,
+                                                          &mEntityMemoryManager[sceneType], &params) );
 
 }
 //---------------------------------------------------------------------
-Entity* SceneManager::createEntity(const MeshPtr& pMesh, SceneMemoryMgrTypes sceneType)
+v1::Entity* SceneManager::createEntity( const v1::MeshPtr& pMesh, SceneMemoryMgrTypes sceneType )
 {
     return createEntity(pMesh->getName(), pMesh->getGroup(), sceneType);
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyEntity(Entity *e)
+void SceneManager::destroyEntity(v1::Entity *e)
 {
     destroyMovableObject(e);
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllEntities(void)
 {
-    destroyAllMovableObjectsByType(EntityFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::EntityFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
 Rectangle2D* SceneManager::createRectangle2D( bool bQuad, SceneMemoryMgrTypes sceneType )
@@ -476,55 +505,56 @@ void SceneManager::destroySkeletonInstance( SkeletonInstance *skeletonInstance )
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllBillboardSets(void)
 {
-    destroyAllMovableObjectsByType(BillboardSetFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::BillboardSetFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-ManualObject* SceneManager::createManualObject( SceneMemoryMgrTypes sceneType )
+v1::ManualObject* SceneManager::createManualObject( SceneMemoryMgrTypes sceneType )
 {
-    return static_cast<ManualObject*>(
-        createMovableObject(ManualObjectFactory::FACTORY_TYPE_NAME, &mEntityMemoryManager[sceneType]) );
+    return static_cast<v1::ManualObject*>(
+        createMovableObject(v1::ManualObjectFactory::FACTORY_TYPE_NAME, &mEntityMemoryManager[sceneType]) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyManualObject(ManualObject* obj)
+void SceneManager::destroyManualObject(v1::ManualObject* obj)
 {
     destroyMovableObject(obj);
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllManualObjects(void)
 {
-    destroyAllMovableObjectsByType(ManualObjectFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::ManualObjectFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-BillboardChain* SceneManager::createBillboardChain()
+v1::BillboardChain* SceneManager::createBillboardChain()
 {
-    return static_cast<BillboardChain*>( createMovableObject(BillboardChainFactory::FACTORY_TYPE_NAME,
-                                                             &mEntityMemoryManager[SCENE_DYNAMIC]) );
+    return static_cast<v1::BillboardChain*>( createMovableObject(
+                                                 v1::BillboardChainFactory::FACTORY_TYPE_NAME,
+                                                 &mEntityMemoryManager[SCENE_DYNAMIC]) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyBillboardChain(BillboardChain* obj)
+void SceneManager::destroyBillboardChain(v1::BillboardChain* obj)
 {
     destroyMovableObject(obj);
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllBillboardChains(void)
 {
-    destroyAllMovableObjectsByType(BillboardChainFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::BillboardChainFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-RibbonTrail* SceneManager::createRibbonTrail()
+v1::RibbonTrail* SceneManager::createRibbonTrail()
 {
-    return static_cast<RibbonTrail*>( createMovableObject(RibbonTrailFactory::FACTORY_TYPE_NAME,
-                                                            &mEntityMemoryManager[SCENE_DYNAMIC]) );
+    return static_cast<v1::RibbonTrail*>( createMovableObject( v1::RibbonTrailFactory::FACTORY_TYPE_NAME,
+                                                               &mEntityMemoryManager[SCENE_DYNAMIC]) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyRibbonTrail(RibbonTrail* obj)
+void SceneManager::destroyRibbonTrail(v1::RibbonTrail* obj)
 {
     destroyMovableObject(obj);
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllRibbonTrails(void)
 {
-    destroyAllMovableObjectsByType(RibbonTrailFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::RibbonTrailFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
 ParticleSystem* SceneManager::createParticleSystem(const String& templateName)
@@ -1306,11 +1336,11 @@ void SceneManager::_setSkyPlane(bool enable,
         m->load();
 
         // Set up the plane
-        MeshPtr planeMesh = MeshManager::getSingleton().getByName(meshName);
+        v1::MeshPtr planeMesh = v1::MeshManager::getSingleton().getByName(meshName);
         if (!planeMesh.isNull())
         {
             // Destroy the old one
-            MeshManager::getSingleton().remove(planeMesh->getHandle());
+            v1::MeshManager::getSingleton().remove(planeMesh->getHandle());
         }
 
         // Create up vector
@@ -1322,13 +1352,13 @@ void SceneManager::_setSkyPlane(bool enable,
         if( bow > 0 )
         {
             // Build a curved skyplane
-            planeMesh = MeshManager::getSingleton().createCurvedPlane(
+            planeMesh = v1::MeshManager::getSingleton().createCurvedPlane(
                 meshName, groupName, plane, gscale * 100, gscale * 100, gscale * bow * 100, 
                 xsegments, ysegments, false, 1, tiling, tiling, up);
         }
         else
         {
-            planeMesh = MeshManager::getSingleton().createPlane(
+            planeMesh = v1::MeshManager::getSingleton().createPlane(
                 meshName, groupName, plane, gscale * 100, gscale * 100, xsegments, ysegments, false, 
                 1, tiling, tiling, up);
         }
@@ -1343,10 +1373,10 @@ void SceneManager::_setSkyPlane(bool enable,
         // Create, use the same name for mesh and entity
         // manually construct as we don't want this to be destroyed on destroyAllMovableObjects
         MovableObjectFactory* factory = 
-            Root::getSingleton().getMovableObjectFactory(EntityFactory::FACTORY_TYPE_NAME);
+            Root::getSingleton().getMovableObjectFactory(v1::EntityFactory::FACTORY_TYPE_NAME);
         NameValuePairList params;
         params["mesh"] = meshName;
-        mSkyPlaneEntity = static_cast<Entity*>(factory->createInstance(
+        mSkyPlaneEntity = static_cast<v1::Entity*>(factory->createInstance(
                                             Id::generateNewId<MovableObject>(),
                                             &mEntityMemoryManager[SCENE_DYNAMIC], this, &params ));
         mSkyPlaneEntity->setName( meshName );
@@ -1355,7 +1385,8 @@ void SceneManager::_setSkyPlane(bool enable,
         mSkyPlaneEntity->setRenderQueueGroup( renderQueue );
         mSkyPlaneEntity->setQueryFlags( 0 );
 
-        MovableObjectCollection* objectMap = getMovableObjectCollection(EntityFactory::FACTORY_TYPE_NAME);
+        MovableObjectCollection* objectMap = getMovableObjectCollection(
+                                                    v1::EntityFactory::FACTORY_TYPE_NAME );
         objectMap->movableObjects.push_back( mSkyPlaneEntity );
         mSkyPlaneEntity->mGlobalIndex = objectMap->movableObjects.size() - 1;
 
@@ -1435,8 +1466,8 @@ void SceneManager::_setSkyBox(bool enable,
         // Create object
         if (!mSkyBoxObj)
         {
-            mSkyBoxObj = OGRE_NEW ManualObject( Id::generateNewId<MovableObject>(),
-                                                &mEntityMemoryManager[SCENE_DYNAMIC] );
+            mSkyBoxObj = OGRE_NEW v1::ManualObject( Id::generateNewId<MovableObject>(),
+                                                    &mEntityMemoryManager[SCENE_DYNAMIC] );
             mSkyBoxObj->setCastShadows(false);
             mSkyBoxObj->setRenderQueueGroup( renderQueue );
             mSkyBoxObj->setQueryFlags( 0 );
@@ -1571,7 +1602,7 @@ void SceneManager::_setSkyBox(bool enable,
                 }
 
                 // section per material
-                mSkyBoxObj->begin(matName, RenderOperation::OT_TRIANGLE_LIST, groupName);
+                mSkyBoxObj->begin(matName, v1::RenderOperation::OT_TRIANGLE_LIST, groupName);
                 // top left
                 mSkyBoxObj->position(middle + up - right);
                 mSkyBoxObj->textureCoord(0,0);
@@ -1654,7 +1685,7 @@ void SceneManager::_setSkyDome(bool enable,
         // Set up the dome (5 planes)
         for (int i = 0; i < 5; ++i)
         {
-            MeshPtr planeMesh = createSkydomePlane((BoxPlane)i, curvature, 
+            v1::MeshPtr planeMesh = createSkydomePlane((BoxPlane)i, curvature,
                 tiling, distance, orientation, xsegments, ysegments, 
                 i!=BP_UP ? ySegmentsToKeep : -1, groupName);
 
@@ -1669,11 +1700,11 @@ void SceneManager::_setSkyDome(bool enable,
             }
             // construct manually so we don't have problems if destroyAllMovableObjects called
             MovableObjectFactory* factory = 
-                Root::getSingleton().getMovableObjectFactory(EntityFactory::FACTORY_TYPE_NAME);
+                Root::getSingleton().getMovableObjectFactory(v1::EntityFactory::FACTORY_TYPE_NAME);
 
             NameValuePairList params;
             params["mesh"] = planeMesh->getName();
-            mSkyDomeEntity[i] = static_cast<Entity*>(factory->createInstance(
+            mSkyDomeEntity[i] = static_cast<v1::Entity*>(factory->createInstance(
                                                 Id::generateNewId<MovableObject>(),
                                                 &mEntityMemoryManager[SCENE_DYNAMIC], this, &params ));
             mSkyDomeEntity[i]->setName( entName );
@@ -1682,7 +1713,8 @@ void SceneManager::_setSkyDome(bool enable,
             mSkyDomeEntity[i]->setRenderQueueGroup( renderQueue );
             mSkyDomeEntity[i]->setQueryFlags( 0 );
 
-            MovableObjectCollection* objectMap = getMovableObjectCollection(EntityFactory::FACTORY_TYPE_NAME);
+            MovableObjectCollection* objectMap = getMovableObjectCollection(
+                                                        v1::EntityFactory::FACTORY_TYPE_NAME );
             objectMap->movableObjects.push_back( mSkyDomeEntity[i] );
             mSkyDomeEntity[i]->mGlobalIndex = objectMap->movableObjects.size() - 1;
 
@@ -1715,7 +1747,7 @@ void SceneManager::setSkyDome(
                 0, orientation, xsegments, ysegments, ySegmentsToKeep, groupName);
 }
 //-----------------------------------------------------------------------
-MeshPtr SceneManager::createSkyboxPlane(
+v1::MeshPtr SceneManager::createSkyboxPlane(
                                       BoxPlane bp,
                                       Real distance,
                                       const Quaternion& orientation,
@@ -1767,8 +1799,8 @@ MeshPtr SceneManager::createSkyboxPlane(
 
 
     // Check to see if existing plane
-    MeshManager& mm = MeshManager::getSingleton();
-    MeshPtr planeMesh = mm.getByName(meshName, groupName);
+    v1::MeshManager& mm = v1::MeshManager::getSingleton();
+    v1::MeshPtr planeMesh = mm.getByName(meshName, groupName);
     if(!planeMesh.isNull())
     {
         // destroy existing
@@ -1786,7 +1818,7 @@ MeshPtr SceneManager::createSkyboxPlane(
 
 }
 //-----------------------------------------------------------------------
-MeshPtr SceneManager::createSkydomePlane(
+v1::MeshPtr SceneManager::createSkydomePlane(
                                        BoxPlane bp,
                                        Real curvature,
                                        Real tiling,
@@ -1832,15 +1864,15 @@ MeshPtr SceneManager::createSkydomePlane(
         break;
     case BP_DOWN:
         // no down
-        return MeshPtr();
+        return v1::MeshPtr();
     }
     // Modify by orientation
     plane.normal = orientation * plane.normal;
     up = orientation * up;
 
     // Check to see if existing plane
-    MeshManager& mm = MeshManager::getSingleton();
-    MeshPtr planeMesh = mm.getByName(meshName, groupName);
+    v1::MeshManager& mm = v1::MeshManager::getSingleton();
+    v1::MeshPtr planeMesh = mm.getByName(meshName, groupName);
     if(!planeMesh.isNull())
     {
         // destroy existing
@@ -1851,7 +1883,8 @@ MeshPtr SceneManager::createSkydomePlane(
     planeMesh = mm.createCurvedIllusionPlane(meshName, groupName, plane, 
         planeSize, planeSize, curvature, 
         xsegments, ysegments, false, 1, tiling, tiling, up, 
-        orientation, HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY, HardwareBuffer::HBU_STATIC_WRITE_ONLY, 
+        orientation, v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY,
+        v1::HardwareBuffer::HBU_STATIC_WRITE_ONLY,
         false, false, ysegments_keep);
 
     //planeMesh->_dumpContents(meshName);
@@ -2342,7 +2375,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                                       bool lightScissoringClipping, bool doLightIteration )
 {
     unsigned short numMatrices;
-    RenderOperation ro;
+    v1::RenderOperation ro;
 
     OgreProfileBeginGPUEvent("Material: " + pass->getParent()->getParent()->getName());
 #if OGRE_DEBUG_MODE
@@ -2796,16 +2829,17 @@ Real SceneManager::getFogDensity(void) const
     return mFogDensity;
 }
 //-----------------------------------------------------------------------
-BillboardSet* SceneManager::createBillboardSet(unsigned int poolSize)
+v1::BillboardSet* SceneManager::createBillboardSet(unsigned int poolSize)
 {
     NameValuePairList params;
     params["poolSize"] = StringConverter::toString(poolSize);
-    return static_cast<BillboardSet*>( createMovableObject(BillboardSetFactory::FACTORY_TYPE_NAME,
-                                                            &mEntityMemoryManager[SCENE_DYNAMIC],
-                                                            &params) );
+    return static_cast<v1::BillboardSet*>( createMovableObject(
+                                               v1::BillboardSetFactory::FACTORY_TYPE_NAME,
+                                               &mEntityMemoryManager[SCENE_DYNAMIC],
+                                               &params) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyBillboardSet(BillboardSet* set)
+void SceneManager::destroyBillboardSet(v1::BillboardSet* set)
 {
     destroyMovableObject(set);
 }
@@ -2815,7 +2849,7 @@ void SceneManager::setDisplaySceneNodes(bool display)
     mDisplayNodes = display;
 }
 //-----------------------------------------------------------------------
-Animation* SceneManager::createAnimation(const String& name, Real length)
+v1::Animation* SceneManager::createAnimation(const String& name, Real length)
 {
     OGRE_LOCK_MUTEX(mAnimationsListMutex);
 
@@ -2828,12 +2862,12 @@ Animation* SceneManager::createAnimation(const String& name, Real length)
             "SceneManager::createAnimation" );
     }
 
-    Animation* pAnim = OGRE_NEW Animation(name, length);
+    v1::Animation* pAnim = OGRE_NEW v1::Animation(name, length);
     mAnimationsList[name] = pAnim;
     return pAnim;
 }
 //-----------------------------------------------------------------------
-Animation* SceneManager::getAnimation(const String& name) const
+v1::Animation* SceneManager::getAnimation(const String& name) const
 {
     OGRE_LOCK_MUTEX(mAnimationsListMutex);
 
@@ -2890,17 +2924,17 @@ void SceneManager::destroyAllAnimations(void)
     mAnimationsList.clear();
 }
 //-----------------------------------------------------------------------
-AnimationState* SceneManager::createAnimationState(const String& animName)
+v1::AnimationState* SceneManager::createAnimationState(const String& animName)
 {
     // Get animation, this will throw an exception if not found
-    Animation* anim = getAnimation(animName);
+    v1::Animation* anim = getAnimation(animName);
 
     // Create new state
     return mAnimationStates.createAnimationState(animName, 0, anim->getLength());
 
 }
 //-----------------------------------------------------------------------
-AnimationState* SceneManager::getAnimationState(const String& animName) const
+v1::AnimationState* SceneManager::getAnimationState(const String& animName) const
 {
     return mAnimationStates.getAnimationState(animName);
 
@@ -2927,29 +2961,29 @@ void SceneManager::_applySceneAnimations(void)
     OGRE_LOCK_MUTEX(mAnimationStates.OGRE_AUTO_MUTEX_NAME);
 
     // Iterate twice, once to reset, once to apply, to allow blending
-    ConstEnabledAnimationStateIterator stateIt = mAnimationStates.getEnabledAnimationStateIterator();
+    v1::ConstEnabledAnimationStateIterator stateIt = mAnimationStates.getEnabledAnimationStateIterator();
 
     while (stateIt.hasMoreElements())
     {
-        const AnimationState* state = stateIt.getNext();
-        Animation* anim = getAnimation(state->getAnimationName());
+        const v1::AnimationState* state = stateIt.getNext();
+        v1::Animation* anim = getAnimation(state->getAnimationName());
 
         // Reset any nodes involved
-        Animation::NodeTrackIterator nodeTrackIt = anim->getNodeTrackIterator();
+        v1::Animation::NodeTrackIterator nodeTrackIt = anim->getNodeTrackIterator();
         while(nodeTrackIt.hasMoreElements())
         {
 			nodeTrackIt.getNext()->resetNodeToInitialState();
         }
 
-		Animation::OldNodeTrackIterator OldNodeTrackIt = anim->getOldNodeTrackIterator();
+        v1::Animation::OldNodeTrackIterator OldNodeTrackIt = anim->getOldNodeTrackIterator();
 		while(OldNodeTrackIt.hasMoreElements())
 		{
-			OldNode* nd = OldNodeTrackIt.getNext()->getAssociatedNode();
+            v1::OldNode* nd = OldNodeTrackIt.getNext()->getAssociatedNode();
 			if (nd)
 				nd->resetToInitialState();
 		}
 
-        Animation::NumericTrackIterator numTrackIt = anim->getNumericTrackIterator();
+        v1::Animation::NumericTrackIterator numTrackIt = anim->getNumericTrackIterator();
         while(numTrackIt.hasMoreElements())
         {
             const AnimableValuePtr& animPtr = numTrackIt.getNext()->getAssociatedAnimable();
@@ -2962,14 +2996,14 @@ void SceneManager::_applySceneAnimations(void)
     stateIt = mAnimationStates.getEnabledAnimationStateIterator();
     while (stateIt.hasMoreElements())
     {
-        const AnimationState* state = stateIt.getNext();
-        Animation* anim = getAnimation(state->getAnimationName());
+        const v1::AnimationState* state = stateIt.getNext();
+        v1::Animation* anim = getAnimation(state->getAnimationName());
         // Apply the animation
         anim->apply(state->getTimePosition(), state->getWeight());
     }
 }
 //---------------------------------------------------------------------
-void SceneManager::manualRender(RenderOperation* rend, 
+void SceneManager::manualRender(v1::RenderOperation* rend,
                                 Pass* pass, Viewport* vp, const Matrix4& worldMatrix, 
                                 const Matrix4& viewMatrix, const Matrix4& projMatrix, 
                                 bool doBeginEndFrame) 
@@ -3971,7 +4005,6 @@ SceneManager::RenderContext* SceneManager::_pauseRendering()
     context->renderQueue = mRenderQueue;
     context->viewport = mCurrentViewport;
     context->camera = mCameraInProgress;
-    context->activeChain = _getActiveCompositorChain();
 
     context->rsContext = mDestRenderSystem->_pauseFrame();
     mRenderQueue = 0;
@@ -3982,7 +4015,6 @@ void SceneManager::_resumeRendering(SceneManager::RenderContext* context)
 {
     delete mRenderQueue;
     mRenderQueue = context->renderQueue;
-    _setActiveCompositorChain(context->activeChain);
     Ogre::Viewport* vp = context->viewport;
     Ogre::Camera* camera = context->camera;
 
@@ -4023,7 +4055,7 @@ void SceneManager::_resumeRendering(SceneManager::RenderContext* context)
     delete context;
 }
 //---------------------------------------------------------------------
-StaticGeometry* SceneManager::createStaticGeometry(const String& name)
+v1::StaticGeometry* SceneManager::createStaticGeometry(const String& name)
 {
     // Check not existing
     if (mStaticGeometryList.find(name) != mStaticGeometryList.end())
@@ -4032,12 +4064,12 @@ StaticGeometry* SceneManager::createStaticGeometry(const String& name)
             "StaticGeometry with name '" + name + "' already exists!", 
             "SceneManager::createStaticGeometry");
     }
-    StaticGeometry* ret = OGRE_NEW StaticGeometry(this, name);
+    v1::StaticGeometry* ret = OGRE_NEW v1::StaticGeometry(this, name);
     mStaticGeometryList[name] = ret;
     return ret;
 }
 //---------------------------------------------------------------------
-StaticGeometry* SceneManager::getStaticGeometry(const String& name) const
+v1::StaticGeometry* SceneManager::getStaticGeometry(const String& name) const
 {
     StaticGeometryList::const_iterator i = mStaticGeometryList.find(name);
     if (i == mStaticGeometryList.end())
@@ -4055,7 +4087,7 @@ bool SceneManager::hasStaticGeometry(const String& name) const
 }
 
 //---------------------------------------------------------------------
-void SceneManager::destroyStaticGeometry(StaticGeometry* geom)
+void SceneManager::destroyStaticGeometry(v1::StaticGeometry* geom)
 {
     destroyStaticGeometry(geom->getName());
 }
@@ -4082,15 +4114,16 @@ void SceneManager::destroyAllStaticGeometry(void)
     mStaticGeometryList.clear();
 }
 //---------------------------------------------------------------------
-InstanceManager* SceneManager::createInstanceManager( const String &customName, const String &meshName,
-                                                      const String &groupName,
-                                                      InstanceManager::InstancingTechnique technique,
-                                                      size_t numInstancesPerBatch, uint16 flags,
-                                                      unsigned short subMeshIdx )
+v1::InstanceManager* SceneManager::createInstanceManager( const String &customName,
+                                                          const String &meshName,
+                                                          const String &groupName,
+                                                          v1::InstanceManager::InstancingTechnique technique,
+                                                          size_t numInstancesPerBatch, uint16 flags,
+                                                          unsigned short subMeshIdx )
 {
     InstanceManagerVec::iterator itor = std::lower_bound( mInstanceManagers.begin(),
-                                                            mInstanceManagers.end(),
-                                                            customName, InstanceManagerCmp() );
+                                                          mInstanceManagers.end(),
+                                                          customName, v1::InstanceManagerCmp() );
     if (itor != mInstanceManagers.end() && (*itor)->getName() == customName )
     {
         OGRE_EXCEPT( Exception::ERR_DUPLICATE_ITEM, 
@@ -4098,18 +4131,19 @@ InstanceManager* SceneManager::createInstanceManager( const String &customName, 
             "SceneManager::createInstanceManager");
     }
 
-    InstanceManager *retVal = new InstanceManager( customName, this, meshName, groupName, technique,
-                                                    flags, numInstancesPerBatch, subMeshIdx );
+    v1::InstanceManager *retVal = new v1::InstanceManager( customName, this, meshName, groupName,
+                                                           technique, flags, numInstancesPerBatch,
+                                                           subMeshIdx );
 
     mInstanceManagers.insert( itor, retVal );
     return retVal;
 }
 //---------------------------------------------------------------------
-InstanceManager* SceneManager::getInstanceManager( IdString managerName ) const
+v1::InstanceManager* SceneManager::getInstanceManager( IdString managerName ) const
 {
     InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
                                                                 mInstanceManagers.end(),
-                                                                managerName, InstanceManagerCmp() );
+                                                                managerName, v1::InstanceManagerCmp() );
     if (itor == mInstanceManagers.end() || (*itor)->getName() != managerName )
     {
         OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
@@ -4124,7 +4158,7 @@ bool SceneManager::hasInstanceManager( IdString managerName ) const
 {
     InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
                                                                 mInstanceManagers.end(),
-                                                                managerName, InstanceManagerCmp() );
+                                                                managerName, v1::InstanceManagerCmp() );
     return itor != mInstanceManagers.end() && (*itor)->getName() == managerName;
 }
 //---------------------------------------------------------------------
@@ -4132,7 +4166,7 @@ void SceneManager::destroyInstanceManager( IdString name )
 {
     InstanceManagerVec::iterator itor = std::lower_bound( mInstanceManagers.begin(),
                                                             mInstanceManagers.end(),
-                                                            name, InstanceManagerCmp() );
+                                                            name, v1::InstanceManagerCmp() );
     if (itor != mInstanceManagers.end() && (*itor)->getName() == name )
     {
         OGRE_DELETE *itor;
@@ -4140,7 +4174,7 @@ void SceneManager::destroyInstanceManager( IdString name )
     }
 }
 //---------------------------------------------------------------------
-void SceneManager::destroyInstanceManager( InstanceManager *instanceManager )
+void SceneManager::destroyInstanceManager( v1::InstanceManager *instanceManager )
 {
     destroyInstanceManager( instanceManager->getName() );
 }
@@ -4158,21 +4192,22 @@ void SceneManager::destroyAllInstanceManagers(void)
 //---------------------------------------------------------------------
 size_t SceneManager::getNumInstancesPerBatch( const String &meshName, const String &groupName,
                                               const String &materialName,
-                                              InstanceManager::InstancingTechnique technique,
+                                              v1::InstanceManager::InstancingTechnique technique,
                                               size_t numInstancesPerBatch, uint16 flags,
                                               unsigned short subMeshIdx )
 {
-    InstanceManager tmpMgr( "TmpInstanceManager", this, meshName, groupName,
-                            technique, flags, numInstancesPerBatch, subMeshIdx );
+    v1::InstanceManager tmpMgr( "TmpInstanceManager", this, meshName, groupName,
+                                technique, flags, numInstancesPerBatch, subMeshIdx );
     
     return tmpMgr.getMaxOrBestNumInstancesPerBatch( materialName, numInstancesPerBatch, flags );
 }
 //---------------------------------------------------------------------
-InstancedEntity* SceneManager::createInstancedEntity( const String &materialName, const String &managerName )
+v1::InstancedEntity* SceneManager::createInstancedEntity( const String &materialName,
+                                                          const String &managerName )
 {
     InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
                                                                 mInstanceManagers.end(),
-                                                                managerName, InstanceManagerCmp() );
+                                                                managerName, v1::InstanceManagerCmp() );
 
     if (itor == mInstanceManagers.end() || (*itor)->getName() != managerName )
     {
@@ -4184,7 +4219,7 @@ InstancedEntity* SceneManager::createInstancedEntity( const String &materialName
     return (*itor)->createInstancedEntity( materialName );
 }
 //---------------------------------------------------------------------
-void SceneManager::destroyInstancedEntity( InstancedEntity *instancedEntity )
+void SceneManager::destroyInstancedEntity( v1::InstancedEntity *instancedEntity )
 {
     instancedEntity->_getOwner()->removeInstancedEntity( instancedEntity );
 }

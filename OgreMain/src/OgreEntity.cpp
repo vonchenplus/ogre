@@ -53,6 +53,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreHlmsManager.h"
 
 namespace Ogre {
+namespace v1 {
     extern const FastArray<Real> c_DefaultLodMesh;
     //-----------------------------------------------------------------------
     Entity::Entity ( IdType id, ObjectMemoryManager *objectMemoryManager )
@@ -2082,5 +2083,5 @@ namespace Ogre {
         OGRE_DELETE obj;
     }
 
-
+}
 }

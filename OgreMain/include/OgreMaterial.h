@@ -566,7 +566,6 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
-
 } //namespace 
 
 #include "OgreHeaderSuffix.h"
