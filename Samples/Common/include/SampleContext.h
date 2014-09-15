@@ -771,6 +771,12 @@ namespace OgreBites
             type = "FileSystem";
             sec = "Popular";
 
+#		ifdef OGRE_BUILD_PLUGIN_CG
+			bool use_HLSL_Cg_shared = true;
+#		else
+			bool use_HLSL_Cg_shared = Ogre::GpuProgramManager::getSingleton().isSyntaxSupported("hlsl");
+#		endif
+
             // Add locations for supported shader languages
             if(Ogre::GpuProgramManager::getSingleton().isSyntaxSupported("glsles"))
             {
@@ -799,6 +805,10 @@ namespace OgreBites
 #		ifdef OGRE_BUILD_PLUGIN_CG
             Ogre::ResourceGroupManager::getSingleton().addResourceLocation(arch + "/materials/programs/Cg", type, sec);
 #		endif
+            if (use_HLSL_Cg_shared)
+            {
+                Ogre::ResourceGroupManager::getSingleton().addResourceLocation(arch + "/materials/programs/HLSL_Cg", type, sec);
+            }
 
 #		ifdef INCLUDE_RTSHADER_SYSTEM
             if(Ogre::GpuProgramManager::getSingleton().isSyntaxSupported("glsles"))
@@ -820,6 +830,10 @@ namespace OgreBites
 #			ifdef OGRE_BUILD_PLUGIN_CG
             Ogre::ResourceGroupManager::getSingleton().addResourceLocation(arch + "/RTShaderLib/Cg", type, sec);
 #			endif
+            if (use_HLSL_Cg_shared)
+            {
+                Ogre::ResourceGroupManager::getSingleton().addResourceLocation(arch + "/RTShaderLib/HLSL_Cg", type, sec);
+            }
 #		endif /* INCLUDE_RTSHADER_SYSTEM */
 #	endif /* OGRE_PLATFORM != OGRE_PLATFORM_ANDROID */
 #endif /* OGRE_PLATFORM == OGRE_PLATFORM_NACL */
