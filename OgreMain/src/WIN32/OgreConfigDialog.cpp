@@ -43,7 +43,7 @@ namespace Ogre
     ConfigDialog::ConfigDialog()
     {
 #ifdef OGRE_STATIC_LIB
-		mHInstance = GetModuleHandle( NULL );
+        mHInstance = GetModuleHandle( NULL );
 #else
         static const TCHAR staticVar;
         GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, &staticVar, &mHInstance);
@@ -51,9 +51,9 @@ namespace Ogre
         mSelectedRenderSystem = 0;
     }
 
-	ConfigDialog::~ConfigDialog()
+    ConfigDialog::~ConfigDialog()
     {
-	}
+    }
 
 #if OGRE_ARCHITECTURE_64 == OGRE_ARCH_TYPE
     INT_PTR ConfigDialog::DlgProc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)

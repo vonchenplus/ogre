@@ -837,7 +837,7 @@ vertex_program Examples/GrassWaverVpCg cg
 {
 	source Grass.cg
 	entry_point grass_vp
-	profiles vs_4_0 vs_1_1 arbvp1
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
 
     default_params
     {
@@ -857,7 +857,7 @@ vertex_program Examples/GrassWaverTexVpCg cg
   {
 	source Grass.cg
 	entry_point grassTex_vp
-	profiles vs_4_0 vs_1_1 arbvp1
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
 
     default_params
       {
@@ -869,7 +869,7 @@ vertex_program Examples/GrassWaverAmbientVpCg cg
 {
 	source Grass.cg
 	entry_point grassAmbient_vp
-	profiles vs_4_0 vs_1_1 arbvp1
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
 
     default_params
   	{
@@ -882,7 +882,7 @@ fragment_program Examples/GrassWaverAmbientFpCg cg
 {
 	source Grass.cg
 	entry_point grassAmbient_fp
-	profiles ps_4_0 ps_2_0 arbfp1
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1
     default_params
     {
     }
@@ -891,7 +891,7 @@ fragment_program Examples/GrassWaverFpCg cg
 {
 	source Grass.cg
 	entry_point grass_fp
-	profiles ps_4_0 ps_2_0 arbfp1
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1
     default_params
     {
     }
@@ -901,7 +901,7 @@ vertex_program Examples/GrassWaverCasterVpCg cg
 {
 	source Grass.cg
 	entry_point grasscaster_vp
-	profiles vs_4_0 vs_1_1 arbvp1
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
 
     default_params
     {
@@ -914,7 +914,7 @@ fragment_program Examples/GrassWaverCasterFpCg cg
 {
 	source Grass.cg
 	entry_point grasscaster_fp
-	profiles ps_4_0 ps_2_0 arbfp1
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1
     default_params
     {
     }
@@ -924,7 +924,7 @@ vertex_program Examples/GrassWaverReceiverVpCg cg
 {
 	source Grass.cg
 	entry_point grassreceiver_vp
-	profiles vs_4_0 vs_1_1 arbvp1
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
 
     default_params
     {
@@ -946,7 +946,7 @@ fragment_program Examples/GrassWaverReceiverFpCg cg
 {
 	source Grass.cg
 	entry_point grassreceiver_fp
-	profiles ps_4_0 ps_2_0 arbfp1
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1
 
 	default_params
     {
@@ -956,132 +956,6 @@ fragment_program Examples/GrassWaverReceiverFpCg cg
 		param_named gradientScaleBias float 0
     }
 }
-
-
-vertex_program Examples/GrassWaverVpHLSL hlsl
-{
-	source Grass.cg
-	entry_point grass_vp
-	target vs_2_0
-
-    default_params
-    {
-        param_named_auto worldViewProj worldviewproj_matrix
-
-       // param_named_auto camObjPos camera_position_object_space
-
-        param_named_auto ambient ambient_light_colour
-        param_named_auto objSpaceLight light_position_object_space 0
-        param_named_auto lightColour light_diffuse_colour 0
-
-        param_named_auto offset custom 999
-    }
-}
-
-vertex_program Examples/GrassWaverTexVpHLSL hlsl
-  {
-	source Grass.cg
-	entry_point grassTex_vp
-	target vs_2_0
-
-    default_params
-      {
-        param_named_auto worldViewProj worldviewproj_matrix
-        param_named_auto offset custom 999
-    }
-}
-vertex_program Examples/GrassWaverAmbientVpHLSL hlsl
-{
-	source Grass.cg
-	entry_point grassAmbient_vp
-	target vs_2_0
-
-    default_params
-  	{
-  				param_named_auto worldViewProj worldviewproj_matrix
-  				param_named_auto ambient ambient_light_colour
-        param_named_auto offset custom 999
-    }
-}
-fragment_program Examples/GrassWaverAmbientFpHLSL hlsl
-{
-	source Grass.cg
-	entry_point grassAmbient_fp
-	target ps_2_0
-    default_params
-    {
-    }
-}
-fragment_program Examples/GrassWaverFpHLSL hlsl
-{
-	source Grass.cg
-	entry_point grass_fp
-	target ps_2_0
-    default_params
-    {
-    }
-}
-
-vertex_program Examples/GrassWaverCasterVpHLSL hlsl
-{
-	source Grass.cg
-	entry_point grasscaster_vp
-	target vs_2_0
-
-    default_params
-    {
-        param_named_auto worldViewProj worldviewproj_matrix
-        param_named_auto offset custom 999
-		param_named_auto texelOffsets texel_offsets
-    }
-}
-fragment_program Examples/GrassWaverCasterFpHLSL hlsl
-{
-	source Grass.cg
-	entry_point grasscaster_fp
-	target ps_2_0
-    default_params
-    {
-    }
-}
-
-vertex_program Examples/GrassWaverReceiverVpHLSL hlsl
-{
-	source Grass.cg
-	entry_point grassreceiver_vp
-	target vs_2_0
-
-    default_params
-    {
-        param_named_auto world world_matrix
-		    param_named_auto worldViewProj worldviewproj_matrix
-		    param_named_auto texViewProj texture_viewproj_matrix
-
-        param_named_auto camObjPos camera_position_object_space
-
-  			param_named_auto objSpaceLight light_position_object_space 0
-  			param_named_auto lightColour light_diffuse_colour 0
-
-  			param_named_auto offset custom 999
-  	}
-}
-
-
-fragment_program Examples/GrassWaverReceiverFpHLSL hlsl
-{
-	source Grass.cg
-	entry_point grassreceiver_fp
-	target ps_2_0
-
-	default_params
-    {
-        //param_named inverseShadowmapSize float 0.0009765625
-		param_named fixedDepthBias float 0.0005
-		param_named gradientClamp float 0.0098
-		param_named gradientScaleBias float 0
-    }
-}
-
 
 vertex_program Examples/GrassWaverVpGLSLES glsles
 {
@@ -1323,7 +1197,6 @@ vertex_program Examples/GrassWaverReceiverVp unified
 {
 	delegate Examples/GrassWaverReceiverVpGLSL
 	delegate Examples/GrassWaverReceiverVpGLSLES
-	delegate Examples/GrassWaverReceiverVpHLSL
 	delegate Examples/GrassWaverReceiverVpCg
 }
 
@@ -1331,7 +1204,6 @@ fragment_program Examples/GrassWaverReceiverFp unified
 {
 	delegate Examples/GrassWaverReceiverFpGLSL
 	delegate Examples/GrassWaverReceiverFpGLSLES
-	delegate Examples/GrassWaverReceiverFpHLSL
 	delegate Examples/GrassWaverReceiverFpCg
 }
 
@@ -1339,7 +1211,6 @@ vertex_program Examples/GrassWaverCasterVp unified
 {
 	delegate Examples/GrassWaverCasterVpGLSL
 	delegate Examples/GrassWaverCasterVpGLSLES
-	delegate Examples/GrassWaverCasterVpHLSL
 	delegate Examples/GrassWaverCasterVpCg
 }
 
@@ -1347,7 +1218,6 @@ fragment_program Examples/GrassWaverCasterFp unified
 {
 	delegate Examples/GrassWaverCasterFpGLSL
 	delegate Examples/GrassWaverCasterFpGLSLES
-	delegate Examples/GrassWaverCasterFpHLSL
 	delegate Examples/GrassWaverCasterFpCg
 }
 
@@ -1355,7 +1225,6 @@ vertex_program Examples/GrassWaverAmbientVp unified
 {
 	delegate Examples/GrassWaverAmbientVpGLSL
 	delegate Examples/GrassWaverAmbientVpGLSLES
-	delegate Examples/GrassWaverAmbientVpHLSL
 	delegate Examples/GrassWaverAmbientVpCg
 }
 
@@ -1363,7 +1232,6 @@ fragment_program Examples/GrassWaverAmbientFp unified
 {
 	delegate Examples/GrassWaverAmbientFpGLSL
 	delegate Examples/GrassWaverAmbientFpGLSLES
-	delegate Examples/GrassWaverAmbientFpHLSL
 	delegate Examples/GrassWaverAmbientFpCg
 }
 
@@ -1371,7 +1239,6 @@ vertex_program Examples/GrassWaverTexVp unified
 {
 	delegate Examples/GrassWaverTexVpGLSL
 	delegate Examples/GrassWaverTexVpGLSLES
-	delegate Examples/GrassWaverTexVpHLSL
 	delegate Examples/GrassWaverTexVpCg
 }
 
@@ -1379,7 +1246,6 @@ fragment_program Examples/GrassWaverFp unified
 {
 	delegate Examples/GrassWaverFpGLSL
 	delegate Examples/GrassWaverFpGLSLES
-	delegate Examples/GrassWaverFpHLSL
 	delegate Examples/GrassWaverFpCg
 }
 
@@ -1387,7 +1253,6 @@ vertex_program Examples/GrassWaverVp unified
 {
 	delegate Examples/GrassWaverVpGLSL
 	delegate Examples/GrassWaverVpGLSLES
-	delegate Examples/GrassWaverVpHLSL
 	delegate Examples/GrassWaverVpCg
 }
 
@@ -1897,12 +1762,21 @@ material Examples/Aureola
 
 			texture_unit
 			{
-				texture aureola.png PF_BYTE_LA
+                                // FreeImage reads texture as 32 bpp,
+                                // so either texture is 16-bit per
+                                // channel when it should be 8-bit or
+                                // FreeImage has a bug.  Either way
+                                // do not set texture type for now.
+
+                                //texture aureola.png PF_BYTE_LA
+				texture aureola.png
 				tex_address_mode clamp
 			}
 		}
 	}
 }
+
+
 
 // Test hardware morph animation (no normals)
 material Examples/HardwareMorphAnimation
@@ -2162,14 +2036,14 @@ fragment_program Examples/ShowUV_pCg_sm4 cg
 {
 	source Example_Basic_sm4.cg
 	entry_point showuv_p
-	profiles ps_4_0
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3
 }
 
 fragment_program Examples/ShowUV_pHLSL hlsl
 {
-	source Example_Basic.cg
+	source Example_Basic4.hlsl
 	entry_point showuv_p
-	target ps_2_0
+	target ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3
 }
 
 fragment_program Examples/ShowUV_pGLSLES glsles
@@ -2199,19 +2073,18 @@ fragment_program Examples/ShowUVdir3D_pCg cg
 	entry_point showuvdir3d_p
 	profiles ps_2_0 arbfp1
 }
-
 fragment_program Examples/ShowUVdir3D_pCg_sm4 cg
 {
 	source Example_Basic_sm4.cg
 	entry_point showuvdir3d_p
-	profiles ps_4_0
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3
 }
 
 fragment_program Examples/ShowUVdir3D_pHLSL hlsl
 {
-	source Example_Basic.cg
+	source Example_Basic4.hlsl
 	entry_point showuvdir3d_p
-	target ps_2_0
+	target ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3
 }
 
 fragment_program Examples/ShowUVdir3D_pGLSLES glsles
@@ -2250,18 +2123,7 @@ vertex_program Examples/ShowTangents_vCg_sm4 cg
 {
 	source Example_Basic_sm4.cg
 	entry_point basicPassthroughTangent_v
-	profiles vs_4_0
-	default_params
-	{
-		param_named_auto worldViewProj worldviewproj_matrix
-	}
-}
-
-vertex_program Examples/ShowTangents_vHLSL hlsl
-{
-	source Example_Basic.cg
-	entry_point basicPassthroughTangent_v
-	target vs_2_0
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3
 	default_params
 	{
 		param_named_auto worldViewProj worldviewproj_matrix
@@ -2292,7 +2154,6 @@ vertex_program Examples/ShowTangents_v unified
 {
 	delegate Examples/ShowTangents_vGLSL
 	delegate Examples/ShowTangents_vGLSLES
-	delegate Examples/ShowTangents_vHLSL
 	delegate Examples/ShowTangents_vCg
 	delegate Examples/ShowTangents_vCg_sm4
 }
@@ -2312,18 +2173,7 @@ vertex_program Examples/ShowNormals_vCg_sm4 cg
 {
 	source Example_Basic_sm4.cg
 	entry_point basicPassthroughNormal_v
-	profiles vs_4_0
-	default_params
-	{
-		param_named_auto worldViewProj worldviewproj_matrix
-	}
-}
-
-vertex_program Examples/ShowNormals_vHLSL hlsl
-{
-	source Example_Basic.cg
-	entry_point basicPassthroughNormal_v
-	target vs_2_0
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3
 	default_params
 	{
 		param_named_auto worldViewProj worldviewproj_matrix
@@ -2354,7 +2204,6 @@ vertex_program Examples/ShowNormals_v unified
 {
 	delegate Examples/ShowNormals_vGLSL
 	delegate Examples/ShowNormals_vGLSLES
-	delegate Examples/ShowNormals_vHLSL
 	delegate Examples/ShowNormals_vCg
 	delegate Examples/ShowNormals_vCg_sm4
 }
@@ -2548,3 +2397,35 @@ material Examples/EnvMappedRustySteel
 		}
 	}
 }
+
+material Examples/TransparentBlue50
+{
+  technique
+  {
+    pass
+    {
+      scene_blend alpha_blend
+      depth_write off
+
+      texture_unit
+      {
+        colour_op_ex source1 src_manual src_current 0 0 1
+        alpha_op_ex source1 src_manual src_current 0.5
+      }
+    }
+  }
+}
+
+// material Examples/Passthrough
+// {
+//     technique
+//     {
+//         pass
+//         {
+//             diffuse vertexcolour
+//             specular vertexcolour
+//             ambient vertexcolour
+//             lighting off
+//         }
+//     }
+// }

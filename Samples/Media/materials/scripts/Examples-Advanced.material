@@ -5,7 +5,7 @@ vertex_program Ogre/CelShadingVPCg cg
 {
 	source Example_CelShading.cg
 	entry_point main_vp
-	profiles vs_4_0 vs_1_1 arbvp1
+	profiles vs_4_0 vs_3_0 vs_1_1 arbvp1
 
 	default_params
 	{
@@ -20,15 +20,15 @@ fragment_program Ogre/CelShadingFPCg cg
 {
 	source Example_CelShading.cg
 	entry_point main_fp
-	profiles ps_4_0 ps_1_1 arbfp1 fp20
+	profiles ps_4_0 ps_3_0 ps_2_0 ps_1_1 arbfp1 fp20
 
 }
 
-vertex_program Ogre/CelShadingVPHLSL hlsl
+vertex_program Ogre/CelShadingVPhlsl hlsl
 {
-	source Example_CelShading.cg
+	source Example_CelShading.hlsl
 	entry_point main_vp
-	target vs_2_0
+	target vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3
 
 	default_params
 	{
@@ -39,19 +39,11 @@ vertex_program Ogre/CelShadingVPHLSL hlsl
 	}
 }
 
-fragment_program Ogre/CelShadingFPHLSL hlsl
+fragment_program Ogre/CelShadingFPhlsl hlsl
 {
-	source Example_CelShading.cg
+	source Example_CelShading.hlsl
 	entry_point main_fp
-	target ps_2_0
-}
-
-fragment_program Ogre/CelShadingFPHLSL_sm4 hlsl
-{
-	source Example_CelShading.cg
-	entry_point main_fp
-	target ps_4_0
-	preprocessor_defines HLSL_SM4=1
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3
 }
 
 vertex_program Ogre/CelShadingVPGLSLES glsles
@@ -73,6 +65,7 @@ fragment_program Ogre/CelShadingFPGLSLES glsles
 	source Example_CelShadingFp.glsles
 	profiles glsles
 }
+
 
 vertex_program Ogre/CelShadingVPGLSL glsl
 {
@@ -96,18 +89,17 @@ fragment_program Ogre/CelShadingFPGLSL glsl
 
 fragment_program Ogre/CelShadingFP unified
 {
+	delegate Ogre/CelShadingFPhlsl
 	delegate Ogre/CelShadingFPGLSL
 	delegate Ogre/CelShadingFPGLSLES
-	delegate Ogre/CelShadingFPHLSL_sm4
-	delegate Ogre/CelShadingFPHLSL
 	delegate Ogre/CelShadingFPCg
 }
 
 vertex_program Ogre/CelShadingVP unified
 {
+	delegate Ogre/CelShadingVPhlsl
 	delegate Ogre/CelShadingVPGLSL
 	delegate Ogre/CelShadingVPGLSLES
-	delegate Ogre/CelShadingVPHLSL
 	delegate Ogre/CelShadingVPCg
 }
 
@@ -170,14 +162,7 @@ vertex_program Examples/BumpMapVPCg cg
 {
 	source Example_BumpMapping.cg
 	entry_point main_vp
-	profiles vs_4_0 vs_1_1 arbvp1
-}
-
-vertex_program Examples/BumpMapVPHLSL hlsl
-{
-	source Example_BumpMapping.cg
-	entry_point main_vp
-	target vs_2_0
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
 }
 
 vertex_program Examples/BumpMapVPGLSLES glsles
@@ -196,7 +181,6 @@ vertex_program Examples/BumpMapVP unified
 {
 	delegate Examples/BumpMapVPGLSL
 	delegate Examples/BumpMapVPGLSLES
-	delegate Examples/BumpMapVPHLSL
 	delegate Examples/BumpMapVPCg
 }
 
@@ -209,14 +193,6 @@ vertex_program Examples/BumpMapVPTangentParityCg cg
 	compile_arguments -DTANGENTS_HAVE_PARITY=1
 }
 
-vertex_program Examples/BumpMapVPTangentParityHLSL hlsl
-{
-	source Example_BumpMapping.cg
-	entry_point main_vp
-	target vs_2_0
-	preprocessor_defines TANGENTS_HAVE_PARITY=1
-}
-
 // Bump map vertex program, with tangent parity support for this is required
 vertex_program Examples/BumpMapVPTangentParityGLSLES glsles
 {
@@ -227,17 +203,12 @@ vertex_program Examples/BumpMapVPTangentParityGLSL glsl
 {
 	source BumpMapVPTangentParity.glsl
 	syntax glsl150
-	default_params
-	{
-        param_named_auto lightDiffuse light_diffuse_colour 0 
-    }
 }
 
 vertex_program Examples/BumpMapVPTangentParity unified
 {
 	delegate Examples/BumpMapVPTangentParityGLSL
 	delegate Examples/BumpMapVPTangentParityGLSLES
-	delegate Examples/BumpMapVPTangentParityHLSL
 	delegate Examples/BumpMapVPTangentParityCg
 }
 
@@ -246,14 +217,7 @@ fragment_program Examples/BumpMapFPCg cg
 {
 	source Example_BumpMapping.cg
 	entry_point main_fp
-	profiles ps_4_0 ps_2_0 arbfp1 fp20
-}
-
-fragment_program Examples/BumpMapFPHLSL hlsl
-{
-	source Example_BumpMapping.cg
-	entry_point main_fp
-	target ps_2_0
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1 fp20
 }
 
 fragment_program Examples/BumpMapFPGLSLES glsles
@@ -282,7 +246,6 @@ fragment_program Examples/BumpMapFP unified
 {
 	delegate Examples/BumpMapFPGLSL
 	delegate Examples/BumpMapFPGLSLES
-	delegate Examples/BumpMapFPHLSL
 	delegate Examples/BumpMapFPCg
 }
 
@@ -359,14 +322,7 @@ vertex_program Examples/BumpMapVPSpecularCg cg
 {
 	source Example_BumpMapping.cg
 	entry_point specular_vp
-	profiles vs_4_0 vs_1_1 arbvp1
-}
-
-vertex_program Examples/BumpMapVPSpecularHLSL hlsl
-{
-	source Example_BumpMapping.cg
-	entry_point specular_vp
-	target vs_2_0
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
 }
 
 // Bump map with specular vertex program, support for this is required
@@ -386,7 +342,6 @@ vertex_program Examples/BumpMapVPSpecular unified
 {
 	delegate Examples/BumpMapVPSpecularGLSL
 	delegate Examples/BumpMapVPSpecularGLSLES
-	delegate Examples/BumpMapVPSpecularHLSL
 	delegate Examples/BumpMapVPSpecularCg
 }
 
@@ -395,14 +350,7 @@ fragment_program Examples/BumpMapFPSpecularCg cg
 {
 	source Example_BumpMapping.cg
 	entry_point specular_fp
-	profiles ps_4_0 ps_2_0 arbfp1 fp20
-}
-
-fragment_program Examples/BumpMapFPSpecularHLSL hlsl
-{
-	source Example_BumpMapping.cg
-	entry_point specular_fp
-	target ps_2_0
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1 fp20
 }
 
 // Bump map fragment program, support for this is optional
@@ -432,7 +380,6 @@ fragment_program Examples/BumpMapFPSpecular unified
 {
 	delegate Examples/BumpMapFPSpecularGLSL
 	delegate Examples/BumpMapFPSpecularGLSLES
-	delegate Examples/BumpMapFPSpecularHLSL
 	delegate Examples/BumpMapFPSpecularCg
 }
 
@@ -543,19 +490,19 @@ material Examples/BumpMapping/MultiLight
 
 }
 
-// Any number of lights, diffuse and specular
+// Any number of lights, diffuse and specular.
 material Examples/BumpMapping/MultiLightSpecular : Examples/BumpMapping/MultiLight
 {
 
 	// This is the preferred technique which uses both vertex and
-	// fragment programs, supports coloured lights
+	// fragment programs, supports coloured lights.
 	technique
 	{
-		// Overlay nothing new onto the old ambient pass
+		// Overlay nothing new onto the old ambient pass.
 		pass ambient
 		{
 		}
-		// Now do the lighting pass
+		// Now do the lighting pass.
 		// NB we don't do decal texture here because this is repeated per light
 		pass perlight
 		{
@@ -581,39 +528,25 @@ material Examples/BumpMapping/MultiLightSpecular : Examples/BumpMapping/MultiLig
 
 }
 
-// Any number of lights, diffuse only, correct for tangent parity
+// Any number of lights, diffuse only, correct for tangent parity.
 material Examples/BumpMapping/MultiLightTangentParity : Examples/BumpMapping/MultiLight
 {
 
-	// This is the preferred technique which uses both vertex and
-	// fragment programs, supports coloured lights
 	technique
 	{
-		// Overlay nothing new onto the old ambient pass
-		pass ambient
-		{
-		}
-		// Now do the lighting pass
-		// NB we don't do decal texture here because this is repeated per light
 		pass perlight
 		{
-
-			// Just change the vertex program
+			// Just change the vertex program.
 			vertex_program_ref Examples/BumpMapVPTangentParity
 			{
 				param_named_auto lightPosition light_position_object_space 0
 				param_named_auto worldViewProj worldviewproj_matrix
 			}
-			fragment_program_ref Ogre/BasicFragmentPrograms/PassthroughFP
-			{
-			}
-			
 		}
 		
 	}
 
 }
-
 
 
 //---------------------------
@@ -676,19 +609,13 @@ vertex_program Examples/FresnelRefractReflectVPCg cg
 {
 	source Example_Fresnel.cg
 	entry_point main_vp
-	profiles vs_4_0 vs_1_1 arbvp1
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3 vs_1_1 arbvp1
 }
 vertex_program Examples/FresnelRefractReflectVPold cg
 {
 	source Example_Fresnel.cg
 	entry_point main_vp_old
 	profiles vs_1_1 arbvp1
-}
-vertex_program Examples/FresnelRefractReflectVPHLSL hlsl
-{
-	source Example_Fresnel.cg
-	entry_point main_vp
-	target vs_2_0
 }
 vertex_program Examples/FresnelRefractReflectVPGLSLES glsles
 {
@@ -706,7 +633,6 @@ vertex_program Examples/FresnelRefractReflectVP unified
 {
 	delegate Examples/FresnelRefractReflectVPGLSL
 	delegate Examples/FresnelRefractReflectVPGLSLES
-	delegate Examples/FresnelRefractReflectVPHLSL
 	delegate Examples/FresnelRefractReflectVPCg
 }
 
@@ -715,22 +641,15 @@ fragment_program Examples/FresnelRefractReflectFPCg cg
 	source Example_Fresnel.cg
 	entry_point main_fp
 	// sorry, ps_1_1 and fp20 can't do this
-	profiles ps_4_0 ps_2_0 arbfp1
+	profiles ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3 ps_2_0 arbfp1
 }
 
-fragment_program Examples/FresnelRefractReflectFPHLSL hlsl
-{
-	source Example_Fresnel.cg
-	entry_point main_fp
-	target ps_2_0
-}
-
-fragment_program Examples/FresnelRefractReflectPS asm
-{
-	source Example_FresnelPS.asm
-	// sorry, only for ps_1_4 :)
-	syntax ps_1_4
-}
+// fragment_program Examples/FresnelRefractReflectPS asm
+// {
+// 	source Example_FresnelPS.asm
+// 	// sorry, only for ps_1_4 :)
+// 	syntax ps_1_4
+// }
 
 fragment_program Examples/FresnelRefractReflectFPGLSLES glsles
 {
@@ -763,7 +682,6 @@ fragment_program Examples/FresnelRefractReflectFP unified
 {
 	delegate Examples/FresnelRefractReflectFPGLSL
 	delegate Examples/FresnelRefractReflectFPGLSLES
-	delegate Examples/FresnelRefractReflectFPHLSL
 	delegate Examples/FresnelRefractReflectFPCg
 }
 
@@ -969,7 +887,7 @@ vertex_program Examples/TextureArrayVScg cg
 {
 	source Example_TextureArrayVS.cg
 	entry_point textureArray_v
-	profiles vs_4_0
+	profiles vs_4_0 vs_4_0_level_9_1 vs_4_0_level_9_3
 
 	default_params
 	{
@@ -1021,7 +939,7 @@ fragment_program Examples/TextureArrayPShlsl4 hlsl
 {
 	entry_point textureArray_p
 	source Example_TextureArrayPS.hlsl4
-	target ps_4_0
+	target ps_4_0 ps_4_0_level_9_1 ps_4_0_level_9_3
 }
 
 fragment_program Examples/TextureArrayPSasm asm
@@ -1032,7 +950,7 @@ fragment_program Examples/TextureArrayPSasm asm
 
 material Examples/TextureArray
 {
-	technique
+	technique asm
 	{
 		pass
 		{

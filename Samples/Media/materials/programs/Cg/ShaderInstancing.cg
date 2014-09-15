@@ -13,11 +13,7 @@ struct VS_INPUT
 	float3 Tangent	:	TANGENT;
 	float2 uv0	:	TEXCOORD0;
 
-#ifdef SHADER_MODEL_4
-	uint4 BlendIdx	:	BLENDINDICES;
-#else
 	float4 BlendIdx	:	BLENDINDICES;
-#endif
 	float4 BlendWgt	:	BLENDWEIGHT;
 };
 
