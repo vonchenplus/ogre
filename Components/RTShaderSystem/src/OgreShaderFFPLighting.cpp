@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreShaderGenerator.h"
 #include "OgreSceneManager.h"
 #include "OgreViewport.h"
+#include "OgreMaterialSerializer.h"
 
 
 namespace Ogre {
