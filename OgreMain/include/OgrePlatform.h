@@ -40,8 +40,8 @@ namespace Ogre {
 #define OGRE_PLATFORM_ANDROID 5
 #define OGRE_PLATFORM_NACL 6
 #define OGRE_PLATFORM_WINRT 7
-#define OGRE_PLATFORM_FLASHCC 8
-
+#define OGRE_PLATFORM_EMSCRIPTEN 8
+    
 #define OGRE_COMPILER_MSVC 1
 #define OGRE_COMPILER_GNUC 2
 #define OGRE_COMPILER_BORL 3
@@ -63,7 +63,7 @@ namespace Ogre {
 #elif defined( __GCCE__ )
 #   define OGRE_COMPILER OGRE_COMPILER_GCCE
 #   define OGRE_COMP_VER _MSC_VER
-//#	include <staticlibinit_gcce.h> // This is a GCCE toolchain workaround needed when compiling with GCCE 
+//# include <staticlibinit_gcce.h> // This is a GCCE toolchain workaround needed when compiling with GCCE 
 #elif defined( __WINSCW__ )
 #   define OGRE_COMPILER OGRE_COMPILER_WINSCW
 #   define OGRE_COMP_VER _MSC_VER
@@ -113,33 +113,36 @@ namespace Ogre {
 
 /* Finds the current platform */
 #if (defined( __WIN32__ ) || defined( _WIN32 )) && !defined(__ANDROID__)
-#	if defined(WINAPI_FAMILY)
-#		define __OGRE_HAVE_DIRECTXMATH 1
-#		include <winapifamily.h>
-#		if WINAPI_FAMILY == WINAPI_FAMILY_APP|| WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
-#			define DESKTOP_APP 1
-#			define PHONE 2
-#			define OGRE_PLATFORM OGRE_PLATFORM_WINRT
+#    include <sdkddkver.h>
+#    if defined(_WIN32_WINNT_WIN8) && _WIN32_WINNT >= _WIN32_WINNT_WIN8 // i.e. this is modern SDK and we compile for OS with guaranteed support for DirectXMath
+#       define __OGRE_HAVE_DIRECTXMATH 1
+#    endif
+#   if defined(WINAPI_FAMILY)
+#       include <winapifamily.h>
+#       if WINAPI_FAMILY == WINAPI_FAMILY_APP|| WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+#           define DESKTOP_APP 1
+#           define PHONE 2
+#           define OGRE_PLATFORM OGRE_PLATFORM_WINRT
 #           ifndef _CRT_SECURE_NO_WARNINGS
 #               define _CRT_SECURE_NO_WARNINGS
 #           endif
 #           ifndef _SCL_SECURE_NO_WARNINGS
 #               define _SCL_SECURE_NO_WARNINGS
 #           endif
-#			if WINAPI_FAMILY == WINAPI_FAMILY_APP
-#				define OGRE_WINRT_TARGET_TYPE DESKTOP_APP
-#			endif
-#			if WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
-#				define OGRE_WINRT_TARGET_TYPE PHONE
-#			endif
-#		else
-#			define OGRE_PLATFORM OGRE_PLATFORM_WIN32
-#		endif
-#	else
-#		define OGRE_PLATFORM OGRE_PLATFORM_WIN32
-#	endif
-#elif defined(__FLASHCC__)
-#	define OGRE_PLATFORM OGRE_PLATFORM_FLASHCC
+#           if WINAPI_FAMILY == WINAPI_FAMILY_APP
+#               define OGRE_WINRT_TARGET_TYPE DESKTOP_APP
+#           endif
+#           if WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+#               define OGRE_WINRT_TARGET_TYPE PHONE
+#           endif
+#       else
+#           define OGRE_PLATFORM OGRE_PLATFORM_WIN32
+#       endif
+#   else
+#       define OGRE_PLATFORM OGRE_PLATFORM_WIN32
+#   endif
+#elif defined(__EMSCRIPTEN__)
+#   define OGRE_PLATFORM OGRE_PLATFORM_EMSCRIPTEN
 #elif defined( __APPLE_CC__)
     // Device                                                     Simulator
     // Both requiring OS version 6.0 or greater
@@ -149,7 +152,7 @@ namespace Ogre {
 #       define OGRE_PLATFORM OGRE_PLATFORM_APPLE
 #   endif
 #elif defined(__ANDROID__)
-#	define OGRE_PLATFORM OGRE_PLATFORM_ANDROID
+#   define OGRE_PLATFORM OGRE_PLATFORM_ANDROID
 #elif defined( __native_client__ ) 
 #   define OGRE_PLATFORM OGRE_PLATFORM_NACL
 #   ifndef OGRE_STATIC_LIB
@@ -198,22 +201,22 @@ namespace Ogre {
 
 // If we're not including this from a client build, specify that the stuff
 // should get exported. Otherwise, import it.
-#	if defined( OGRE_STATIC_LIB )
-		// Linux compilers don't have symbol import/export directives.
-#   	define _OgreExport
-#   	define _OgrePrivate
+#   if defined( OGRE_STATIC_LIB )
+        // Linux compilers don't have symbol import/export directives.
+#       define _OgreExport
+#       define _OgrePrivate
 #   else
-#   	if defined( OGRE_NONCLIENT_BUILD )
-#       	define _OgreExport __declspec( dllexport )
-#   	else
+#       if defined( OGRE_NONCLIENT_BUILD )
+#           define _OgreExport __declspec( dllexport )
+#       else
 #           if defined( __MINGW32__ )
 #               define _OgreExport
 #           else
-#       	    define _OgreExport __declspec( dllimport )
+#               define _OgreExport __declspec( dllimport )
 #           endif
-#   	endif
-#   	define _OgrePrivate
-#	endif
+#       endif
+#       define _OgrePrivate
+#   endif
 // Win32 compilers use _DEBUG for specifying debug builds.
 // for MinGW, we set DEBUG
 #   if defined(_DEBUG) || defined(DEBUG)
@@ -248,9 +251,9 @@ namespace Ogre {
 #endif // OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 
 //----------------------------------------------------------------------------
-// Linux/Apple/iOS/Android/NaCl Settings
+// Linux/Apple/iOS/Android/NaCl/Emscripten Settings
 #if OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS || \
-    OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_NACL || OGRE_PLATFORM == OGRE_PLATFORM_FLASHCC
+    OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_NACL || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
 
 // Enable GCC symbol visibility
 #   if defined( OGRE_GCC_VISIBILITY )
@@ -282,7 +285,7 @@ namespace Ogre {
 #   ifdef OGRE_UNICODE_SUPPORT
 #       undef OGRE_UNICODE_SUPPORT
 #   endif
-#	define OGRE_UNICODE_SUPPORT 1
+#   define OGRE_UNICODE_SUPPORT 1
     // A quick define to overcome different names for the same function
 #   define stricmp strcasecmp
 #   ifdef DEBUG
@@ -291,21 +294,7 @@ namespace Ogre {
 #       define OGRE_DEBUG_MODE 0
 #   endif
 #   ifndef CLOCKS_PER_SEC
-#	    define CLOCKS_PER_SEC  1000
-#   endif
-#endif
-    
-//----------------------------------------------------------------------------
-// FlashCC Settings
-#if OGRE_PLATFORM == OGRE_PLATFORM_FLASHCC
-#   ifdef OGRE_UNICODE_SUPPORT
-#       undef OGRE_UNICODE_SUPPORT
-#   endif
-#	define OGRE_UNICODE_SUPPORT 0
-#   ifdef DEBUG
-#       define OGRE_DEBUG_MODE 1
-#   else
-#       define OGRE_DEBUG_MODE 0
+#       define CLOCKS_PER_SEC  1000
 #   endif
 #endif
 
@@ -325,8 +314,8 @@ namespace Ogre {
 //----------------------------------------------------------------------------
 // Set the default locale for strings
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-//	Locales are not supported by the C lib you have to go through JNI.
-#	define OGRE_DEFAULT_LOCALE ""
+//  Locales are not supported by the C lib you have to go through JNI.
+#   define OGRE_DEFAULT_LOCALE ""
 #else
 #   define OGRE_DEFAULT_LOCALE "C"
 #endif
@@ -349,11 +338,11 @@ typedef short int16;
 typedef signed char int8;
 // define uint64 type
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
-	typedef unsigned __int64 uint64;
-	typedef __int64 int64;
+    typedef unsigned __int64 uint64;
+    typedef __int64 int64;
 #else
-	typedef unsigned long long uint64;
-	typedef long long int64;
+    typedef unsigned long long uint64;
+    typedef long long int64;
 #endif
 
 // Disable these warnings (too much noise)
