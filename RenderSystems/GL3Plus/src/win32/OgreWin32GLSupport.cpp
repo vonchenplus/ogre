@@ -473,13 +473,22 @@ namespace Ogre {
 		// take this opportunity to enumerate the valid FSAA modes.
 		
 		LPCSTR dummyText = "OgreWglDummy";
-#ifdef OGRE_STATIC_LIB
-		HINSTANCE hinst = GetModuleHandle( NULL );
-#else
-		static const TCHAR staticVar;
+
 		HINSTANCE hinst = NULL;
-		GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, &staticVar, &hinst);
-#endif
+		#ifdef __MINGW32__
+			#ifdef OGRE_STATIC_LIB
+        		hinst = GetModuleHandle( NULL );
+			#else
+				#if OGRE_DEBUG_MODE == 1
+					hinst = GetModuleHandle("RenderSystem_GL3Plus_d.dll");
+				#else
+					hinst = GetModuleHandle("RenderSystem_GL3Plus.dll");
+				#endif
+			#endif
+		#else
+			static const TCHAR staticVar;
+			GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, &staticVar, &hinst);
+		#endif
 		
 		WNDCLASS dummyClass;
 		memset(&dummyClass, 0, sizeof(WNDCLASS));

@@ -17,7 +17,7 @@ cbuffer TessellationBuffer
 //////////////
 struct VertexInputType2
 {
-    float4 position 		: POSITION;
+    float3 position 		: POSITION;
     float2 texCoord     	: TEXCOORD0;
     float4 color 			: COLOR;
 };
@@ -25,7 +25,7 @@ struct VertexInputType2
 
 struct HullInputType
 {
-    float4 position : POSITION;
+    float3 position : POSITION;
     float2 texCoord : TEXCOORD0;
     float4 color 	: COLOR;
 };
@@ -42,7 +42,7 @@ struct ConstantOutputType
 
 struct HullOutputType
 {
-    float4 position : POSITION;
+    float3 position : POSITION;
     float2 texCoord : TEXCOORD0;
     float4 color 	: COLOR;
 };

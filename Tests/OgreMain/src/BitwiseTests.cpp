@@ -29,7 +29,6 @@ THE SOFTWARE.
 #include "UnitTestSuite.h"
 
 #include "OgreBitwise.h"
-#include "OgreLogManager.h"
 #include "OgreStringConverter.h"
 
 using namespace Ogre;

@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include "FileSystemArchiveTests.h"
 #include "OgreFileSystem.h"
 #include "OgreException.h"
+#include "OgreCommon.h"
 
 #include "UnitTestSuite.h"
 
@@ -65,19 +66,19 @@ void FileSystemArchiveTests::testListNonRecursive()
 {
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
-	try {
+    try {
         FileSystemArchive arch(mTestPath, "FileSystem", true);
-		arch.load();
-		StringVectorPtr vec = arch.list(false);
+        arch.load();
+        StringVectorPtr vec = arch.list(false);
 
-		CPPUNIT_ASSERT_EQUAL((unsigned int)2, (unsigned int)vec->size());
-		CPPUNIT_ASSERT_EQUAL(String("rootfile.txt"), vec->at(0));
-		CPPUNIT_ASSERT_EQUAL(String("rootfile2.txt"), vec->at(1));
-	}
-	catch (Exception& e)
-	{
-		std::cout << e.getFullDescription();
-	}
+        CPPUNIT_ASSERT_EQUAL((unsigned int)2, (unsigned int)vec->size());
+        CPPUNIT_ASSERT_EQUAL(String("rootfile.txt"), vec->at(0));
+        CPPUNIT_ASSERT_EQUAL(String("rootfile2.txt"), vec->at(1));
+    }
+    catch (Exception& e)
+    {
+        std::cout << e.getFullDescription();
+    }
 }
 //--------------------------------------------------------------------------
 void FileSystemArchiveTests::testListRecursive()
@@ -112,14 +113,14 @@ void FileSystemArchiveTests::testListFileInfoNonRecursive()
         FileInfo& fi1 = vec->at(0);
         CPPUNIT_ASSERT_EQUAL(String("rootfile.txt"), fi1.filename);
         CPPUNIT_ASSERT_EQUAL(String("rootfile.txt"), fi1.basename);
-        CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, fi1.path);
+        CPPUNIT_ASSERT_EQUAL(BLANKSTRING, fi1.path);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot1, fi1.compressedSize);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot1, fi1.uncompressedSize);
 
         FileInfo& fi2 = vec->at(1);
         CPPUNIT_ASSERT_EQUAL(String("rootfile2.txt"), fi2.filename);
         CPPUNIT_ASSERT_EQUAL(String("rootfile2.txt"), fi2.basename);
-        CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, fi2.path);
+        CPPUNIT_ASSERT_EQUAL(BLANKSTRING, fi2.path);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot2, fi2.compressedSize);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot2, fi2.uncompressedSize);
     }
@@ -140,14 +141,14 @@ void FileSystemArchiveTests::testListFileInfoRecursive()
         FileInfo& fi1 = vec->at(0);
         CPPUNIT_ASSERT_EQUAL(String("rootfile.txt"), fi1.filename);
         CPPUNIT_ASSERT_EQUAL(String("rootfile.txt"), fi1.basename);
-        CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, fi1.path);
+        CPPUNIT_ASSERT_EQUAL(BLANKSTRING, fi1.path);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot1, fi1.compressedSize);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot1, fi1.uncompressedSize);
 
         FileInfo& fi2 = vec->at(1);
         CPPUNIT_ASSERT_EQUAL(String("rootfile2.txt"), fi2.filename);
         CPPUNIT_ASSERT_EQUAL(String("rootfile2.txt"), fi2.basename);
-        CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, fi2.path);
+        CPPUNIT_ASSERT_EQUAL(BLANKSTRING, fi2.path);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot2, fi2.compressedSize);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot2, fi2.uncompressedSize);
     }
@@ -224,14 +225,14 @@ void FileSystemArchiveTests::testFindFileInfoNonRecursive()
         FileInfo& fi1 = vec->at(0);
         CPPUNIT_ASSERT_EQUAL(String("rootfile.txt"), fi1.filename);
         CPPUNIT_ASSERT_EQUAL(String("rootfile.txt"), fi1.basename);
-        CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, fi1.path);
+        CPPUNIT_ASSERT_EQUAL(BLANKSTRING, fi1.path);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot1, fi1.compressedSize);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot1, fi1.uncompressedSize);
 
         FileInfo& fi2 = vec->at(1);
         CPPUNIT_ASSERT_EQUAL(String("rootfile2.txt"), fi2.filename);
         CPPUNIT_ASSERT_EQUAL(String("rootfile2.txt"), fi2.basename);
-        CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, fi2.path);
+        CPPUNIT_ASSERT_EQUAL(BLANKSTRING, fi2.path);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot2, fi2.compressedSize);
         CPPUNIT_ASSERT_EQUAL((size_t)mFileSizeRoot2, fi2.uncompressedSize);
     }
@@ -289,7 +290,7 @@ void FileSystemArchiveTests::testFileRead()
     CPPUNIT_ASSERT_EQUAL(String("this is line 3 in file 1"), stream->getLine());
     CPPUNIT_ASSERT_EQUAL(String("this is line 4 in file 1"), stream->getLine());
     CPPUNIT_ASSERT_EQUAL(String("this is line 5 in file 1"), stream->getLine());
-    CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, stream->getLine()); // blank at end of file
+    CPPUNIT_ASSERT_EQUAL(BLANKSTRING, stream->getLine()); // blank at end of file
     CPPUNIT_ASSERT(stream->eof());
 }
 //--------------------------------------------------------------------------
@@ -316,14 +317,14 @@ void FileSystemArchiveTests::testReadInterleave()
     CPPUNIT_ASSERT_EQUAL(String("this is line 3 in file 1"), stream1->getLine());
     CPPUNIT_ASSERT_EQUAL(String("this is line 4 in file 1"), stream1->getLine());
     CPPUNIT_ASSERT_EQUAL(String("this is line 5 in file 1"), stream1->getLine());
-    CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, stream1->getLine()); // blank at end of file
+    CPPUNIT_ASSERT_EQUAL(BLANKSTRING, stream1->getLine()); // blank at end of file
     CPPUNIT_ASSERT(stream1->eof());
 
     // File 2
     CPPUNIT_ASSERT_EQUAL(String("this is line 4 in file 2"), stream2->getLine());
     CPPUNIT_ASSERT_EQUAL(String("this is line 5 in file 2"), stream2->getLine());
     CPPUNIT_ASSERT_EQUAL(String("this is line 6 in file 2"), stream2->getLine());
-    CPPUNIT_ASSERT_EQUAL(StringUtil::BLANK, stream2->getLine()); // blank at end of file
+    CPPUNIT_ASSERT_EQUAL(BLANKSTRING, stream2->getLine()); // blank at end of file
     CPPUNIT_ASSERT(stream2->eof());
 }
 //--------------------------------------------------------------------------
@@ -331,22 +332,22 @@ void FileSystemArchiveTests::testCreateAndRemoveFile()
 {
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
-	FileSystemArchive arch("./", "FileSystem", false);
-	arch.load();
+    FileSystemArchive arch("./", "FileSystem", false);
+    arch.load();
 
-	CPPUNIT_ASSERT(!arch.isReadOnly());
+    CPPUNIT_ASSERT(!arch.isReadOnly());
 
-	String fileName = "a_test_file.txt";
-	DataStreamPtr stream = arch.create(fileName);
+    String fileName = "a_test_file.txt";
+    DataStreamPtr stream = arch.create(fileName);
 
-	String testString = "Some text here";
-	size_t written = stream->write((void*)testString.c_str(), testString.size());
-	CPPUNIT_ASSERT_EQUAL(testString.size(), written);
+    String testString = "Some text here";
+    size_t written = stream->write((void*)testString.c_str(), testString.size());
+    CPPUNIT_ASSERT_EQUAL(testString.size(), written);
 
-	stream->close();
+    stream->close();
 
-	arch.remove(fileName);
+    arch.remove(fileName);
 
-	CPPUNIT_ASSERT(!arch.exists(fileName));
+    CPPUNIT_ASSERT(!arch.exists(fileName));
 }
 //--------------------------------------------------------------------------
