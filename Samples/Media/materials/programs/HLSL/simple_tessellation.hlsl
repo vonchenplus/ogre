@@ -45,7 +45,7 @@ struct v2h
 // hull to domain
 struct h2d
 {
-    float4 position 		: SV_POSITION;
+    float4 position 		: POSITION;
     float2 texCoord 		: TEXCOORD0;
 };
 

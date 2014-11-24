@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include "OgreTerrain.h"
 #include "OgreConfigFile.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreLogManager.h"
 
 #include "UnitTestSuite.h"
 
@@ -47,7 +48,7 @@ void TerrainTests::setUp()
     mFSLayer = OGRE_NEW_T(Ogre::FileSystemLayer, Ogre::MEMCATEGORY_GENERAL)(OGRE_VERSION_NAME);
 
 #ifdef OGRE_STATIC_LIB
-    mRoot = OGRE_NEW Root(StringUtil::BLANK);        
+    mRoot = OGRE_NEW Root(BLANKSTRING);        
     mStaticPluginLoader.load();
 #else
     String pluginsPath = mFSLayer->getConfigFilePath("plugins.cfg");
