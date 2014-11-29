@@ -149,8 +149,6 @@ bail:
             mHLSLProgramFactory = 0;
         }
 
-		//SAFE_RELEASE( mpD3D );
-
 		LogManager::getSingleton().logMessage( "D3D11 : " + getName() + " destroyed." );
 	}
 	//---------------------------------------------------------------------
@@ -932,7 +930,6 @@ bail:
 		SAFE_RELEASE( mpDXGIFactory );
 		mActiveD3DDriver = NULL;
 		mDevice = NULL;
-		mBasicStatesInitialised = false;
 		LogManager::getSingleton().logMessage("D3D11 : Shutting down cleanly.");
 		SAFE_DELETE( mTextureManager );
 		SAFE_DELETE( mHardwareBufferManager );
@@ -1225,14 +1222,24 @@ bail:
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_9_1)
         {
             rsc->addShaderProfile("vs_4_0_level_9_1");
+#ifdef SUPPORT_SM2_0_HLSL_SHADERS
+            rsc->addShaderProfile("vs_2_0");
+#endif
         }
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_9_3)
         {
             rsc->addShaderProfile("vs_4_0_level_9_3");
+#ifdef SUPPORT_SM2_0_HLSL_SHADERS
+            rsc->addShaderProfile("vs_2_a");
+            rsc->addShaderProfile("vs_2_x");
+#endif
         }
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
         {
-    		rsc->addShaderProfile("vs_4_0");
+            rsc->addShaderProfile("vs_4_0");
+#ifdef SUPPORT_SM2_0_HLSL_SHADERS
+            rsc->addShaderProfile("vs_3_0");
+#endif
         }
 		if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_1)
 		{
@@ -1260,14 +1267,26 @@ bail:
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_9_1)
         {
             rsc->addShaderProfile("ps_4_0_level_9_1");
+#ifdef SUPPORT_SM2_0_HLSL_SHADERS
+            rsc->addShaderProfile("ps_2_0");
+#endif
         }
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_9_3)
         {
             rsc->addShaderProfile("ps_4_0_level_9_3");
+#ifdef SUPPORT_SM2_0_HLSL_SHADERS
+            rsc->addShaderProfile("ps_2_a");
+            rsc->addShaderProfile("ps_2_b");
+            rsc->addShaderProfile("ps_2_x");
+#endif
         }
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
         {
             rsc->addShaderProfile("ps_4_0");
+#ifdef SUPPORT_SM2_0_HLSL_SHADERS
+            rsc->addShaderProfile("ps_3_0");
+            rsc->addShaderProfile("ps_3_x");
+#endif
         }
         if (mFeatureLevel >= D3D_FEATURE_LEVEL_10_1)
         {
@@ -1871,8 +1890,10 @@ bail:
 	{
 		mCullingMode = mode;
 
-		// TODO: invert culling mode based on mInvertVertexWinding && mActiveRenderTarget->requiresTextureFlipping()
-		mRasterizerDesc.CullMode = D3D11Mappings::get(mode);
+		bool flip = (mInvertVertexWinding && !mActiveRenderTarget->requiresTextureFlipping() ||
+					!mInvertVertexWinding && mActiveRenderTarget->requiresTextureFlipping());
+
+		mRasterizerDesc.CullMode = D3D11Mappings::get(mode, flip);
 	}
 	//---------------------------------------------------------------------
 	void D3D11RenderSystem::_setDepthBufferParams( bool depthTest, bool depthWrite, CompareFunction depthFunction )
@@ -2277,12 +2298,6 @@ bail:
 					"Failed to create blend state\nError Description:" + errorDescription, 
 					"D3D11RenderSystem::_render" );
 			}
-            
-            if (mFeatureLevel < D3D_FEATURE_LEVEL_10_0)
-            {
-                // should we enable it all the time and not only for lower the level 10?
-                mRasterizerDesc.DepthClipEnable = true;
-            }
 
 			hr = mDevice->CreateRasterizerState(&mRasterizerDesc, &opState->mRasterizer) ;
 			if (FAILED(hr))
@@ -3606,7 +3621,6 @@ bail:
 		mHardwareBufferManager = NULL;
 		mGpuProgramManager = NULL;
 		mPrimaryWindow = NULL;
-		mBasicStatesInitialised = false;
         mMinRequestedFeatureLevel = D3D_FEATURE_LEVEL_9_1;
 #if OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 
@@ -3632,7 +3646,7 @@ bail:
 
 		ZeroMemory( &mRasterizerDesc, sizeof(mRasterizerDesc));
 		mRasterizerDesc.FrontCounterClockwise = true;
-		mRasterizerDesc.DepthClipEnable = false;
+		mRasterizerDesc.DepthClipEnable = true;
 		mRasterizerDesc.MultisampleEnable = true;
 
 

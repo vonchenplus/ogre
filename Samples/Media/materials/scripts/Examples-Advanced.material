@@ -24,6 +24,36 @@ fragment_program Ogre/CelShadingFPCg cg
 
 }
 
+vertex_program Ogre/CelShadingVPHLSL hlsl
+{
+	source Example_CelShading.cg
+	entry_point main_vp
+	target vs_2_0
+
+	default_params
+	{
+		param_named_auto lightPosition light_position_object_space 0
+		param_named_auto eyePosition camera_position_object_space
+		param_named_auto worldViewProj worldviewproj_matrix
+		param_named shininess float 10 
+	}
+}
+
+fragment_program Ogre/CelShadingFPHLSL hlsl
+{
+	source Example_CelShading.cg
+	entry_point main_fp
+	target ps_2_0
+}
+
+fragment_program Ogre/CelShadingFPHLSL_sm4 hlsl
+{
+	source Example_CelShading.cg
+	entry_point main_fp
+	target ps_4_0
+	preprocessor_defines HLSL_SM4=1
+}
+
 vertex_program Ogre/CelShadingVPGLSLES glsles
 {
 	source Example_CelShadingVp.glsles
@@ -68,6 +98,8 @@ fragment_program Ogre/CelShadingFP unified
 {
 	delegate Ogre/CelShadingFPGLSL
 	delegate Ogre/CelShadingFPGLSLES
+	delegate Ogre/CelShadingFPHLSL_sm4
+	delegate Ogre/CelShadingFPHLSL
 	delegate Ogre/CelShadingFPCg
 }
 
@@ -75,6 +107,7 @@ vertex_program Ogre/CelShadingVP unified
 {
 	delegate Ogre/CelShadingVPGLSL
 	delegate Ogre/CelShadingVPGLSLES
+	delegate Ogre/CelShadingVPHLSL
 	delegate Ogre/CelShadingVPCg
 }
 
@@ -140,6 +173,13 @@ vertex_program Examples/BumpMapVPCg cg
 	profiles vs_4_0 vs_1_1 arbvp1
 }
 
+vertex_program Examples/BumpMapVPHLSL hlsl
+{
+	source Example_BumpMapping.cg
+	entry_point main_vp
+	target vs_2_0
+}
+
 vertex_program Examples/BumpMapVPGLSLES glsles
 {
 	source Example_BumpMappingVp.glsles
@@ -156,6 +196,7 @@ vertex_program Examples/BumpMapVP unified
 {
 	delegate Examples/BumpMapVPGLSL
 	delegate Examples/BumpMapVPGLSLES
+	delegate Examples/BumpMapVPHLSL
 	delegate Examples/BumpMapVPCg
 }
 
@@ -166,6 +207,14 @@ vertex_program Examples/BumpMapVPTangentParityCg cg
 	entry_point main_vp
 	profiles vs_1_1 arbvp1
 	compile_arguments -DTANGENTS_HAVE_PARITY=1
+}
+
+vertex_program Examples/BumpMapVPTangentParityHLSL hlsl
+{
+	source Example_BumpMapping.cg
+	entry_point main_vp
+	target vs_2_0
+	preprocessor_defines TANGENTS_HAVE_PARITY=1
 }
 
 // Bump map vertex program, with tangent parity support for this is required
@@ -188,6 +237,7 @@ vertex_program Examples/BumpMapVPTangentParity unified
 {
 	delegate Examples/BumpMapVPTangentParityGLSL
 	delegate Examples/BumpMapVPTangentParityGLSLES
+	delegate Examples/BumpMapVPTangentParityHLSL
 	delegate Examples/BumpMapVPTangentParityCg
 }
 
@@ -197,6 +247,13 @@ fragment_program Examples/BumpMapFPCg cg
 	source Example_BumpMapping.cg
 	entry_point main_fp
 	profiles ps_4_0 ps_2_0 arbfp1 fp20
+}
+
+fragment_program Examples/BumpMapFPHLSL hlsl
+{
+	source Example_BumpMapping.cg
+	entry_point main_fp
+	target ps_2_0
 }
 
 fragment_program Examples/BumpMapFPGLSLES glsles
@@ -225,6 +282,7 @@ fragment_program Examples/BumpMapFP unified
 {
 	delegate Examples/BumpMapFPGLSL
 	delegate Examples/BumpMapFPGLSLES
+	delegate Examples/BumpMapFPHLSL
 	delegate Examples/BumpMapFPCg
 }
 
@@ -304,6 +362,13 @@ vertex_program Examples/BumpMapVPSpecularCg cg
 	profiles vs_4_0 vs_1_1 arbvp1
 }
 
+vertex_program Examples/BumpMapVPSpecularHLSL hlsl
+{
+	source Example_BumpMapping.cg
+	entry_point specular_vp
+	target vs_2_0
+}
+
 // Bump map with specular vertex program, support for this is required
 vertex_program Examples/BumpMapVPSpecularGLSLES glsles
 {
@@ -321,6 +386,7 @@ vertex_program Examples/BumpMapVPSpecular unified
 {
 	delegate Examples/BumpMapVPSpecularGLSL
 	delegate Examples/BumpMapVPSpecularGLSLES
+	delegate Examples/BumpMapVPSpecularHLSL
 	delegate Examples/BumpMapVPSpecularCg
 }
 
@@ -330,6 +396,13 @@ fragment_program Examples/BumpMapFPSpecularCg cg
 	source Example_BumpMapping.cg
 	entry_point specular_fp
 	profiles ps_4_0 ps_2_0 arbfp1 fp20
+}
+
+fragment_program Examples/BumpMapFPSpecularHLSL hlsl
+{
+	source Example_BumpMapping.cg
+	entry_point specular_fp
+	target ps_2_0
 }
 
 // Bump map fragment program, support for this is optional
@@ -359,6 +432,7 @@ fragment_program Examples/BumpMapFPSpecular unified
 {
 	delegate Examples/BumpMapFPSpecularGLSL
 	delegate Examples/BumpMapFPSpecularGLSLES
+	delegate Examples/BumpMapFPSpecularHLSL
 	delegate Examples/BumpMapFPSpecularCg
 }
 
@@ -610,6 +684,12 @@ vertex_program Examples/FresnelRefractReflectVPold cg
 	entry_point main_vp_old
 	profiles vs_1_1 arbvp1
 }
+vertex_program Examples/FresnelRefractReflectVPHLSL hlsl
+{
+	source Example_Fresnel.cg
+	entry_point main_vp
+	target vs_2_0
+}
 vertex_program Examples/FresnelRefractReflectVPGLSLES glsles
 {
 	source Example_FresnelVp.glsles
@@ -626,6 +706,7 @@ vertex_program Examples/FresnelRefractReflectVP unified
 {
 	delegate Examples/FresnelRefractReflectVPGLSL
 	delegate Examples/FresnelRefractReflectVPGLSLES
+	delegate Examples/FresnelRefractReflectVPHLSL
 	delegate Examples/FresnelRefractReflectVPCg
 }
 
@@ -635,6 +716,13 @@ fragment_program Examples/FresnelRefractReflectFPCg cg
 	entry_point main_fp
 	// sorry, ps_1_1 and fp20 can't do this
 	profiles ps_4_0 ps_2_0 arbfp1
+}
+
+fragment_program Examples/FresnelRefractReflectFPHLSL hlsl
+{
+	source Example_Fresnel.cg
+	entry_point main_fp
+	target ps_2_0
 }
 
 fragment_program Examples/FresnelRefractReflectPS asm
@@ -675,6 +763,7 @@ fragment_program Examples/FresnelRefractReflectFP unified
 {
 	delegate Examples/FresnelRefractReflectFPGLSL
 	delegate Examples/FresnelRefractReflectFPGLSLES
+	delegate Examples/FresnelRefractReflectFPHLSL
 	delegate Examples/FresnelRefractReflectFPCg
 }
 
