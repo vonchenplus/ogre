@@ -198,6 +198,28 @@ public:
 		return generatedTech;
 	}
 
+	virtual bool afterIlluminationPassesCreated(Ogre::Technique* tech)
+	{
+		if(tech->getSchemeName() == Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
+		{
+			Ogre::Material* mat = tech->getParent();
+			mShaderGenerator->validateMaterialIlluminationPasses(tech->getSchemeName(), mat->getName(), mat->getGroup());
+			return true;
+		}
+		return false;
+	}
+
+	virtual bool beforeIlluminationPassesCleared(Ogre::Technique* tech)
+	{
+		if(tech->getSchemeName() == Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
+		{
+			Ogre::Material* mat = tech->getParent();
+			mShaderGenerator->invalidateMaterialIlluminationPasses(tech->getSchemeName(), mat->getName(), mat->getGroup());
+			return true;
+		}
+		return false;
+	}
+
 protected:	
 	Ogre::RTShader::ShaderGenerator*	mShaderGenerator;			// The shader generator instance.		
 };
@@ -1339,7 +1361,7 @@ protected:
 			    mShaderGenerator->validateMaterial(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME, 
 					"BaseWhiteNoLighting");
 				Ogre::MaterialPtr baseWhiteNoLighting = Ogre::MaterialManager::getSingleton().getByName("BaseWhiteNoLighting", Ogre::ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
-                if(baseWhite->getNumTechniques() > 1)
+                if(baseWhiteNoLighting->getNumTechniques() > 1)
                 {
 				    baseWhiteNoLighting->getTechnique(0)->getPass(0)->setVertexProgram(
 				    baseWhiteNoLighting->getTechnique(1)->getPass(0)->getVertexProgram()->getName());

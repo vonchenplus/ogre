@@ -29,19 +29,24 @@ THE SOFTWARE.
 #include "OgreRadixSort.h"
 #include "OgreMath.h"
 
+#include "UnitTestSuite.h"
+
 using namespace Ogre;
 
-// Register the suite
-CPPUNIT_TEST_SUITE_REGISTRATION( RadixSortTests );
+// Register the test suite
+CPPUNIT_TEST_SUITE_REGISTRATION(RadixSortTests);
 
+//--------------------------------------------------------------------------
 void RadixSortTests::setUp()
 {
-	srand(time(0));
+    UnitTestSuite::getSingletonPtr()->startTestSetup(__FUNCTION__);
+    
 }
+//--------------------------------------------------------------------------
 void RadixSortTests::tearDown()
 {
 }
-
+//--------------------------------------------------------------------------
 class FloatSortFunctor
 {
 public:
@@ -49,8 +54,8 @@ public:
 	{
 		return p;
 	}
-
 };
+//--------------------------------------------------------------------------
 class IntSortFunctor
 {
 public:
@@ -58,9 +63,8 @@ public:
 	{
 		return p;
 	}
-
 };
-
+//--------------------------------------------------------------------------
 class UnsignedIntSortFunctor
 {
 public:
@@ -68,12 +72,12 @@ public:
 	{
 		return p;
 	}
-
 };
-
-
+//--------------------------------------------------------------------------
 void RadixSortTests::testFloatVector()
 {
+    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
+
 	std::vector<float> container;
 	FloatSortFunctor func;
 	RadixSort<std::vector<float>, float, float> sorter;
@@ -92,11 +96,12 @@ void RadixSortTests::testFloatVector()
 		CPPUNIT_ASSERT(*v >= lastValue);
 		lastValue = *v;
 	}
-
-
 }
+//--------------------------------------------------------------------------
 void RadixSortTests::testFloatList()
 {
+    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
+
 	std::list<float> container;
 	FloatSortFunctor func;
 	RadixSort<std::list<float>, float, float> sorter;
@@ -116,8 +121,11 @@ void RadixSortTests::testFloatList()
 		lastValue = *v;
 	}
 }
+//--------------------------------------------------------------------------
 void RadixSortTests::testUnsignedIntList()
 {
+    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
+
 	std::list<unsigned int> container;
 	UnsignedIntSortFunctor func;
 	RadixSort<std::list<unsigned int>, unsigned int, unsigned int> sorter;
@@ -137,8 +145,11 @@ void RadixSortTests::testUnsignedIntList()
 		lastValue = *v;
 	}
 }
+//--------------------------------------------------------------------------
 void RadixSortTests::testIntList()
 {
+    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
+
 	std::list<int> container;
 	IntSortFunctor func;
 	RadixSort<std::list<int>, int, int> sorter;
@@ -158,8 +169,11 @@ void RadixSortTests::testIntList()
 		lastValue = *v;
 	}
 }
+//--------------------------------------------------------------------------
 void RadixSortTests::testUnsignedIntVector()
 {
+    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
+
 	std::vector<unsigned int> container;
 	UnsignedIntSortFunctor func;
 	RadixSort<std::vector<unsigned int>, unsigned int, unsigned int> sorter;
@@ -179,8 +193,11 @@ void RadixSortTests::testUnsignedIntVector()
 		lastValue = *v;
 	}
 }
+//--------------------------------------------------------------------------
 void RadixSortTests::testIntVector()
 {
+    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
+
 	std::vector<int> container;
 	IntSortFunctor func;
 	RadixSort<std::vector<int>, int, int> sorter;
@@ -200,5 +217,6 @@ void RadixSortTests::testIntVector()
 		lastValue = *v;
 	}
 }
+//--------------------------------------------------------------------------
 
 
