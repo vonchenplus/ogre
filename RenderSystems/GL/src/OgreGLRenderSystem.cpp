@@ -1532,7 +1532,7 @@ namespace Ogre {
 			return;
 
 
-        mStateCacheManager->setEnabled(GL_POINT_SPRITE, enabled);
+		mStateCacheManager->setEnabled(GL_POINT_SPRITE, enabled);
 
 		// Set sprite texture coord generation
 		// Don't offer this as an option since D3D links it to sprite enabled
@@ -1975,10 +1975,11 @@ namespace Ogre {
 	{
 		bool a2c = false;
 		static bool lasta2c = false;
+		bool enable = func != CMPF_ALWAYS_PASS;
 
-        mStateCacheManager->setEnabled(GL_ALPHA_TEST, func == CMPF_ALWAYS_PASS);
+		mStateCacheManager->setEnabled(GL_ALPHA_TEST, enable);
 
-		if(func != CMPF_ALWAYS_PASS)
+		if(enable)
 		{
 			a2c = alphaToCoverage;
 			glAlphaFunc(convertCompareFunction(func), value / 255.0f);
@@ -1986,7 +1987,7 @@ namespace Ogre {
 
 		if (a2c != lasta2c && getCapabilities()->hasCapability(RSC_ALPHA_TO_COVERAGE))
 		{
-            mStateCacheManager->setEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE, a2c);
+			mStateCacheManager->setEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE, a2c);
 			lasta2c = a2c;
 		}
 
@@ -2051,6 +2052,8 @@ namespace Ogre {
 			OGRE_EXCEPT(Exception::ERR_INVALID_STATE, 
 			"Cannot begin frame - no viewport selected.",
 			"GLRenderSystem::_beginFrame");
+
+        mCurrentContext->setCurrent();
 
 		// Activate the viewport clipping
 		mStateCacheManager->setEnabled(GL_SCISSOR_TEST, true);
@@ -2125,8 +2128,11 @@ namespace Ogre {
 	//-----------------------------------------------------------------------------
 	void GLRenderSystem::_setDepthBufferCheckEnabled(bool enabled)
 	{
-        mStateCacheManager->setClearDepth(1.0f);
-        mStateCacheManager->setEnabled(GL_DEPTH_TEST, enabled);
+		if (enabled)
+		{
+			mStateCacheManager->setClearDepth(1.0f);
+		}
+		mStateCacheManager->setEnabled(GL_DEPTH_TEST, enabled);
 	}
 	//-----------------------------------------------------------------------------
 	void GLRenderSystem::_setDepthBufferWriteEnabled(bool enabled)
@@ -2144,11 +2150,12 @@ namespace Ogre {
 	//-----------------------------------------------------------------------------
 	void GLRenderSystem::_setDepthBias(float constantBias, float slopeScaleBias)
 	{
-        mStateCacheManager->setEnabled(GL_POLYGON_OFFSET_FILL, constantBias != 0 || slopeScaleBias != 0);
-        mStateCacheManager->setEnabled(GL_POLYGON_OFFSET_POINT, constantBias != 0 || slopeScaleBias != 0);
-        mStateCacheManager->setEnabled(GL_POLYGON_OFFSET_LINE, constantBias != 0 || slopeScaleBias != 0);
+		bool enable = constantBias != 0 || slopeScaleBias != 0;
+		mStateCacheManager->setEnabled(GL_POLYGON_OFFSET_FILL, enable);
+		mStateCacheManager->setEnabled(GL_POLYGON_OFFSET_POINT, enable);
+		mStateCacheManager->setEnabled(GL_POLYGON_OFFSET_LINE, enable);
 
-		if (constantBias != 0 || slopeScaleBias != 0)
+		if (enable)
 		{
 			glPolygonOffset(-slopeScaleBias, -constantBias);
 		}
@@ -2268,8 +2275,8 @@ namespace Ogre {
 		Real tanThetaX = tanThetaY * aspect; //Math::Tan(thetaX);
 		Real half_w = tanThetaX * nearPlane;
 		Real half_h = tanThetaY * nearPlane;
-		Real iw = 1.0 / half_w;
-		Real ih = 1.0 / half_h;
+		Real iw = 1.0f / half_w;
+		Real ih = 1.0f / half_h;
 		Real q;
 		if (farPlane == 0)
 		{
@@ -2277,7 +2284,7 @@ namespace Ogre {
 		}
 		else
 		{
-			q = 2.0 / (farPlane - nearPlane);
+			q = 2.0f / (farPlane - nearPlane);
 		}
 		dest = Matrix4::ZERO;
 		dest[0][0] = iw;
@@ -2308,7 +2315,7 @@ namespace Ogre {
 	//---------------------------------------------------------------------
 	void GLRenderSystem::setStencilCheckEnabled(bool enabled)
 	{
-        mStateCacheManager->setEnabled(GL_STENCIL_TEST, enabled);
+		mStateCacheManager->setEnabled(GL_STENCIL_TEST, enabled);
 	}
 	//---------------------------------------------------------------------
 	void GLRenderSystem::setStencilBufferParams(CompareFunction func, 
@@ -3023,7 +3030,7 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 	//---------------------------------------------------------------------
 	void GLRenderSystem::setNormaliseNormals(bool normalise)
 	{
-        mStateCacheManager->setEnabled(GL_NORMALIZE, normalise);
+		mStateCacheManager->setEnabled(GL_NORMALIZE, normalise);
 	}
 	//---------------------------------------------------------------------
 	void GLRenderSystem::bindGpuProgram(GpuProgram* prg)
@@ -3230,9 +3237,9 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 		//  GL measures from the bottom, not the top
 		size_t targetHeight = mActiveRenderTarget->getHeight();
 		// Calculate the "lower-left" corner of the viewport
-        GLsizei x = 0, y = 0, w = 0, h = 0;
+        	GLsizei x = 0, y = 0, w = 0, h = 0;
 
-        mStateCacheManager->setEnabled(GL_SCISSOR_TEST, enabled);
+		mStateCacheManager->setEnabled(GL_SCISSOR_TEST, enabled);
 		if (enabled)
 		{
 			// NB GL uses width / height rather than right / bottom
@@ -3273,6 +3280,9 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 		bool colourMask = !mColourWrite[0] || !mColourWrite[1] 
 		|| !mColourWrite[2] || !mColourWrite[3]; 
 
+        if(mCurrentContext)
+			mCurrentContext->setCurrent();
+
 		GLbitfield flags = 0;
 		if (buffers & FBT_COLOUR)
 		{
@@ -3305,7 +3315,7 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 
 		// Should be enable scissor test due the clear region is
 		// relied on scissor box bounds.
-        mStateCacheManager->setEnabled(GL_SCISSOR_TEST, true);
+		mStateCacheManager->setEnabled(GL_SCISSOR_TEST, true);
 
 		// Sets the scissor box as same as viewport
 		GLint viewport[4];
@@ -3328,7 +3338,7 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 		}
 
 		// Restore scissor test
-        mStateCacheManager->setEnabled(GL_SCISSOR_TEST, false);
+		mStateCacheManager->setEnabled(GL_SCISSOR_TEST, false);
 
 		// Reset buffer write state
 		if (!mDepthWrite && (buffers & FBT_DEPTH))
@@ -3538,7 +3548,10 @@ GL_RGB_SCALE : GL_ALPHA_SCALE, 1);
 			if (GLEW_EXT_framebuffer_sRGB)
 			{
 				// Enable / disable sRGB states
-                mStateCacheManager->setEnabled(GL_FRAMEBUFFER_SRGB_EXT, target->isHardwareGammaEnabled());
+				mStateCacheManager->setEnabled(GL_FRAMEBUFFER_SRGB_EXT, target->isHardwareGammaEnabled());
+				// Note: could test GL_FRAMEBUFFER_SRGB_CAPABLE_EXT here before
+				// enabling, but GL spec says incapable surfaces ignore the setting
+				// anyway. We test the capability to enable isHardwareGammaEnabled.
 			}
 		}
 	}
