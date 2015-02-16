@@ -6,6 +6,7 @@
 #include "RTShaderSRSSegmentedLights.h"
 #include "OgreControllerManager.h"
 #include "OgreBillboard.h"
+#include "OgreNameGenerator.h"
 
 /*
 Part of the original guidelines under which the RTSS was created was to emulate the fixed pipeline mechanism as close as possible.  
@@ -94,6 +95,9 @@ public:
 
     bool frameRenderingQueued(const FrameEvent& evt)
     {
+        // Make this viewport work with shader generator scheme.
+        mCamera->getLastViewport()->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+
         // Move the lights along their paths
         for(size_t i = 0 ; i < mLights.size() ; ++i)
         {
@@ -109,8 +113,7 @@ public:
                 mLights[i].light->setDirection(Vector3::NEGATIVE_UNIT_Y);
             }
         }
-        
-                
+
         return SdkSample::frameRenderingQueued(evt);   // don't forget the parent class updates!
     }
 
@@ -135,6 +138,8 @@ protected:
         mTrayMgr->createCheckBox(TL_BOTTOM, TWIRL_LIGHTS_CHECKBOX, "Twirl Lights", 240)->setChecked(false, false);
         mTrayMgr->createCheckBox(TL_BOTTOM, DEBUG_MODE_CHECKBOX, "Show Grid", 240)->setChecked(false, false);
 
+        setupShaderGenerator();
+
         // Set our camera to orbit around the origin at a suitable distance
         mCamera->setPosition(0, 100, 600);
 
@@ -145,17 +150,17 @@ protected:
             Plane(Vector3::UNIT_Y, -30), 1000, 1000, 10, 10, true, 1, 8, 8, Vector3::UNIT_Z);
 
         // create a floor entity, give it a material, and place it at the origin
-        Entity* floor = mSceneMgr->createEntity("Floor", "floor");
+        Entity* floor = mSceneMgr->createEntity("floor");
+        floor->setName("Floor");
         floor->setMaterialName("Examples/BumpyMetal");
         mSceneMgr->getRootSceneNode()->attachObject(floor);
 
         // Create an ogre head and place it at the origin
-        Entity* head = mSceneMgr->createEntity("Head", "ogrehead.mesh");
+        Entity* head = mSceneMgr->createEntity("ogrehead.mesh");
+        head->setName("Head");
         head->setRenderQueueGroup(cPriorityMain);
         mSceneMgr->getRootSceneNode()->attachObject(head);
 
-        setupShaderGenerator();
-    
         setupLights();
     }
         
@@ -178,12 +183,8 @@ protected:
         mGen->addSubRenderStateFactory(mSRSSegLightFactory);
         pMainRenderState->addTemplateSubRenderState(
             mGen->createSubRenderState(RTShaderSRSSegmentedLights::Type));  
-                    
-        
-        mGen->invalidateScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
 
-        // Make this viewport work with shader generator scheme.
-        mViewport->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+        mGen->invalidateScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
     }
 
 
@@ -192,11 +193,12 @@ protected:
         mSceneMgr->setAmbientLight(ColourValue(0.1, 0.1, 0.1));
         // set the single directional light
         Light* light = mSceneMgr->createLight();
+        mSceneMgr->createSceneNode()->attachObject( light );
         light->setType(Light::LT_DIRECTIONAL);
         light->setDirection(Vector3(-1,-1,0).normalisedCopy());
         light->setDiffuseColour(ColourValue(0.1, 0.1, 0.1));
         light->setCastShadows(false);
-        
+
         for(unsigned int i = 0 ; i < cInitialLightCount ; ++i)
         {
             addSpotLight();
@@ -208,7 +210,8 @@ protected:
         LightState state;
         
         // Create a light node
-        state.node = mSceneMgr->getRootSceneNode()->createChildSceneNode(Vector3(50, 30, 0));
+        state.node = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        state.node->setPosition(Vector3(50, 30, 0));
 
         String animName = mPathNameGen.generate();
         // Create a 14 second animation with spline interpolation
@@ -218,7 +221,7 @@ protected:
         state.anim = mSceneMgr->createAnimation(animName, animPoints * animTimeBetweenPoints);
         state.anim->setInterpolationMode(Animation::IM_SPLINE);
 
-        state.track = state.anim->createNodeTrack(1, state.node);  // Create a node track for our animation
+		state.track = state.anim->createNodeTrack(state.node);  // Create a node track for our animation
 
         // Enter keyframes for our track to define a path for the light to follow
         Vector3 firstFramePos;
@@ -249,12 +252,12 @@ protected:
 
         // Attach a light with the same colour to the light node
         state.light = mSceneMgr->createLight();
+        state.node->attachObject(state.light);
         state.light->setCastShadows(false);
         state.light->setType(mLights.size() % 10 ? Light::LT_SPOTLIGHT : Light::LT_POINT);
         state.light->setDirection(Vector3::NEGATIVE_UNIT_Y);
         state.light->setAttenuation(200,0,0,0);
         state.light->setDiffuseColour(lightColor);
-        state.node->attachObject(state.light);
 
         // Attach a flare with the same colour to the light node
         state.bbs = mSceneMgr->createBillboardSet(1);
@@ -376,7 +379,7 @@ private:
     {
         SceneNode* node;
         Animation* anim;
-        NodeAnimationTrack* track;
+		NodeAnimationTrack* track;
         AnimationState* animState;
         Light* light;
         BillboardSet* bbs;

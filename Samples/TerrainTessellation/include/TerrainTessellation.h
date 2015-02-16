@@ -57,7 +57,7 @@ public:
     {
         mInfo["Title"] = "TerrainTessellation";
         mInfo["Description"] = "Sample for terrain tessellation and the use of displacement mapping";
-        mInfo["Thumbnail"] = "thumb_tesselation.png";
+        mInfo["Thumbnail"] = "thumb_tessellation.png";
         mInfo["Category"] = "Unsorted";
         mInfo["Help"] = "Top Left: Multi-frame\nTop Right: Scrolling\nBottom Left: Rotation\nBottom Right: Scaling";
     }
@@ -74,7 +74,7 @@ public:
         }
         if (!caps->hasCapability(RSC_TESSELLATION_HULL_PROGRAM) || !caps->hasCapability(RSC_TESSELLATION_DOMAIN_PROGRAM))
         {
-            OGRE_EXCEPT(Exception::ERR_INVALID_STATE, "Your graphics card does not support tesselation shaders. Sorry!",
+            OGRE_EXCEPT(Exception::ERR_INVALID_STATE, "Your graphics card does not support tessellation shaders. Sorry!",
                 "Sample_TerrainTessellation:testCapabilities");
         }
         if (!GpuProgramManager::getSingleton().isSyntaxSupported("vs_5_0") &&
@@ -244,7 +244,10 @@ protected:
         Vector3 lightdir(0.55, -0.3, 0.75);
         lightdir.normalise();
 
-        Light* l = mSceneMgr->createLight("tstLight");
+		SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+		Light* l = mSceneMgr->createLight();
+		lightNode->attachObject( l );
+		l->setName( "tstLight" );
         l->setType(Light::LT_DIRECTIONAL);
         l->setDirection(lightdir);
         l->setDiffuseColour(ColourValue::White);
@@ -279,7 +282,7 @@ protected:
     void setupLights()
     {
         mSceneMgr->setAmbientLight(ColourValue::Black); 
-        mViewport->setBackgroundColour(ColourValue(0.41f, 0.41f, 0.41f));
+		mBackgroundColour = ColourValue(0.41f, 0.41f, 0.41f);
     }
 
     void setupControls()

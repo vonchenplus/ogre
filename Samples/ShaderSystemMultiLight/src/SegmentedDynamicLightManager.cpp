@@ -63,7 +63,7 @@ void SegmentedDynamicLightManager::postFindVisibleObjects(SceneManager* source,
 {
     if (irs == SceneManager::IRS_NONE)
     {
-        updateLightList(v->getCamera(), source->_getLightsAffectingFrustum());
+        updateLightList(source->getCameraInProgress(), source->getGlobalLightList().lights);
     }
 }
 
@@ -83,7 +83,7 @@ void SegmentedDynamicLightManager::setSceneManager(SceneManager* i_Manager)
 }
         
 //------------------------------------------------------------------------------
-void SegmentedDynamicLightManager::updateLightList(const Camera* i_pCamera, const LightList& i_LightList)
+void SegmentedDynamicLightManager::updateLightList(const Camera* i_pCamera, const LightArray& i_LightList)
 {
     if (isActive())
     {
@@ -113,7 +113,7 @@ const String& SegmentedDynamicLightManager::getSDLTextureName()
 }
 
 //------------------------------------------------------------------------------
-void SegmentedDynamicLightManager::arrangeLightsInSegmentedLists(const Camera* i_pCamera, const LightList& i_LightList)
+void SegmentedDynamicLightManager::arrangeLightsInSegmentedLists(const Camera* i_pCamera, const LightArray& i_LightList)
 {
     //Clear the previous buffers
     for(int i = 0; i < SDL_SEGMENT_GRID_SIZE; ++i)
@@ -128,14 +128,14 @@ void SegmentedDynamicLightManager::arrangeLightsInSegmentedLists(const Camera* i
 }
     
 //------------------------------------------------------------------------------
-void SegmentedDynamicLightManager::regenerateActiveLightList(const LightList& i_LightList)
+void SegmentedDynamicLightManager::regenerateActiveLightList(const LightArray& i_LightList)
 {
     //add the buffers to the segmented lists
-    LightList::const_iterator itLight = i_LightList.begin(),
+    LightArray::const_iterator itLight = i_LightList.begin(),
         itLightEnd = i_LightList.end();
     for(;itLight != itLightEnd ; ++itLight)
     {
-        const Light* pLight = (*itLight);
+        const Light* pLight = *itLight;
         Light::LightTypes type = pLight->getType();
         if (((type == Light::LT_SPOTLIGHT) || (type == Light::LT_POINT)) &&
             (pLight->getAttenuationRange() > 0))
@@ -154,7 +154,7 @@ void SegmentedDynamicLightManager::regenerateActiveLightList(const LightList& i_
 void SegmentedDynamicLightManager::calculateLightBounds(const Light* i_Light, LightData& o_LightData)
 { 
     Real lightRange = i_Light->getAttenuationRange();
-    const Vector3& lightPosition = i_Light->getDerivedPosition(true);
+    const Vector3& lightPosition = mManager->getSceneNode(i_Light->getId())->_getDerivedPosition();
 
     AxisAlignedBox boundBox(lightPosition - lightRange, lightPosition + lightRange);
 
@@ -292,7 +292,7 @@ void SegmentedDynamicLightManager::updateTextureFromSegmentedLists(const Camera*
             {
                 const Light* pLight = mSegmentedLightGrid[j][i];
                     
-                const Vector3& position = pLight->getDerivedPosition(true);
+                const Vector3& position = mManager->getSceneNode(pLight->getId())->_getDerivedPosition();
                 Vector3 direction = -pLight->getDerivedDirection();
                 direction.normalise();
 
@@ -373,7 +373,7 @@ bool SegmentedDynamicLightManager::getLightListRange(const Renderable* i_Rend,
     LightList::const_iterator it = lights.begin(), itEnd = lights.end();
     for(; it != itEnd ; ++it)
     {
-        MapLightData::const_iterator itActive = mActiveLights.find(*it);
+        MapLightData::const_iterator itActive = mActiveLights.find(it->light);
         if (itActive != mActiveLights.end())
         {
             o_IndexMin = (unsigned int)std::min<unsigned int>(o_IndexMin, itActive->second.getIndexMin());

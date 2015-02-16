@@ -64,14 +64,14 @@ protected:
     void setupContent()
     {   
         // set background and some fog
-        mViewport->setBackgroundColour(ColourValue(1.0f, 1.0f, 0.8f));
+//      mSceneMgr->getCurrentViewport()->setBackgroundColour(ColourValue(1.0f, 1.0f, 0.8f));
         mSceneMgr->setFog(Ogre::FOG_LINEAR, ColourValue(1.0f, 1.0f, 0.8f), 0, 15, 100);
 
         // set shadow properties
-        mSceneMgr->setShadowTechnique(SHADOWTYPE_TEXTURE_MODULATIVE);
+//      mSceneMgr->setShadowTechnique(SHADOWTYPE_TEXTURE_MODULATIVE);
         mSceneMgr->setShadowColour(ColourValue(0.5, 0.5, 0.5));
-        mSceneMgr->setShadowTextureSize(1024);
-        mSceneMgr->setShadowTextureCount(1);
+//      mSceneMgr->setShadowTextureSize(1024);
+//      mSceneMgr->setShadowTextureCount(1);
 
         // disable default camera control so the character can do its own
         mCameraMan->setStyle(CS_MANUAL);
@@ -82,7 +82,9 @@ protected:
         // add a bright light above the scene
         Light* light = mSceneMgr->createLight();
         light->setType(Light::LT_POINT);
-        light->setPosition(-10, 40, 20);
+        SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        lightNode->setPosition(20, 80, 50);
+        lightNode->attachObject( light );
         light->setSpecularColour(ColourValue::White);
 
         // create a floor mesh resource
@@ -90,7 +92,8 @@ protected:
             Plane(Vector3::UNIT_Y, 0), 100, 100, 10, 10, true, 1, 10, 10, Vector3::UNIT_Z);
 
         // create a floor entity, give it a material, and place it at the origin
-        Entity* floor = mSceneMgr->createEntity("Floor", "floor");
+        Entity* floor = mSceneMgr->createEntity("floor");
+        floor->setName("Floor");
         floor->setMaterialName("Examples/Rockwall");
         floor->setCastShadows(false);
         mSceneMgr->getRootSceneNode()->attachObject(floor);

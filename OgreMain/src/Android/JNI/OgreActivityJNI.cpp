@@ -41,6 +41,7 @@ THE SOFTWARE.
 #include "Android/OgreAndroidEGLWindow.h"
 #include "Android/OgreAPKFileSystemArchive.h"
 #include "Android/OgreAPKZipArchive.h"
+#include "Compositor/OgreCompositorManager2.h"
 
 #ifdef OGRE_BUILD_PLUGIN_OCTREE
 #   include "OgreOctreePlugin.h"
@@ -85,12 +86,10 @@ Ogre::OverlaySystem* gOverlaySystem = NULL;
 
 Ogre::GLESRS* gGLESPlugin = NULL;
 
-Ogre::SceneManager* pSceneMgr = NULL;
-Ogre::Camera* pCamera = NULL;
-JavaVM* gVM = NULL;
-}
-
-// enable JNI calling conventions for functions defined here
+static Ogre::CompositorManager2* gCompositorManager = NULL;
+static Ogre::SceneManager* pSceneMgr = NULL;
+static Ogre::Camera* pCamera = NULL;
+static JavaVM* gVM = NULL;
 extern "C" 
 {
     JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved);
@@ -168,11 +167,16 @@ void Java_org_ogre3d_android_OgreActivityJNI_destroy(JNIEnv * env, jobject obj)
     OGRE_DELETE gOctreePlugin;
     gOctreePlugin = NULL;
 #endif
-
-    OGRE_DELETE gGLESPlugin;
-    gGLESPlugin = NULL;
-}
-
+        
+        OGRE_DELETE gGLESPlugin;
+        gGLESPlugin = NULL;
+        
+        gCompositorManager->removeAllWorkspaces();
+        gCompositorManager->removeAllWorkspaceDefinitions();
+        gCompositorManager->removeAllNodeDefinitions();
+        gCompositorManager->removeAllShadowNodeDefinitions();
+    }
+    
 
 void Java_org_ogre3d_android_OgreActivityJNI_initWindow(JNIEnv * env, jobject obj,  jobject surface)
 {
@@ -191,12 +195,20 @@ void Java_org_ogre3d_android_OgreActivityJNI_initWindow(JNIEnv * env, jobject ob
         opt["externalWindowHandle"] = Ogre::StringConverter::toString(reinterpret_cast<size_t>(nativeWnd));
         gRenderWnd = Ogre::Root::getSingleton().createRenderWindow("OgreWindow", 0, 0, false, &opt);
 
-        if (!pSceneMgr) {
+        if(gCompositorManager == NULL)
+        {
             pSceneMgr = gRoot->createSceneManager(Ogre::ST_GENERIC);
             pCamera = pSceneMgr->createCamera("MyCam");
 
-            Ogre::Viewport* vp = gRenderWnd->addViewport(pCamera);
-            vp->setBackgroundColour(Ogre::ColourValue(1,0,0));
+            gCompositorManager = mRoot->getCompositorManager2();
+            if( !gCompositorManager->hasWorkspaceDefinition( "SampleBrowserWorkspace" ) )
+            {
+                gCompositorManager->createBasicWorkspaceDef( "SampleBrowserWorkspace",
+                                                              Ogre::ColourValue( 1.0f, 0.0f, 0.0f ),
+                                                              Ogre::IdString() );
+            }
+            compositorManager->addWorkspace( pSceneMgr, gRenderWnd, pCamera,
+                                            "SampleBrowserWorkspace", true );
         }
     } else {
         static_cast<Ogre::AndroidEGLWindow*>(gRenderWnd)->_createInternalResources(nativeWnd, NULL);

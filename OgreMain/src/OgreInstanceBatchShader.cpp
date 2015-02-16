@@ -36,11 +36,12 @@ THE SOFTWARE.
 
 namespace Ogre
 {
-    InstanceBatchShader::InstanceBatchShader( InstanceManager *creator, MeshPtr &meshReference,
+    InstanceBatchShader::InstanceBatchShader( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                        InstanceManager *creator, MeshPtr &meshReference,
                                         const MaterialPtr &material, size_t instancesPerBatch,
-                                        const Mesh::IndexMap *indexToBoneMap, const String &batchName ) :
-                InstanceBatch( creator, meshReference, material, instancesPerBatch,
-                                indexToBoneMap, batchName ),
+                                        const Mesh::IndexMap *indexToBoneMap ) :
+                InstanceBatch( id, objectMemoryManager, creator, meshReference, material,
+                                instancesPerBatch, indexToBoneMap ),
                 mNumWorldMatrices( instancesPerBatch )
     {
     }
@@ -126,7 +127,7 @@ namespace Ogre
     //-----------------------------------------------------------------------
     void InstanceBatchShader::buildFrom( const SubMesh *baseSubMesh, const RenderOperation &renderOperation )
     {
-        if( mMeshReference->hasSkeleton() && !mMeshReference->getSkeleton().isNull() )
+        if( mMeshReference->hasSkeleton() && !mMeshReference->getOldSkeleton().isNull() )
             mNumWorldMatrices = mInstancesPerBatch * baseSubMesh->blendIndexToBoneIndexMap.size();
         InstanceBatch::buildFrom( baseSubMesh, renderOperation );
     }
@@ -145,7 +146,7 @@ namespace Ogre
         HardwareBufferManager::getSingleton().destroyVertexDeclaration( thisVertexData->vertexDeclaration );
         thisVertexData->vertexDeclaration = baseVertexData->vertexDeclaration->clone();
 
-        if( mMeshReference->hasSkeleton() && !mMeshReference->getSkeleton().isNull() )
+        if( mMeshReference->hasSkeleton() && !mMeshReference->getOldSkeleton().isNull() )
         {
             //Building hw skinned batches follow a different path
             setupHardwareSkinned( baseSubMesh, thisVertexData, baseVertexData );

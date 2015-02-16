@@ -71,10 +71,12 @@ namespace Ogre {
         co-ordinates. Obviously it is advisable that the viewport has the same
         aspect ratio as the camera to avoid distortion (unless you want it!).
     @par
-        Note that a Camera can be attached to a SceneNode, using the method
-        SceneNode::attachObject. If this is done the Camera will combine it's own
+        Starting Ogre 2.x, a Camera must be attached to a SceneNode, using the
+        method SceneNode::attachObject. By default the camera is attached to
+        the root scene node on creation.
+        When this is done the Camera will combine it's own
         position/orientation settings with it's parent SceneNode. 
-        This is useful for implementing more complex Camera / object
+        This is also useful for implementing more complex Camera / object
         relationships i.e. having a camera attached to a world object.
     */
     class _OgreExport Camera : public Frustum
@@ -146,7 +148,6 @@ namespace Ogre {
         /// Inverted scene LOD factor, can be used by Renderables to adjust their LOD
         Real mSceneLodFactorInv;
 
-
         /** Viewing window. 
         @remarks
         Generalize camera class for the case, when viewing frustum doesn't cover all viewport.
@@ -176,6 +177,9 @@ namespace Ogre {
         /// @see Camera::getPixelDisplayRatio
         Real mPixelDisplayRatio;
 
+        /// Each frame it is set to all false. After rendering each RQ, it is set to true
+        vector<bool>::type  mRenderedRqs;
+
         typedef vector<Listener*>::type ListenerList;
         ListenerList mListeners;
 
@@ -200,7 +204,7 @@ namespace Ogre {
     public:
         /** Standard constructor.
         */
-        Camera( const String& name, SceneManager* sm);
+        Camera( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager* sm );
 
         /** Standard destructor.
         */
@@ -347,8 +351,15 @@ namespace Ogre {
         /** Tells the Camera to contact the SceneManager to render from it's viewpoint.
         @param vp The viewport to render to
         @param includeOverlays Whether or not any overlay objects should be included
+        @param firstRq
+            First RenderQueue ID to render (inclusive)
+        @param lastRq
+            Last RenderQueue ID to render (exclusive)
         */
-        void _renderScene(Viewport *vp, bool includeOverlays);
+        void _cullScenePhase01(const Camera *lodCamera, Viewport *vp, uint8 firstRq, uint8 lastRq );
+
+        void _renderScenePhase02(const Camera *lodCamera, Viewport *vp, uint8 firstRq, uint8 lastRq,
+                                 bool includeOverlays);
 
         /** Function for outputting to a stream.
         */
@@ -385,6 +396,9 @@ namespace Ogre {
         /** Gets the derived right vector of the camera, including any
             rotation inherited from a node attachment and reflection matrix. */
         Vector3 getDerivedRight(void) const;
+
+        /// Same as getDerivedPosition, but doesn't check if dirty.
+        const Vector3& _getCachedDerivedPosition(void) const                { return mDerivedPosition; }
 
         /** Gets the real world orientation of the camera, including any
             rotation inherited from a node attachment */
@@ -542,8 +556,6 @@ namespace Ogre {
         /// Gets the window clip planes, only applicable if isWindowSet == true
         const vector<Plane>::type& getWindowPlanes(void) const;
 
-        /** Overridden from MovableObject */
-        Real getBoundingRadius(void) const;
         /** Get the auto tracking target for this camera, if any. */
         SceneNode* getAutoTrackTarget(void) const { return mAutoTrackTarget; }
         /** Get the auto tracking offset for this camera, if it is auto tracking. */
@@ -554,7 +566,7 @@ namespace Ogre {
             using this camera, just the last once which was created referring
             to it.
         */
-        Viewport* getViewport(void) const {return mLastViewport;}
+        Viewport* getLastViewport(void) const {return mLastViewport;}
         /** Notifies this camera that a viewport is using it.*/
         void _notifyViewport(Viewport* viewport) {mLastViewport = viewport;}
 
@@ -665,6 +677,27 @@ namespace Ogre {
             This parameter is used in min display size calculations.
         */
         Real getPixelDisplayRatio() const { return mPixelDisplayRatio; }
+
+        /** Called at the beginning of each frame to know which RenderQueue IDs have been rendered
+        @param numRqs
+            Max number of total possible render queues in this frame
+        */
+        void _resetRenderedRqs( size_t numRqs );
+
+        /** Tells the camera that render queues in the range [rqStart; rqEnd) were rendered
+        @remarks
+            This function may be called before having been actually rendered
+            (i.e. during the culling phase 01)
+        @param rqStart
+            The first render queue in the range to be rendered. Inclusive.
+        @param rqEnd
+            Next to last render queue id to be rendered. Must be below or equal than
+            the value passed to @see _resetRenderedRqs
+        */
+        void _setRenderedRqs( size_t rqStart, size_t rqEnd );
+
+        /// Returns true if the asked render queue has been rendered. False otherwise
+        bool isRenderedRq( size_t rqId ) const          { return mRenderedRqs[rqId]; }
         
     };
     /** @} */

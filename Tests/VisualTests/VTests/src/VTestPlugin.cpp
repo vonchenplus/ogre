@@ -27,7 +27,6 @@ THE SOFTWARE.
 */
 
 #include "VTestPlugin.h"
-#include "StencilShadowTest.h"
 #include "ParticleTest.h"
 #include "TransparencyTest.h"
 #include "TextureEffectsTest.h"
@@ -40,11 +39,10 @@ VTestPlugin::VTestPlugin()
 {
     // add the playpen tests
     addSample(new TextureBlitTest());
-//    addSample(new CubeMappingTest()); // no bg on Win
-//    addSample(new ParticleTest());
-    // addSample(new StencilShadowTest()); // crashes on Windows; should show ogre head, barrel, taurus
-//    addSample(new TextureEffectsTest());
-//    addSample(new TransparencyTest());
+    addSample(new CubeMappingTest()); // no bg on Win
+    addSample(new ParticleTest());
+    addSample(new TransparencyTest());
+   addSample(new TextureEffectsTest());
 }
 //---------------------------------------------------------------------
 

@@ -49,10 +49,6 @@ namespace Ogre {
     /** Abstract base class for level of detail strategy based on pixel count approximations from bounding sphere projection. */
     class _OgreExport PixelCountLodStrategyBase : public LodStrategy
     {
-    protected:
-        /// @copydoc LodStrategy::getValueImpl
-        virtual Real getValueImpl(const MovableObject *movableObject, const Camera *camera) const = 0;
-
     public:
         /** Default constructor. */
         PixelCountLodStrategyBase(const String& name);
@@ -63,17 +59,12 @@ namespace Ogre {
         /// @copydoc LodStrategy::transformBias
         virtual Real transformBias(Real factor) const;
 
-        /// @copydoc LodStrategy::getIndex
-        virtual ushort getIndex(Real value, const Mesh::MeshLodUsageList& meshLodUsageList) const;
-
-        /// @copydoc LodStrategy::getIndex
-        virtual ushort getIndex(Real value, const Material::LodValueList& materialLodValueList) const;
-
-        /// @copydoc LodStrategy::sort
-        virtual void sort(Mesh::MeshLodUsageList& meshLodUsageList) const;
-
-        /// @copydoc LodStrategy::isSorted
-        virtual bool isSorted(const Mesh::LodValueList& values) const;
+        /** Transform user supplied value to internal value.
+        @remarks
+            Do not throw exceptions for invalid values here, as the LOD strategy
+            may be changed such that the values become valid.
+        */
+        virtual Real transformUserValue(Real userValue) const               { return -userValue; }
     };
     /** @} */
     /** @} */
@@ -86,6 +77,9 @@ namespace Ogre {
 
         /// @copydoc LodStrategy::getValueImpl
         Real getValueImpl(const MovableObject *movableObject, const Camera *camera) const;
+
+        virtual void lodUpdateImpl( const size_t numNodes, ObjectData t,
+                                    const Camera *camera, Real bias ) const;
 
         /** Override standard Singleton retrieval.
         @remarks
@@ -131,6 +125,9 @@ namespace Ogre {
 
         /// @copydoc LodStrategy::getValueImpl
         Real getValueImpl(const MovableObject *movableObject, const Camera *camera) const;
+
+        virtual void lodUpdateImpl( const size_t numNodes, ObjectData t,
+                                    const Camera *camera, Real bias ) const;
 
         /** Override standard Singleton retrieval.
         @remarks

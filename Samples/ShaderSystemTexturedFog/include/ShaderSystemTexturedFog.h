@@ -4,6 +4,7 @@
 #include "SdkSample.h"
 #include "RTShaderSRSTexturedFog.h"
 #include "OgreControllerManager.h"
+#include "OgreNameGenerator.h"
 
 using namespace Ogre;
 using namespace OgreBites;
@@ -53,6 +54,9 @@ public:
 
     bool frameRenderingQueued(const FrameEvent& evt)
     {
+        // Make this viewport work with shader generator scheme.
+        mCamera->getLastViewport()->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
+
         return SdkSample::frameRenderingQueued(evt);   // don't forget the parent class updates!
     }
 
@@ -78,7 +82,8 @@ protected:
             Plane(Vector3::UNIT_Y, -30), 1000, 1000, 10, 10, true, 1, 8, 8, Vector3::UNIT_Z);
 
         // create a floor entity, give it a material, and place it at the origin
-        Entity* floor = mSceneMgr->createEntity("Floor", "floor");
+        Entity* floor = mSceneMgr->createEntity("floor");
+        floor->setName("Floor");
         floor->setMaterialName("Examples/BumpyMetal");
         mSceneMgr->getRootSceneNode()->attachObject(floor);
         
@@ -98,12 +103,11 @@ protected:
 
    void addHead(const Vector3& pos)
    {
-
         // Create an ogre head and place it at the origin
-        Entity* head = mSceneMgr->createEntity(mEntityNameGen.generate(), "ogrehead.mesh");
+        Entity* head = mSceneMgr->createEntity("ogrehead.mesh");
+        head->setName(mEntityNameGen.generate());
         head->setRenderQueueGroup(cPriorityMain);
-        mSceneMgr->getRootSceneNode()->createChildSceneNode(pos)
-            ->attachObject(head);
+        mSceneMgr->getRootSceneNode()->createChildSceneNode(Ogre::SCENE_DYNAMIC, pos)->attachObject(head);
    }
 
         
@@ -122,12 +126,7 @@ protected:
         
         mSRSTextureFogFactory->setBackgroundTextureName("early_morning.jpg");
 
-        
-        
         mGen->invalidateScheme(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
-
-        // Make this viewport work with shader generator scheme.
-        mViewport->setMaterialScheme(RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
     }
 
 

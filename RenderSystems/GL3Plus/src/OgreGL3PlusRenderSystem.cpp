@@ -159,6 +159,7 @@ namespace Ogre {
         mCurrentComputeShader = 0;
         mPolygonMode = GL_FILL;
         mEnableFixedPipeline = false;
+        mLargestSupportedAnisotropy = 0;
     }
 
     GL3PlusRenderSystem::~GL3PlusRenderSystem()
@@ -350,9 +351,7 @@ namespace Ogre {
         rsc->setCapability(RSC_ADVANCED_BLEND_OPERATIONS);
 
         // Check for non-power-of-2 texture support
-        if (mGLSupport->checkExtension("GL_ARB_texture_rectangle") || mGLSupport->checkExtension("GL_ARB_texture_non_power_of_two") ||
-            gl3wIsSupported(3, 1))
-            rsc->setCapability(RSC_NON_POWER_OF_2_TEXTURES);
+        rsc->setCapability(RSC_NON_POWER_OF_2_TEXTURES);
 
         // Check for atomic counter support
         if (mGLSupport->checkExtension("GL_ARB_shader_atomic_counters") || gl3wIsSupported(4, 2))
@@ -491,10 +490,7 @@ namespace Ogre {
                 rsc->setCapability(RSC_CAN_GET_COMPILED_SHADER_BUFFER);
         }
 
-        if (mGLSupport->checkExtension("GL_ARB_instanced_arrays") || gl3wIsSupported(3, 3))
-        {
-            rsc->setCapability(RSC_VERTEX_BUFFER_INSTANCE_DATA);
-        }
+        rsc->setCapability(RSC_VERTEX_BUFFER_INSTANCE_DATA);
 
         // Check for Float textures
         rsc->setCapability(RSC_TEXTURE_FLOAT);
@@ -744,7 +740,7 @@ namespace Ogre {
         return win;
     }
 
-
+    //---------------------------------------------------------------------
     DepthBuffer* GL3PlusRenderSystem::_createDepthBufferFor( RenderTarget *renderTarget )
     {
         GL3PlusDepthBuffer *retVal = 0;
@@ -755,19 +751,19 @@ namespace Ogre {
         GL3PlusFrameBufferObject *fbo = 0;
         renderTarget->getCustomAttribute(GL3PlusRenderTexture::CustomAttributeString_FBO, &fbo);
 
-        if ( fbo )
+        if( fbo )
         {
-            // Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast.
-            // Find best depth & stencil format suited for the RT's format.
+            // Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast
+            // Find best depth & stencil format suited for the RT's format
             GLuint depthFormat, stencilFormat;
             static_cast<GL3PlusFBOManager*>(mRTTManager)->getBestDepthStencil( fbo->getFormat(),
-                                                                               &depthFormat, &stencilFormat );
+                                                                        &depthFormat, &stencilFormat );
 
             GL3PlusRenderBuffer *depthBuffer = new GL3PlusRenderBuffer( depthFormat, fbo->getWidth(),
                                                                         fbo->getHeight(), fbo->getFSAA() );
 
             GL3PlusRenderBuffer *stencilBuffer = fbo->getFormat() != PF_DEPTH ? depthBuffer : 0;
-            if ( depthFormat != GL_DEPTH24_STENCIL8 && depthFormat != GL_DEPTH32F_STENCIL8 && stencilFormat != GL_NONE )
+            if( depthFormat != GL_DEPTH24_STENCIL8 && depthFormat != GL_DEPTH32F_STENCIL8 && stencilFormat != GL_NONE )
             {
                 stencilBuffer = new GL3PlusRenderBuffer( stencilFormat, fbo->getWidth(),
                                                          fbo->getHeight(), fbo->getFSAA() );
@@ -780,9 +776,9 @@ namespace Ogre {
 
         return retVal;
     }
-
+    //---------------------------------------------------------------------
     void GL3PlusRenderSystem::_getDepthStencilFormatFor( GLenum internalColourFormat, GLenum *depthFormat,
-                                                         GLenum *stencilFormat )
+                                                      GLenum *stencilFormat )
     {
         mRTTManager->getBestDepthStencil( internalColourFormat, depthFormat, stencilFormat );
     }
@@ -826,8 +822,8 @@ namespace Ogre {
                         GL3PlusDepthBuffer *depthBuffer = static_cast<GL3PlusDepthBuffer*>(*itor);
                         GL3PlusContext *glContext = depthBuffer->getGLContext();
 
-                        if ( glContext == windowContext &&
-                             (depthBuffer->getDepthBuffer() || depthBuffer->getStencilBuffer()) )
+                        if( glContext == windowContext &&
+                            (depthBuffer->getDepthBuffer() || depthBuffer->getStencilBuffer()) )
                         {
                             bFound = true;
 
@@ -906,28 +902,14 @@ namespace Ogre {
 
             if (mCurrentCapabilities->hasCapability(RSC_VERTEX_PROGRAM))
             {
-                if (gl3wIsSupported(3, 2))
-                {
-                    OGRE_CHECK_GL_ERROR(glEnable(GL_PROGRAM_POINT_SIZE));
-                }
-                else
-                {
-                    OGRE_CHECK_GL_ERROR(glEnable(GL_VERTEX_PROGRAM_POINT_SIZE));
-                }
+                OGRE_CHECK_GL_ERROR(glEnable(GL_PROGRAM_POINT_SIZE));
             }
         }
         else
         {
             if (mCurrentCapabilities->hasCapability(RSC_VERTEX_PROGRAM))
             {
-                if (gl3wIsSupported(3, 2))
-                {
-                    OGRE_CHECK_GL_ERROR(glDisable(GL_PROGRAM_POINT_SIZE));
-                }
-                else
-                {
-                    OGRE_CHECK_GL_ERROR(glDisable(GL_VERTEX_PROGRAM_POINT_SIZE));
-                }
+                OGRE_CHECK_GL_ERROR(glDisable(GL_PROGRAM_POINT_SIZE));
             }
         }
 
@@ -965,9 +947,12 @@ namespace Ogre {
                 // Assume 2D.
                 mTextureTypes[stage] = GL_TEXTURE_2D;
 
-            if (!tex.isNull())
+            if(!tex.isNull())
             {
-                OGRE_CHECK_GL_ERROR(glBindTexture( mTextureTypes[stage], tex->getGLID() ));
+                bool isFsaa;
+                GLuint id = tex->getGLID( isFsaa );
+                OGRE_CHECK_GL_ERROR(glBindTexture( isFsaa ?
+                                            GL_TEXTURE_2D_MULTISAMPLE : mTextureTypes[stage], id ));
             }
             else
             {
@@ -998,12 +983,12 @@ namespace Ogre {
         _setTexture(unit, true, tex);
     }
 
-    void GL3PlusRenderSystem::_setTesselationHullTexture( size_t unit, const TexturePtr &tex )
+    void GL3PlusRenderSystem::_setTessellationHullTexture( size_t unit, const TexturePtr &tex )
     {
         _setTexture(unit, true, tex);
     }
 
-    void GL3PlusRenderSystem::_setTesselationDomainTexture( size_t unit, const TexturePtr &tex )
+    void GL3PlusRenderSystem::_setTessellationDomainTexture( size_t unit, const TexturePtr &tex )
     {
         _setTexture(unit, true, tex);
     }
@@ -1096,7 +1081,7 @@ namespace Ogre {
     {
         GLenum sourceBlend = getBlendMode(sourceFactor);
         GLenum destBlend = getBlendMode(destFactor);
-        if (sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
+        if(sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
         {
             OGRE_CHECK_GL_ERROR(glDisable(GL_BLEND));
         }
@@ -1198,7 +1183,7 @@ namespace Ogre {
         bool a2c = false;
         static bool lasta2c = false;
 
-        if (func != CMPF_ALWAYS_PASS)
+        if(func != CMPF_ALWAYS_PASS)
         {
             a2c = alphaToCoverage;
         }
@@ -1226,7 +1211,6 @@ namespace Ogre {
             mActiveViewport = NULL;
             _setRenderTarget(NULL);
         }
-
         else if (vp != mActiveViewport || vp->_isUpdated())
         {
             RenderTarget* target;
@@ -1260,11 +1244,6 @@ namespace Ogre {
 
     void GL3PlusRenderSystem::_beginFrame(void)
     {
-        if (!mActiveViewport)
-            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
-                        "Cannot begin frame - no viewport selected.",
-                        "GL3PlusRenderSystem::_beginFrame");
-
         OGRE_CHECK_GL_ERROR(glEnable(GL_SCISSOR_TEST));
     }
 
@@ -1282,11 +1261,11 @@ namespace Ogre {
         unbindGpuProgram(GPT_FRAGMENT_PROGRAM);
         unbindGpuProgram(GPT_GEOMETRY_PROGRAM);
 
-        if (mDriverVersion.major >= 4)
+        if(mDriverVersion.major >= 4)
         {
             unbindGpuProgram(GPT_HULL_PROGRAM);
             unbindGpuProgram(GPT_DOMAIN_PROGRAM);
-            if (mDriverVersion.minor >= 3)
+            if(mDriverVersion.minor >= 3)
                 unbindGpuProgram(GPT_COMPUTE_PROGRAM);
         }
     }
@@ -1612,9 +1591,9 @@ namespace Ogre {
             OGRE_CHECK_GL_ERROR(glStencilMaskSeparate(GL_FRONT, writeMask));
             OGRE_CHECK_GL_ERROR(glStencilFuncSeparate(GL_FRONT, convertCompareFunction(func), refValue, compareMask));
             OGRE_CHECK_GL_ERROR(glStencilOpSeparate(GL_FRONT,
-                                                    convertStencilOp(stencilFailOp, flip),
-                                                    convertStencilOp(depthFailOp, flip),
-                                                    convertStencilOp(passOp, flip)));
+                                convertStencilOp(stencilFailOp, flip),
+                                convertStencilOp(depthFailOp, flip),
+                                convertStencilOp(passOp, flip)));
         }
         else
         {
@@ -1622,9 +1601,9 @@ namespace Ogre {
             OGRE_CHECK_GL_ERROR(glStencilMask(writeMask));
             OGRE_CHECK_GL_ERROR(glStencilFunc(convertCompareFunction(func), refValue, compareMask));
             OGRE_CHECK_GL_ERROR(glStencilOp(
-                convertStencilOp(stencilFailOp, flip),
-                convertStencilOp(depthFailOp, flip),
-                convertStencilOp(passOp, flip)));
+                        convertStencilOp(stencilFailOp, flip),
+                        convertStencilOp(depthFailOp, flip),
+                        convertStencilOp(passOp, flip)));
         }
     }
 
@@ -1716,15 +1695,6 @@ namespace Ogre {
         activateGLTextureUnit(0);
     }
 
-    GLfloat GL3PlusRenderSystem::_getCurrentAnisotropy(size_t unit)
-    {
-        GLfloat curAniso = 0;
-        OGRE_CHECK_GL_ERROR(glGetTexParameterfv(mTextureTypes[unit],
-                                                GL_TEXTURE_MAX_ANISOTROPY_EXT, &curAniso));
-
-        return curAniso ? curAniso : 1;
-    }
-
     void GL3PlusRenderSystem::_setTextureUnitCompareFunction(size_t unit, CompareFunction function)
     {
         // TODO: Sampler objects, GL 3.3 or GL_ARB_sampler_objects required. For example:
@@ -1746,14 +1716,11 @@ namespace Ogre {
         if (!activateGLTextureUnit(unit))
             return;
 
-        GLfloat largest_supported_anisotropy = 0;
-        OGRE_CHECK_GL_ERROR(glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &largest_supported_anisotropy));
+        if (maxAnisotropy > mLargestSupportedAnisotropy)
+            maxAnisotropy = mLargestSupportedAnisotropy ?
+                static_cast<uint>(mLargestSupportedAnisotropy) : 1;
 
-        if (maxAnisotropy > largest_supported_anisotropy)
-            maxAnisotropy = largest_supported_anisotropy ?
-                static_cast<uint>(largest_supported_anisotropy) : 1;
-        if (_getCurrentAnisotropy(unit) != maxAnisotropy)
-            OGRE_CHECK_GL_ERROR(glTexParameterf(mTextureTypes[unit], GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy));
+        OGRE_CHECK_GL_ERROR(glTexParameterf(mTextureTypes[unit], GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy));
 
         activateGLTextureUnit(0);
     }
@@ -1989,27 +1956,13 @@ namespace Ogre {
                 }
 
                 GLuint indexEnd = op.indexData->indexCount - op.indexData->indexStart;
-                if (hasInstanceData)
+                if(hasInstanceData)
                 {
-                    if (mGLSupport->checkExtension("GL_ARB_draw_elements_base_vertex") || gl3wIsSupported(3, 2))
-                    {
-                        OGRE_CHECK_GL_ERROR(glDrawElementsInstancedBaseVertex(primType, op.indexData->indexCount, indexType, pBufferData, numberOfInstances, op.vertexData->vertexStart));
-                    }
-                    else
-                    {
-                        OGRE_CHECK_GL_ERROR(glDrawElementsInstanced(primType, op.indexData->indexCount, indexType, pBufferData, numberOfInstances));
-                    }
+                    OGRE_CHECK_GL_ERROR(glDrawElementsInstancedBaseVertex(primType, op.indexData->indexCount, indexType, pBufferData, numberOfInstances, op.vertexData->vertexStart));
                 }
                 else
                 {
-                    if (mGLSupport->checkExtension("GL_ARB_draw_elements_base_vertex") || gl3wIsSupported(3, 2))
-                    {
-                        OGRE_CHECK_GL_ERROR(glDrawRangeElementsBaseVertex(primType, op.indexData->indexStart, indexEnd, op.indexData->indexCount, indexType, pBufferData, op.vertexData->vertexStart));
-                    }
-                    else
-                    {
-                        OGRE_CHECK_GL_ERROR(glDrawRangeElements(primType, op.indexData->indexStart, indexEnd, op.indexData->indexCount, indexType, pBufferData));
-                    }
+                    OGRE_CHECK_GL_ERROR(glDrawRangeElementsBaseVertex(primType, op.indexData->indexStart, indexEnd, op.indexData->indexCount, indexType, pBufferData, op.vertexData->vertexStart));
                 }
             } while (updatePassIterationRenderState());
         }
@@ -2291,21 +2244,20 @@ namespace Ogre {
             LogManager::getSingleton().logMessage("Using FSAA.");
         }
 
-        if (mGLSupport->checkExtension("GL_ARB_seamless_cube_map") || gl3wIsSupported(3, 2))
+        if (mGLSupport->checkExtension("GL_EXT_texture_filter_anisotropic"))
         {
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-            // Some Apple NVIDIA hardware can't handle seamless cubemaps
-            if (mCurrentCapabilities->getVendor() != GPU_NVIDIA)
-#endif
-                // Enable seamless cube maps
-                OGRE_CHECK_GL_ERROR(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
+            OGRE_CHECK_GL_ERROR(glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mLargestSupportedAnisotropy));
         }
 
-        if (mGLSupport->checkExtension("GL_ARB_provoking_vertex") || gl3wIsSupported(3, 2))
-        {
-            // Set provoking vertex convention
-            OGRE_CHECK_GL_ERROR(glProvokingVertex(GL_FIRST_VERTEX_CONVENTION));
-        }
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+        // Some Apple NVIDIA hardware can't handle seamless cubemaps
+        if (mCurrentCapabilities->getVendor() != GPU_NVIDIA)
+#endif
+            // Enable seamless cube maps
+            OGRE_CHECK_GL_ERROR(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
+
+        // Set provoking vertex convention
+        OGRE_CHECK_GL_ERROR(glProvokingVertex(GL_FIRST_VERTEX_CONVENTION));
 
         if (mGLSupport->checkExtension("GL_KHR_debug") || gl3wIsSupported(4, 3))
         {
@@ -2333,8 +2285,8 @@ namespace Ogre {
         if (gl3wInit())
             LogManager::getSingleton().logMessage("Failed to initialize GL3W", LML_CRITICAL);
 
-        // Make sure that OpenGL 3.0+ is supported in this context
-        if (!gl3wIsSupported(3, 0))
+        // Make sure that OpenGL 3.3+ is supported in this context
+        if (!gl3wIsSupported(3, 3))
         {
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
                         "OpenGL 3.0 is not supported",
@@ -2369,8 +2321,8 @@ namespace Ogre {
             // Check the FBO's depth buffer status
             GL3PlusDepthBuffer *depthBuffer = static_cast<GL3PlusDepthBuffer*>(target->getDepthBuffer());
 
-            if ( target->getDepthBufferPool() != DepthBuffer::POOL_NO_DEPTH &&
-                 (!depthBuffer || depthBuffer->getGLContext() != mCurrentContext ) )
+            if( target->getDepthBufferPool() != DepthBuffer::POOL_NO_DEPTH &&
+                (!depthBuffer || depthBuffer->getGLContext() != mCurrentContext ) )
             {
                 // Depth is automatically managed and there is no depth buffer attached to this RT
                 // or the Current context doesn't match the one this Depth buffer was created with

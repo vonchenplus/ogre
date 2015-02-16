@@ -34,6 +34,8 @@
 
 #include "InputContext.h"
 #include "OgreFileSystemLayer.h"
+#include "OgreSceneManager.h"
+#include "Compositor/OgreCompositorManager2.h"
 
 #ifdef INCLUDE_RTSHADER_SYSTEM
 #   include "OgreRTShaderSystem.h"
@@ -86,6 +88,7 @@ namespace OgreBites
             mDone = true;
             mResourcesLoaded = false;
             mContentSetup = false;
+            mWorkspace = 0;
 
             mFSLayer = 0;
             mOverlaySystem = 0;
@@ -153,6 +156,7 @@ namespace OgreBites
 
             loadResources();
             mResourcesLoaded = true;
+            mWorkspace = setupCompositor();
             setupContent();
             mContentSetup = true;
 
@@ -179,8 +183,11 @@ namespace OgreBites
 #ifdef INCLUDE_RTSHADER_SYSTEM
                 mShaderGenerator->removeSceneManager(mSceneMgr);
 #endif
+                mWorkspace = 0;
+                Ogre::CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
+                compositorManager->removeAllWorkspaces();
                 mSceneMgr->removeRenderQueueListener(mOverlaySystem);
-                mRoot->destroySceneManager(mSceneMgr);              
+                mRoot->destroySceneManager(mSceneMgr);
             }
             mSceneMgr = 0;
 
@@ -245,13 +252,31 @@ namespace OgreBites
         -----------------------------------------------------------------------------*/
         virtual void createSceneManager()
         {
-            mSceneMgr = Ogre::Root::getSingleton().createSceneManager(Ogre::ST_GENERIC);
+#if OGRE_DEBUG_MODE
+            //Debugging multithreaded code is a PITA, disable it.
+            const size_t numThreads = 1;
+            Ogre::InstancingThreadedCullingMethod threadedCullingMethod = Ogre::INSTANCING_CULLING_SINGLETHREAD;
+#else
+            //getNumLogicalCores() may return 0 if couldn't detect
+            const size_t numThreads = std::max<size_t>( 1, Ogre::PlatformInformation::getNumLogicalCores() );
+
+            Ogre::InstancingThreadedCullingMethod threadedCullingMethod = Ogre::INSTANCING_CULLING_SINGLETHREAD;
+
+            //See doxygen documentation regarding culling methods.
+            //In some cases you may still want to use single thread.
+            if( numThreads > 1 )
+                threadedCullingMethod = Ogre::INSTANCING_CULLING_THREADED;
+#endif
+            mSceneMgr = Ogre::Root::getSingleton().createSceneManager(Ogre::ST_GENERIC, numThreads, threadedCullingMethod);
 #ifdef INCLUDE_RTSHADER_SYSTEM
             mShaderGenerator->addSceneManager(mSceneMgr);
 #endif
             if(mOverlaySystem)
                 mSceneMgr->addRenderQueueListener(mOverlaySystem);
         }
+
+        /// Most likely the user wants to implement one. @See SdkSample::setupCompositor
+        virtual Ogre::CompositorWorkspace* setupCompositor() { return 0; }
 
         /*-----------------------------------------------------------------------------
         | Sets up viewport layout and camera.
@@ -290,6 +315,7 @@ namespace OgreBites
         Ogre::FileSystemLayer* mFSLayer;          // file system abstraction layer
         Ogre::SceneManager* mSceneMgr;    // scene manager for this sample
         Ogre::NameValuePairList mInfo;    // custom sample info
+        Ogre::CompositorWorkspace *mWorkspace;
         bool mDone;                       // flag to mark the end of the sample
         bool mResourcesLoaded;    // whether or not resources have been loaded
         bool mContentSetup;       // whether or not scene was created

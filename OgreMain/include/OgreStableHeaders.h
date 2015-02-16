@@ -37,12 +37,12 @@ THE SOFTWARE.
 
 #include "OgrePlatform.h"
 
+#include "OgreCommon.h"
 #include "OgreArchive.h"
 #include "OgreAxisAlignedBox.h"
 #include "OgreBitwise.h"
 #include "OgreCamera.h"
 #include "OgreColourValue.h"
-#include "OgreCommon.h"
 #include "OgreDataStream.h"
 #include "OgreException.h"
 #include "OgreFileSystem.h"

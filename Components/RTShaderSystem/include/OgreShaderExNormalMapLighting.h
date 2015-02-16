@@ -308,7 +308,7 @@ protected:
 
 
 // Attributes.
-protected:  
+protected:
     // The normal map texture name.
     String mNormalMapTextureName;
     // Track per vertex colour type.
@@ -395,8 +395,6 @@ protected:
     UniformParameterPtr mSurfaceEmissiveColour;
     // Surface shininess parameter.
     UniformParameterPtr mSurfaceShininess;
-    // Shared blank light.
-    static Light msBlankLight;
 };
 
 

@@ -6,38 +6,40 @@
 #include "OgreGpuProgram.h"
 #include "OgrePass.h"
 #include "OgreShaderGenerator.h"
-#include "OgreSceneManager.h"
-#include "OgreViewport.h"
 #include "OgreMaterialSerializer.h"
 #include "SegmentedDynamicLightManager.h"
 
-#define SL_LIB_PERPIXELLIGHTING                 "SegmentedPerPixelLighting"
-#define SL_FUNC_TRANSFORMNORMAL                 "SL_TransformNormal"
-#define SL_FUNC_TRANSFORMPOSITION                   "SL_TransformPosition"
-#define SL_FUNC_LIGHT_DIRECTIONAL_DIFFUSE           "SL_Light_Directional_Diffuse"
-#define SL_FUNC_LIGHT_DIRECTIONAL_DIFFUSESPECULAR   "SL_Light_Directional_DiffuseSpecular"
-#define SL_FUNC_LIGHT_AMBIENT_DIFFUSE               "SL_Light_Ambient_Diffuse"
+#define SL_LIB_PERPIXELLIGHTING                         "SegmentedPerPixelLighting"
+#define SL_FUNC_TRANSFORMNORMAL                         "SL_TransformNormal"
+#define SL_FUNC_TRANSFORMPOSITION                       "SL_TransformPosition"
+#define SL_FUNC_LIGHT_DIRECTIONAL_DIFFUSE               "SL_Light_Directional_Diffuse"
+#define SL_FUNC_LIGHT_DIRECTIONAL_DIFFUSESPECULAR       "SL_Light_Directional_DiffuseSpecular"
+#define SL_FUNC_LIGHT_AMBIENT_DIFFUSE                   "SL_Light_Ambient_Diffuse"
 #define SL_FUNC_LIGHT_SEGMENT_TEXTURE_AMBIENT_DIFFUSE   "SL_Light_Segment_Texture_Ambient_Diffuse"
-#define SL_FUNC_LIGHT_SEGMENT_DEBUG             "SL_Light_Segment_Debug"
+#define SL_FUNC_LIGHT_SEGMENT_DEBUG                     "SL_Light_Segment_Debug"
 
 using namespace Ogre;
 using namespace Ogre::RTShader;
 
 String RTShaderSRSSegmentedLights::Type = "Segmented_PerPixelLighting";
-Light RTShaderSRSSegmentedLights::msBlankLight;
-
+Light *RTShaderSRSSegmentedLights::msBlankLight = NULL;
 
 //-----------------------------------------------------------------------
 RTShaderSRSSegmentedLights::RTShaderSRSSegmentedLights()
 {
-    mTrackVertexColourType          = TVC_NONE; 
+    if(!msBlankLight)
+    {
+        msBlankLight = SegmentedDynamicLightManager::getSingleton().getSceneManager()->createLight();
+        SegmentedDynamicLightManager::getSingleton().getSceneManager()->createSceneNode()->attachObject( msBlankLight );
+    }
+    mTrackVertexColourType          = TVC_NONE;
     mSpecularEnable                 = false;
     mUseSegmentedLightTexture       = false;
     mLightSamplerIndex = 0;
 
-    msBlankLight.setDiffuseColour(ColourValue::Black);
-    msBlankLight.setSpecularColour(ColourValue::Black);
-    msBlankLight.setAttenuation(0,1,0,0);
+    msBlankLight->setDiffuseColour(ColourValue::Black);
+    msBlankLight->setSpecularColour(ColourValue::Black);
+    msBlankLight->setAttenuation(0,1,0,0);
 }
 
 //-----------------------------------------------------------------------
@@ -45,7 +47,6 @@ const String& RTShaderSRSSegmentedLights::getType() const
 {
     return Type;
 }
-
 
 //-----------------------------------------------------------------------
 int RTShaderSRSSegmentedLights::getExecutionOrder() const
@@ -85,9 +86,9 @@ void RTShaderSRSSegmentedLights::updateGpuProgramsParams(Renderable* rend, Pass*
         // Search a matching light from the current sorted lights of the given renderable.
         for (unsigned int j = curSearchLightIndex; j < pLightList->size(); ++j)
         {
-            if (pLightList->at(j)->getType() == curLightType)
+            if (pLightList->at(j).light->getType() == curLightType)
             {               
-                srcLight = pLightList->at(j);
+                srcLight = const_cast<Light*>(pLightList->at(j).light);
                 curSearchLightIndex = j + 1;
                 break;
             }           
@@ -96,7 +97,7 @@ void RTShaderSRSSegmentedLights::updateGpuProgramsParams(Renderable* rend, Pass*
         // No matching light found -> use a blank dummy light for parameter update.
         if (srcLight == NULL)
         {                       
-            srcLight = &msBlankLight;
+            srcLight = msBlankLight;
         }
 
 
@@ -105,14 +106,14 @@ void RTShaderSRSSegmentedLights::updateGpuProgramsParams(Renderable* rend, Pass*
         case Light::LT_DIRECTIONAL:
 
             // Update light direction.
-            vParameter = matWorld.transformAffine(srcLight->getAs4DVector(true));
+            vParameter = matWorld.transformAffine(srcLight->getAs4DVector());
             curParams.mDirection->setGpuParameter(vParameter.ptr(),3,1);
             break;
 
         case Light::LT_POINT:
 
             // Update light position.
-            vParameter = matWorld.transformAffine(srcLight->getAs4DVector(true));
+            vParameter = matWorld.transformAffine(srcLight->getAs4DVector());
             curParams.mPosition->setGpuParameter(vParameter.ptr(),3,1);
 
             // Update light attenuation parameters.
@@ -126,7 +127,7 @@ void RTShaderSRSSegmentedLights::updateGpuProgramsParams(Renderable* rend, Pass*
 
 
                 // Update light position.
-                vParameter = matWorld.transformAffine(srcLight->getAs4DVector(true));
+                vParameter = matWorld.transformAffine(srcLight->getAs4DVector());
                 curParams.mPosition->setGpuParameter(vParameter.ptr(),3,1);
 
 

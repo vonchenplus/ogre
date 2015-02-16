@@ -475,7 +475,7 @@ namespace Ogre
             aglSetInteger(mAGLContext, AGL_BUFFER_RECT, bufferRect);
             for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it) 
             { 
-                (*it).second->_updateDimensions(); 
+                (*it)->_updateDimensions();
             }
         }
         else
@@ -552,7 +552,7 @@ namespace Ogre
         
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it) 
         { 
-            (*it).second->_updateDimensions(); 
+            (*it)->_updateDimensions();
         }
     }
     
@@ -598,7 +598,7 @@ namespace Ogre
         
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it) 
         { 
-            (*it).second->_updateDimensions(); 
+            (*it)->_updateDimensions(); 
         }
     }
     

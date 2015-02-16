@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include "OgreAnimation.h"
 #include "OgreAnimationTrack.h"
 #include "OgreKeyFrame.h"
-#include "OgreBone.h"
+#include "OgreOldBone.h"
 #include "OgreString.h"
 #include "OgreLogManager.h"
 #include "OgreStringConverter.h"
@@ -128,7 +128,7 @@ namespace Ogre {
     {
         LogManager::getSingleton().logMessage("XMLSkeletonSerializer: Reading Bones data...");
         
-        Bone* btmp ;
+        OldBone* btmp ;
         Quaternion quat ;
 
         for (TiXmlElement* bonElem = mBonesNode->FirstChildElement();
@@ -214,8 +214,8 @@ namespace Ogre {
         
         LogManager::getSingleton().logMessage("XMLSkeletonSerializer: Reading Hierarchy data...");
         
-        Bone* bone ;
-        Bone* parent ;
+        OldBone* bone ;
+        OldBone* parent ;
         String boneName ;
         String parentName ;
 
@@ -234,7 +234,7 @@ namespace Ogre {
     void XMLSkeletonSerializer::readAnimations(Skeleton* skel, TiXmlElement* mAnimNode) {
         
         Animation * anim ;
-        NodeAnimationTrack * track ;
+		OldNodeAnimationTrack * track ;
         LogManager::getSingleton().logMessage("XMLSkeletonSerializer: Reading Animations data...");
 
         for (TiXmlElement* animElem = mAnimNode->FirstChildElement("animation"); animElem != 0; animElem = animElem->NextSiblingElement())
@@ -267,7 +267,7 @@ namespace Ogre {
 
                 //LogManager::getSingleton().logMessage("Track sur le bone: " + boneName );
 
-                track = anim->createNodeTrack(trackIndex++,skel->getBone(boneName));
+				track = anim->createOldNodeTrack(trackIndex++,skel->getBone(boneName));
                 readKeyFrames(track, trackElem->FirstChildElement("keyframes"));
             }
             
@@ -276,7 +276,7 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    void XMLSkeletonSerializer::readKeyFrames(NodeAnimationTrack* track, TiXmlElement* mKeyfNode) {
+	void XMLSkeletonSerializer::readKeyFrames(OldNodeAnimationTrack* track, TiXmlElement* mKeyfNode) {
         
         TransformKeyFrame* kf ;
         Quaternion q ;
@@ -454,7 +454,7 @@ namespace Ogre {
         for (i = 0; i < numBones; ++i)
         {
             LogManager::getSingleton().logMessage("   Exporting Bone number " + StringConverter::toString(i));
-            Bone* pBone = pSkel->getBone(i);
+            OldBone* pBone = pSkel->getBone(i);
             writeBone(bonesElem, pBone);
         }
 
@@ -463,12 +463,12 @@ namespace Ogre {
             rootNode->InsertEndChild(TiXmlElement("bonehierarchy"))->ToElement();
         for (i = 0; i < numBones; ++i)
         {
-            Bone* pBone = pSkel->getBone(i);
+            OldBone* pBone = pSkel->getBone(i);
             String name = pBone->getName() ;
 
             if ((pBone->getParent())!=NULL) // root bone
             {
-                Bone* pParent = (Bone*)pBone->getParent();
+                OldBone* pParent = (OldBone*)pBone->getParent();
                 writeBoneParent(hierElem, name, pParent->getName());
             }
         }
@@ -476,13 +476,13 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    void XMLSkeletonSerializer::writeBone(TiXmlElement* bonesElement, const Bone* pBone)
+    void XMLSkeletonSerializer::writeBone(TiXmlElement* bonesElement, const OldBone* pBone)
     {
         TiXmlElement* boneElem = 
             bonesElement->InsertEndChild(TiXmlElement("bone"))->ToElement();
 
         
-        // Bone name & handle
+        // OldBone name & handle
         boneElem->SetAttribute("id", 
             StringConverter::toString(pBone->getHandle()));
         boneElem->SetAttribute("name", pBone->getName());
@@ -566,7 +566,7 @@ namespace Ogre {
         TiXmlElement* tracksNode = 
             animNode->InsertEndChild(TiXmlElement("tracks"))->ToElement();
 
-        Animation::NodeTrackIterator trackIt = anim->getNodeTrackIterator();
+		Animation::OldNodeTrackIterator trackIt = anim->getOldNodeTrackIterator();
         while (trackIt.hasMoreElements())
         {
             writeAnimationTrack(tracksNode, trackIt.getNext());
@@ -575,14 +575,14 @@ namespace Ogre {
     }
     //---------------------------------------------------------------------
     void XMLSkeletonSerializer::writeAnimationTrack(TiXmlElement* tracksNode, 
-        const NodeAnimationTrack* track)
+		const OldNodeAnimationTrack* track)
     {
         TiXmlElement* trackNode = 
             tracksNode->InsertEndChild(TiXmlElement("track"))->ToElement();
         
         
         // unsigned short boneIndex     : Index of bone to apply to
-        Bone* bone = (Bone*)track->getAssociatedNode();
+        OldBone* bone = (OldBone*)track->getAssociatedNode();
         //unsigned short boneid = bone->getHandle();
         String boneName = bone->getName();
         trackNode->SetAttribute("bone", boneName);

@@ -81,8 +81,6 @@ namespace Ogre {
         GpuProgramPtr program; /// Used when referencing a program, not when defining it
         bool isVertexProgramShadowCaster; /// When referencing, are we in context of shadow caster
         bool isFragmentProgramShadowCaster; /// When referencing, are we in context of shadow caster
-        bool isVertexProgramShadowReceiver; /// When referencing, are we in context of shadow caster
-        bool isFragmentProgramShadowReceiver; /// When referencing, are we in context of shadow caster
         GpuProgramParametersSharedPtr programParams;
         ushort numAnimationParametrics;
         MaterialScriptProgramDefinition* programDef; /// This is used while defining a program
@@ -242,12 +240,10 @@ namespace Ogre {
         void writeTechnique(const Technique* pTech);
         void writePass(const Pass* pPass);
         void writeVertexProgramRef(const Pass* pPass);
-        void writeTesselationHullProgramRef(const Pass* pPass);
-        void writeTesselationDomainProgramRef(const Pass* pPass);
+        void writeTessellationHullProgramRef(const Pass* pPass);
+        void writeTessellationDomainProgramRef(const Pass* pPass);
         void writeShadowCasterVertexProgramRef(const Pass* pPass);
         void writeShadowCasterFragmentProgramRef(const Pass* pPass);
-        void writeShadowReceiverVertexProgramRef(const Pass* pPass);
-        void writeShadowReceiverFragmentProgramRef(const Pass* pPass);
         void writeGeometryProgramRef(const Pass* pPass);
         void writeFragmentProgramRef(const Pass* pPass);
         void writeGpuProgramRef(const String& attrib, const GpuProgramPtr& program, const GpuProgramParametersSharedPtr& params);

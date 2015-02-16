@@ -724,7 +724,7 @@ namespace Ogre {
         mTarget = "";
         vector<String>::type profiles = StringUtil::split(target, " ");
 
-        for(unsigned int i = 0 ; i < profiles.size() ; i++)
+        for(size_t i = 0 ; i < profiles.size() ; i++)
         {
             String & currentProfile = profiles[i];
             if(GpuProgramManager::getSingleton().isSyntaxSupported(currentProfile))

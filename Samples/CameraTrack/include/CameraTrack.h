@@ -31,12 +31,15 @@ protected:
     {
         // setup some basic lighting for our scene
         mSceneMgr->setAmbientLight(ColourValue(0.3, 0.3, 0.3));
-        mSceneMgr->createLight()->setPosition(20, 80, 50);
-        
+        SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        lightNode->setPosition(20, 80, 50);
+        lightNode->attachObject( mSceneMgr->createLight() );
+
         mSceneMgr->setSkyBox(true, "Examples/MorningSkyBox");
 
         // create an ogre head entity and attach it to a node
-        Entity* head = mSceneMgr->createEntity("Head", "ogrehead.mesh");
+        Entity* head = mSceneMgr->createEntity("ogrehead.mesh");
+        head->setName("Head");
         SceneNode* headNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         headNode->attachObject(head);
 
@@ -45,6 +48,7 @@ protected:
 
         // create a camera node and attach camera to it
         SceneNode* camNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+		mCamera->detachFromParent();
         camNode->attachObject(mCamera);
         
         // set up a 10 second animation for our camera, using spline interpolation for nice curves
@@ -52,7 +56,7 @@ protected:
         anim->setInterpolationMode(Animation::IM_SPLINE);
 
         // create a track to animate the camera's node
-        NodeAnimationTrack* track = anim->createNodeTrack(0, camNode);
+		NodeAnimationTrack* track = anim->createNodeTrack(camNode);
 
         // create keyframes for our track
         track->createNodeKeyFrame(0)->setTranslate(Vector3(200, 0, 0));
