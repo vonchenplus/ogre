@@ -290,7 +290,9 @@ namespace Ogre {
     {
         // is glGetInternalformativ supported?
         // core since GL 4.2: see https://www.opengl.org/wiki/GLAPI/glGetInternalformat
-        bool hasInternalFormatQuery = gl3wIsSupported(4,2) || mGLSupport.checkExtension("GL_ARB_internalformat_query");
+        //TODO: Is broken. Will cause problems when attaching depth buffers to FBOs; saying they're incompatible.
+        //bool hasInternalFormatQuery = gl3wIsSupported(4,2) || mGLSupport.checkExtension("GL_ARB_internalformat_query");
+        bool hasInternalFormatQuery = false;
 
         // Try all formats, and report which ones work as target
         GLuint fb = 0, tid = 0;
@@ -300,7 +302,7 @@ namespace Ogre {
             mProps[x].valid = false;
 
             // Fetch GL format token
-            GLenum fmt = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x);
+            GLenum fmt = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x, false);
             GLenum fmt2 = GL3PlusPixelUtil::getGLOriginFormat((PixelFormat)x);
             GLenum type = GL3PlusPixelUtil::getGLOriginDataType((PixelFormat)x);
             if(fmt == GL_NONE && x != 0)
@@ -532,7 +534,7 @@ namespace Ogre {
             else
             {
                 // New one
-                GL3PlusRenderBuffer *rb = new GL3PlusRenderBuffer(format, width, height, fsaa);
+                v1::GL3PlusRenderBuffer *rb = new v1::GL3PlusRenderBuffer(format, width, height, fsaa);
                 mRenderBufferMap[key] = RBRef(rb);
                 retval.buffer = rb;
                 retval.zoffset = 0;

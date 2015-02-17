@@ -41,7 +41,7 @@ THE SOFTWARE.
 
 namespace Ogre
 {
-    SkeletonDef::SkeletonDef( const Skeleton *originalSkeleton, Real frameRate ) :
+    SkeletonDef::SkeletonDef( const v1::Skeleton *originalSkeleton, Real frameRate ) :
         mNumUnusedSlots( 0 ),
         mName( originalSkeleton->getName() )
     {
@@ -49,19 +49,19 @@ namespace Ogre
 
         //Clone the bone data
         size_t numDepthLevels = 1;
-        Skeleton::ConstBoneIterator itor = originalSkeleton->getBoneIteratorConst();
+        v1::Skeleton::ConstBoneIterator itor = originalSkeleton->getBoneIteratorConst();
         while( itor.hasMoreElements() )
         {
-            OldBone *bone = itor.getNext();
+            v1::OldBone *bone = itor.getNext();
             size_t parentIndex = -1;
             if( bone->getParent() )
             {
-                assert( !bone->getParent() || dynamic_cast<OldBone*>( bone->getParent() ) );
-                OldBone *parent = static_cast<OldBone*>( bone->getParent() );
+                assert( !bone->getParent() || dynamic_cast<v1::OldBone*>( bone->getParent() ) );
+                v1::OldBone *parent = static_cast<v1::OldBone*>( bone->getParent() );
                 parentIndex = parent->getHandle();
 
                 size_t tmpDepthLevels = 2;
-                OldNode *tmpParent = parent;
+                v1::OldNode *tmpParent = parent;
                 while( (tmpParent = tmpParent->getParent()) )
                     ++tmpDepthLevels;
                 numDepthLevels = std::max( numDepthLevels, tmpDepthLevels );
@@ -94,10 +94,38 @@ namespace Ogre
             mBonesPerDepth[currentDepthLevel].push_back( i );
         }
 
+        // Populate both mBoneToSlot and mSlotToBone
+        mBoneToSlot.reserve( originalSkeleton->getNumBones() );
+        for( size_t i=0; i<originalSkeleton->getNumBones(); ++i )
+        {
+            const v1::OldBone *bone = originalSkeleton->getBone( i );
+
+            size_t depthLevel = 0;
+            v1::OldNode const *parentBone = bone;
+            while( (parentBone = parentBone->getParent()) )
+                ++depthLevel;
+
+            size_t offset = 0;
+            BoneToSlotVec::const_iterator itBoneToSlot = mBoneToSlot.begin();
+            BoneToSlotVec::const_iterator enBoneToSlot  = mBoneToSlot.end();
+            while( itBoneToSlot != enBoneToSlot )
+            {
+                if( (*itBoneToSlot >> 24) == depthLevel )
+                    ++offset;
+                ++itBoneToSlot;
+            }
+
+            //Build the map that lets us know the final slot bone index that will be
+            //assigned to this bone (to get the block we still need to divide by ARRAY_PACKED_REALS)
+            mBoneToSlot.push_back( static_cast<uint>((depthLevel << 24) | (offset & 0x00FFFFFF)) );
+            mSlotToBone[mBoneToSlot.back()] = static_cast<uint>(i);
+        }
+
         //Clone the animations
         mAnimationDefs.resize( originalSkeleton->getNumAnimations() );
         for( size_t i=0; i<originalSkeleton->getNumAnimations(); ++i )
         {
+            mAnimationDefs[i]._setSkeletonDef( this );
             mAnimationDefs[i].setName( originalSkeleton->getAnimation( i )->getName() );
             mAnimationDefs[i].build( originalSkeleton, originalSkeleton->getAnimation( i ), frameRate );
         }

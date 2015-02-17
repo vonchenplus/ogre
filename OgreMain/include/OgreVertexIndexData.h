@@ -31,10 +31,10 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreHardwareVertexBuffer.h"
 #include "OgreHardwareIndexBuffer.h"
-#include "OgreId.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -47,7 +47,7 @@ namespace Ogre {
 
 
     /** Summary class collecting together vertex source information. */
-    class _OgreExport VertexData : public VertexDataAlloc, public IdObject
+    class _OgreExport VertexData : public VertexDataAlloc
     {
     private:
         /// Protected copy constructor, to prevent misuse
@@ -236,6 +236,7 @@ namespace Ogre {
         ushort allocateHardwareAnimationElements(ushort count, bool animateNormals);
 
 
+        HardwareBufferManagerBase* _getHardwareBufferManager(void) const    { return mMgr; }
 
     };
 
@@ -315,6 +316,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"
