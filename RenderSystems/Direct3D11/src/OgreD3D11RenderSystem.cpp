@@ -50,6 +50,9 @@ THE SOFTWARE.
 #include "OgreD3D11HLSLProgram.h"
 #include "OgreD3D11VertexDeclaration.h"
 
+#include "OgreHlmsDatablock.h"
+#include "OgreHlmsSamplerblock.h"
+
 #include "OgreD3D11DepthBuffer.h"
 #include "OgreD3D11HardwarePixelBuffer.h"
 #include "OgreException.h"
@@ -1046,7 +1049,7 @@ bail:
 			// Create the texture manager for use by others
 			mTextureManager = new D3D11TextureManager(mDevice);
 			// Also create hardware buffer manager
-			mHardwareBufferManager = new D3D11HardwareBufferManager(mDevice);
+            mHardwareBufferManager = new v1::D3D11HardwareBufferManager(mDevice);
 
 			// Create the GPU program manager
 			mGpuProgramManager = new D3D11GpuProgramManager(mDevice);
@@ -1090,8 +1093,6 @@ bail:
         rsc->setDriverVersion(mDriverVersion);
         rsc->setDeviceName(mActiveD3DDriver->DriverDescription());
         rsc->setRenderSystemName(getName());
-
-		rsc->setCapability(RSC_ADVANCED_BLEND_OPERATIONS);
 		
         // Does NOT support fixed-function!
         //rsc->setCapability(RSC_FIXED_FUNCTION);
@@ -1121,7 +1122,6 @@ bail:
         // We always support compression, D3DX will decompress if device does not support
         rsc->setCapability(RSC_TEXTURE_COMPRESSION);
         rsc->setCapability(RSC_TEXTURE_COMPRESSION_DXT);
-        rsc->setCapability(RSC_SCISSOR_TEST);
 
 		if(mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
 			rsc->setCapability(RSC_TWO_SIDED_STENCIL);
@@ -1469,7 +1469,7 @@ bail:
     DepthBuffer* D3D11RenderSystem::_createDepthBufferFor( RenderTarget *renderTarget )
     {
         //Get surface data (mainly to get MSAA data)
-        D3D11HardwarePixelBuffer *pBuffer;
+        v1::D3D11HardwarePixelBuffer *pBuffer;
         renderTarget->getCustomAttribute( "BUFFER", &pBuffer );
         D3D11_TEXTURE2D_DESC BBDesc;
         static_cast<ID3D11Texture2D*>(pBuffer->getParentTexture()->getTextureResource())->GetDesc( &BBDesc );
@@ -1990,17 +1990,6 @@ bail:
         mBlendDescChanged = true;
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::_setCullingMode( CullingMode mode )
-    {
-        mCullingMode = mode;
-
-		bool flip = (mInvertVertexWinding && !mActiveRenderTarget->requiresTextureFlipping() ||
-					!mInvertVertexWinding && mActiveRenderTarget->requiresTextureFlipping());
-
-		mRasterizerDesc.CullMode = D3D11Mappings::get(mode, flip);
-        mRasterizerDescChanged = true;
-    }
-    //---------------------------------------------------------------------
     void D3D11RenderSystem::_setDepthBufferParams( bool depthTest, bool depthWrite, CompareFunction depthFunction )
     {
         _setDepthBufferCheckEnabled( depthTest );
@@ -2233,7 +2222,6 @@ bail:
             target = vp->getTarget();
 
             _setRenderTarget(target);
-            _setCullingMode( mCullingMode );
 
             // set viewport dimensions
             d3dvp.TopLeftX = static_cast<FLOAT>(vp->getActualLeft());
@@ -2274,6 +2262,232 @@ bail:
         }
     }
     //---------------------------------------------------------------------
+    void D3D11RenderSystem::_hlmsMacroblockCreated( HlmsMacroblock *newBlock )
+    {
+        D3D11_RASTERIZER_DESC rasterDesc;
+        switch( newBlock->mCullMode )
+        {
+        case CULL_NONE:
+            rasterDesc.CullMode = D3D11_CULL_NONE;
+            break;
+        default:
+        case CULL_CLOCKWISE:
+            rasterDesc.CullMode = D3D11_CULL_BACK;
+            break;
+        case CULL_ANTICLOCKWISE:
+            rasterDesc.CullMode = D3D11_CULL_FRONT;
+            break;
+        }
+
+        // This should/will be done in a geometry shader like in the FixedFuncEMU sample and the shader needs solid
+        rasterDesc.FillMode = newBlock->mPolygonMode == PM_WIREFRAME ? D3D11_FILL_WIREFRAME :
+                                                                       D3D11_FILL_SOLID;
+
+        rasterDesc.FrontCounterClockwise = true;
+
+        const float nearFarFactor = 10.0;
+        rasterDesc.DepthBias        = static_cast<int>(-nearFarFactor * newBlock->mDepthBiasConstant);
+        rasterDesc.DepthBiasClamp   = 0;
+        rasterDesc.SlopeScaledDepthBias = newBlock->mDepthBiasSlopeScale;
+
+        rasterDesc.DepthClipEnable  = true;
+        rasterDesc.ScissorEnable    = newBlock->mScissorTestEnabled;
+
+        rasterDesc.MultisampleEnable     = true;
+        rasterDesc.AntialiasedLineEnable = false;
+
+        ID3D11RasterizerState *rasterizerState = 0;
+
+        HRESULT hr = mDevice->CreateRasterizerState( &rasterDesc, &rasterizerState );
+        if( FAILED(hr) )
+        {
+            String errorDescription = mDevice.getErrorDescription(hr);
+            OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+                "Failed to create rasterizer state\nError Description: " + errorDescription,
+                "D3D11RenderSystem::_hlmsMacroblockCreated" );
+        }
+
+        newBlock->mRsData = rasterizerState;
+    }
+    //---------------------------------------------------------------------
+    void D3D11RenderSystem::_hlmsMacroblockDestroyed( HlmsMacroblock *block )
+    {
+        ID3D11RasterizerState *rasterizerState = reinterpret_cast<ID3D11RasterizerState*>(
+                                                                        block->mRsData );
+        rasterizerState->Release();
+        block->mRsData = 0;
+    }
+    //---------------------------------------------------------------------
+    void D3D11RenderSystem::_hlmsBlendblockCreated( HlmsBlendblock *newBlock )
+    {
+        D3D11_BLEND_DESC blendDesc;
+        ZeroMemory( &blendDesc, sizeof(D3D11_BLEND_DESC) );
+        blendDesc.IndependentBlendEnable = false;
+        blendDesc.RenderTarget[0].BlendEnable = newBlock->mBlendOperation;
+
+        if( newBlock->mSeparateBlend )
+        {
+            if( newBlock->mSourceBlendFactor == SBF_ONE &&
+                newBlock->mDestBlendFactor == SBF_ZERO &&
+                newBlock->mSourceBlendFactorAlpha == SBF_ONE &&
+                newBlock->mDestBlendFactorAlpha == SBF_ZERO )
+            {
+                blendDesc.RenderTarget[0].BlendEnable = FALSE;
+            }
+            else
+            {
+                blendDesc.RenderTarget[0].BlendEnable = TRUE;
+                blendDesc.RenderTarget[0].SrcBlend = D3D11Mappings::get(newBlock->mSourceBlendFactor, false);
+                blendDesc.RenderTarget[0].DestBlend = D3D11Mappings::get(newBlock->mDestBlendFactor, false);
+                blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11Mappings::get(newBlock->mSourceBlendFactorAlpha, true);
+                blendDesc.RenderTarget[0].DestBlendAlpha = D3D11Mappings::get(newBlock->mDestBlendFactorAlpha, true);
+                blendDesc.RenderTarget[0].BlendOp = blendDesc.RenderTarget[0].BlendOpAlpha =
+                        D3D11Mappings::get( newBlock->mBlendOperation );
+
+                blendDesc.RenderTarget[0].RenderTargetWriteMask = 0x0F;
+            }
+        }
+        else
+        {
+            if( newBlock->mSourceBlendFactor == SBF_ONE && newBlock->mDestBlendFactor == SBF_ZERO )
+            {
+                blendDesc.RenderTarget[0].BlendEnable = FALSE;
+            }
+            else
+            {
+                blendDesc.RenderTarget[0].BlendEnable = TRUE;
+                blendDesc.RenderTarget[0].SrcBlend = D3D11Mappings::get(newBlock->mSourceBlendFactor, false);
+                blendDesc.RenderTarget[0].DestBlend = D3D11Mappings::get(newBlock->mDestBlendFactor, false);
+                blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11Mappings::get(newBlock->mSourceBlendFactor, true);
+                blendDesc.RenderTarget[0].DestBlendAlpha = D3D11Mappings::get(newBlock->mDestBlendFactor, true);
+                blendDesc.RenderTarget[0].BlendOp = D3D11Mappings::get( newBlock->mBlendOperation );
+                blendDesc.RenderTarget[0].BlendOpAlpha = D3D11Mappings::get( newBlock->mBlendOperationAlpha );
+
+                blendDesc.RenderTarget[0].RenderTargetWriteMask = 0x0F;
+            }
+        }
+
+        // feature level 9 and below does not support alpha to coverage.
+        if (mFeatureLevel < D3D_FEATURE_LEVEL_10_0)
+            blendDesc.AlphaToCoverageEnable = false;
+        else
+            blendDesc.AlphaToCoverageEnable = newBlock->mAlphaToCoverageEnabled;
+
+        ID3D11BlendState *blendState = 0;
+
+        HRESULT hr = mDevice->CreateBlendState( &blendDesc, &blendState );
+        if( FAILED(hr) )
+        {
+            String errorDescription = mDevice.getErrorDescription(hr);
+            OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+                "Failed to create blend state\nError Description: " + errorDescription,
+                "D3D11RenderSystem::_hlmsBlendblockCreated" );
+        }
+    }
+    //---------------------------------------------------------------------
+    void D3D11RenderSystem::_hlmsBlendblockDestroyed( HlmsBlendblock *block )
+    {
+        ID3D11BlendState *blendState = reinterpret_cast<ID3D11BlendState*>( block->mRsData );
+        blendState->Release();
+        block->mRsData = 0;
+    }
+    //---------------------------------------------------------------------
+    void D3D11RenderSystem::_hlmsSamplerblockCreated( HlmsSamplerblock *newBlock )
+    {
+        D3D11_SAMPLER_DESC samplerDesc;
+        ZeroMemory( &samplerDesc, sizeof(D3D11_SAMPLER_DESC) );
+        samplerDesc.Filter = D3D11Mappings::get( newBlock->mMinFilter, newBlock->mMagFilter,
+                                                 newBlock->mMipFilter,
+                                                 newBlock->mCompareFunction != NUM_COMPARE_FUNCTIONS );
+        if( newBlock->mCompareFunction == NUM_COMPARE_FUNCTIONS )
+            samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        else
+            samplerDesc.ComparisonFunc = D3D11Mappings::get( newBlock->mCompareFunction );
+
+        samplerDesc.AddressU = D3D11Mappings::get( newBlock->mU );
+        samplerDesc.AddressV = D3D11Mappings::get( newBlock->mV );
+        samplerDesc.AddressW = D3D11Mappings::get( newBlock->mW );
+
+        samplerDesc.MipLODBias      = newBlock->mMipLodBias;
+        samplerDesc.MaxAnisotropy   = newBlock->mMaxAnisotropy;
+        samplerDesc.BorderColor[0]  = newBlock->mBorderColour.r;
+        samplerDesc.BorderColor[1]  = newBlock->mBorderColour.g;
+        samplerDesc.BorderColor[2]  = newBlock->mBorderColour.b;
+        samplerDesc.BorderColor[3]  = newBlock->mBorderColour.a;
+        samplerDesc.MinLOD          = newBlock->mMinLod;
+        samplerDesc.MaxLOD          = newBlock->mMaxLod;
+
+        ID3D11SamplerState *samplerState = 0;
+
+        HRESULT hr = mDevice->CreateSamplerState( &samplerDesc, &samplerState ) ;
+        if( FAILED(hr) )
+        {
+            String errorDescription = mDevice.getErrorDescription(hr);
+            OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+                "Failed to create sampler state\nError Description: " + errorDescription,
+                "D3D11RenderSystem::_hlmsSamplerblockCreated" );
+        }
+
+        newBlock->mRsData = samplerState;
+    }
+    //---------------------------------------------------------------------
+    void D3D11RenderSystem::_hlmsSamplerblockDestroyed( HlmsSamplerblock *block )
+    {
+        ID3D11SamplerState *samplerState = reinterpret_cast<ID3D11SamplerState*>( block->mRsData );
+        samplerState->Release();
+        block->mRsData = 0;
+    }
+    //---------------------------------------------------------------------
+    void D3D11RenderSystem::_setHlmsMacroblock( const HlmsMacroblock *macroblock )
+    {
+        ID3D11RasterizerState *rasterizerState = reinterpret_cast<ID3D11RasterizerState*>(
+                                                                        macroblock->mRsData );
+
+        mDevice.GetImmediateContext()->RSSetState( rasterizerState );
+        if( mDevice.isError() )
+        {
+            String errorDescription = mDevice.getErrorDescription();
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
+                "D3D11 device cannot set rasterizer state\nError Description: " + errorDescription,
+                "D3D11RenderSystem::_setHlmsMacroblock");
+        }
+    }
+    //---------------------------------------------------------------------
+    void D3D11RenderSystem::_setHlmsBlendblock( const HlmsBlendblock *blendblock )
+    {
+        ID3D11BlendState *blendState = reinterpret_cast<ID3D11BlendState*>( blendblock->mRsData );
+
+        // TODO - Add this functionality to Ogre (what's the GL equivalent?)
+        mDevice.GetImmediateContext()->OMSetBlendState( blendState, 0, 0xffffffff );
+        if( mDevice.isError() )
+        {
+            String errorDescription = mDevice.getErrorDescription();
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
+                "D3D11 device cannot set blend state\nError Description: " + errorDescription,
+                "D3D11RenderSystem::_setHlmsBlendblock");
+        }
+    }
+    //---------------------------------------------------------------------
+    void D3D11RenderSystem::_setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *samplerblock )
+    {
+        ID3D11SamplerState *samplerState = reinterpret_cast<ID3D11SamplerState*>( samplerblock->mRsData );
+
+        //TODO: Refactor Ogre to:
+        //  a. Separate samplerblocks from textures (GL can emulate the merge).
+        //  b. Set all of them at once.
+        mDevice.GetImmediateContext()->VSSetSamplers( static_cast<UINT>(0), static_cast<UINT>(1),
+                                                      &samplerState );
+        mDevice.GetImmediateContext()->PSSetSamplers( static_cast<UINT>(0), static_cast<UINT>(1),
+                                                      &samplerState );
+        if( mDevice.isError() )
+        {
+            String errorDescription = mDevice.getErrorDescription();
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
+                "D3D11 device cannot set pixel shader samplers\nError Description:" + errorDescription,
+                "D3D11RenderSystem::_render");
+        }
+    }
+    //---------------------------------------------------------------------
     void D3D11RenderSystem::_beginFrame()
     {
     }
@@ -2282,31 +2496,31 @@ bail:
     {
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::setVertexDeclaration(VertexDeclaration* decl)
+    void D3D11RenderSystem::setVertexDeclaration(v1::VertexDeclaration* decl)
     {
             OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, 
                     "Cannot directly call setVertexDeclaration in the d3d11 render system - cast then use 'setVertexDeclaration(VertexDeclaration* decl, VertexBufferBinding* binding)' .", 
                     "D3D11RenderSystem::setVertexDeclaration" );
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::setVertexDeclaration(VertexDeclaration* decl, VertexBufferBinding* binding)
+    void D3D11RenderSystem::setVertexDeclaration(v1::VertexDeclaration* decl, v1::VertexBufferBinding* binding)
     {
-        D3D11VertexDeclaration* d3ddecl = 
-            static_cast<D3D11VertexDeclaration*>(decl);
+        v1::D3D11VertexDeclaration* d3ddecl =
+            static_cast<v1::D3D11VertexDeclaration*>(decl);
 
         d3ddecl->bindToShader(mBoundVertexProgram, binding);
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::setVertexBufferBinding(VertexBufferBinding* binding)
+    void D3D11RenderSystem::setVertexBufferBinding(v1::VertexBufferBinding* binding)
     {
         // TODO: attempt to detect duplicates
-        const VertexBufferBinding::VertexBufferBindingMap& binds = binding->getBindings();
-        VertexBufferBinding::VertexBufferBindingMap::const_iterator i, iend;
+        const v1::VertexBufferBinding::VertexBufferBindingMap& binds = binding->getBindings();
+        v1::VertexBufferBinding::VertexBufferBindingMap::const_iterator i, iend;
         iend = binds.end();
         for (i = binds.begin(); i != iend; ++i)
         {
-            const D3D11HardwareVertexBuffer* d3d11buf = 
-                static_cast<const D3D11HardwareVertexBuffer*>(i->second.get());
+            const v1::D3D11HardwareVertexBuffer* d3d11buf =
+                static_cast<const v1::D3D11HardwareVertexBuffer*>(i->second.get());
 
             UINT stride = static_cast<UINT>(d3d11buf->getVertexSize());
             UINT offset = 0; // no stream offset, this is handled in _render instead
@@ -2375,7 +2589,7 @@ bail:
     };
 
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::_render(const RenderOperation& op)
+    void D3D11RenderSystem::_render(const v1::RenderOperation& op)
     {
 
         // Exit immediately if there is nothing to render
@@ -2384,8 +2598,8 @@ bail:
             return;
         }
 
-        HardwareVertexBufferSharedPtr globalInstanceVertexBuffer = getGlobalInstanceVertexBuffer();
-        VertexDeclaration* globalVertexDeclaration = getGlobalInstanceVertexBufferVertexDeclaration();
+        v1::HardwareVertexBufferSharedPtr globalInstanceVertexBuffer = getGlobalInstanceVertexBuffer();
+        v1::VertexDeclaration* globalVertexDeclaration = getGlobalInstanceVertexBufferVertexDeclaration();
 
         bool hasInstanceData = op.useGlobalInstancingVertexBufferIsAvailable &&
                     !globalInstanceVertexBuffer.isNull() && globalVertexDeclaration != NULL 

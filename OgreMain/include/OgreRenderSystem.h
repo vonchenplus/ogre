@@ -227,17 +227,6 @@ namespace Ogre
         */
         virtual void setAmbientLight(float r, float g, float b) = 0;
 
-        /** Sets the type of light shading required (default = Gouraud).
-        */
-        virtual void setShadingType(ShadeOptions so) = 0;
-
-        /** Sets whether or not dynamic lighting is enabled.
-        @param
-        enabled If true, dynamic lighting is performed on geometry with normals supplied, geometry without
-        normals will not be displayed. If false, no lighting is applied and all geometry will be full brightness.
-        */
-        virtual void setLightingEnabled(bool enabled) = 0;
-
         /** Sets whether or not W-buffers are enabled if they are available for this renderer.
         @param
         enabled If true and the renderer supports them W-buffers will be used.  If false 
@@ -564,16 +553,16 @@ namespace Ogre
 
         /** Returns the global instance vertex buffer.
         */
-        HardwareVertexBufferSharedPtr getGlobalInstanceVertexBuffer() const;
+        v1::HardwareVertexBufferSharedPtr getGlobalInstanceVertexBuffer() const;
         /** Sets the global instance vertex buffer.
         */
-        void setGlobalInstanceVertexBuffer(const HardwareVertexBufferSharedPtr &val);
+        void setGlobalInstanceVertexBuffer(const v1::HardwareVertexBufferSharedPtr &val);
         /** Gets vertex declaration for the global vertex buffer for the global instancing
         */
-        VertexDeclaration* getGlobalInstanceVertexBufferVertexDeclaration() const;
+        v1::VertexDeclaration* getGlobalInstanceVertexBufferVertexDeclaration() const;
         /** Sets vertex declaration for the global vertex buffer for the global instancing
         */
-        void setGlobalInstanceVertexBufferVertexDeclaration( VertexDeclaration* val);
+        void setGlobalInstanceVertexBufferVertexDeclaration( v1::VertexDeclaration* val);
         /** Gets the global number of instances.
         */
         size_t getGlobalNumberOfInstances() const;
@@ -701,8 +690,7 @@ namespace Ogre
         @param enabled Boolean to turn the unit on/off
         @param texPtr Pointer to the texture to use.
         */
-        virtual void _setTexture(size_t unit, bool enabled, 
-            const TexturePtr &texPtr) = 0;
+        virtual void _setTexture(size_t unit, bool enabled,  Texture *texPtr) = 0;
         /**
         Sets the texture to bind to a given texture unit.
 
@@ -717,6 +705,15 @@ namespace Ogre
         already been loaded with TextureManager::load.
         */
         virtual void _setTexture(size_t unit, bool enabled, const String &texname);
+
+        virtual void _hlmsMacroblockCreated( HlmsMacroblock *newBlock ) {}
+        virtual void _hlmsMacroblockDestroyed( HlmsMacroblock *block ) {}
+        virtual void _hlmsBlendblockCreated( HlmsBlendblock *newBlock ) {}
+        virtual void _hlmsBlendblockDestroyed( HlmsBlendblock *block ) {}
+        virtual void _hlmsSamplerblockCreated( HlmsSamplerblock *newBlock ) {}
+        virtual void _hlmsSamplerblockDestroyed( HlmsSamplerblock *block ) {}
+
+        virtual void _setIndirectBuffer( IndirectBufferPacked *indirectBuffer ) = 0;
 
         /** Binds a texture to a vertex, geometry, compute, tessellation hull
         or tessellation domain sampler.
@@ -903,6 +900,10 @@ namespace Ogre
         * Ends rendering of a frame to the current viewport.
         */
         virtual void _endFrame(void) = 0;
+
+        /// Called once per frame, regardless of how many active workspaces there are
+        void _update(void);
+
         /**
         Sets the provided viewport as the active one for future
         rendering operations. This viewport is aware of it's own
@@ -914,20 +915,18 @@ namespace Ogre
         /** Get the current active viewport for rendering. */
         virtual Viewport* _getViewport(void);
 
-        /** Sets the culling mode for the render system based on the 'vertex winding'.
-        A typical way for the rendering engine to cull triangles is based on the
-        'vertex winding' of triangles. Vertex winding refers to the direction in
-        which the vertices are passed or indexed to in the rendering operation as viewed
-        from the camera, and will wither be clockwise or anticlockwise (that's 'counterclockwise' for
-        you Americans out there ;) The default is CULL_CLOCKWISE i.e. that only triangles whose vertices
-        are passed/indexed in anticlockwise order are rendered - this is a common approach and is used in 3D studio models
-        for example. You can alter this culling mode if you wish but it is not advised unless you know what you are doing.
-        You may wish to use the CULL_NONE option for mesh data that you cull yourself where the vertex
-        winding is uncertain.
-        */
-        virtual void _setCullingMode(CullingMode mode) = 0;
+        /// @See HlmsMacroblock
+        virtual void _setHlmsMacroblock( const HlmsMacroblock *macroblock ) = 0;
 
-        virtual CullingMode _getCullingMode(void) const;
+        /// @See HlmsBlendblock
+        virtual void _setHlmsBlendblock( const HlmsBlendblock *blendblock ) = 0;
+
+        /// @See HlmsSamplerblock. This function MUST be called after _setTexture, not before.
+        /// Otherwise not all APIs may see the change.
+        virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *Samplerblock ) = 0;
+
+        /// @See HlmsCache
+        virtual void _setProgramsFromHlms( const HlmsCache *hlmsCache ) = 0;
 
         /** Sets the mode of operation for depth buffer tests from this point onwards.
         Sometimes you may wish to alter the behaviour of the depth buffer to achieve
@@ -993,19 +992,6 @@ namespace Ogre
 
         */
         virtual void _setDepthBias(float constantBias, float slopeScaleBias = 0.0f) = 0;
-        /** Sets the fogging mode for future geometry.
-        @param mode Set up the mode of fog as described in the FogMode enum, or set to FOG_NONE to turn off.
-        @param colour The colour of the fog. Either set this to the same as your viewport background colour,
-        or to blend in with a skydome or skybox.
-        @param expDensity The density of the fog in FOG_EXP or FOG_EXP2 mode, as a value between 0 and 1. The default is 1. i.e. completely opaque, lower values can mean
-        that fog never completely obscures the scene.
-        @param linearStart Distance at which linear fog starts to encroach. The distance must be passed
-        as a parametric value between 0 and 1, with 0 being the near clipping plane, and 1 being the far clipping plane. Only applicable if mode is FOG_LINEAR.
-        @param linearEnd Distance at which linear fog becomes completely opaque.The distance must be passed
-        as a parametric value between 0 and 1, with 0 being the near clipping plane, and 1 being the far clipping plane. Only applicable if mode is FOG_LINEAR.
-        */
-        virtual void _setFog(FogMode mode = FOG_NONE, const ColourValue& colour = ColourValue::White, Real expDensity = 1.0, Real linearStart = 0.0, Real linearEnd = 1.0) = 0;
-
 
         /** The RenderSystem will keep a count of tris rendered, this resets the count. */
         virtual void _beginGeometryCount(void);
@@ -1083,9 +1069,6 @@ namespace Ogre
         */
         virtual void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane, 
             bool forGpuProgram) = 0;
-
-        /** Sets how to rasterise triangles, as points, wireframe or solid polys. */
-        virtual void _setPolygonMode(PolygonMode level) = 0;
 
         /** Turns depth-stencil buffer checking on or off. 
         @remarks
@@ -1173,21 +1156,9 @@ namespace Ogre
 
 
         /** Sets the current vertex declaration, ie the source of vertex data. */
-        virtual void setVertexDeclaration(VertexDeclaration* decl) = 0;
+        virtual void setVertexDeclaration(v1::VertexDeclaration* decl) = 0;
         /** Sets the current vertex buffer binding state. */
-        virtual void setVertexBufferBinding(VertexBufferBinding* binding) = 0;
-
-        /** Sets whether or not normals are to be automatically normalised.
-        @remarks
-        This is useful when, for example, you are scaling SceneNodes such that
-        normals may not be unit-length anymore. Note though that this has an
-        overhead so should not be turn on unless you really need it.
-        @par
-        You should not normally call this direct unless you are rendering
-        world geometry; set it on the Renderable because otherwise it will be
-        overridden by material settings. 
-        */
-        virtual void setNormaliseNormals(bool normalise) = 0;
+        virtual void setVertexBufferBinding(v1::VertexBufferBinding* binding) = 0;
 
         /**
         Render something to the active viewport.
@@ -1201,7 +1172,27 @@ namespace Ogre
         @param op A rendering operation instance, which contains
         details of the operation to be performed.
         */
-        virtual void _render(const RenderOperation& op);
+        virtual void _render(const v1::RenderOperation& op);
+
+        /** Part of the low level rendering interface. Tells the RS which VAO will be bound now.
+            (i.e. Vertex Formats, buffers being bound, etc.)
+            You don't need to rebind if the VAO's mRenderQueueId is the same as previous call.
+        */
+        virtual void _setVertexArrayObject( const VertexArrayObject *vao ) = 0;
+
+        /// Renders the VAO. Assumes _setVertexArrayObject has already been called.
+        virtual void _render( const VertexArrayObject *vao );
+        virtual void _render( const CbDrawCallIndexed *cmd ) = 0;
+        virtual void _render( const CbDrawCallStrip *cmd ) = 0;
+        virtual void _renderEmulated( const CbDrawCallIndexed *cmd ) = 0;
+        virtual void _renderEmulated( const CbDrawCallStrip *cmd ) = 0;
+
+        /// May override the current VertexArrayObject!
+        virtual void _startLegacyV1Rendering(void) {}
+        virtual void _setRenderOperation( const v1::CbRenderOp *cmd ) = 0;
+        /// Renders a V1 RenderOperation. Assumes _setRenderOperation has already been called.
+        virtual void _render( const v1::CbDrawCallIndexed *cmd ) = 0;
+        virtual void _render( const v1::CbDrawCallStrip *cmd ) = 0;
 
         virtual void _renderUsingReadBackAsTexture(unsigned int secondPass,Ogre::String variableName,unsigned int StartSlot);
 
@@ -1250,6 +1241,8 @@ namespace Ogre
         /** Returns whether or not a Gpu program of the given type is currently bound. */
         virtual bool isGpuProgramBound(GpuProgramType gptype);
 
+        VaoManager* getVaoManager(void) const           { return mVaoManager; }
+
         /**
          * Gets the native shading language version for this render system.
          * Formatted so that it can be used within a shading program. 
@@ -1281,20 +1274,6 @@ namespace Ogre
         @see RenderSystem::setInvertVertexWinding
         */
         virtual bool getInvertVertexWinding(void) const;
-
-        /** Sets the 'scissor region' i.e. the region of the target in which rendering can take place.
-        @remarks
-        This method allows you to 'mask off' rendering in all but a given rectangular area
-        as identified by the parameters to this method.
-        @note
-        Not all systems support this method. Check the RenderSystemCapabilities for the
-        RSC_SCISSOR_TEST capability to see if it is supported.
-        @param enabled True to enable the scissor test, false to disable it.
-        @param left, top, right, bottom The location of the corners of the rectangle, expressed in
-        <i>pixels</i>.
-        */
-        virtual void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, 
-            size_t right = 800, size_t bottom = 600) = 0;
 
         /** Clears one or more frame buffers on the active render target. 
         @param buffers Combination of one or more elements of FrameBufferType
@@ -1527,10 +1506,10 @@ namespace Ogre
         // managed by the RenderSystem
         TextureManager* mTextureManager;
 
+        VaoManager   *mVaoManager;
+
         // Active viewport (dest for future rendering operations)
         Viewport* mActiveViewport;
-
-        CullingMode mCullingMode;
 
         bool mWBuffer;
 
@@ -1556,9 +1535,9 @@ namespace Ogre
         float mDerivedDepthBiasSlopeScale;
 
         /// a global vertex buffer for global instancing
-        HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
+        v1::HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
         /// a vertex declaration for the global vertex buffer for the global instancing
-        VertexDeclaration* mGlobalInstanceVertexBufferVertexDeclaration;
+        v1::VertexDeclaration* mGlobalInstanceVertexBufferVertexDeclaration;
         /// the number of global instances (this number will be multiply by the render op instance number) 
         size_t mGlobalNumberOfInstances;
 

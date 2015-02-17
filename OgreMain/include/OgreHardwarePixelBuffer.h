@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -62,6 +63,8 @@ namespace Ogre {
         size_t mRowPitch, mSlicePitch;
         /// Internal format
         PixelFormat mFormat;
+        /// Whether HW Gamma is used
+        bool mHwGamma;
         /// Currently locked region (local coords)
         PixelBox mCurrentLock;
         /// The current locked box of this surface (entire surface coords)
@@ -79,11 +82,11 @@ namespace Ogre {
             Called by RenderTexture when destroyed.
         */
         virtual void _clearSliceRTT(size_t zoffset);
-        friend class RenderTexture;
+        friend class Ogre::RenderTexture;
     public:
         /// Should be called by HardwareBufferManager
         HardwarePixelBuffer(uint32 mWidth, uint32 mHeight, uint32 mDepth,
-                PixelFormat mFormat,
+                PixelFormat mFormat, bool hwGamma,
                 HardwareBuffer::Usage usage, bool useSystemMemory, bool useShadowBuffer);
         ~HardwarePixelBuffer();
 
@@ -204,6 +207,7 @@ namespace Ogre {
 
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

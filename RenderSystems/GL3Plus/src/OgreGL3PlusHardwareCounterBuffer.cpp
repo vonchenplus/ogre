@@ -38,7 +38,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #endif
 
 namespace Ogre {
-
+namespace v1 {
     GL3PlusHardwareCounterBuffer::GL3PlusHardwareCounterBuffer(
         HardwareBufferManagerBase* mgr, const String& name = "")
         : HardwareCounterBuffer(mgr, sizeof(GLuint), 
@@ -104,7 +104,8 @@ namespace Ogre {
         else
             access |= GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
 
-        access |= GL_MAP_UNSYNCHRONIZED_BIT;
+        if( options == HBL_NO_OVERWRITE )
+            access |= GL_MAP_UNSYNCHRONIZED_BIT;
 
         void* pBuffer = 0;
         OGRE_CHECK_GL_ERROR(pBuffer = glMapBufferRange(GL_ATOMIC_COUNTER_BUFFER, offset, length, access));
@@ -205,5 +206,5 @@ namespace Ogre {
         }
     }
 
-
+}
 }

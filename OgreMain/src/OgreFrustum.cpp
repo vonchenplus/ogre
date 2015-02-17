@@ -48,7 +48,7 @@ namespace Ogre {
     const Real Frustum::INFINITE_FAR_PLANE_ADJUST = 0.00001;
     //-----------------------------------------------------------------------
     Frustum::Frustum( IdType id, ObjectMemoryManager *objectMemoryManager ) : 
-        MovableObject( id, objectMemoryManager, 0 ),
+        MovableObject( id, objectMemoryManager, (SceneManager*)0, 1 ),
         mProjType(PT_PERSPECTIVE), 
         mFOVy(Radian(Math::PI/4.0f)), 
         mFarDist(100000.0f), 
@@ -73,9 +73,6 @@ namespace Ogre {
         mObliqueDepthProjection(false), 
         mLinkedObliqueProjPlane(0)
     {
-        // Initialise material
-        mMaterial = MaterialManager::getSingleton().getByName("BaseWhiteNoLighting");
-
         mObjectData.mQueryFlags[mObjectData.mIndex] = SceneManager::QUERY_FRUSTUM_DEFAULT_MASK;
         
         // Alter superclass members
@@ -606,8 +603,8 @@ namespace Ogre {
                 mVertexData.vertexCount = 32;
                 mVertexData.vertexStart = 0;
                 mVertexData.vertexBufferBinding->setBinding( 0,
-                    HardwareBufferManager::getSingleton().createVertexBuffer(
-                        sizeof(float)*3, 32, HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY) );
+                    v1::HardwareBufferManager::getSingleton().createVertexBuffer(
+                        sizeof(float)*3, 32, v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY) );
             }
 
             // Note: Even though we can dealing with general projection matrix here,
@@ -632,8 +629,8 @@ namespace Ogre {
             // 0 is the origin
             // 1, 2, 3, 4 are the points on the near plane, top left first, clockwise
             // 5, 6, 7, 8 are the points on the far plane, top left first, clockwise
-            HardwareVertexBufferSharedPtr vbuf = mVertexData.vertexBufferBinding->getBuffer(0);
-            float* pFloat = static_cast<float*>(vbuf->lock(HardwareBuffer::HBL_DISCARD));
+            v1::HardwareVertexBufferSharedPtr vbuf = mVertexData.vertexBufferBinding->getBuffer(0);
+            float* pFloat = static_cast<float*>(vbuf->lock(v1::HardwareBuffer::HBL_DISCARD));
 
             // near plane (remember frustum is going in -Z direction)
             *pFloat++ = vpLeft;  *pFloat++ = vpTop;    *pFloat++ = -mNearDist;
@@ -981,15 +978,6 @@ namespace Ogre {
         return mBoundingBox;
     }
     //-----------------------------------------------------------------------
-    void Frustum::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
-    {
-        if (mDebugDisplay)
-        {
-            // Add self 
-            queue->addRenderable(this);
-        }
-    }
-    //-----------------------------------------------------------------------
     const String& Frustum::getMovableType(void) const
     {
         return msMovableType;
@@ -1002,15 +990,10 @@ namespace Ogre {
     }
 #endif
     //-----------------------------------------------------------------------
-    const MaterialPtr& Frustum::getMaterial(void) const
-    {
-        return mMaterial;
-    }
-    //-----------------------------------------------------------------------
-    void Frustum::getRenderOperation(RenderOperation& op) 
+    void Frustum::getRenderOperation(v1::RenderOperation& op)
     {
         updateVertexData();
-        op.operationType = RenderOperation::OT_LINE_LIST;
+        op.operationType = v1::RenderOperation::OT_LINE_LIST;
         op.useIndexes = false;
         op.useGlobalInstancingVertexBufferIsAvailable = false;
         op.vertexData = &mVertexData;
