@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "OgreBlendMode.h"
 #include "OgreMatrix4.h"
 #include "OgreTexture.h"
+#include "OgreIdString.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -1122,19 +1123,15 @@ namespace Ogre {
         /** Set the compositor reference for this texture unit state.
         @remarks 
             Only valid when content type is compositor.
-        @param compositorName
-            The name of the compositor to reference.
         @param textureName
             The name of the texture to reference.
         @param mrtIndex
             The index of the wanted texture, if referencing an MRT.
         */
-        void setCompositorReference(const String& compositorName, const String& textureName, size_t mrtIndex = 0);
+        void setCompositorReference(const String& textureName, size_t mrtIndex = 0);
 
-        /** Gets the name of the compositor that this texture referneces. */
-        const String& getReferencedCompositorName() const { return mCompositorRefName; }
         /** Gets the name of the texture in the compositor that this texture references. */
-        const String& getReferencedTextureName() const { return mCompositorRefTexName; }
+        IdString getReferencedTextureName() const { return mCompositorRefTexName; }
         /** Gets the MRT index of the texture in the compositor that this texture references. */ 
         size_t getReferencedMRTIndex() const { return mCompositorRefMrtIndex; }
     
@@ -1260,7 +1257,7 @@ protected:
 
         bool mIsDefaultAniso;
         bool mIsDefaultFiltering;
-        /// Binding type (fragment, vertex, tesselation hull and domain pipeline).
+        /// Binding type (fragment, vertex, tessellation hull and domain pipeline).
         BindingType mBindingType;
         /// Content type of texture (normal loaded texture, auto-texture).
         ContentType mContentType;
@@ -1277,8 +1274,7 @@ protected:
         String mTextureNameAlias;   ///< Optional alias for texture frames.
         EffectMap mEffects;
         /// The data that references the compositor.
-        String mCompositorRefName;
-        String mCompositorRefTexName;
+        IdString mCompositorRefTexName;
         //-----------------------------------------------------------------------------
 
         //-----------------------------------------------------------------------------

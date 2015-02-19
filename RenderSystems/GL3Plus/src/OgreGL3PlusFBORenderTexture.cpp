@@ -70,7 +70,7 @@ namespace Ogre {
     {
         mFB.swapBuffers();
     }
-
+    //-----------------------------------------------------------------------------
     bool GL3PlusFBORenderTexture::attachDepthBuffer( DepthBuffer *depthBuffer )
     {
         bool result;
@@ -79,19 +79,19 @@ namespace Ogre {
 
         return result;
     }
-
+    //-----------------------------------------------------------------------------
     void GL3PlusFBORenderTexture::detachDepthBuffer()
     {
         mFB.detachDepthBuffer();
         GL3PlusRenderTexture::detachDepthBuffer();
     }
-
+    //-----------------------------------------------------------------------------
     void GL3PlusFBORenderTexture::_detachDepthBuffer()
     {
         mFB.detachDepthBuffer();
         GL3PlusRenderTexture::_detachDepthBuffer();
     }
-
+   
     // Size of probe texture
 #define PROBE_SIZE 16
 

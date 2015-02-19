@@ -33,6 +33,8 @@ THE SOFTWARE.
 #include "OgreStreamSerialiser.h"
 #include "OgreSceneNode.h"
 #include "OgreLodStrategy.h"
+#include "OgreLodStrategyManager.h"
+
 
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
 // we do lots of conversions here, casting them all is tedious & cluttered, we know what we're doing
@@ -41,11 +43,13 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+    extern const FastArray<Real> c_DefaultLodMesh;
+
     unsigned short TerrainQuadTreeNode::POSITION_BUFFER = 0;
     unsigned short TerrainQuadTreeNode::DELTA_BUFFER = 1;
 
     //---------------------------------------------------------------------
-    TerrainQuadTreeNode::TerrainQuadTreeNode(Terrain* terrain, 
+    TerrainQuadTreeNode::TerrainQuadTreeNode(ObjectMemoryManager *objectMemoryManager, Terrain* terrain,
         TerrainQuadTreeNode* parent, uint16 xoff, uint16 yoff, uint16 size, 
         uint16 lod, uint16 depth, uint16 quadrant)
         : mTerrain(terrain)
@@ -60,7 +64,6 @@ namespace Ogre
         , mQuadrant(quadrant)
         , mBoundingRadius(0)
         , mCurrentLod(-1)
-        , mMaterialLodIndex(0)
         , mLodTransition(0)
         , mChildWithMaxHeightDelta(0)
         , mSelfOrChildRendered(false)
@@ -77,10 +80,10 @@ namespace Ogre
             uint16 childLod = lod - 1; // LOD levels decrease down the tree (higher detail)
             uint16 childDepth = depth + 1;
             // create children
-            mChildren[0] = OGRE_NEW TerrainQuadTreeNode(terrain, this, xoff, yoff, childSize, childLod, childDepth, 0);
-            mChildren[1] = OGRE_NEW TerrainQuadTreeNode(terrain, this, xoff + childOff, yoff, childSize, childLod, childDepth, 1);
-            mChildren[2] = OGRE_NEW TerrainQuadTreeNode(terrain, this, xoff, yoff + childOff, childSize, childLod, childDepth, 2);
-            mChildren[3] = OGRE_NEW TerrainQuadTreeNode(terrain, this, xoff + childOff, yoff + childOff, childSize, childLod, childDepth, 3);
+            mChildren[0] = OGRE_NEW TerrainQuadTreeNode(objectMemoryManager, terrain, this, xoff, yoff, childSize, childLod, childDepth, 0);
+            mChildren[1] = OGRE_NEW TerrainQuadTreeNode(objectMemoryManager, terrain, this, xoff + childOff, yoff, childSize, childLod, childDepth, 1);
+            mChildren[2] = OGRE_NEW TerrainQuadTreeNode(objectMemoryManager, terrain, this, xoff, yoff + childOff, childSize, childLod, childDepth, 2);
+            mChildren[3] = OGRE_NEW TerrainQuadTreeNode(objectMemoryManager, terrain, this, xoff + childOff, yoff + childOff, childSize, childLod, childDepth, 3);
 
             LodLevel* ll = OGRE_NEW LodLevel();
             // non-leaf nodes always render with minBatchSize vertices
@@ -130,10 +133,8 @@ namespace Ogre
         // would this be better?
         mTerrain->getPoint(midpointx, midpointy, 0, &mLocalCentre);
 
-        mMovable = OGRE_NEW Movable(this);
+        mMovable = OGRE_NEW Movable(Id::generateNewId<MovableObject>(), objectMemoryManager, this);
         mRend = OGRE_NEW Rend(this);
-
-    
     }
     //---------------------------------------------------------------------
     TerrainQuadTreeNode::~TerrainQuadTreeNode()
@@ -147,7 +148,7 @@ namespace Ogre
 
         if (mLocalNode)
         {
-            mTerrain->_getRootSceneNode()->removeAndDestroyChild(mLocalNode->getName());
+            mTerrain->_getRootSceneNode()->removeAndDestroyChild(mLocalNode);
             mLocalNode = 0;
         }
 
@@ -266,10 +267,15 @@ namespace Ogre
     }
     void TerrainQuadTreeNode::loadSelf()
     {
+//        mMovable->setMaterialLodValues( this->getMaterial() );
+
         createGpuVertexData();
         createGpuIndexData();
         if (!mLocalNode)
-            mLocalNode = mTerrain->_getRootSceneNode()->createChildSceneNode(mLocalCentre);
+        {
+            mLocalNode = mTerrain->_getRootSceneNode()->createChildSceneNode();
+            mLocalNode->setPosition(mLocalCentre);
+        }
 
         if (!mMovable->isAttached())
             mLocalNode->attachObject(mMovable);
@@ -324,6 +330,16 @@ namespace Ogre
         assert(lod < mLodLevels.size());
 
         return mLodLevels[lod];
+    }
+    //---------------------------------------------------------------------
+    void TerrainQuadTreeNode::notifyMaterialChanged(void)
+    {
+        mMovable->setMaterialLodValues( this->getMaterial() );
+        for( size_t i=0; i<4; ++i )
+        {
+            if(!isLeaf())
+                mChildren[i]->notifyMaterialChanged();
+        }
     }
     //---------------------------------------------------------------------
     void TerrainQuadTreeNode::preDeltaCalculation(const Rect& rect)
@@ -568,12 +584,6 @@ namespace Ogre
                 }
 
             }
-            // Make sure node knows to update
-            if (mMovable && mMovable->isAttached())
-                mMovable->getParentSceneNode()->needUpdate();
-
-
-
         }
 
     }
@@ -1264,14 +1274,6 @@ namespace Ogre
                 dist -= (mBoundingRadius * 0.5f);
             }
 
-            // Do material LOD
-            MaterialPtr material = getMaterial();
-            const LodStrategy *materialStrategy = material->getLodStrategy();
-            Real lodValue = materialStrategy->getValue(mMovable, cam);
-            // Get the index at this biased depth
-            mMaterialLodIndex = material->getLodIndex(lodValue);
-
-
             // For each LOD, the distance at which the LOD will transition *downwards*
             // is given by 
             // distTransition = maxDelta * cFactor;
@@ -1438,7 +1440,7 @@ namespace Ogre
     //---------------------------------------------------------------------
     Technique* TerrainQuadTreeNode::getTechnique(void) const
     { 
-        return getMaterial()->getBestTechnique(mMaterialLodIndex, mRend); 
+        return getMaterial()->getBestTechnique( mMovable->getCurrentMaterialLod()[0], mRend);
     }
     //---------------------------------------------------------------------
     void TerrainQuadTreeNode::getRenderOperation(RenderOperation& op)
@@ -1484,14 +1486,14 @@ namespace Ogre
     }
     //---------------------------------------------------------------------
     //---------------------------------------------------------------------
-    TerrainQuadTreeNode::Movable::Movable(TerrainQuadTreeNode* parent)
-        : mParent(parent)
+    TerrainQuadTreeNode::Movable::Movable(IdType id, ObjectMemoryManager *objectMemoryManager, TerrainQuadTreeNode* parent)
+		: MovableObject(id, objectMemoryManager, RENDER_QUEUE_MAIN), mParent(parent)
     {
+        setCastShadows(TerrainGlobalOptions::getSingleton().getCastsDynamicShadows());
     }
     //---------------------------------------------------------------------
     TerrainQuadTreeNode::Movable::~Movable()
     {
-
     }
     //---------------------------------------------------------------------
     const String& TerrainQuadTreeNode::Movable::getMovableType(void) const
@@ -1523,18 +1525,18 @@ namespace Ogre
     uint32 TerrainQuadTreeNode::Movable::getVisibilityFlags(void) const
     {
         // Combine own vis (in case anyone sets this) and terrain overall
-        return mVisibilityFlags & mParent->getTerrain()->getVisibilityFlags();
+		return MovableObject::getVisibilityFlags() & mParent->getTerrain()->getVisibilityFlags();
     }
     //---------------------------------------------------------------------
     uint32 TerrainQuadTreeNode::Movable::getQueryFlags(void) const
     {
         // Combine own vis (in case anyone sets this) and terrain overall
-        return mQueryFlags & mParent->getTerrain()->getQueryFlags();
+        return MovableObject::getQueryFlags() & mParent->getTerrain()->getQueryFlags();
     }
     //------------------------------------------------------------------------
-    void TerrainQuadTreeNode::Movable::_updateRenderQueue(RenderQueue* queue)
+    void TerrainQuadTreeNode::Movable::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
     {
-        mParent->updateRenderQueue(queue);      
+        mParent->updateRenderQueue(queue);
     }
     //------------------------------------------------------------------------
     void TerrainQuadTreeNode::Movable::visitRenderables(Renderable::Visitor* visitor,  bool debugRenderables)
@@ -1542,9 +1544,22 @@ namespace Ogre
         mParent->visitRenderables(visitor, debugRenderables);   
     }
     //---------------------------------------------------------------------
-    bool TerrainQuadTreeNode::Movable::getCastShadows(void) const
+//    bool TerrainQuadTreeNode::Movable::getCastShadows(void) const
+//    {
+//        return mParent->getCastsShadows();
+//    }
+    //---------------------------------------------------------------------
+    void TerrainQuadTreeNode::Movable::setMaterialLodValues( const MaterialPtr &material )
     {
-        return mParent->getCastsShadows();
+        mLodMaterial.clear();
+        if( material.isNull() )
+        {
+            mLodMaterial.push_back( &c_DefaultLodMesh );
+        }
+        else
+        {
+            mLodMaterial.push_back( material->_getLodValues() );
+        }
     }
     //------------------------------------------------------------------------
     //---------------------------------------------------------------------

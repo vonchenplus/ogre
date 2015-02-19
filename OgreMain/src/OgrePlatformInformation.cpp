@@ -54,6 +54,10 @@ THE SOFTWARE.
     #endif
 #endif
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+    #include "windows.h"
+#endif
+
 // Yes, I know, this file looks very ugly, but there aren't other ways to do it better.
 
 namespace Ogre {
@@ -167,6 +171,7 @@ namespace Ogre {
         {
             mov     edi, result
             mov     eax, query
+            xor     ecx, ecx
             cpuid
             mov     [edi]._eax, eax
             mov     [edi]._ebx, ebx
@@ -179,12 +184,14 @@ namespace Ogre {
         #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_64
         __asm__
         (
+            "xor     %%rcx, %%rcx    \n\t"
             "cpuid": "=a" (result._eax), "=b" (result._ebx), "=c" (result._ecx), "=d" (result._edx) : "a" (query)
         );
         #else
         __asm__
         (
             "pushl  %%ebx           \n\t"
+            "xor    %%ecx, %%ecx    \n\t"
             "cpuid                  \n\t"
             "movl   %%ebx, %%edi    \n\t"
             "popl   %%ebx           \n\t"
@@ -484,10 +491,6 @@ namespace Ogre {
             features |= PlatformInformation::CPU_FEATURE_NEON;
         }
         
-        if (cpufeatures & ANDROID_CPU_ARM_FEATURE_VFPv3) 
-        {
-            features |= PlatformInformation::CPU_FEATURE_VFP;
-        }
         return features;
     }
     //---------------------------------------------------------------------
@@ -526,18 +529,15 @@ namespace Ogre {
     {
         // Use preprocessor definitions to determine architecture and CPU features
         uint features = 0;
-#if defined(__ARM_NEON__)
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
         int hasNEON;
         size_t len = sizeof(size_t);
         sysctlbyname("hw.optional.neon", &hasNEON, &len, NULL, 0);
 
         if(hasNEON)
-#endif
             features |= PlatformInformation::CPU_FEATURE_NEON;
-#elif defined(__VFP_FP__)
-            features |= PlatformInformation::CPU_FEATURE_VFP;
 #endif
+
         return features;
     }
     //---------------------------------------------------------------------
@@ -617,6 +617,28 @@ namespace Ogre {
 #endif  // OGRE_CPU
 
     //---------------------------------------------------------------------
+    static uint32 _detectNumLogicalCores(void)
+    {
+        uint32 numLogicalCores = 0;
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+        int logicalCores = (uint)sysconf( _SC_NPROCESSORS_ONLN );
+
+        if( logicalCores > 0 )
+            numLogicalCores = (uint32)logicalCores;
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+        size_t size = sizeof( numLogicalCores );
+        sysctlbyname( "hw.logicalcpu", &numLogicalCores, &size, NULL, 0 );
+#elif OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+        SYSTEM_INFO info;
+        GetSystemInfo( &info );
+        numLogicalCores = info.dwNumberOfProcessors;
+#endif
+
+        return numLogicalCores;
+    }
+
+    //---------------------------------------------------------------------
     // Platform-independent routines, but the returns value are platform-dependent
     //---------------------------------------------------------------------
 
@@ -637,12 +659,21 @@ namespace Ogre {
         return (getCpuFeatures() & feature) != 0;
     }
     //---------------------------------------------------------------------
+    uint32 PlatformInformation::getNumLogicalCores(void)
+    {
+        static const uint32 sNumCores = _detectNumLogicalCores();
+        return sNumCores;
+    }
+    //---------------------------------------------------------------------
     void PlatformInformation::log(Log* pLog)
     {
         pLog->logMessage("CPU Identifier & Features");
         pLog->logMessage("-------------------------");
         pLog->logMessage(
             " *   CPU ID: " + getCpuIdentifier());
+        pLog->logMessage(
+            " *   Logical cores: " +
+                        StringConverter::toString( getNumLogicalCores() ) );
 #if OGRE_CPU == OGRE_CPU_X86
         if(_isSupportCpuid())
         {
@@ -673,12 +704,10 @@ namespace Ogre {
         }
 #elif OGRE_CPU == OGRE_CPU_ARM || OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
         pLog->logMessage(
-                " *      VFP: " + StringConverter::toString(hasCpuFeature(CPU_FEATURE_VFP), true));
-        pLog->logMessage(
                 " *     NEON: " + StringConverter::toString(hasCpuFeature(CPU_FEATURE_NEON), true));
 #elif OGRE_CPU == OGRE_CPU_MIPS
         pLog->logMessage(
-                " *      MSA: " + StringConverter::toString(hasCpuFeature(CPU_FEATURE_MSA), true));
+                " *      MSA: " + StringConverter::toString(hasCpuFeature(CPU_FEATURE_MSA), true));#endif
 #endif
         pLog->logMessage("-------------------------");
 

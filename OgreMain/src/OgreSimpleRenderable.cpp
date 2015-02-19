@@ -33,30 +33,12 @@ THE SOFTWARE.
 
 namespace Ogre {
 
-    uint SimpleRenderable::msGenNameCount = 0;
-
-    SimpleRenderable::SimpleRenderable()
-    : MovableObject()
+    SimpleRenderable::SimpleRenderable( IdType id, ObjectMemoryManager *objectMemoryManager )
+		: MovableObject( id, objectMemoryManager, Ogre::RENDER_QUEUE_MAIN )
     , mWorldTransform(Matrix4::IDENTITY)
     , mMatName("BaseWhite")
     , mMaterial(MaterialManager::getSingleton().getByName("BaseWhite"))
     , mParentSceneManager(NULL)
-    , mCamera(NULL)
-
-    {
-        // Generate name
-        StringStream name;
-        name << "SimpleRenderable" << msGenNameCount++;
-        mName = name.str();
-    }
-
-    SimpleRenderable::SimpleRenderable(const String& name)
-    : MovableObject(name)
-    , mWorldTransform(Matrix4::IDENTITY)
-    , mMatName("BaseWhite")
-    , mMaterial(MaterialManager::getSingleton().getByName("BaseWhite"))
-    , mParentSceneManager(NULL)
-    , mCamera(NULL)
     {
     }
 
@@ -97,13 +79,6 @@ namespace Ogre {
         *xform = mWorldTransform * mParentNode->_getFullTransform();
     }
 
-    void SimpleRenderable::_notifyCurrentCamera(Camera* cam)
-    {
-        MovableObject::_notifyCurrentCamera(cam);
-
-        mCamera = cam;
-    }
-
     void SimpleRenderable::setBoundingBox( const AxisAlignedBox& box )
     {
         mBox = box;
@@ -114,7 +89,8 @@ namespace Ogre {
         return mBox;
     }
 
-    void SimpleRenderable::_updateRenderQueue(RenderQueue* queue)
+    void SimpleRenderable::_updateRenderQueue(RenderQueue* queue, Camera *camera,
+                                              const Camera *lodCamera)
     {
         queue->addRenderable( this, mRenderQueueID, OGRE_RENDERABLE_DEFAULT_PRIORITY); 
     }

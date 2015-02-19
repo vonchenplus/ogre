@@ -40,23 +40,23 @@ namespace Ogre
 {
 #if OGRE_MEMORY_ALLOCATOR == OGRE_MEMORY_ALLOCATOR_STD
 
-	/** \addtogroup Core
-	*  @{
-	*/
-	/** \addtogroup Memory
-	*  @{
-	*/
-	/**	A "standard" allocation policy for use with AllocatedObject and 
-		STLAllocator. This is the class that actually does the allocation
-		and deallocation of physical memory, and is what you will want to 
-		provide a custom version of if you wish to change how memory is allocated.
-		@par
-		This class just delegates to the global malloc/free.
-	*/
-	class _OgreExport StdAllocPolicy
-	{
-	public:
-		static inline void* allocateBytes(size_t count, 
+    /** \addtogroup Core
+    *  @{
+    */
+    /** \addtogroup Memory
+    *  @{
+    */
+    /** A "standard" allocation policy for use with AllocatedObject and 
+        STLAllocator. This is the class that actually does the allocation
+        and deallocation of physical memory, and is what you will want to 
+        provide a custom version of if you wish to change how memory is allocated.
+        @par
+        This class just delegates to the global malloc/free.
+    */
+    class _OgreExport StdAllocPolicy
+    {
+    public:
+        static inline DECL_MALLOC void* allocateBytes(size_t count, 
 #if OGRE_MEMORY_TRACKER
 			const char* file = 0, int line = 0, const char* func = 0
 #else
@@ -111,7 +111,7 @@ namespace Ogre
 		typedef int IsValidAlignment
 			[Alignment <= 128 && ((Alignment & (Alignment-1)) == 0) ? +1 : -1];
 
-		static inline void* allocateBytes(size_t count, 
+        static inline DECL_MALLOC void* allocateBytes(size_t count, 
 #if OGRE_MEMORY_TRACKER
 			const char* file = 0, int line = 0, const char* func = 0
 #else

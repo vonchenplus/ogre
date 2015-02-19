@@ -196,9 +196,7 @@ namespace Ogre {
         , mVertexProgramUsage(0)
         , mShadowCasterVertexProgramUsage(0)
         , mShadowCasterFragmentProgramUsage(0)
-        , mShadowReceiverVertexProgramUsage(0)
         , mFragmentProgramUsage(0)
-        , mShadowReceiverFragmentProgramUsage(0)
         , mGeometryProgramUsage(0)
         , mTessellationHullProgramUsage(0)
         , mTessellationDomainProgramUsage(0)
@@ -210,7 +208,6 @@ namespace Ogre {
         , mPointMaxSize(0.0f)
         , mPointSpritesEnabled(false)
         , mPointAttenuationEnabled(false)
-        , mContentTypeLookupBuilt(false)
         , mLightScissoring(false)
         , mLightClipPlanes(false)
         , mIlluminationStage(IS_UNKNOWN)
@@ -228,8 +225,8 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     Pass::Pass(Technique *parent, unsigned short index, const Pass& oth)
         :mParent(parent), mIndex(index), mVertexProgramUsage(0), mShadowCasterVertexProgramUsage(0), 
-        mShadowCasterFragmentProgramUsage(0), mShadowReceiverVertexProgramUsage(0), mFragmentProgramUsage(0), 
-        mShadowReceiverFragmentProgramUsage(0), mGeometryProgramUsage(0), mTessellationHullProgramUsage(0)
+        mShadowCasterFragmentProgramUsage(0), mFragmentProgramUsage(0), 
+        mGeometryProgramUsage(0), mTessellationHullProgramUsage(0)
         , mTessellationDomainProgramUsage(0), mComputeProgramUsage(0), mQueuedForDeletion(false), mPassIterationCount(1)
     {
         *this = oth;
@@ -251,8 +248,6 @@ namespace Ogre {
         OGRE_DELETE mComputeProgramUsage;
         OGRE_DELETE mShadowCasterVertexProgramUsage;
         OGRE_DELETE mShadowCasterFragmentProgramUsage;
-        OGRE_DELETE mShadowReceiverVertexProgramUsage;
-        OGRE_DELETE mShadowReceiverFragmentProgramUsage;        
     }
     //-----------------------------------------------------------------------------
     Pass& Pass::operator=(const Pass& oth)
@@ -318,7 +313,6 @@ namespace Ogre {
         mPointAttenuationEnabled = oth.mPointAttenuationEnabled;
         memcpy(mPointAttenuationCoeffs, oth.mPointAttenuationCoeffs, sizeof(Real)*3);
         mShadowContentTypeLookup = oth.mShadowContentTypeLookup;
-        mContentTypeLookupBuilt = oth.mContentTypeLookupBuilt;
         mLightScissoring = oth.mLightScissoring;
         mLightClipPlanes = oth.mLightClipPlanes;
         mIlluminationStage = oth.mIlluminationStage;
@@ -352,16 +346,6 @@ namespace Ogre {
         else
         {
             mShadowCasterFragmentProgramUsage = NULL;
-        }
-
-        OGRE_DELETE mShadowReceiverVertexProgramUsage;
-        if (oth.mShadowReceiverVertexProgramUsage)
-        {
-            mShadowReceiverVertexProgramUsage = OGRE_NEW GpuProgramUsage(*(oth.mShadowReceiverVertexProgramUsage), this);
-        }
-        else
-        {
-            mShadowReceiverVertexProgramUsage = NULL;
         }
 
         OGRE_DELETE mFragmentProgramUsage;
@@ -414,16 +398,6 @@ namespace Ogre {
             mComputeProgramUsage = NULL;
         }
 
-        OGRE_DELETE mShadowReceiverFragmentProgramUsage;
-        if (oth.mShadowReceiverFragmentProgramUsage)
-        {
-            mShadowReceiverFragmentProgramUsage = OGRE_NEW GpuProgramUsage(*(oth.mShadowReceiverFragmentProgramUsage), this);
-        }
-        else
-        {
-            mShadowReceiverFragmentProgramUsage = NULL;
-        }
-
         TextureUnitStates::const_iterator i, iend;
 
         // Clear texture units but doesn't notify need recompilation in the case
@@ -466,12 +440,8 @@ namespace Ogre {
             memSize += mShadowCasterVertexProgramUsage->calculateSize();
         if(mShadowCasterFragmentProgramUsage)
             memSize += mShadowCasterFragmentProgramUsage->calculateSize();
-        if(mShadowReceiverVertexProgramUsage)
-            memSize += mShadowReceiverVertexProgramUsage->calculateSize();
         if(mFragmentProgramUsage)
             memSize += mFragmentProgramUsage->calculateSize();
-        if(mShadowReceiverFragmentProgramUsage)
-            memSize += mShadowReceiverFragmentProgramUsage->calculateSize();
         if(mGeometryProgramUsage)
             memSize += mGeometryProgramUsage->calculateSize();
         if(mTessellationHullProgramUsage)
@@ -653,7 +623,6 @@ namespace Ogre {
     {
         TextureUnitState *t = OGRE_NEW TextureUnitState(this);
         addTextureUnitState(t);
-        mContentTypeLookupBuilt = false;
         return t;
     }
     //-----------------------------------------------------------------------
@@ -664,7 +633,6 @@ namespace Ogre {
         t->setTextureName(textureName);
         t->setTextureCoordSet(texCoordSet);
         addTextureUnitState(t);
-        mContentTypeLookupBuilt = false;
         return t;
     }
     //-----------------------------------------------------------------------
@@ -700,6 +668,10 @@ namespace Ogre {
                     */
                     state->setTextureNameAlias(BLANKSTRING);
                 }
+
+                if( state->getContentType() == TextureUnitState::CONTENT_SHADOW )
+                    mShadowContentTypeLookup.push_back( mTextureUnitStates.size()-1 );
+
                 // Needs recompilation
                 mParent->_notifyNeedsRecompile();
                 _dirtyHash();
@@ -710,11 +682,10 @@ namespace Ogre {
                     "Pass:addTextureUnitState");
 
             }
-            mContentTypeLookupBuilt = false;
         }
     }
     //-----------------------------------------------------------------------
-    TextureUnitState* Pass::getTextureUnitState(unsigned short index)
+    TextureUnitState* Pass::getTextureUnitState( size_t index )
     {
         OGRE_LOCK_MUTEX(mTexUnitChangeMutex);
         assert (index < mTextureUnitStates.size() && "Index out of bounds");
@@ -743,7 +714,7 @@ namespace Ogre {
         return foundTUS;
     }
     //-----------------------------------------------------------------------
-    const TextureUnitState* Pass::getTextureUnitState(unsigned short index) const
+    const TextureUnitState* Pass::getTextureUnitState( size_t index ) const
     {
             OGRE_LOCK_MUTEX(mTexUnitChangeMutex);
         assert (index < mTextureUnitStates.size() && "Index out of bounds");
@@ -811,6 +782,8 @@ namespace Ogre {
         OGRE_LOCK_MUTEX(mTexUnitChangeMutex);
         assert (index < mTextureUnitStates.size() && "Index out of bounds");
 
+        removeShadowContentTypeLookup( index );
+
         TextureUnitStates::iterator i = mTextureUnitStates.begin() + index;
         OGRE_DELETE *i;
         mTextureUnitStates.erase(i);
@@ -820,7 +793,6 @@ namespace Ogre {
             mParent->_notifyNeedsRecompile();
         }
         _dirtyHash();
-        mContentTypeLookupBuilt = false;
     }
     //-----------------------------------------------------------------------
     void Pass::removeAllTextureUnitStates(void)
@@ -839,7 +811,54 @@ namespace Ogre {
             mParent->_notifyNeedsRecompile();
         }
         _dirtyHash();
-        mContentTypeLookupBuilt = false;
+        mShadowContentTypeLookup.clear();
+    }
+    //-----------------------------------------------------------------------
+    void Pass::recreateShadowContentTypeLookup(void)
+    {
+        mShadowContentTypeLookup.clear();
+        for (unsigned short i = 0; i < mTextureUnitStates.size(); ++i)
+        {
+            if (mTextureUnitStates[i]->getContentType() == TextureUnitState::CONTENT_SHADOW)
+                mShadowContentTypeLookup.push_back(i);
+        }
+    }
+    //-----------------------------------------------------------------------
+    void Pass::insertShadowContentTypeLookup( size_t textureUnitIndex )
+    {
+        //Shadow content lookup indexes may have been shifted (and a new index must be inserted)
+        ContentTypeLookup::iterator itor = std::lower_bound( mShadowContentTypeLookup.begin(),
+                                                             mShadowContentTypeLookup.end(),
+                                                             textureUnitIndex );
+        itor = mShadowContentTypeLookup.insert( itor, textureUnitIndex ) + 1;
+        ContentTypeLookup::iterator end  = mShadowContentTypeLookup.end();
+
+        while( itor != end )
+        {
+            *itor += 1;
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------
+    void Pass::removeShadowContentTypeLookup( size_t textureUnitIndex )
+    {
+        //Shadow content lookup indexes may have been shifted (or removed)
+        ContentTypeLookup::iterator itor = std::lower_bound( mShadowContentTypeLookup.begin(),
+                                                             mShadowContentTypeLookup.end(),
+                                                             textureUnitIndex );
+        if( itor != mShadowContentTypeLookup.end() && *itor == textureUnitIndex )
+        {
+            const size_t idx = itor - mShadowContentTypeLookup.begin();
+            mShadowContentTypeLookup.erase( itor );
+            itor = mShadowContentTypeLookup.begin() + idx;
+        }
+        ContentTypeLookup::iterator end  = mShadowContentTypeLookup.end();
+
+        while( itor != end )
+        {
+            *itor -= 1;
+            ++itor;
+        }
     }
     //-----------------------------------------------------------------------
     void Pass::_getBlendFlags(SceneBlendType type, SceneBlendFactor& source, SceneBlendFactor& dest)
@@ -1280,7 +1299,8 @@ namespace Ogre {
             // been transferred
             mTextureUnitStates.erase(istart, iend);
             _dirtyHash();
-            mContentTypeLookupBuilt = false;
+            newPass->recreateShadowContentTypeLookup();
+            recreateShadowContentTypeLookup();
             return newPass;
         }
         return NULL;
@@ -1351,11 +1371,6 @@ namespace Ogre {
             // Load fragment program
             mShadowCasterFragmentProgramUsage->_load();
         }
-        if (mShadowReceiverVertexProgramUsage)
-        {
-            // Load vertex program
-            mShadowReceiverVertexProgramUsage->_load();
-        }
 
         if (mTessellationHullProgramUsage)
         {
@@ -1379,11 +1394,6 @@ namespace Ogre {
         {
             // Load fragment program
             mFragmentProgramUsage->_load();
-        }
-        if (mShadowReceiverFragmentProgramUsage)
-        {
-            // Load Fragment program
-            mShadowReceiverFragmentProgramUsage->_load();
         }
 
         if (mComputeProgramUsage)
@@ -1442,7 +1452,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Pass::setVertexProgram(const String& name, bool resetParams)
     {
-        OGRE_LOCK_MUTEX(mGpuProgramChangeMutex);
+            OGRE_LOCK_MUTEX(mGpuProgramChangeMutex);
 
         if (getVertexProgramName() != name)
         {
@@ -1982,11 +1992,6 @@ namespace Ogre {
             OGRE_DELETE mShadowCasterFragmentProgramUsage;
             mShadowCasterFragmentProgramUsage = 0;
         }
-        if (mShadowReceiverVertexProgramUsage)
-        {
-            OGRE_DELETE mShadowReceiverVertexProgramUsage;
-            mShadowReceiverVertexProgramUsage = 0;
-        }
         if (mGeometryProgramUsage)
         {
             delete mGeometryProgramUsage;
@@ -2011,11 +2016,6 @@ namespace Ogre {
         {
             OGRE_DELETE mComputeProgramUsage;
             mComputeProgramUsage = 0;
-        }
-        if (mShadowReceiverFragmentProgramUsage)
-        {
-            OGRE_DELETE mShadowReceiverFragmentProgramUsage;
-            mShadowReceiverFragmentProgramUsage = 0;
         }
         // remove from dirty list, if there
         {
@@ -2157,116 +2157,6 @@ namespace Ogre {
         return mShadowCasterFragmentProgramUsage->getProgram();
     }
     //-----------------------------------------------------------------------
-    void Pass::setShadowReceiverVertexProgram(const String& name)
-    {
-        // Turn off vertex program if name blank
-        if (name.empty())
-        {
-            OGRE_DELETE mShadowReceiverVertexProgramUsage;
-            mShadowReceiverVertexProgramUsage = NULL;
-        }
-        else
-        {
-            if (!mShadowReceiverVertexProgramUsage)
-            {
-                mShadowReceiverVertexProgramUsage = OGRE_NEW GpuProgramUsage(GPT_VERTEX_PROGRAM, this);
-            }
-            mShadowReceiverVertexProgramUsage->setProgramName(name);
-        }
-        // Needs recompilation
-        mParent->_notifyNeedsRecompile();
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setShadowReceiverVertexProgramParameters(GpuProgramParametersSharedPtr params)
-    {
-        if (!mShadowReceiverVertexProgramUsage)
-        {
-            OGRE_EXCEPT (Exception::ERR_INVALIDPARAMS,
-                "This pass does not have a shadow receiver vertex program assigned!",
-                "Pass::setShadowReceiverVertexProgramParameters");
-        }
-        mShadowReceiverVertexProgramUsage->setParameters(params);
-    }
-    //-----------------------------------------------------------------------
-    const String& Pass::getShadowReceiverVertexProgramName(void) const
-    {
-        if (!mShadowReceiverVertexProgramUsage)
-            return BLANKSTRING;
-        else
-            return mShadowReceiverVertexProgramUsage->getProgramName();
-    }
-    //-----------------------------------------------------------------------
-    GpuProgramParametersSharedPtr Pass::getShadowReceiverVertexProgramParameters(void) const
-    {
-        if (!mShadowReceiverVertexProgramUsage)
-        {
-            OGRE_EXCEPT (Exception::ERR_INVALIDPARAMS,
-                "This pass does not have a shadow receiver vertex program assigned!",
-                "Pass::getShadowReceiverVertexProgramParameters");
-        }
-        return mShadowReceiverVertexProgramUsage->getParameters();
-    }
-    //-----------------------------------------------------------------------
-    const GpuProgramPtr& Pass::getShadowReceiverVertexProgram(void) const
-    {
-        return mShadowReceiverVertexProgramUsage->getProgram();
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setShadowReceiverFragmentProgram(const String& name)
-    {
-        // Turn off Fragment program if name blank
-        if (name.empty())
-        {
-            OGRE_DELETE mShadowReceiverFragmentProgramUsage;
-            mShadowReceiverFragmentProgramUsage = NULL;
-        }
-        else
-        {
-            if (!mShadowReceiverFragmentProgramUsage)
-            {
-                mShadowReceiverFragmentProgramUsage = OGRE_NEW GpuProgramUsage(GPT_FRAGMENT_PROGRAM, this);
-            }
-            mShadowReceiverFragmentProgramUsage->setProgramName(name);
-        }
-        // Needs recompilation
-        mParent->_notifyNeedsRecompile();
-    }
-    //-----------------------------------------------------------------------
-    void Pass::setShadowReceiverFragmentProgramParameters(GpuProgramParametersSharedPtr params)
-    {
-        if (!mShadowReceiverFragmentProgramUsage)
-        {
-            OGRE_EXCEPT (Exception::ERR_INVALIDPARAMS,
-                "This pass does not have a shadow receiver fragment program assigned!",
-                "Pass::setShadowReceiverFragmentProgramParameters");
-        }
-        mShadowReceiverFragmentProgramUsage->setParameters(params);
-    }
-    //-----------------------------------------------------------------------
-    const String& Pass::getShadowReceiverFragmentProgramName(void) const
-    {
-        if (!mShadowReceiverFragmentProgramUsage)
-            return BLANKSTRING;
-        else
-            return mShadowReceiverFragmentProgramUsage->getProgramName();
-    }
-    //-----------------------------------------------------------------------
-    GpuProgramParametersSharedPtr Pass::getShadowReceiverFragmentProgramParameters(void) const
-    {
-        if (!mShadowReceiverFragmentProgramUsage)
-        {
-            OGRE_EXCEPT (Exception::ERR_INVALIDPARAMS,
-                "This pass does not have a shadow receiver fragment program assigned!",
-                "Pass::getShadowReceiverFragmentProgramParameters");
-        }
-        return mShadowReceiverFragmentProgramUsage->getParameters();
-    }
-    //-----------------------------------------------------------------------
-    const GpuProgramPtr& Pass::getShadowReceiverFragmentProgram(void) const
-    {
-        return mShadowReceiverFragmentProgramUsage->getProgram();
-    }
-    //-----------------------------------------------------------------------
     const String& Pass::getResourceGroup(void) const
     {
         return mParent->getResourceGroup();
@@ -2290,22 +2180,9 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    unsigned short Pass::_getTextureUnitWithContentTypeIndex(
-        TextureUnitState::ContentType contentType, unsigned short index) const
+    size_t Pass::_getTextureUnitWithContentTypeIndex(
+        TextureUnitState::ContentType contentType, size_t index) const
     {
-        if (!mContentTypeLookupBuilt)
-        {
-            mShadowContentTypeLookup.clear();
-            for (unsigned short i = 0; i < mTextureUnitStates.size(); ++i)
-            {
-                if (mTextureUnitStates[i]->getContentType() == TextureUnitState::CONTENT_SHADOW)
-                {
-                    mShadowContentTypeLookup.push_back(i);
-                }
-            }
-            mContentTypeLookupBuilt = true;
-        }
-
         switch(contentType)
         {
         case TextureUnitState::CONTENT_SHADOW:

@@ -42,6 +42,7 @@ THE SOFTWARE.
 #include "OgreWindowEventUtilities.h"
 #include "OgreGL3PlusPixelFormat.h"
 #include "OgreDepthBuffer.h"
+#include "OgrePixelBox.h"
 
 namespace Ogre {
 
@@ -287,8 +288,8 @@ namespace Ogre {
                 adjustWindow(width, height, &winWidth, &winHeight);
 
                 // clamp window dimensions to screen size
-                int outerw = (winWidth < screenw)? winWidth : screenw;
-                int outerh = (winHeight < screenh)? winHeight : screenh;
+                int outerw = ((int)winWidth < screenw) ? (int)winWidth : screenw;
+                int outerh = ((int)winHeight < screenh) ? (int)winHeight : screenh;
 
                 if (left == -1)
                     left = monitorInfoEx.rcWork.left + (screenw - outerw) / 2;
@@ -614,8 +615,8 @@ namespace Ogre {
                 LONG screenh = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
 
 
-                int left = screenw > winWidth ? ((screenw - winWidth) / 2) : 0;
-                int top = screenh > winHeight ? ((screenh - winHeight) / 2) : 0;
+                int left = (screenw > (int)winWidth) ? ((screenw - (int)winWidth) / 2) : 0;
+                int top = (screenh > (int)winHeight) ? ((screenh - (int)winHeight) / 2) : 0;
 
                 SetWindowLong(mHWnd, GWL_STYLE, getWindowStyle(mIsFullScreen));
                 SetWindowPos(mHWnd, HWND_NOTOPMOST, left, top, winWidth, winHeight,
@@ -814,9 +815,9 @@ namespace Ogre {
             mHeight = rc.bottom - rc.top;
 
             // Notify viewports of resize
-            ViewportList::iterator it = mViewportList.begin();
+            ViewportList::const_iterator it = mViewportList.begin();
             while( it != mViewportList.end() )
-                (*it++).second->_updateDimensions();            
+                (*it++)->_updateDimensions();
         }
     }
 

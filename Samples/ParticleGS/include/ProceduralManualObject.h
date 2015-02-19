@@ -24,7 +24,8 @@ namespace Ogre
     class ProceduralManualObject : public SimpleRenderable
     {
     public:
-        ProceduralManualObject() {}
+        ProceduralManualObject( IdType id, ObjectMemoryManager *objectMemoryManager )
+            : SimpleRenderable( id, objectMemoryManager ) {}
         virtual ~ProceduralManualObject() {}
 
         void setRenderToVertexBuffer(RenderToVertexBufferSharedPtr r2vbObject)
@@ -36,18 +37,15 @@ namespace Ogre
         ManualObject* getManualObject() const { return mManualObject; }
 
         /** @copydoc SimpleRenderable::_updateRenderQueue. */
-        void _updateRenderQueue(RenderQueue* queue);
+        void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
         /** @copydoc SimpleRenderable::getMovableType. */
         const String& getMovableType(void) const;
         /** @copydoc SimpleRenderable::getRenderOperation. */
         void getRenderOperation(RenderOperation& op);
 
-        // Delegate to the manual object.
-        Real getBoundingRadius(void) const
-        { return mManualObject->getBoundingRadius(); }
-        Real getSquaredViewDepth(const Ogre::Camera* cam) const
-        { return mManualObject->getSection(0)->getSquaredViewDepth(cam); }
-
+        //Delegate to the manual object
+        Real getSquaredViewDepth(const Ogre::Camera* cam) const 
+            { return mManualObject->getSection(0)->getSquaredViewDepth(cam); }
     protected:
         ManualObject* mManualObject;
         RenderToVertexBufferSharedPtr mR2vbObject;
@@ -55,11 +53,15 @@ namespace Ogre
 
     class ProceduralManualObjectFactory : public MovableObjectFactory
     {
-    public:
-        ProceduralManualObjectFactory() {}
-        ~ProceduralManualObjectFactory() {}
+    protected:
+            MovableObject* createInstanceImpl( IdType id,
+                                            ObjectMemoryManager *objectMemoryManager,
+                                            const NameValuePairList* params );
+        public:
+            ProceduralManualObjectFactory() {}
+            ~ProceduralManualObjectFactory() {}
 
-        static String FACTORY_TYPE_NAME;
+            static String FACTORY_TYPE_NAME;
 
         const String& getType(void) const;
         void destroyInstance( MovableObject* obj);

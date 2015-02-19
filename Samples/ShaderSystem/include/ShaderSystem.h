@@ -21,7 +21,7 @@ enum ShaderSystemLightingModel
 class _OgreSampleClassExport InfiniteFrustum : public Frustum
 {
 public:
-    InfiniteFrustum() : Frustum()
+    InfiniteFrustum( ObjectMemoryManager *objMemoryManager ) : Frustum(0, objMemoryManager)
     {
         mFrustumPlanes[FRUSTUM_PLANE_LEFT].normal = Vector3::NEGATIVE_UNIT_X;
         mFrustumPlanes[FRUSTUM_PLANE_LEFT].d = 9999999999999999999.0f;
@@ -191,6 +191,10 @@ protected:
 
     ManualObject* createTextureAtlasObject();
     void createMaterialForTexture( const String & texName, bool isTextureAtlasTexture );
+
+    /** Return current specular state. */
+    Light * getLightNamedFromSceneManager(const String &name);
+
     // Types.
 protected:
     typedef vector<Entity*>::type   EntityList;
@@ -211,6 +215,7 @@ protected:
     RTShader::SubRenderStateFactory*    mReflectionMapFactory;  // The custom reflection map shader extension factory.
     RTShader::SubRenderState*           mInstancedViewportsSubRenderState;// todo - doc
     bool                                mInstancedViewportsEnable;      // todo - doc
+    ObjectMemoryManager                 mObjectMemoryManager;           // For the mInfiniteFrustum
     InfiniteFrustum                     mInfiniteFrustum;               // todo - doc
     BillboardSet*                       mBbsFlare;                      // todo - doc
     bool                                mAddedLotsOfModels;             // todo - doc
@@ -239,6 +244,7 @@ protected:
     String                              mExportMaterialPath;    // The path of the export material.
     CheckBox*                           mInstancedViewportsCheckBox; // The instanced viewports check box.
     CheckBox*                           mAddLotsOfModels; // The "add lots of models" check box.                
+    Entity*                             mMainEntity;
 };
 
 #endif

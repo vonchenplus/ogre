@@ -154,7 +154,8 @@ protected:
             pAthene->buildTangentVectors(VES_TANGENT, src, dest);
         
         //Create an athena statue
-        Entity* athena = mSceneMgr->createEntity("Athena", "athene.mesh");
+        Entity* athena = mSceneMgr->createEntity("athene.mesh");
+        athena->setName("Athena");
         athena->setMaterialName("DeferredDemo/DeferredAthena");
         SceneNode *aNode = rootNode->createChildSceneNode();
         aNode->attachObject( athena );
@@ -175,7 +176,8 @@ protected:
             pKnot->buildTangentVectors(VES_TANGENT, src, dest);
         
         // Create a bunch of knots with spotlights hanging from above
-        Entity* knotEnt = mSceneMgr->createEntity("Knot", "knot.mesh");
+        Entity* knotEnt = mSceneMgr->createEntity("knot.mesh");
+        knotEnt->setName("Knot");
         knotEnt->setMaterialName("DeferredDemo/RockWall");
         //knotEnt->setMeshLodBias(0.25f);
         Vector3 knotStartPos(25.5, 2, 5.5);
@@ -207,7 +209,8 @@ protected:
     void createObjects(SceneNode* rootNode)
     {
         // Create ogre heads to decorate the wall
-        Entity* ogreHead = mSceneMgr->createEntity("Head", "ogrehead.mesh");
+        Entity* ogreHead = mSceneMgr->createEntity("ogrehead.mesh");
+        ogreHead->setName("Head");
         //rootNode->createChildSceneNode( "Head" )->attachObject( ogreHead );
         Vector3 headStartPos[2] = { Vector3(25.25,11,3), Vector3(25.25,11,-3) };
         Vector3 headDiff(-3.7,0,0);
@@ -228,7 +231,8 @@ protected:
         }
         
         // Create a pile of wood pallets
-        Entity* woodPallet = mSceneMgr->createEntity("Pallet", "WoodPallet.mesh");
+        Entity* woodPallet = mSceneMgr->createEntity("WoodPallet.mesh");
+        woodPallet->setName("Pallet");
         Vector3 woodStartPos(10, 0.5, -5.5);
         Vector3 woodDiff(0, 0.3, 0);
         for (int i=0; i < 5; i++)
@@ -325,7 +329,8 @@ protected:
         SceneNode* rootNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
         
         // Create the cathedral - this will be the static scene
-        Entity* cathedralEnt = mSceneMgr->createEntity("Cathedral", "sibenik.mesh");
+        Entity* cathedralEnt = mSceneMgr->createEntity("sibenik.mesh");
+        cathedralEnt->setName("Cathedral");
         SceneNode* cathedralNode = rootNode->createChildSceneNode();
         cathedralNode->attachObject(cathedralEnt);
         
@@ -414,7 +419,8 @@ protected:
         for(vector<Light*>::type::iterator i=lights.begin(); i!=lights.end(); ++i)
         {
             Light* light = *i;
-            ent = mSceneMgr->createEntity(light->getName()+"v", "PointLightMesh");
+            ent = mSceneMgr->createEntity("PointLightMesh");
+            ent->setName(light->getName()+"v");
             String matname = light->getName()+"m";
             // Create coloured material
             MaterialPtr mat = MaterialManager::getSingleton().create(matname,
@@ -465,7 +471,7 @@ protected:
         for(unsigned int x=0; x<nodes.size(); ++x)
         {
             // Create a track to animate the camera's node
-            NodeAnimationTrack* track = anim->createNodeTrack(x, nodes[x]);
+			NodeAnimationTrack* track = anim->createNodeTrack(nodes[x]);
             for(size_t y=0; y<=stations; ++y)
             {
                 // Setup keyframes

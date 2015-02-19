@@ -62,15 +62,16 @@ namespace Ogre {
             The subclass must update the render queue using whichever Renderable
             instance(s) it wishes.
         */
-        virtual void _updateRenderQueue(RenderQueue* queue, 
-            list<Particle*>::type& currentParticles, bool cullIndividually) = 0;
+        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera,
+            const Camera *lodCamera, list<Particle*>::type& currentParticles,
+            bool cullIndividually) = 0;
 
         /** Sets the material this renderer must use; called by ParticleSystem. */
         virtual void _setMaterial(MaterialPtr& mat) = 0;
         /** Delegated to by ParticleSystem::_notifyCurrentCamera */
         virtual void _notifyCurrentCamera(Camera* cam) = 0;
         /** Delegated to by ParticleSystem::_notifyAttached */
-        virtual void _notifyAttached(Node* parent, bool isTagPoint = false) = 0;
+        virtual void _notifyAttached(Node* parent) = 0;
         /** Optional callback notified when particles are rotated */
         virtual void _notifyParticleRotated(void) {}
         /** Optional callback notified when particles are resized individually */

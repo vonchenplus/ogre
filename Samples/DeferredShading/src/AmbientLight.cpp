@@ -23,7 +23,7 @@ same license as the rest of the engine.
 
 using namespace Ogre;
 
-AmbientLight::AmbientLight()
+AmbientLight::AmbientLight( IdType id, ObjectMemoryManager *memMgr ) : SimpleRenderable(id, memMgr)
 {
     setRenderQueueGroup(RENDER_QUEUE_2);
 
@@ -36,6 +36,7 @@ AmbientLight::AmbientLight()
     mRenderOp.useIndexes = false; 
 
     // Set bounding
+//    setLocalAabb();
     setBoundingBox(AxisAlignedBox(-10000,-10000,-10000,10000,10000,10000));
     mRadius = 15000;
 

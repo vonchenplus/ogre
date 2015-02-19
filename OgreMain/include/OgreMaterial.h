@@ -39,10 +39,6 @@ THE SOFTWARE.
 #include "OgreSharedPtr.h"
 
 namespace Ogre {
-
-    // Forward declaration
-    class LodStrategy;
-
     /** \addtogroup Core
     *  @{
     */
@@ -93,8 +89,8 @@ namespace Ogre {
 
     public:
         /// distance list used to specify LOD
-        typedef vector<Real>::type LodValueList;
-        typedef ConstVectorIterator<LodValueList> LodValueIterator;
+        typedef FastArray<Real> LodValueArray;
+        typedef ConstVectorIterator<LodValueArray> LodValueIterator;
     protected:
 
 
@@ -115,9 +111,8 @@ namespace Ogre {
         */
         BestTechniquesBySchemeList mBestTechniquesBySchemeList;
 
-        LodValueList mUserLodValues;
-        LodValueList mLodValues;
-        const LodStrategy *mLodStrategy;
+        LodValueArray mUserLodValues;
+        LodValueArray mLodValues;
         bool mReceiveShadows;
         bool mTransparencyCastsShadows;
         /// Does this material require compilation?
@@ -613,7 +608,9 @@ namespace Ogre {
             transformed by the strategy, so for the distance strategy this is an
             unsquared distance for example.
         */
-        void setLodLevels(const LodValueList& lodValues);
+        void setLodLevels(const LodValueArray& lodValues);
+
+        const LodValueArray* _getLodValues(void) const                      { return &mLodValues; }
 
         /** Gets an iterator over the list of values transformed by the LodStrategy at which each LOD comes into effect. 
         @remarks
@@ -632,18 +629,6 @@ namespace Ogre {
             values returned are after being transformed by LodStrategy::transformUserValue.
         */
         LodValueIterator getUserLodValueIterator(void) const;
-
-        /** Gets the LOD index to use at the given value. 
-        @note The value passed in is the 'transformed' value. If you are dealing with
-        an original source value (e.g. distance), use LodStrategy::transformUserValue
-        to turn this into a lookup value.
-        */
-        ushort getLodIndex(Real value) const;
-
-        /** Get LOD strategy used by this material. */
-        const LodStrategy *getLodStrategy() const;
-        /** Set the LOD strategy used by this material. */
-        void setLodStrategy(LodStrategy *lodStrategy);
 
         /** @copydoc Resource::touch
         */

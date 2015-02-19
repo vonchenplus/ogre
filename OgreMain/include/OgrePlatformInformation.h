@@ -25,8 +25,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#ifndef __PlatformInformation_H__
-#define __PlatformInformation_H__
+#ifndef _OgrePlatformInformation_H_
+#define _OgrePlatformInformation_H_
 
 #include "OgrePrerequisites.h"
 
@@ -88,56 +88,42 @@ namespace Ogre {
 */
 #define OGRE_SIMD_ALIGNED_DECL(type, var)   OGRE_ALIGNED_DECL(type, var, OGRE_SIMD_ALIGNMENT)
 
-/* Define whether or not Ogre compiled with SSE supports.
+/* Define whether or not Ogre compiled with SSE support.
 */
-#if   OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_X86 && OGRE_COMPILER == OGRE_COMPILER_MSVC && \
-    OGRE_PLATFORM != OGRE_PLATFORM_NACL
-#   define __OGRE_HAVE_SSE  1
-#elif OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_X86 && (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && \
-      OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS && OGRE_PLATFORM != OGRE_PLATFORM_NACL
-#   define __OGRE_HAVE_SSE  1
-#endif
+#if OGRE_USE_SIMD == 1
+    #if   OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_X86 && OGRE_COMPILER == OGRE_COMPILER_MSVC && \
+        OGRE_PLATFORM != OGRE_PLATFORM_NACL
+    #   define __OGRE_HAVE_SSE  1
+    #elif OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_X86 && (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && \
+          OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS && OGRE_PLATFORM != OGRE_PLATFORM_NACL
+    #   define __OGRE_HAVE_SSE  1
+    #endif
 
-/* Define whether or not Ogre compiled with VFP support.
- */
-#if OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_ARM && (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && defined(__ARM_ARCH_6K__) && defined(__VFP_FP__)
-#   define __OGRE_HAVE_VFP  1
-#endif
-
-/* Define whether or not Ogre compiled with NEON support.
- */
-#if OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_ARM && (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && defined(__ARM_ARCH_7A__) && defined(__ARM_NEON__)
-#   define __OGRE_HAVE_NEON  1
-#endif
-
-/* Define whether or not Ogre compiled with MSA support.
- */
-#if OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_MIPS && (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && defined(__mips_msa)
-#   define __OGRE_HAVE_MSA  1
+    /* Define whether or not Ogre compiled with NEON support.
+     */
+    #if OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_ARM && (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && defined(__ARM_NEON__)
+    #   define __OGRE_HAVE_NEON  1
+    #endif
 #endif
 
 #ifndef __OGRE_HAVE_SSE
 #   define __OGRE_HAVE_SSE  0
 #endif
 
-#ifndef __OGRE_HAVE_VFP
-#   define __OGRE_HAVE_VFP  0
-#endif
-
-#ifndef __OGRE_HAVE_NEON
+#if OGRE_USE_SIMD == 0 || !defined(__OGRE_HAVE_NEON)
 #   define __OGRE_HAVE_NEON  0
 #endif
 
-#ifndef __OGRE_HAVE_MSA
-#   define __OGRE_HAVE_MSA  0
+#if !defined(__OGRE_HAVE_DIRECTXMATH)
+#   define __OGRE_HAVE_DIRECTXMATH  0
 #endif
-
-    /** \addtogroup Core
-    *  @{
-    */
-    /** \addtogroup General
-    *  @{
-    */
+    
+	/** \addtogroup Core
+	*  @{
+	*/
+	/** \addtogroup General
+	*  @{
+	*/
 
 
     /** Class which provides the run-time platform information Ogre runs on.
@@ -204,6 +190,12 @@ namespace Ogre {
         */
         static bool hasCpuFeature(CpuFeatures feature);
 
+        /** Returns the number of logical cores, including Hyper Threaded / SMT cores
+        @note
+            Returns 0 if couldn't detect.
+        */
+        static uint32 getNumLogicalCores(void);
+
 
         /** Write the CPU information to the passed in Log */
         static void log(Log* pLog);
@@ -214,4 +206,4 @@ namespace Ogre {
 
 }
 
-#endif  // __PlatformInformation_H__
+#endif  // _OgrePlatformInformation_H_

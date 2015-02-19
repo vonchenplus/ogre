@@ -270,7 +270,6 @@ namespace RTShader {
         AutoShaderParameter(GpuProgramParameters::ACT_DERIVED_LIGHT_SPECULAR_COLOUR,            "derived_light_specular_colour",            GCT_FLOAT4),
         AutoShaderParameter(GpuProgramParameters::ACT_DERIVED_LIGHT_DIFFUSE_COLOUR_ARRAY,       "derived_light_diffuse_colour_array",       GCT_FLOAT4),
         AutoShaderParameter(GpuProgramParameters::ACT_DERIVED_LIGHT_SPECULAR_COLOUR_ARRAY,      "derived_light_specular_colour_array",      GCT_FLOAT4),
-        AutoShaderParameter(GpuProgramParameters::ACT_LIGHT_NUMBER,                             "light_number",                             GCT_FLOAT1),
         AutoShaderParameter(GpuProgramParameters::ACT_LIGHT_CASTS_SHADOWS,                      "light_casts_shadows",                      GCT_FLOAT1),
         AutoShaderParameter(GpuProgramParameters::ACT_LIGHT_CASTS_SHADOWS_ARRAY,                "light_casts_shadows_array",                GCT_FLOAT1),
         AutoShaderParameter(GpuProgramParameters::ACT_SHADOW_EXTRUSION_DISTANCE,                "shadow_extrusion_distance",                GCT_FLOAT1),
@@ -328,7 +327,8 @@ namespace RTShader {
         AutoShaderParameter(GpuProgramParameters::ACT_TEXTURE_MATRIX,                            "texture_matrix",                          GCT_MATRIX_4X4),
         AutoShaderParameter(GpuProgramParameters::ACT_LOD_CAMERA_POSITION,                      "lod_camera_position",                      GCT_FLOAT3),
         AutoShaderParameter(GpuProgramParameters::ACT_LOD_CAMERA_POSITION_OBJECT_SPACE,         "lod_camera_position_object_space",         GCT_FLOAT3),
-        AutoShaderParameter(GpuProgramParameters::ACT_LIGHT_CUSTOM,                             "light_custom",                             GCT_FLOAT1)
+		AutoShaderParameter(GpuProgramParameters::ACT_LIGHT_CUSTOM,                             "light_custom",                             GCT_FLOAT1),
+		AutoShaderParameter(GpuProgramParameters::ACT_PSSM_SPLITS,                              "pssm_splits",                              GCT_FLOAT4)
     };
 
 //-----------------------------------------------------------------------

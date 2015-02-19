@@ -194,7 +194,7 @@ namespace Ogre
     public:
 
         /// Named constructor
-        Frustum(const String& name = BLANKSTRING);
+        Frustum( IdType id, ObjectMemoryManager *objectMemoryManager );
 
         virtual ~Frustum();
         /** Sets the Y-dimension Field Of View (FOV) of the frustum.
@@ -423,6 +423,9 @@ namespace Ogre
         */
         virtual const Plane* getFrustumPlanes(void) const;
 
+        /// Returns the frustum planes, doesn't check if dirty.
+        const Plane* _getCachedFrustumPlanes(void) const                { return mFrustumPlanes; }
+
         /** Retrieves a specified plane of the frustum (world space).
         @remarks
             Gets a reference to one of the planes which make up the frustum frustum, e.g. for clipping purposes.
@@ -468,17 +471,11 @@ namespace Ogre
         */
         virtual bool isVisible(const Vector3& vert, FrustumPlane* culledBy = 0) const;
 
-        /// Overridden from MovableObject::getTypeFlags
-        uint32 getTypeFlags(void) const;
-
         /** Overridden from MovableObject */
         const AxisAlignedBox& getBoundingBox(void) const;
 
         /** Overridden from MovableObject */
-        Real getBoundingRadius(void) const;
-
-        /** Overridden from MovableObject */
-        void _updateRenderQueue(RenderQueue* queue);
+        void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
 
         /** Overridden from MovableObject */
         const String& getMovableType(void) const;
@@ -500,6 +497,10 @@ namespace Ogre
 
         /** Overridden from Renderable */
         const LightList& getLights(void) const;
+
+        void getCustomWorldSpaceCorners(
+                    ArrayVector3 outCorners[(8 + ARRAY_PACKED_REALS - 1) / ARRAY_PACKED_REALS],
+                    Real customFarPlane ) const;
 
         /** Gets the world space corners of the frustum.
         @remarks

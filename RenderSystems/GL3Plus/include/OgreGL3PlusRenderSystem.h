@@ -76,6 +76,8 @@ namespace Ogre {
         /// Holds texture type settings for every stage
         GLenum mTextureTypes[OGRE_MAX_TEXTURE_LAYERS];
 
+        GLfloat mLargestSupportedAnisotropy;
+
         /// Number of fixed-function texture units
         unsigned short mFixedFunctionTextureUnits;
 
@@ -314,11 +316,11 @@ namespace Ogre {
         /** See
          RenderSystem
          */
-        void _setTesselationHullTexture(size_t unit, const TexturePtr &tex);
+        void _setTessellationHullTexture(size_t unit, const TexturePtr &tex);
         /** See
          RenderSystem
          */
-        void _setTesselationDomainTexture(size_t unit, const TexturePtr &tex);
+        void _setTessellationDomainTexture(size_t unit, const TexturePtr &tex);
         /** See
             RenderSystem
         */
@@ -541,9 +543,6 @@ namespace Ogre {
         void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
         /// @copydoc RenderSystem::getDisplayMonitorCount
         unsigned int getDisplayMonitorCount() const;
-
-        /// Internal method for anisotropy validation
-        GLfloat _getCurrentAnisotropy(size_t unit);
 
         GLenum _getPolygonMode(void) { return mPolygonMode; }
 
