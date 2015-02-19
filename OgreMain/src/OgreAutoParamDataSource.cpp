@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "OgreVector4.h"
 #include "OgreColourValue.h"
 #include "OgreSceneNode.h"
+#include "OgrePass.h"
 #include "OgreViewport.h"
 
 #include "Compositor/OgreCompositorShadowNode.h"
@@ -80,7 +81,7 @@ namespace Ogre {
          mCurrentSceneManager(0),
          mCurrentPass(0),
          mCurrentShadowNode(0),
-         mBlankLight( 0, &mObjectMemoryManager )
+         mBlankLight( 0, &mObjectMemoryManager, 0 )
     {
         mBlankLight.setDiffuseColour(ColourValue::Black);
         mBlankLight.setSpecularColour(ColourValue::Black);
@@ -577,7 +578,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getSurfaceAlphaRejectionValue(void) const
     {
-        return static_cast<Real>(static_cast<unsigned int>(mCurrentPass->getAlphaRejectValue())) / 255.0f;
+        return mCurrentPass->getAlphaRejectValue() * 0.003921569f; //1 / 255
     }
     //-----------------------------------------------------------------------------
     ColourValue AutoParamDataSource::getDerivedAmbientLightColour(void) const

@@ -83,6 +83,10 @@ namespace Ogre
         float               mVpTop;
         float               mVpWidth;
         float               mVpHeight;
+        float               mVpScissorLeft;
+        float               mVpScissorTop;
+        float               mVpScissorWidth;
+        float               mVpScissorHeight;
 
         /// Shadow map index it belongs to (only filled in passes owned by Shadow Nodes)
         uint32              mShadowMapIdx;
@@ -104,14 +108,22 @@ namespace Ogre
         */
         bool                mIncludeOverlays;
 
+        uint8               mExecutionMask;
+        uint8               mViewportModifierMask;
+
     public:
         CompositorPassDef( CompositorPassType passType, uint32 rtIndex ) :
             mPassType( passType ), mRtIndex( rtIndex ),
             mVpLeft( 0 ), mVpTop( 0 ),
-            mVpWidth( 1 ), mVpHeight( 1 ), mShadowMapIdx( 0 ),
+            mVpWidth( 1 ), mVpHeight( 1 ),
+            mVpScissorLeft( 0 ), mVpScissorTop( 0 ),
+            mVpScissorWidth( 1 ), mVpScissorHeight( 1 ),
+            mShadowMapIdx( 0 ),
             mNumInitialPasses( -1 ), mIdentifier( 0 ),
             mBeginRtUpdate( true ), mEndRtUpdate( true ),
-            mIncludeOverlays( false ) {}
+            mIncludeOverlays( false ),
+            mExecutionMask( 0xFF ),
+            mViewportModifierMask( 0xFF ) {}
         virtual ~CompositorPassDef() {}
 
         CompositorPassType getType() const              { return mPassType; }

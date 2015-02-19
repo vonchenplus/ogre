@@ -49,7 +49,7 @@ THE SOFTWARE.
     unsigned long OGRE_THREAD_CALL_CONVENTION threadFunction##_internal( void *argName )\
     {\
         unsigned long retVal = 0;\
-        ThreadHandle *threadHandle( reinterpret_cast<ThreadHandle*>( argName ) );\
+        Ogre::ThreadHandle *threadHandle( reinterpret_cast<Ogre::ThreadHandle*>( argName ) );\
         try {\
             retVal = threadFunction( threadHandle );\
         }\
@@ -65,7 +65,7 @@ THE SOFTWARE.
     void* OGRE_THREAD_CALL_CONVENTION threadFunction##_internal( void *argName )\
     {\
         unsigned long retVal = 0;\
-        ThreadHandle *threadHandle( reinterpret_cast<ThreadHandle*>( argName ) );\
+        Ogre::ThreadHandle *threadHandle( reinterpret_cast<Ogre::ThreadHandle*>( argName ) );\
         try {\
             retVal = threadFunction( threadHandle );\
         }\
@@ -74,7 +74,7 @@ THE SOFTWARE.
         }\
         delete threadHandle;\
         \
-        return 0;\
+        return (void*)retVal;\
     }
 #endif
 
@@ -177,6 +177,10 @@ namespace Ogre
         */
         static void WaitForThreads( size_t numThreadHandles, const ThreadHandlePtr *threadHandles );
         static void WaitForThreads( const ThreadHandleVec &threadHandles );
+
+        /// Sleeps for a **minimum** of the specified time of milliseconds. Actual time spent
+        /// sleeping may vary widely depending on OS and other variables. Do not feed 0.
+        static void Sleep( uint32 milliseconds );
     };
 }
 

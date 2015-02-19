@@ -66,17 +66,11 @@ elseif (UNIX)
 endif ()
 
 # configure plugins.cfg
-if (NOT OGRE_BUILD_RENDERSYSTEM_D3D9)
-  set(OGRE_COMMENT_RENDERSYSTEM_D3D9 "#")
-endif ()
 if (NOT OGRE_BUILD_RENDERSYSTEM_D3D11)
   set(OGRE_COMMENT_RENDERSYSTEM_D3D11 "#")
 endif ()
 if (CMAKE_SYSTEM_VERSION VERSION_LESS "6.0")
   set(OGRE_COMMENT_RENDERSYSTEM_D3D11 "#")
-endif ()
-if (NOT OGRE_BUILD_RENDERSYSTEM_GL)
-  set(OGRE_COMMENT_RENDERSYSTEM_GL "#")
 endif ()
 if (NOT OGRE_BUILD_RENDERSYSTEM_GL3PLUS)
   set(OGRE_COMMENT_RENDERSYSTEM_GL3PLUS "#")
@@ -108,6 +102,9 @@ endif ()
 
 
 # CREATE CONFIG FILES - INSTALL VERSIONS
+# create resources2.cfg
+configure_file(${OGRE_TEMPLATES_DIR}/resources2.cfg.in ${OGRE_BINARY_DIR}/inst/bin/debug/resources2.cfg)
+configure_file(${OGRE_TEMPLATES_DIR}/resources2.cfg.in ${OGRE_BINARY_DIR}/inst/bin/release/resources2.cfg)
 # create resources.cfg
 configure_file(${OGRE_TEMPLATES_DIR}/resources_d.cfg.in ${OGRE_BINARY_DIR}/inst/bin/debug/resources_d.cfg)
 configure_file(${OGRE_TEMPLATES_DIR}/resources.cfg.in ${OGRE_BINARY_DIR}/inst/bin/release/resources.cfg)
@@ -124,6 +121,7 @@ configure_file(${OGRE_TEMPLATES_DIR}/tests_d.cfg.in ${OGRE_BINARY_DIR}/inst/bin/
 # install resource files
 if (OGRE_INSTALL_SAMPLES OR OGRE_INSTALL_SAMPLES_SOURCE)
   install(FILES 
+    ${OGRE_BINARY_DIR}/inst/bin/debug/resources2.cfg
     ${OGRE_BINARY_DIR}/inst/bin/debug/resources_d.cfg
     ${OGRE_BINARY_DIR}/inst/bin/debug/plugins_d.cfg
 	${OGRE_BINARY_DIR}/inst/bin/debug/samples_d.cfg
@@ -131,6 +129,7 @@ if (OGRE_INSTALL_SAMPLES OR OGRE_INSTALL_SAMPLES_SOURCE)
     DESTINATION "${OGRE_CFG_INSTALL_PATH}${OGRE_DEBUG_PATH}" CONFIGURATIONS Debug
   )
   install(FILES 
+    ${OGRE_BINARY_DIR}/inst/bin/release/resources2.cfg
     ${OGRE_BINARY_DIR}/inst/bin/release/resources.cfg
     ${OGRE_BINARY_DIR}/inst/bin/release/plugins.cfg
 	${OGRE_BINARY_DIR}/inst/bin/release/samples.cfg
@@ -138,6 +137,7 @@ if (OGRE_INSTALL_SAMPLES OR OGRE_INSTALL_SAMPLES_SOURCE)
     DESTINATION "${OGRE_CFG_INSTALL_PATH}${OGRE_RELEASE_PATH}" CONFIGURATIONS Release None ""
   )
   install(FILES 
+    ${OGRE_BINARY_DIR}/inst/bin/release/resources2.cfg
     ${OGRE_BINARY_DIR}/inst/bin/release/resources.cfg
     ${OGRE_BINARY_DIR}/inst/bin/release/plugins.cfg
 	${OGRE_BINARY_DIR}/inst/bin/release/samples.cfg
@@ -145,6 +145,7 @@ if (OGRE_INSTALL_SAMPLES OR OGRE_INSTALL_SAMPLES_SOURCE)
 	DESTINATION "${OGRE_CFG_INSTALL_PATH}${OGRE_RELWDBG_PATH}" CONFIGURATIONS RelWithDebInfo
   )
   install(FILES 
+    ${OGRE_BINARY_DIR}/inst/bin/release/resources2.cfg
     ${OGRE_BINARY_DIR}/inst/bin/release/resources.cfg
     ${OGRE_BINARY_DIR}/inst/bin/release/plugins.cfg
 	${OGRE_BINARY_DIR}/inst/bin/release/samples.cfg
@@ -155,6 +156,7 @@ if (OGRE_INSTALL_SAMPLES OR OGRE_INSTALL_SAMPLES_SOURCE)
   # Need a special case here for the iOS SDK, configuration is not being matched, could be a CMake bug.
   if (OGRE_BUILD_PLATFORM_APPLE_IOS)
     install(FILES 
+      ${OGRE_BINARY_DIR}/inst/bin/release/resources2.cfg
       ${OGRE_BINARY_DIR}/inst/bin/release/resources.cfg
       ${OGRE_BINARY_DIR}/inst/bin/release/plugins.cfg
       ${OGRE_BINARY_DIR}/inst/bin/release/samples.cfg
@@ -202,6 +204,11 @@ if (WINDOWS_STORE OR WINDOWS_PHONE)
   # These platfroms requires all resources to be packaged inside the application bundle,
   # therefore install versions of configs would be copied and added as content file to each project.
 elseif (MSVC AND NOT NMAKE)
+  # create resources2.cfg
+  configure_file(${OGRE_TEMPLATES_DIR}/resources2.cfg.in ${OGRE_BINARY_DIR}/bin/debug/resources2.cfg)
+  configure_file(${OGRE_TEMPLATES_DIR}/resources2.cfg.in ${OGRE_BINARY_DIR}/bin/release/resources2.cfg)
+  configure_file(${OGRE_TEMPLATES_DIR}/resources2.cfg.in ${OGRE_BINARY_DIR}/bin/relwithdebinfo/resources2.cfg)
+  configure_file(${OGRE_TEMPLATES_DIR}/resources2.cfg.in ${OGRE_BINARY_DIR}/bin/minsizerel/resources2.cfg)
   # create resources.cfg
   configure_file(${OGRE_TEMPLATES_DIR}/resources_d.cfg.in ${OGRE_BINARY_DIR}/bin/debug/resources_d.cfg)
   configure_file(${OGRE_TEMPLATES_DIR}/resources.cfg.in ${OGRE_BINARY_DIR}/bin/release/resources.cfg)
@@ -227,6 +234,8 @@ else() # other OS only need one cfg file
   if (OGRE_BUILD_TYPE STREQUAL "debug" AND NOT APPLE)
     set(OGRE_CFG_SUFFIX "_d")
   endif ()
+  # create resources2.cfg
+  configure_file(${OGRE_TEMPLATES_DIR}/resources2.cfg.in ${OGRE_BINARY_DIR}/bin/resources2.cfg)
   # create resources.cfg
   configure_file(${OGRE_TEMPLATES_DIR}/resources${OGRE_CFG_SUFFIX}.cfg.in ${OGRE_BINARY_DIR}/bin/resources${OGRE_CFG_SUFFIX}.cfg)
   # create plugins.cfg

@@ -72,10 +72,10 @@ namespace Ogre {
     typedef GLUniformReferenceList::iterator GLUniformReferenceIterator;
     typedef vector<GLAtomicCounterReference>::type GLAtomicCounterReferenceList;
     typedef GLAtomicCounterReferenceList::iterator GLAtomicCounterReferenceIterator;
-    typedef vector<HardwareUniformBufferSharedPtr>::type GLUniformBufferList;
+    typedef vector<v1::HardwareUniformBufferSharedPtr>::type GLUniformBufferList;
     typedef GLUniformBufferList::iterator GLUniformBufferIterator;
-    typedef map<GpuSharedParametersPtr, HardwareUniformBufferSharedPtr>::type SharedParamsBufferMap;
-    typedef vector<HardwareCounterBufferSharedPtr>::type GLCounterBufferList;
+    typedef map<GpuSharedParametersPtr, v1::HardwareUniformBufferSharedPtr>::type SharedParamsBufferMap;
+    typedef vector<v1::HardwareCounterBufferSharedPtr>::type GLCounterBufferList;
     typedef GLCounterBufferList::iterator GLCounterBufferIterator;
 
     /** C++ encapsulation of GLSL program object.
@@ -139,7 +139,7 @@ namespace Ogre {
         GLSLShader* getGeometryShader() const { return mGeometryShader; }
         GLSLShader* getFragmentShader() const { return mFragmentShader; }
         GLSLShader* getComputeShader() const { return mComputeShader; }
-        GL3PlusVertexArrayObject* getVertexArrayObject() { return mVertexArrayObject; }
+        GL3PlusOldVertexArrayObject* getVertexArrayObject() { return mVertexArrayObject; }
 
     protected:
         /// Container of uniform references that are active in the program object
@@ -166,7 +166,7 @@ namespace Ogre {
         /// Linked compute shader.
         GLSLShader* mComputeShader;
         /// GL handle for the vertex array object
-        GL3PlusVertexArrayObject* mVertexArrayObject;
+        GL3PlusOldVertexArrayObject* mVertexArrayObject;
 
         /// Flag to indicate that uniform references have already been built
         bool mUniformRefsBuilt;
@@ -203,6 +203,8 @@ namespace Ogre {
 
         VertexElementSemantic getAttributeSemanticEnum(String type);
         const char * getAttributeSemanticString(VertexElementSemantic semantic);
+
+        void bindFixedAttributes( GLuint programName );
     };
 
 

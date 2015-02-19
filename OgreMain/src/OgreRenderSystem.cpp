@@ -45,6 +45,8 @@ THE SOFTWARE.
 #include "OgreTextureManager.h"
 #include "OgreMaterialManager.h"
 #include "OgreHardwareOcclusionQuery.h"
+#include "Vao/OgreVaoManager.h"
+#include "Vao/OgreVertexArrayObject.h"
 
 namespace Ogre {
 
@@ -54,10 +56,8 @@ namespace Ogre {
     RenderSystem::RenderSystem()
         : mActiveRenderTarget(0)
         , mTextureManager(0)
+        , mVaoManager(0)
         , mActiveViewport(0)
-        // This means CULL clockwise vertices, i.e. front of poly is counter-clockwise
-        // This makes it the same as OpenGL and other right-handed systems
-        , mCullingMode(CULL_CLOCKWISE)
         , mWBuffer(false)
         , mBatchCount(0)
         , mFaceCount(0)
@@ -294,13 +294,13 @@ namespace Ogre {
                 _setVertexTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setVertexTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -313,13 +313,13 @@ namespace Ogre {
                 _setGeometryTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setGeometryTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -332,13 +332,13 @@ namespace Ogre {
                 _setComputeTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setComputeTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -351,13 +351,13 @@ namespace Ogre {
                 _setTessellationDomainTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setTessellationDomainTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -370,13 +370,13 @@ namespace Ogre {
                 _setTessellationHullTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setTessellationHullTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -384,7 +384,7 @@ namespace Ogre {
         {
             // Shared vertex / fragment textures or no vertex texture support
             // Bind texture (may be blank)
-            _setTexture(texUnit, true, tex);
+            _setTexture(texUnit, true, tex.get());
         }
 
         // Set texture coordinate set
@@ -483,7 +483,7 @@ namespace Ogre {
         const String &texname)
     {
         TexturePtr t = TextureManager::getSingleton().getByName(texname);
-        _setTexture(unit, enabled, t);
+        _setTexture(unit, enabled, t.get());
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_setBindingType(TextureUnitState::BindingType bindingType)
@@ -540,7 +540,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void RenderSystem::_disableTextureUnit(size_t texUnit)
     {
-        _setTexture(texUnit, false, sNullTexPtr);
+        _setTexture(texUnit, false, sNullTexPtr.get());
     }
     //---------------------------------------------------------------------
     void RenderSystem::_disableTextureUnitsFrom(size_t texUnit)
@@ -586,11 +586,6 @@ namespace Ogre {
         }
 
         mDepthBufferPool.clear();
-    }
-    //-----------------------------------------------------------------------
-    CullingMode RenderSystem::_getCullingMode(void) const
-    {
-        return mCullingMode;
     }
     //-----------------------------------------------------------------------
     bool RenderSystem::getFixedPipelineEnabled(void) const
@@ -659,6 +654,9 @@ namespace Ogre {
 
         _cleanupDepthBuffers();
 
+        OGRE_DELETE mVaoManager;
+        mVaoManager = 0;
+
         // Remove all the render targets.
         // (destroy primary target last since others may depend on it)
         RenderTarget* primary = 0;
@@ -696,8 +694,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void RenderSystem::convertColourValue(const ColourValue& colour, uint32* pDest)
     {
-        *pDest = VertexElement::convertColourValue(colour, getColourVertexElementType());
-
+        *pDest = v1::VertexElement::convertColourValue(colour, getColourVertexElementType());
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_setWorldMatrices(const Matrix4* m, unsigned short count)
@@ -709,7 +706,7 @@ namespace Ogre {
         _setWorldMatrix(Matrix4::IDENTITY);
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_render(const RenderOperation& op)
+    void RenderSystem::_render(const v1::RenderOperation& op)
     {
         // Update stats
         size_t val;
@@ -729,48 +726,48 @@ namespace Ogre {
 
         switch(op.operationType)
         {
-        case RenderOperation::OT_TRIANGLE_LIST:
+        case v1::RenderOperation::OT_TRIANGLE_LIST:
             mFaceCount += (val / 3);
             break;
-        case RenderOperation::OT_TRIANGLE_STRIP:
-        case RenderOperation::OT_TRIANGLE_FAN:
+        case v1::RenderOperation::OT_TRIANGLE_STRIP:
+        case v1::RenderOperation::OT_TRIANGLE_FAN:
             mFaceCount += (val - 2);
             break;
-        case RenderOperation::OT_POINT_LIST:
-        case RenderOperation::OT_LINE_LIST:
-        case RenderOperation::OT_LINE_STRIP:
-        case RenderOperation::OT_PATCH_1_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_2_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_3_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_4_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_5_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_6_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_7_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_8_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_9_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_10_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_11_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_12_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_13_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_14_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_15_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_16_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_17_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_18_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_19_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_20_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_21_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_22_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_23_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_24_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_25_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_26_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_27_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_28_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_29_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_30_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_31_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_32_CONTROL_POINT:
+        case v1::RenderOperation::OT_POINT_LIST:
+        case v1::RenderOperation::OT_LINE_LIST:
+        case v1::RenderOperation::OT_LINE_STRIP:
+        case v1::RenderOperation::OT_PATCH_1_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_2_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_3_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_4_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_5_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_6_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_7_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_8_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_9_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_10_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_11_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_12_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_13_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_14_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_15_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_16_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_17_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_18_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_19_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_20_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_21_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_22_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_23_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_24_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_25_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_26_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_27_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_28_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_29_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_30_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_31_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_32_CONTROL_POINT:
             break;
         }
 
@@ -785,6 +782,15 @@ namespace Ogre {
             mClipPlanesDirty = false;
         }
     }
+    //-----------------------------------------------------------------------
+    void RenderSystem::_render( const VertexArrayObject *vao )
+    {
+        // Update stats
+        mFaceCount      += vao->mFaceCount;
+        mVertexCount    += vao->mVertexBuffers[0]->getNumElements();
+        ++mBatchCount;
+    }
+    //-----------------------------------------------------------------------
     void RenderSystem::_renderUsingReadBackAsTexture(unsigned int secondPass,Ogre::String variableName,unsigned int StartSlot)
     {
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
@@ -1000,6 +1006,11 @@ namespace Ogre {
         delete context;
     }
     //---------------------------------------------------------------------
+    void RenderSystem::_update(void)
+    {
+        mVaoManager->_update();
+    }
+    //---------------------------------------------------------------------
     const String& RenderSystem::_getDefaultViewportMaterialScheme( void ) const
     {
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS   
@@ -1016,12 +1027,12 @@ namespace Ogre {
         }
     }
     //---------------------------------------------------------------------
-    Ogre::HardwareVertexBufferSharedPtr RenderSystem::getGlobalInstanceVertexBuffer() const
+    Ogre::v1::HardwareVertexBufferSharedPtr RenderSystem::getGlobalInstanceVertexBuffer() const
     {
         return mGlobalInstanceVertexBuffer;
     }
     //---------------------------------------------------------------------
-    void RenderSystem::setGlobalInstanceVertexBuffer( const HardwareVertexBufferSharedPtr &val )
+    void RenderSystem::setGlobalInstanceVertexBuffer( const v1::HardwareVertexBufferSharedPtr &val )
     {
         if ( !val.isNull() && !val->getIsInstanceData() )
         {
@@ -1042,12 +1053,12 @@ namespace Ogre {
         mGlobalNumberOfInstances = val;
     }
 
-    VertexDeclaration* RenderSystem::getGlobalInstanceVertexBufferVertexDeclaration() const
+    v1::VertexDeclaration* RenderSystem::getGlobalInstanceVertexBufferVertexDeclaration() const
     {
         return mGlobalInstanceVertexBufferVertexDeclaration;
     }
     //---------------------------------------------------------------------
-    void RenderSystem::setGlobalInstanceVertexBufferVertexDeclaration( VertexDeclaration* val )
+    void RenderSystem::setGlobalInstanceVertexBufferVertexDeclaration( v1::VertexDeclaration* val )
     {
         mGlobalInstanceVertexBufferVertexDeclaration = val;
     }

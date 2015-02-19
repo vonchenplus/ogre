@@ -122,9 +122,7 @@ namespace Ogre {
         create("BaseWhite", ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
         // Set up an unlit base white material
         MaterialPtr baseWhiteNoLighting = create("BaseWhiteNoLighting",
-        ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
-        baseWhiteNoLighting->setLightingEnabled(false);
-
+            ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
     }
     //-----------------------------------------------------------------------
     void MaterialManager::parseScript(DataStreamPtr& stream, const String& groupName)

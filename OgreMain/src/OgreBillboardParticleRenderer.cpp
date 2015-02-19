@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "Math/Array/OgreObjectMemoryManager.h"
 
 namespace Ogre {
+namespace v1 {
     String rendererTypeName = "billboard";
 
     //-----------------------------------------------------------------------
@@ -48,7 +49,8 @@ namespace Ogre {
     BillboardParticleRenderer::CmdAccurateFacing BillboardParticleRenderer::msAccurateFacingCmd;
     //-----------------------------------------------------------------------
     BillboardParticleRenderer::BillboardParticleRenderer( IdType id,
-                                                            ObjectMemoryManager *objectMemoryManager )
+                                                          ObjectMemoryManager *objectMemoryManager,
+                                                          SceneManager *sceneManager )
     {
         if (createParamDictionary("BillboardParticleRenderer"))
         {
@@ -109,7 +111,7 @@ namespace Ogre {
         }
 
         // Create billboard set
-        mBillboardSet = OGRE_NEW BillboardSet( id, objectMemoryManager, 0, true, 0 );
+        mBillboardSet = OGRE_NEW BillboardSet( id, objectMemoryManager, sceneManager, 0, true, 0 );
         // World-relative axes
         mBillboardSet->setBillboardsInWorldSpace(true);
     }
@@ -129,7 +131,8 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------
     void BillboardParticleRenderer::_updateRenderQueue(RenderQueue* queue, Camera *camera,
-        const Camera *lodCamera, list<Particle*>::type& currentParticles, bool cullIndividually)
+        const Camera *lodCamera, list<Particle*>::type& currentParticles, bool cullIndividually,
+        RenderableArray &outRenderables )
     {
         mBillboardSet->setCullIndividually(cullIndividually);
 
@@ -164,6 +167,9 @@ namespace Ogre {
 
         // Update the queue
         mBillboardSet->_updateRenderQueue(queue, camera, lodCamera);
+
+        outRenderables.clear();
+        outRenderables.push_back( mBillboardSet );
     }
     //---------------------------------------------------------------------
     void BillboardParticleRenderer::visitRenderables(Renderable::Visitor* visitor, 
@@ -172,9 +178,15 @@ namespace Ogre {
         mBillboardSet->visitRenderables(visitor, debugRenderables);
     }
     //-----------------------------------------------------------------------
-    void BillboardParticleRenderer::_setMaterial(MaterialPtr& mat)
+    void BillboardParticleRenderer::_setDatablock( HlmsDatablock *datablock )
     {
-        mBillboardSet->setMaterialName(mat->getName(), mat->getGroup());
+        mBillboardSet->setDatablock( datablock );
+    }
+    //-----------------------------------------------------------------------
+    void BillboardParticleRenderer::_setMaterialName( const String &matName,
+                                                      const String &resourceGroup )
+    {
+        mBillboardSet->setMaterialName( matName, resourceGroup );
     }
     //-----------------------------------------------------------------------
     void BillboardParticleRenderer::setBillboardType(BillboardType bbt)
@@ -259,14 +271,12 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void BillboardParticleRenderer::setRenderQueueGroup(uint8 queueID)
     {
-        assert(queueID <= RENDER_QUEUE_MAX && "Render queue out of range!");
         mBillboardSet->setRenderQueueGroup(queueID);
     }
     //-----------------------------------------------------------------------
-    void BillboardParticleRenderer::setRenderQueueGroupAndPriority(uint8 queueID, ushort priority)
+    void BillboardParticleRenderer::setRenderQueueSubGroup( uint8 subGroup )
     {
-        assert(queueID <= RENDER_QUEUE_MAX && "Render queue out of range!");
-        mBillboardSet->setRenderQueueGroupAndPriority(queueID, priority);
+        mBillboardSet->setRenderQueueSubGroup( subGroup );
     }
     //-----------------------------------------------------------------------
     void BillboardParticleRenderer::setKeepParticlesInLocalSpace(bool keepLocal)
@@ -310,7 +320,8 @@ namespace Ogre {
     ParticleSystemRenderer* BillboardParticleRendererFactory::createInstance( const String &name )
     {
         return OGRE_NEW BillboardParticleRenderer( Id::generateNewId<ParticleSystemRenderer>(),
-                                                    mDummyObjectMemoryManager );
+                                                   mDummyObjectMemoryManager,
+                                                   mCurrentSceneManager );
     }
     //-----------------------------------------------------------------------
     void BillboardParticleRendererFactory::destroyInstance( 
@@ -506,7 +517,7 @@ namespace Ogre {
         static_cast<BillboardParticleRenderer*>(target)->setUseAccurateFacing(
             StringConverter::parseBool(val));
     }
-
+}
 }
 
 
