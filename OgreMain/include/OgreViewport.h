@@ -155,23 +155,46 @@ namespace Ogre {
         /** Gets one of the actual dimensions of the viewport, a value in
             pixels.
         */
-
         int getActualHeight(void) const;
 
+        Real getScissorLeft(void) const                 { return mScissorRelLeft; }
+        Real getScissorTop(void) const                  { return mScissorRelTop; }
+        Real getScissorWidth(void) const                { return mScissorRelWidth; }
+        Real getScissorHeight(void) const               { return mScissorRelHeight; }
+
+        int getScissorActualLeft(void) const            { return mScissorActLeft; }
+        int getScissorActualTop(void) const             { return mScissorActTop; }
+        int getScissorActualWidth(void) const           { return mScissorActWidth; }
+        int getScissorActualHeight(void) const          { return mScissorActHeight; }
+
         /** Sets the dimensions (after creation).
-            @param
-                left Left point of viewport.
-            @param
-                top Top point of the viewport.
-            @param
-                width Width of the viewport.
-            @param
-                height Height of the viewport.
-            @note Dimensions relative to the size of the target,
-                represented as real values between 0 and 1. i.e. the full
-                target area is 0, 0, 1, 1.
+        @param left
+            Left point of viewport.
+        @param top
+            Top point of the viewport.
+        @param width
+            Width of the viewport.
+        @param height
+            Height of the viewport.
+        @param overrideScissors
+            When true, the scissor dimensions will be the same as the viewport's
+            @See setScissors
+        @note
+            Dimensions relative to the size of the target, represented as real values
+            between 0 and 1. i.e. the full target area is 0, 0, 1, 1.
         */
-        void setDimensions(Real left, Real top, Real width, Real height);
+        void setDimensions( Real left, Real top, Real width, Real height, bool overrideScissors=true );
+
+        /** Only sets the scissor regions. The scissor rectangle must be fully inside
+            the viewport rectangle. @See setDimensions for param description
+        @remarks
+            Only the scissor rect is set here; but the HLMS macroblock controls whether
+            scissor testing is enabled or not (@See HlmsMacroblock). On some RenderSystem
+            implementations (i.e. OpenGL), scissor testing needs to be enabled when
+            clearing a region of the screen. In those cases, if scissor testing is disabled at
+            the time of the clear, scissor testing will be temporarily enabled and then disabled.
+        */
+        void setScissors( Real left, Real top, Real width, Real height );
 
         /** Set the orientation mode of the viewport.
         */
@@ -262,24 +285,6 @@ namespace Ogre {
         */
         uint getVisibilityMask(void) const { return mVisibilityMask; }
 
-        /** Sets the use of a custom RenderQueueInvocationSequence for
-            rendering this target.
-        @remarks
-            RenderQueueInvocationSequence instances are managed through Root. By
-            setting this, you are indicating that you wish this RenderTarget to
-            be updated using a custom sequence of render queue invocations, with
-            potentially customised ordering and render state options. You should
-            create the named sequence through Root first, then set the name here.
-        @param sequenceName The name of the RenderQueueInvocationSequence to use. If you
-            specify a blank string, behaviour will return to the default render
-            queue management.
-        */
-        virtual void setRenderQueueInvocationSequenceName(const String& sequenceName);
-        /** Gets the name of the render queue invocation sequence for this target. */
-        virtual const String& getRenderQueueInvocationSequenceName(void) const;
-        /// Get the invocation sequence - will return null if using standard
-        RenderQueueInvocationSequence* _getRenderQueueInvocationSequence(void);
-
         /** Convert oriented input point coordinates to screen coordinates. */
         void pointOrientedToScreen(const Vector2 &v, int orientationMode, Vector2 &outv);
         void pointOrientedToScreen(Real orientedX, Real orientedY, int orientationMode,
@@ -308,6 +313,12 @@ namespace Ogre {
         float mRelLeft, mRelTop, mRelWidth, mRelHeight;
         /// Actual dimensions, based on target dimensions
         int mActLeft, mActTop, mActWidth, mActHeight;
+
+        /// Relative dimensions, irrespective of target dimensions (0..1), scissor rect
+        float mScissorRelLeft, mScissorRelTop, mScissorRelWidth, mScissorRelHeight;
+        /// Actual dimensions, based on target dimensions, scissor rect
+        int mScissorActLeft, mScissorActTop, mScissorActWidth, mScissorActHeight;
+
         /// Z-order
         int mZOrder;
         /// Background options
@@ -315,9 +326,6 @@ namespace Ogre {
         bool mShowOverlays;
         bool mShowSkies;
         uint32 mVisibilityMask;
-        // Render queue invocation sequence name
-        String mRQSequenceName;
-        RenderQueueInvocationSequence* mRQSequence;
         /// Material scheme
         String mMaterialSchemeName;
         /// Viewport orientation mode

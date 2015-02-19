@@ -538,7 +538,7 @@ namespace Ogre {
             else
             {
                 // New one
-                GL3PlusRenderBuffer *rb = new GL3PlusRenderBuffer(format, width, height, fsaa);
+                v1::GL3PlusRenderBuffer *rb = new v1::GL3PlusRenderBuffer(format, width, height, fsaa);
                 mRenderBufferMap[key] = RBRef(rb);
                 retval.buffer = rb;
                 retval.zoffset = 0;

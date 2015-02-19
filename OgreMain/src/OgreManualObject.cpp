@@ -40,14 +40,16 @@ THE SOFTWARE.
 #include "OgreTechnique.h"
 
 namespace Ogre {
+namespace v1 {
 
 #define TEMP_INITIAL_SIZE 50
 #define TEMP_VERTEXSIZE_GUESS sizeof(float) * 12
 #define TEMP_INITIAL_VERTEX_SIZE TEMP_VERTEXSIZE_GUESS * TEMP_INITIAL_SIZE
 #define TEMP_INITIAL_INDEX_SIZE sizeof(uint32) * TEMP_INITIAL_SIZE
     //-----------------------------------------------------------------------------
-    ManualObject::ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager )
-		: MovableObject( id, objectMemoryManager, RENDER_QUEUE_MAIN ),
+    ManualObject::ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                SceneManager *manager )
+        : MovableObject( id, objectMemoryManager, manager, 1 ),
           mDynamic(false), mCurrentSection(0), mFirstVertex(true),
           mTempVertexPending(false),
           mTempVertexBuffer(0), mTempVertexSize(TEMP_INITIAL_VERTEX_SIZE),
@@ -900,7 +902,8 @@ namespace Ogre {
                 (rop->useIndexes && rop->indexData->indexCount == 0))
                 continue;
             
-            queue->addRenderable(*i, mRenderQueueID, mRenderQueuePriority);
+            //TODO: RENDER QUEUE ?
+            //queue->addRenderable(*i, mRenderQueueID, mRenderQueuePriority);
         }
     }
     //-----------------------------------------------------------------------------
@@ -1027,17 +1030,16 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------------
     MovableObject* ManualObjectFactory::createInstanceImpl( IdType id,
-                                            ObjectMemoryManager *objectMemoryManager,
-                                            const NameValuePairList* params )
+                                                            ObjectMemoryManager *objectMemoryManager,
+                                                            SceneManager *manager,
+                                                            const NameValuePairList* params )
     {
-        return OGRE_NEW ManualObject( id, objectMemoryManager );
+        return OGRE_NEW ManualObject( id, objectMemoryManager, manager );
     }
     //-----------------------------------------------------------------------------
     void ManualObjectFactory::destroyInstance( MovableObject* obj)
     {
         OGRE_DELETE obj;
     }
-
-
-
+}
 }

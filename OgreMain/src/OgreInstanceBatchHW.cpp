@@ -36,6 +36,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     InstanceBatchHW::InstanceBatchHW( IdType id, ObjectMemoryManager *objectMemoryManager,
                                         InstanceManager *creator, MeshPtr &meshReference,
                                         const MaterialPtr &material, size_t instancesPerBatch,
@@ -188,7 +190,7 @@ namespace Ogre
             ObjectData objData;
             const size_t numObjs = mLocalObjectMemoryManager.getFirstObjectData( objData, 0 );
 
-            visibleObjects = &mManager->_getTmpVisibleObjectsList()[0];
+            visibleObjects = &mManager->_getTmpVisibleObjectsList()[0][mRenderQueueID];
             visibleObjects->clear();
 
             //TODO: Static batches aren't yet supported (camera ptr will be null and crash)
@@ -260,12 +262,13 @@ namespace Ogre
                                                const Camera *lodCamera )
     {
         //if( !mKeepStatic )
-        {
+        /*{
             //Completely override base functionality, since we don't cull on an "all-or-nothing" basis
             //and we don't support skeletal animation
+            //TODO: RENDER QUEUE
             if( (mRenderOperation.numberOfInstances = updateVertexBuffer( camera, lodCamera )) )
                 queue->addRenderable( this, mRenderQueueID, mRenderQueuePriority );
-        }
+        }*/
         /*else
         {
             if( mManager->getCameraRelativeRendering() )
@@ -280,4 +283,5 @@ namespace Ogre
                 queue->addRenderable( this, mRenderQueueID, mRenderQueuePriority );
         }*/
     }
+}
 }

@@ -40,12 +40,19 @@ THE SOFTWARE.
 #include "OgreRenderTexture.h"
 #include "OgreSceneManager.h"
 #include "OgreViewport.h"
+#include "OgrePass.h"
 
 #include "OgreShadowCameraSetupFocused.h"
 #include "OgreShadowCameraSetupPSSM.h"
 
 namespace Ogre
 {
+    const Matrix4 PROJECTIONCLIPSPACE2DTOIMAGESPACE_PERSPECTIVE(
+        0.5,    0,    0,  0.5,
+        0,   -0.5,    0,  0.5,
+        0,      0,    1,    0,
+        0,      0,    0,    1);
+
     CompositorShadowNode::CompositorShadowNode( IdType id, const CompositorShadowNodeDef *definition,
                                                 CompositorWorkspace *workspace, RenderSystem *renderSys,
                                                 const RenderTarget *finalTarget ) :
@@ -109,7 +116,7 @@ namespace Ogre
                     {
                         PSSMShadowCameraSetup *setup = OGRE_NEW PSSMShadowCameraSetup();
                         shadowMapCamera.shadowCameraSetup = ShadowCameraSetupPtr( setup );
-                        setup->calculateSplitPoints( itor->numSplits, 0.0f, 100.0f, 0.95f );
+                        setup->calculateSplitPoints( itor->numSplits, 0.1f, 100.0f, 0.95f );
                         setup->setSplitPadding( itor->splitPadding );
                     }
                     break;
@@ -420,9 +427,9 @@ namespace Ogre
         sceneManager->_setCurrentRenderStage( previous );
     }
     //-----------------------------------------------------------------------------------
-    void CompositorShadowNode::postInitializePassScene( CompositorPassScene *pass )
+    void CompositorShadowNode::postInitializePass( CompositorPass *pass )
     {
-        const CompositorPassSceneDef *passDef = pass->getDefinition();
+        const CompositorPassDef *passDef = pass->getDefinition();
         const ShadowMapCamera &smCamera = mShadowMapCameras[passDef->mShadowMapIdx];
 
         assert( (!smCamera.camera->getLastViewport() ||
@@ -430,7 +437,12 @@ namespace Ogre
                 "Two scene passes to the same shadow map have different viewport!" );
 
         smCamera.camera->_notifyViewport( pass->getViewport() );
-        pass->_setCustomCamera( smCamera.camera );
+
+        if( passDef->getType() == PASS_SCENE )
+        {
+            assert( dynamic_cast<CompositorPassScene*>(pass) );
+            static_cast<CompositorPassScene*>(pass)->_setCustomCamera( smCamera.camera );
+        }
     }
     //-----------------------------------------------------------------------------------
     const LightList* CompositorShadowNode::setShadowMapsToPass( Renderable* rend, const Pass* pass,
@@ -555,6 +567,20 @@ namespace Ogre
 
         outMin = 0.0f;
         outMax = 100000.0f;
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorShadowNode::getMinMaxDepthRange( size_t shadowMapIdx,
+                                                    Real &outMin, Real &outMax ) const
+    {
+        outMin = mShadowMapCameras[shadowMapIdx].minDistance;
+        outMax = mShadowMapCameras[shadowMapIdx].maxDistance;
+    }
+    //-----------------------------------------------------------------------------------
+    Matrix4 CompositorShadowNode::getViewProjectionMatrix( size_t shadowMapIdx ) const
+    {
+        return PROJECTIONCLIPSPACE2DTOIMAGESPACE_PERSPECTIVE *
+                mShadowMapCameras[shadowMapIdx].camera->getProjectionMatrixWithRSDepth() *
+                mShadowMapCameras[shadowMapIdx].camera->getViewMatrix( true );
     }
     //-----------------------------------------------------------------------------------
     const vector<Real>::type* CompositorShadowNode::getPssmSplits( size_t shadowMapIdx ) const

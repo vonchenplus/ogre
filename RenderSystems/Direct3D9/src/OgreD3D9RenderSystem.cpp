@@ -53,6 +53,7 @@ THE SOFTWARE.
 #include "OgreD3D9ResourceManager.h"
 #include "OgreD3D9DepthBuffer.h"
 #include "OgreRenderOperation.h"
+#include "OgreHlmsDatablock.h"
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 #include "OgreD3D9StereoDriverBridge.h"
@@ -988,7 +989,6 @@ namespace Ogre
         rsc->setCapability(RSC_AUTOMIPMAP);
         rsc->setCapability(RSC_DOT3);
         rsc->setCapability(RSC_CUBEMAPPING);        
-        rsc->setCapability(RSC_SCISSOR_TEST);       
         rsc->setCapability(RSC_TWO_SIDED_STENCIL);      
         rsc->setCapability(RSC_STENCIL_WRAP);
         rsc->setCapability(RSC_HWOCCLUSION);        
@@ -1008,7 +1008,6 @@ namespace Ogre
         rsc->setCapability(RSC_PERSTAGECONSTANT);
         rsc->setCapability(RSC_HWSTENCIL);
         rsc->setStencilBufferBitDepth(8);
-        rsc->setCapability(RSC_ADVANCED_BLEND_OPERATIONS);
         rsc->setCapability(RSC_RTT_SEPARATE_DEPTHBUFFER);
         rsc->setCapability(RSC_RTT_MAIN_DEPTHBUFFER_ATTACHABLE);
         rsc->setCapability(RSC_RTT_DEPTHBUFFER_RESOLUTION_LESSEQUAL);
@@ -1071,8 +1070,8 @@ namespace Ogre
                 rsc->unsetCapability(RSC_DOT3);
 
             // Scissor test
-            if ((rkCurCaps.RasterCaps & D3DPRASTERCAPS_SCISSORTEST) == 0)
-                rsc->unsetCapability(RSC_SCISSOR_TEST);
+            //if ((rkCurCaps.RasterCaps & D3DPRASTERCAPS_SCISSORTEST) == 0)
+            //    rsc->unsetCapability(RSC_SCISSOR_TEST);
 
 
             // Two-sided stencil
@@ -1150,8 +1149,8 @@ namespace Ogre
                 rsc->unsetCapability(RSC_PERSTAGECONSTANT);
 
             // Advanced blend operations? min max subtract rev 
-            if((rkCurCaps.PrimitiveMiscCaps & D3DPMISCCAPS_BLENDOP) == 0)
-                rsc->unsetCapability(RSC_ADVANCED_BLEND_OPERATIONS);
+            //if((rkCurCaps.PrimitiveMiscCaps & D3DPMISCCAPS_BLENDOP) == 0)
+            //   rsc->unsetCapability(RSC_ADVANCED_BLEND_OPERATIONS);
         }               
                                     
         // Blending between stages supported
@@ -1820,22 +1819,6 @@ namespace Ogre
         }
         mCurrentLights[activeDevice] = std::min(limit, static_cast<unsigned short>(lights.size()));
 
-    }
-    //---------------------------------------------------------------------
-    void D3D9RenderSystem::setShadingType( ShadeOptions so )
-    {
-        HRESULT hr = __SetRenderState( D3DRS_SHADEMODE, D3D9Mappings::get(so) );
-        if( FAILED( hr ) )
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-            "Failed to set render stat D3DRS_SHADEMODE", "D3D9RenderSystem::setShadingType" );
-    }
-    //---------------------------------------------------------------------
-    void D3D9RenderSystem::setLightingEnabled( bool enabled )
-    {
-        HRESULT hr;
-        if( FAILED( hr = __SetRenderState( D3DRS_LIGHTING, enabled ) ) )
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
-            "Failed to set render state D3DRS_LIGHTING", "D3D9RenderSystem::setLightingEnabled" );
     }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::setD3D9Light( size_t index, const Light* lt )
@@ -2759,46 +2742,6 @@ namespace Ogre
             "D3D9RenderSystem::_setColourBufferWriteEnabled");
     }
     //---------------------------------------------------------------------
-    void D3D9RenderSystem::_setFog( FogMode mode, const ColourValue& colour, Real densitiy, Real start, Real end )
-    {
-        HRESULT hr;
-
-        D3DRENDERSTATETYPE fogType, fogTypeNot;
-
-        if (mDeviceManager->getActiveDevice()->getD3D9DeviceCaps().RasterCaps & D3DPRASTERCAPS_FOGTABLE)
-        {
-            fogType = D3DRS_FOGTABLEMODE;
-            fogTypeNot = D3DRS_FOGVERTEXMODE;
-        }
-        else
-        {
-            fogType = D3DRS_FOGVERTEXMODE;
-            fogTypeNot = D3DRS_FOGTABLEMODE;
-        }
-
-        if( mode == FOG_NONE)
-        {
-            // just disable
-            hr = __SetRenderState(fogType, D3DFOG_NONE );
-            hr = __SetRenderState(D3DRS_FOGENABLE, FALSE);
-        }
-        else
-        {
-            // Allow fog
-            hr = __SetRenderState( D3DRS_FOGENABLE, TRUE );
-            hr = __SetRenderState( fogTypeNot, D3DFOG_NONE );
-            hr = __SetRenderState( fogType, D3D9Mappings::get(mode) );
-
-            hr = __SetRenderState( D3DRS_FOGCOLOR, colour.getAsARGB() );
-            hr = __SetFloatRenderState( D3DRS_FOGSTART, start );
-            hr = __SetFloatRenderState( D3DRS_FOGEND, end );
-            hr = __SetFloatRenderState( D3DRS_FOGDENSITY, densitiy );
-        }
-
-        if( FAILED( hr ) )
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Error setting render state", "D3D9RenderSystem::_setFog" );
-    }
-    //---------------------------------------------------------------------
     void D3D9RenderSystem::_setPolygonMode(PolygonMode level)
     {
         HRESULT hr = __SetRenderState(D3DRS_FILLMODE, D3D9Mappings::get(level));
@@ -3273,9 +3216,85 @@ namespace Ogre
             // Set sRGB write mode
             __SetRenderState(D3DRS_SRGBWRITEENABLE, target->isHardwareGammaEnabled());
 
+			if (FAILED(hr = __SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE)))
+			{
+				OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Unable to enable scissor rendering state; " + getErrorDescription(hr),
+					"D3D9RenderSystem::setScissorTest");
+			}
+
+			setScissorTest(true, vp->getScissorActualLeft(), vp->getScissorActualTop(),
+				vp->getScissorActualTop() + vp->getScissorActualWidth(), vp->getScissorActualLeft() + vp->getScissorActualWidth());
+
             vp->_clearUpdatedFlag();
         }
-    }
+	}
+	//---------------------------------------------------------------------
+	void D3D9RenderSystem::_setHlmsMacroblock(const HlmsMacroblock *macroblock)
+	{
+		_setDepthBufferCheckEnabled(macroblock->mDepthCheck);
+		_setDepthBufferWriteEnabled(macroblock->mDepthWrite);
+		_setDepthBufferFunction(macroblock->mDepthFunc);
+
+		_setDepthBias(macroblock->mDepthBiasConstant, macroblock->mDepthBiasSlopeScale);
+		_setCullingMode(macroblock->mCullMode);
+
+		if (macroblock->mAlphaToCoverageEnabled)
+		{
+			_setAlphaRejectSettings(CMPF_GREATER_EQUAL, (DWORD)0x00000001, true);
+		}
+		else
+		{
+			_setAlphaRejectSettings(CMPF_GREATER_EQUAL, (DWORD)0x00000001, false);
+		}
+
+		if (macroblock->mScissorTestEnabled)
+		{
+			setScissorTest(true, mActiveViewport->getScissorActualLeft(), mActiveViewport->getScissorActualTop(),
+				mActiveViewport->getScissorActualTop() + mActiveViewport->getScissorActualWidth(),
+				mActiveViewport->getScissorActualLeft() + mActiveViewport->getScissorActualWidth());
+		}
+		else
+		{
+			setScissorTest(false);
+		}
+
+		_setDepthBufferWriteEnabled(macroblock->mDepthWrite);
+	}
+	//---------------------------------------------------------------------
+	void D3D9RenderSystem::_setHlmsBlendblock(const HlmsBlendblock *blendblock)
+	{
+		if (blendblock->mSeparateBlend)
+		{
+			_setSeparateSceneBlending(
+				blendblock->mSourceBlendFactor, blendblock->mDestBlendFactor,
+				blendblock->mSourceBlendFactorAlpha, blendblock->mDestBlendFactorAlpha,
+				blendblock->mBlendOperation, blendblock->mBlendOperationAlpha);
+		}
+		else
+		{
+			_setSceneBlending(blendblock->mSourceBlendFactor, blendblock->mDestBlendFactor,
+				blendblock->mBlendOperation);
+		}
+	}
+	//---------------------------------------------------------------------
+	void D3D9RenderSystem::_setProgramsFromHlms(const HlmsCache *hlmsCache)
+	{
+		unbindGpuProgram(GPT_VERTEX_PROGRAM);
+		unbindGpuProgram(GPT_FRAGMENT_PROGRAM);
+
+		GpuProgram* vertexPrgm = hlmsCache->vertexShader.get();
+		GpuProgram* fragmentPrgm = hlmsCache->pixelShader.get();
+
+		if (vertexPrgm)
+		{
+			bindGpuProgram(vertexPrgm);
+		}
+
+		if (fragmentPrgm)
+		{
+			bindGpuProgram(fragmentPrgm);
+		}
+	}
     //---------------------------------------------------------------------
     void D3D9RenderSystem::_beginFrame()
     {
@@ -3632,12 +3651,6 @@ namespace Ogre
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to DrawPrimitive : " + msg, "D3D9RenderSystem::_render" );
         }
 
-    }
-    //---------------------------------------------------------------------
-    void D3D9RenderSystem::setNormaliseNormals(bool normalise)
-    {
-        __SetRenderState(D3DRS_NORMALIZENORMALS, 
-            normalise ? TRUE : FALSE);
     }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::bindGpuProgram(GpuProgram* prg)

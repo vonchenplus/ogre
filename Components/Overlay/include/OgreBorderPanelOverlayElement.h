@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "OgrePanelOverlayElement.h"
 
 namespace Ogre {
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -274,7 +275,7 @@ namespace Ogre {
         MaterialPtr mBorderMaterial;
 
         /// Render operation for the border area
-        RenderOperation mRenderOp2;
+        v1::RenderOperation mRenderOp2;
 
         static String msTypeName;
 
@@ -328,11 +329,9 @@ namespace Ogre {
             mUseIdentityProjection = true;
             mUseIdentityView = true;
         }
-        const MaterialPtr& getMaterial(void) const { return mParent->mBorderMaterial; }
-        void getRenderOperation(RenderOperation& op) { op = mParent->mRenderOp2; }
+        void getRenderOperation(v1::RenderOperation& op) { op = mParent->mRenderOp2; }
         void getWorldTransforms(Matrix4* xform) const { mParent->getWorldTransforms(xform); }
         unsigned short getNumWorldTransforms(void) const { return 1; }
-        Real getSquaredViewDepth(const Camera* cam) const { return mParent->getSquaredViewDepth(cam); }
         const LightList& getLights(void) const
         {
             // N/A, panels are not lit
@@ -347,6 +346,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
+}
 } // namespace Ogre
 
 #endif // __BorderPanelOverlayElement_H__

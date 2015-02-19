@@ -35,8 +35,10 @@ THE SOFTWARE
 #include "OgreFont.h"
 #include "OgreFontManager.h"
 #include "OgreOverlayElement.h"
+#include "OgreHlmsDatablock.h"
 
 namespace Ogre {
+namespace v1 {
 
 #define DEFAULT_INITIAL_CHARS 12
     //---------------------------------------------------------------------
@@ -437,8 +439,6 @@ namespace Ogre {
             mFont->load();
             // Ugly hack, but we need to override for lazy-load
             *const_cast<MaterialPtr*>(&mMaterial) = mFont->getMaterial();
-            mMaterial->setDepthCheckEnabled(false);
-            mMaterial->setLightingEnabled(false);
         }
         return mMaterial;
     }
@@ -627,6 +627,14 @@ namespace Ogre {
             updateColours();
             mColoursChanged = false;
         }
+
+        if( !mHlmsDatablock || !mFont->isLoaded() ||
+             mHlmsDatablock->getName() != mFont->getHlmsDatablock()->getName() )
+        {
+            mFont->load();
+            this->setDatablock( mFont->getHlmsDatablock() );
+            mMaterialName = *mFont->getHlmsDatablock()->getFullName();
+        }
     }
     //---------------------------------------------------------------------------------------------
     // Char height command object
@@ -748,4 +756,5 @@ namespace Ogre {
         }
     }
     //---------------------------------------------------------------------------------------------
+}
 }

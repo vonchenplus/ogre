@@ -39,16 +39,16 @@ THE SOFTWARE.
 namespace Ogre
 {
     using namespace VisibilityFlags;
-
+namespace v1
+{
     InstanceBatch::InstanceBatch( IdType id, ObjectMemoryManager *objectMemoryManager,
                                     InstanceManager *creator, MeshPtr &meshReference,
                                     const MaterialPtr &material, size_t instancesPerBatch,
                                     const Mesh::IndexMap *indexToBoneMap ) :
                 Renderable(),
-				MovableObject( id, objectMemoryManager, RENDER_QUEUE_MAIN ),
+                MovableObject( id, objectMemoryManager, (SceneManager*)0, 1 ),
                 mInstancesPerBatch( instancesPerBatch ),
                 mCreator( creator ),
-                mMaterial( material ),
                 mMeshReference( meshReference ),
                 mIndexToBoneMap( indexToBoneMap ),
                 mTechnSupportsSkeletal( SKELETONS_SUPPORTED ),
@@ -75,8 +75,10 @@ namespace Ogre
             assert( !(meshReference->hasSkeleton() && indexToBoneMap->empty()) );
         }
 
+        this->setMaterial( material );
         mLodMesh = meshReference->_getLodValueArray();
-        mLodMaterial[0] = mMaterial->_getLodValues();
+        mLodMaterial = material->_getLodValues();
+        mRenderables.resize( 1, this );
 
         mCustomParams.resize( mCreator->getNumCustomParams() * mInstancesPerBatch, Ogre::Vector4::ZERO );
 
@@ -300,6 +302,8 @@ namespace Ogre
             mRenderOperation.useIndexes = true;
             setupVertices( baseSubMesh );
             setupIndices( baseSubMesh );
+
+            mRenderOperation.meshIndex = ++RenderOperation::MeshIndexId;
 
             createAllInstancedEntities();
         }
@@ -578,7 +582,7 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------
-    void InstanceBatch::instanceBatchCullFrustumThreadedImpl( const Frustum *frustum,
+    void InstanceBatch::instanceBatchCullFrustumThreadedImpl( const Camera *frustum,
                                                               const Camera *lodCamera,
                                                                 uint32 combinedVisibilityFlags )
     {
@@ -624,16 +628,6 @@ namespace Ogre
         return queryLights();
     }
     //-----------------------------------------------------------------------
-    Technique* InstanceBatch::getTechnique( void ) const
-    {
-        return mMaterial->getBestTechnique( mCurrentMaterialLod[0], this );
-    }
-    //-----------------------------------------------------------------------
-    void InstanceBatch::_updateRenderQueue(RenderQueue* queue, Camera *camera , const Camera *lodCamera)
-    {
-        queue->addRenderable( this, mRenderQueueID, mRenderQueuePriority );
-    }
-    //-----------------------------------------------------------------------
     void InstanceBatch::visitRenderables( Renderable::Visitor* visitor, bool debugRenderables )
     {
         visitor->visit( this, 0, false );
@@ -649,4 +643,5 @@ namespace Ogre
     {
         return mCustomParams[instancedEntity->mInstanceId * mCreator->getNumCustomParams() + idx];
     }
+}
 }

@@ -38,6 +38,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     /** \addtogroup Core
     *  @{
     */
@@ -107,7 +109,7 @@ namespace Ogre
     class _OgreExport ManualObject : public MovableObject
     {
     public:
-        ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager );
+        ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
         virtual ~ManualObject();
 
         //pre-declare ManualObjectSection
@@ -504,7 +506,8 @@ namespace Ogre
     {
     protected:
         virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
-                                                    const NameValuePairList* params = 0 );
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         ManualObjectFactory() {}
         ~ManualObjectFactory() {}
@@ -517,6 +520,7 @@ namespace Ogre
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

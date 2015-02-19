@@ -33,10 +33,14 @@ THE SOFTWARE.
 
 namespace Ogre
 {
-    Rectangle2D::Rectangle2D( bool bQuad ) :
+namespace v1
+{
+    Rectangle2D::Rectangle2D( bool bQuad, IdType id, ObjectMemoryManager *objectMemoryManager,
+                              SceneManager *manager ) :
+            MovableObject( id, objectMemoryManager, manager, 1 ),
             mPosition( Vector3::ZERO ),
             mOrientation( Quaternion::IDENTITY ),
-            mScale( Vector3::ZERO ),
+            mScale( Vector3::UNIT_SCALE ),
             mQuad( bQuad )
     {
         initRectangle2D();
@@ -173,32 +177,11 @@ namespace Ogre
         }
 
         vbuf->unlock();
-
-        // set basic white material
-        this->setMaterial( "BaseWhiteNoLighting" );
     }
     //-----------------------------------------------------------------------------------
     Rectangle2D::~Rectangle2D()
     {
         OGRE_DELETE mRenderOp.vertexData;
-    }
-    //-----------------------------------------------------------------------------------
-    void Rectangle2D::setMaterial( const String& matName )
-    {
-        mMaterial = MaterialManager::getSingleton().getByName( matName );
-        if( mMaterial.isNull() )
-        {
-            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find material " + matName,
-                        "Rectangle2D::setMaterial" );
-        }
-    
-        // Won't load twice anyway
-        mMaterial->load();
-    }
-    //-----------------------------------------------------------------------------------
-    const MaterialPtr& Rectangle2D::getMaterial(void) const
-    {
-        return mMaterial;
     }
     //-----------------------------------------------------------------------------------
     void Rectangle2D::setCorners( Real left, Real top, Real width, Real height )
@@ -260,4 +243,45 @@ namespace Ogre
         static const LightList l;
         return l;
     }
+    //-----------------------------------------------------------------------
+    const String& Rectangle2D::getMovableType(void) const
+    {
+        return Rectangle2DFactory::FACTORY_TYPE_NAME;
+    }
+
+    //-----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
+    String Rectangle2DFactory::FACTORY_TYPE_NAME = "Rectangle2D";
+    //-----------------------------------------------------------------------
+    const String& Rectangle2DFactory::getType(void) const
+    {
+        return FACTORY_TYPE_NAME;
+    }
+    //-----------------------------------------------------------------------
+    MovableObject* Rectangle2DFactory::createInstanceImpl( IdType id,
+                                                           ObjectMemoryManager *objectMemoryManager,
+                                                           SceneManager *manager,
+                                                           const NameValuePairList* params )
+    {
+        bool bQuad = true;
+        if (params != 0)
+        {
+            NameValuePairList::const_iterator ni;
+
+            ni = params->find("quad");
+            if (ni != params->end())
+            {
+                bQuad = StringConverter::parseBool( ni->second, true );
+            }
+
+        }
+
+        return OGRE_NEW Rectangle2D( bQuad, id, objectMemoryManager, manager );
+    }
+    //-----------------------------------------------------------------------
+    void Rectangle2DFactory::destroyInstance( MovableObject* obj)
+    {
+        OGRE_DELETE obj;
+    }
+}
 }
