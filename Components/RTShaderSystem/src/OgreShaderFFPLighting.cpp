@@ -45,17 +45,12 @@ namespace RTShader {
 /*                                                                      */
 /************************************************************************/
 String FFPLighting::Type = "FFP_Lighting";
-Light FFPLighting::msBlankLight;
 
 //-----------------------------------------------------------------------
 FFPLighting::FFPLighting()
 {
-	mTrackVertexColourType			= TVC_NONE;
-	mSpecularEnable					= false;
-
-	msBlankLight.setDiffuseColour(ColourValue::Black);
-	msBlankLight.setSpecularColour(ColourValue::Black);
-	msBlankLight.setAttenuation(0,1,0,0);
+    mTrackVertexColourType          = TVC_NONE;
+    mSpecularEnable                 = false;
 }
 
 //-----------------------------------------------------------------------
@@ -93,42 +88,42 @@ void FFPLighting::updateGpuProgramsParams(Renderable* rend, Pass* pass, const Au
 			curSearchLightIndex = 0;
 		}
 
-		Light*		srcLight = NULL;
-		Vector4		vParameter;
-		ColourValue colour;
+        Light const*srcLight = NULL;
+        Vector4     vParameter;
+        ColourValue colour;
 
-		// Search a matching light from the current sorted lights of the given renderable.
-		for (unsigned int j = curSearchLightIndex; j < (pLightList ? pLightList->size() : 0); ++j)
-		{
-			if (pLightList->at(j)->getType() == curLightType)
-			{				
-				srcLight = pLightList->at(j);
-				curSearchLightIndex = j + 1;
-				break;
-			}			
-		}
+        // Search a matching light from the current sorted lights of the given renderable.
+        for (unsigned int j = curSearchLightIndex; j < pLightList->size(); ++j)
+        {
+            if (pLightList->at(j).light->getType() == curLightType)
+            {               
+                srcLight = const_cast<Light*>(pLightList->at(j).light);
+                curSearchLightIndex = j + 1;
+                break;
+            }           
+        }
 
-		// No matching light found -> use a blank dummy light for parameter update.
-		if (srcLight == NULL)
-		{						
-			srcLight = &msBlankLight;
-		}
-					
-		
-		switch (curParams.mType)
-		{
-		case Light::LT_DIRECTIONAL:
+        // No matching light found -> use a blank dummy light for parameter update.
+        if (srcLight == NULL)
+        {                       
+            srcLight = &source->_getBlankLight();
+        }
+                    
+        
+        switch (curParams.mType)
+        {
+        case Light::LT_DIRECTIONAL:
 
-			// Update light direction.
-			vParameter = matView.transformAffine(srcLight->getAs4DVector(true));
-			curParams.mDirection->setGpuParameter(vParameter);
-			break;
+            // Update light direction.
+            vParameter = matView.transformAffine(srcLight->getAs4DVector());
+            curParams.mDirection->setGpuParameter(vParameter);
+            break;
 
 		case Light::LT_POINT:
 
-			// Update light position.
-			vParameter = matView.transformAffine(srcLight->getAs4DVector(true));
-			curParams.mPosition->setGpuParameter(vParameter);
+            // Update light position.
+            vParameter = matView.transformAffine(srcLight->getAs4DVector());
+            curParams.mPosition->setGpuParameter(vParameter);
 
 			// Update light attenuation parameters.
 			vParameter.x = srcLight->getAttenuationRange();
@@ -145,14 +140,14 @@ void FFPLighting::updateGpuProgramsParams(Renderable* rend, Pass* pass, const Au
 
 			source->getInverseTransposeViewMatrix().extract3x3Matrix(matViewIT);
 
-			
-			// Update light position.
-			vParameter = matView.transformAffine(srcLight->getAs4DVector(true));
-			curParams.mPosition->setGpuParameter(vParameter);
-			
-							
-			vec3 = matViewIT * srcLight->getDerivedDirection();
-			vec3.normalise();
+            
+            // Update light position.
+            vParameter = matView.transformAffine(srcLight->getAs4DVector());
+            curParams.mPosition->setGpuParameter(vParameter);
+            
+                            
+            vec3 = matViewIT * srcLight->getDerivedDirection();
+            vec3.normalise();
 
 			vParameter.x = -vec3.x;
 			vParameter.y = -vec3.y;

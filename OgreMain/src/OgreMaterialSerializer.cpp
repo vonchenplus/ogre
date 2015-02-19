@@ -1744,18 +1744,18 @@ namespace Ogre
         else if (paramType == "compositor")
         {
             context.textureUnit->setContentType(TextureUnitState::CONTENT_COMPOSITOR);
-            if (vecparams.size() == 3)
+            if (vecparams.size() == 2)
             {
-                context.textureUnit->setCompositorReference(vecparams[1], vecparams[2]);
+                context.textureUnit->setCompositorReference(vecparams[1]);
             }
-            else if (vecparams.size() == 4)
+            else if (vecparams.size() == 3)
             {
-                context.textureUnit->setCompositorReference(vecparams[1], vecparams[2], 
-                    StringConverter::parseUnsignedInt(vecparams[3]));
+                context.textureUnit->setCompositorReference(vecparams[1],
+                        StringConverter::parseUnsignedInt(vecparams[2]));
             }
             else
             {
-                logParseError("compositor content_type requires 2 or 3 extra params", context);
+                logParseError("compositor content_type requires 1 or 2 extra params", context);
             }
         }
         else
@@ -1791,7 +1791,7 @@ namespace Ogre
         StringVector vecparams = StringUtil::split(params, " \t");
 
         // iterate over the parameters and parse values out of them
-        Material::LodValueList lodList;
+        Material::LodValueArray lodList;
         StringVector::iterator i, iend;
         iend = vecparams.end();
         for (i = vecparams.begin(); i != iend; ++i)
@@ -1883,12 +1883,6 @@ namespace Ogre
     bool parseShadowCasterMaterial(String& params, MaterialScriptContext& context)
     {
         context.technique->setShadowCasterMaterial(params);
-        return false;
-    }
-    //-----------------------------------------------------------------------
-    bool parseShadowReceiverMaterial(String& params, MaterialScriptContext& context)
-    {
-        context.technique->setShadowReceiverMaterial(params);
         return false;
     }
     //-----------------------------------------------------------------------
@@ -2646,8 +2640,6 @@ namespace Ogre
 
         context.isVertexProgramShadowCaster = false;
         context.isFragmentProgramShadowCaster = false;
-        context.isVertexProgramShadowReceiver = false;
-        context.isFragmentProgramShadowReceiver = false;
 
         // Create params? Skip this if program is not supported
         if (context.program->isSupported())
@@ -2695,8 +2687,6 @@ namespace Ogre
 
         context.isVertexProgramShadowCaster = false;
         context.isFragmentProgramShadowCaster = false;
-        context.isVertexProgramShadowReceiver = false;
-        context.isFragmentProgramShadowReceiver = false;
 
         // Create params? Skip this if program is not supported
         if (context.program->isSupported())
@@ -2725,8 +2715,6 @@ namespace Ogre
 
         context.isVertexProgramShadowCaster = true;
         context.isFragmentProgramShadowCaster = false;
-        context.isVertexProgramShadowReceiver = false;
-        context.isFragmentProgramShadowReceiver = false;
 
         // Set the vertex program for this pass
         context.pass->setShadowCasterVertexProgram(params);
@@ -2758,8 +2746,6 @@ namespace Ogre
 
         context.isVertexProgramShadowCaster = false;
         context.isFragmentProgramShadowCaster = true;
-        context.isVertexProgramShadowReceiver = false;
-        context.isFragmentProgramShadowReceiver = false;
 
         // Set the vertex program for this pass
         context.pass->setShadowCasterFragmentProgram(params);
@@ -2768,74 +2754,6 @@ namespace Ogre
         if (context.program->isSupported())
         {
             context.programParams = context.pass->getShadowCasterFragmentProgramParameters();
-            context.numAnimationParametrics = 0;
-        }
-
-        // Return TRUE because this must be followed by a {
-        return true;
-    }
-    //-----------------------------------------------------------------------
-    bool parseShadowReceiverVertexProgramRef(String& params, MaterialScriptContext& context)
-    {
-        // update section
-        context.section = MSS_PROGRAM_REF;
-
-        context.program = GpuProgramManager::getSingleton().getByName(params);
-        if (context.program.isNull())
-        {
-            // Unknown program
-            logParseError("Invalid shadow_receiver_vertex_program_ref entry - vertex program "
-                + params + " has not been defined.", context);
-            return true;
-        }
-
-
-        context.isVertexProgramShadowCaster = false;
-        context.isFragmentProgramShadowCaster = false;
-        context.isVertexProgramShadowReceiver = true;
-        context.isFragmentProgramShadowReceiver = false;
-
-        // Set the vertex program for this pass
-        context.pass->setShadowReceiverVertexProgram(params);
-
-        // Create params? Skip this if program is not supported
-        if (context.program->isSupported())
-        {
-            context.programParams = context.pass->getShadowReceiverVertexProgramParameters();
-            context.numAnimationParametrics = 0;
-        }
-
-        // Return TRUE because this must be followed by a {
-        return true;
-    }
-    //-----------------------------------------------------------------------
-    bool parseShadowReceiverFragmentProgramRef(String& params, MaterialScriptContext& context)
-    {
-        // update section
-        context.section = MSS_PROGRAM_REF;
-
-        context.program = GpuProgramManager::getSingleton().getByName(params);
-        if (context.program.isNull())
-        {
-            // Unknown program
-            logParseError("Invalid shadow_receiver_fragment_program_ref entry - fragment program "
-                + params + " has not been defined.", context);
-            return true;
-        }
-
-
-        context.isVertexProgramShadowCaster = false;
-        context.isFragmentProgramShadowCaster = false;
-        context.isVertexProgramShadowReceiver = false;
-        context.isFragmentProgramShadowReceiver = true;
-
-        // Set the vertex program for this pass
-        context.pass->setShadowReceiverFragmentProgram(params);
-
-        // Create params? Skip this if program is not supported
-        if (context.program->isSupported())
-        {
-            context.programParams = context.pass->getShadowReceiverFragmentProgramParameters();
             context.numAnimationParametrics = 0;
         }
 
@@ -3141,41 +3059,6 @@ namespace Ogre
 
     }
     //-----------------------------------------------------------------------
-    bool parseLodStrategy(String& params, MaterialScriptContext& context)
-    {
-        LodStrategy *strategy = LodStrategyManager::getSingleton().getStrategy(params);
-        
-        if (strategy == 0)
-            logParseError(
-            "Bad lod_strategy attribute, available LOD strategy name expected.",
-            context);
-
-        context.material->setLodStrategy(strategy);
-
-        return false;
-    }
-    //-----------------------------------------------------------------------
-    bool parseLodDistances(String& params, MaterialScriptContext& context)
-    {
-        // Set to distance strategy
-        context.material->setLodStrategy(DistanceLodSphereStrategy::getSingletonPtr());
-
-        StringVector vecparams = StringUtil::split(params, " \t");
-
-        // iterate over the parameters and parse values out of them
-        Material::LodValueList lodList;
-        StringVector::iterator i, iend;
-        iend = vecparams.end();
-        for (i = vecparams.begin(); i != iend; ++i)
-        {
-            lodList.push_back(StringConverter::parseReal(*i));
-        }
-
-        context.material->setLodLevels(lodList);
-
-        return false;
-    }
-    //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
     MaterialSerializer::MaterialSerializer()
     {
@@ -3187,8 +3070,6 @@ namespace Ogre
 
         // Set up material attribute parsers
         mMaterialAttribParsers.insert(AttribParserList::value_type("lod_values", (ATTRIBUTE_PARSER)parseLodValues));
-        mMaterialAttribParsers.insert(AttribParserList::value_type("lod_strategy", (ATTRIBUTE_PARSER)parseLodStrategy));
-        mMaterialAttribParsers.insert(AttribParserList::value_type("lod_distances", (ATTRIBUTE_PARSER)parseLodDistances));
         mMaterialAttribParsers.insert(AttribParserList::value_type("receive_shadows", (ATTRIBUTE_PARSER)parseReceiveShadows));
         mMaterialAttribParsers.insert(AttribParserList::value_type("transparency_casts_shadows", (ATTRIBUTE_PARSER)parseTransparencyCastsShadows));
         mMaterialAttribParsers.insert(AttribParserList::value_type("technique", (ATTRIBUTE_PARSER)parseTechnique));
@@ -3197,7 +3078,6 @@ namespace Ogre
         // Set up technique attribute parsers
         mTechniqueAttribParsers.insert(AttribParserList::value_type("lod_index", (ATTRIBUTE_PARSER)parseLodIndex));
         mTechniqueAttribParsers.insert(AttribParserList::value_type("shadow_caster_material", (ATTRIBUTE_PARSER)parseShadowCasterMaterial));
-        mTechniqueAttribParsers.insert(AttribParserList::value_type("shadow_receiver_material", (ATTRIBUTE_PARSER)parseShadowReceiverMaterial));
         mTechniqueAttribParsers.insert(AttribParserList::value_type("scheme", (ATTRIBUTE_PARSER)parseScheme));
         mTechniqueAttribParsers.insert(AttribParserList::value_type("gpu_vendor_rule", (ATTRIBUTE_PARSER)parseGPUVendorRule));
         mTechniqueAttribParsers.insert(AttribParserList::value_type("gpu_device_rule", (ATTRIBUTE_PARSER)parseGPUDeviceRule));
@@ -3234,8 +3114,6 @@ namespace Ogre
         mPassAttribParsers.insert(AttribParserList::value_type("geometry_program_ref", (ATTRIBUTE_PARSER)parseGeometryProgramRef));
         mPassAttribParsers.insert(AttribParserList::value_type("shadow_caster_vertex_program_ref", (ATTRIBUTE_PARSER)parseShadowCasterVertexProgramRef));
         mPassAttribParsers.insert(AttribParserList::value_type("shadow_caster_fragment_program_ref", (ATTRIBUTE_PARSER)parseShadowCasterFragmentProgramRef));
-        mPassAttribParsers.insert(AttribParserList::value_type("shadow_receiver_vertex_program_ref", (ATTRIBUTE_PARSER)parseShadowReceiverVertexProgramRef));
-        mPassAttribParsers.insert(AttribParserList::value_type("shadow_receiver_fragment_program_ref", (ATTRIBUTE_PARSER)parseShadowReceiverFragmentProgramRef));
         mPassAttribParsers.insert(AttribParserList::value_type("fragment_program_ref", (ATTRIBUTE_PARSER)parseFragmentProgramRef));
         mPassAttribParsers.insert(AttribParserList::value_type("max_lights", (ATTRIBUTE_PARSER)parseMaxLights));
         mPassAttribParsers.insert(AttribParserList::value_type("start_light", (ATTRIBUTE_PARSER)parseStartLight));
@@ -3875,12 +3753,6 @@ namespace Ogre
                 writeAttribute(2, "shadow_caster_material");
                 writeValue(quoteWord(pTech->getShadowCasterMaterial()->getName()));
             }
-            // ShadowReceiverMaterial name
-            if (!pTech->getShadowReceiverMaterial().isNull())
-            {
-                writeAttribute(2, "shadow_receiver_material");
-                writeValue(quoteWord(pTech->getShadowReceiverMaterial()->getName()));
-            }
             // GPU vendor rules
             Technique::GPUVendorRuleIterator vrit = pTech->getGPUVendorRuleIterator();
             while (vrit.hasMoreElements())
@@ -4404,12 +4276,12 @@ namespace Ogre
 
             if(pPass->hasTessellationHullProgram())
             {
-                writeTesselationHullProgramRef(pPass);
+                writeTessellationHullProgramRef(pPass);
             }
 
             if(pPass->hasTessellationHullProgram())
             {
-                writeTesselationDomainProgramRef(pPass);
+                writeTessellationDomainProgramRef(pPass);
             }
             
             if (pPass->hasGeometryProgram())
@@ -4420,16 +4292,6 @@ namespace Ogre
             if (pPass->hasShadowCasterVertexProgram())
             {
                 writeShadowCasterVertexProgramRef(pPass);
-            }
-
-            if (pPass->hasShadowReceiverVertexProgram())
-            {
-                writeShadowReceiverVertexProgramRef(pPass);
-            }
-
-            if (pPass->hasShadowReceiverFragmentProgram())
-            {
-                writeShadowReceiverFragmentProgramRef(pPass);
             }
 
             // Nested texture layers
@@ -4824,8 +4686,7 @@ namespace Ogre
                     break;
                 case TextureUnitState::CONTENT_COMPOSITOR:
                     writeValue("compositor");
-                    writeValue(quoteWord(pTex->getReferencedCompositorName()));
-                    writeValue(quoteWord(pTex->getReferencedTextureName()));
+                    writeValue(quoteWord(pTex->getTextureName()));
                     writeValue(StringConverter::toString(pTex->getReferencedMRTIndex()));
                     break;
                 };
@@ -5114,15 +4975,15 @@ namespace Ogre
             pPass->getVertexProgram(), pPass->getVertexProgramParameters());
     }
     //-----------------------------------------------------------------------
-    void MaterialSerializer::writeTesselationHullProgramRef(const Pass* pPass)
+    void MaterialSerializer::writeTessellationHullProgramRef(const Pass* pPass)
     {
-        writeGpuProgramRef("tesselation_hull_program_ref",
+        writeGpuProgramRef("tessellation_hull_program_ref",
             pPass->getTessellationHullProgram(), pPass->getTessellationHullProgramParameters());
     }
     //-----------------------------------------------------------------------
-    void MaterialSerializer::writeTesselationDomainProgramRef(const Pass* pPass)
+    void MaterialSerializer::writeTessellationDomainProgramRef(const Pass* pPass)
     {
-        writeGpuProgramRef("tesselation_domain_program_ref",
+        writeGpuProgramRef("tessellation_domain_program_ref",
             pPass->getTessellationDomainProgram(), pPass->getTessellationDomainProgramParameters());
     }
     //-----------------------------------------------------------------------
@@ -5136,18 +4997,6 @@ namespace Ogre
     {
         writeGpuProgramRef("shadow_caster_fragment_program_ref",
             pPass->getShadowCasterFragmentProgram(), pPass->getShadowCasterFragmentProgramParameters());
-    }
-    //-----------------------------------------------------------------------
-    void MaterialSerializer::writeShadowReceiverVertexProgramRef(const Pass* pPass)
-    {
-        writeGpuProgramRef("shadow_receiver_vertex_program_ref",
-            pPass->getShadowReceiverVertexProgram(), pPass->getShadowReceiverVertexProgramParameters());
-    }
-    //-----------------------------------------------------------------------
-    void MaterialSerializer::writeShadowReceiverFragmentProgramRef(const Pass* pPass)
-    {
-        writeGpuProgramRef("shadow_receiver_fragment_program_ref",
-            pPass->getShadowReceiverFragmentProgram(), pPass->getShadowReceiverFragmentProgramParameters());
     }
     //-----------------------------------------------------------------------
     void MaterialSerializer::writeGeometryProgramRef(const Pass* pPass)

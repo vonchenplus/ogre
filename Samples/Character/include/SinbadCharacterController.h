@@ -143,14 +143,18 @@ private:
     void setupBody(SceneManager* sceneMgr)
     {
         // create main model
-        mBodyNode = sceneMgr->getRootSceneNode()->createChildSceneNode(Vector3::UNIT_Y * CHAR_HEIGHT);
-        mBodyEnt = sceneMgr->createEntity("SinbadBody", "Sinbad.mesh");
+        mBodyNode = sceneMgr->getRootSceneNode()->createChildSceneNode();
+        mBodyNode->setPosition(Vector3::UNIT_Y * CHAR_HEIGHT);
+        mBodyEnt = sceneMgr->createEntity("Sinbad.mesh");
+        mBodyEnt->setName("SinbadBody");
         mBodyNode->attachObject(mBodyEnt);
 
         // create swords and attach to sheath
         LogManager::getSingleton().logMessage("Creating swords");
-        mSword1 = sceneMgr->createEntity("SinbadSword1", "Sword.mesh");
-        mSword2 = sceneMgr->createEntity("SinbadSword2", "Sword.mesh");
+        mSword1 = sceneMgr->createEntity("Sword.mesh");
+        mSword1->setName("SinbadSword1");
+        mSword2 = sceneMgr->createEntity("Sword.mesh");
+        mSword2->setName("SinbadSword1");
         mBodyEnt->attachObjectToBone("Sheath.L", mSword1);
         mBodyEnt->attachObjectToBone("Sheath.R", mSword2);
 
@@ -159,7 +163,8 @@ private:
         NameValuePairList params;
         params["numberOfChains"] = "2";
         params["maxElements"] = "80";
-        mSwordTrail = (RibbonTrail*)sceneMgr->createMovableObject("RibbonTrail", &params);
+        mSwordTrail = (RibbonTrail*)sceneMgr->createMovableObject(RibbonTrailFactory::FACTORY_TYPE_NAME, new ObjectMemoryManager(), &params);
+        mSwordTrail->setName("RibbonTrail");
         mSwordTrail->setMaterialName("Examples/LightRibbonTrail");
         mSwordTrail->setTrailLength(20);
         mSwordTrail->setVisible(false);
@@ -211,7 +216,8 @@ private:
         // create a pivot at roughly the character's shoulder
         mCameraPivot = cam->getSceneManager()->getRootSceneNode()->createChildSceneNode();
         // this is where the camera should be soon, and it spins around the pivot
-        mCameraGoal = mCameraPivot->createChildSceneNode(Vector3(0, 0, 15));
+        mCameraGoal = mCameraPivot->createChildSceneNode();
+        mCameraGoal->setPosition(Vector3(0, 0, 15));
         // this is where the camera actually is
         mCameraNode = cam->getSceneManager()->getRootSceneNode()->createChildSceneNode();
         mCameraNode->setPosition(mCameraPivot->getPosition() + mCameraGoal->getPosition());
@@ -223,6 +229,7 @@ private:
         // our model is quite small, so reduce the clipping planes
         cam->setNearClipDistance(0.1);
         cam->setFarClipDistance(100);
+		cam->detachFromParent(); //Detach from root scene node
         mCameraNode->attachObject(cam);
 
         mPivotPitch = 0;
@@ -414,7 +421,7 @@ private:
         Vector3 goalOffset = mCameraGoal->_getDerivedPosition() - mCameraNode->getPosition();
         mCameraNode->translate(goalOffset * deltaTime * 9.0f);
         // always look at the pivot
-        mCameraNode->lookAt(mCameraPivot->_getDerivedPosition(), Node::TS_WORLD);
+		mCameraNode->lookAt(mCameraPivot->_getDerivedPositionUpdated(), Node::TS_WORLD);
     }
 
     void updateCameraGoal(Real deltaYaw, Real deltaPitch, Real deltaZoom)
@@ -429,7 +436,7 @@ private:
             mPivotPitch += deltaPitch;
         }
         
-        Real dist = mCameraGoal->_getDerivedPosition().distance(mCameraPivot->_getDerivedPosition());
+        Real dist = mCameraGoal->_getDerivedPosition().distance(mCameraPivot->_getDerivedPositionUpdated());
         Real distChange = deltaZoom * dist;
 
         // bound the zoom

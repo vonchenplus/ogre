@@ -43,19 +43,18 @@ namespace Ogre
     static const uint16 c_maxTexWidth   = 4096;
     static const uint16 c_maxTexHeight  = 4096;
 
-    BaseInstanceBatchVTF::BaseInstanceBatchVTF( InstanceManager *creator, MeshPtr &meshReference,
+    BaseInstanceBatchVTF::BaseInstanceBatchVTF( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                        InstanceManager *creator, MeshPtr &meshReference,
                                         const MaterialPtr &material, size_t instancesPerBatch,
-                                        const Mesh::IndexMap *indexToBoneMap, const String &batchName) :
-                InstanceBatch( creator, meshReference, material, instancesPerBatch,
-                                indexToBoneMap, batchName ),
-                mMatricesPerInstance(0),
+                                        const Mesh::IndexMap *indexToBoneMap ) :
+                InstanceBatch( id, objectMemoryManager, creator, meshReference, material,
+                                instancesPerBatch, indexToBoneMap ),
                 mNumWorldMatrices( instancesPerBatch ),
                 mWidthFloatsPadding( 0 ),
                 mMaxFloatsPerLine( std::numeric_limits<size_t>::max() ),
                 mRowLength(3),
                 mWeightCount(1),
                 mTempTransformsArray3x4(0),
-                mUseBoneMatrixLookup(false),
                 mMaxLookupTableInstances(16),
                 mUseBoneDualQuaternions(false),
                 mForceOneWeight(false),
@@ -370,9 +369,6 @@ namespace Ogre
         {
             size_t floatsWritten = (*itor)->getTransforms3x4( transforms );
 
-            if( mManager->getCameraRelativeRendering() )
-                makeMatrixCameraRelative3x4( transforms, floatsWritten );
-
             if(mUseBoneDualQuaternions)
             {
                 floatsWritten = convert3x4MatricesToDualQuaternions(transforms, floatsWritten / 12, pDest);
@@ -399,7 +395,11 @@ namespace Ogre
                 // 1. All entities sharing the same transformation will share the same unique number
                 // 2. "transform lookup number" will be numbered from 0 up to getMaxLookupTableInstances
                 size_t lookupCounter = 0;
-                typedef map<Matrix4*,size_t>::type MapTransformId;
+#ifdef OGRE_LEGACY_ANIMATIONS
+                typedef map<OldSkeletonInstance*,size_t>::type MapTransformId;
+#else
+                typedef map<SkeletonInstance*,size_t>::type MapTransformId;
+#endif
                 MapTransformId transformToId;
                 InstancedEntityVec::const_iterator itEnt = mInstancedEntities.begin(),
                     itEntEnd = mInstancedEntities.end();
@@ -407,7 +407,11 @@ namespace Ogre
                 {
                     if ((*itEnt)->isInScene())
                     {
-                        Matrix4* transformUniqueId = (*itEnt)->mBoneMatrices;
+#ifdef OGRE_LEGACY_ANIMATIONS
+                        OldSkeletonInstance* transformUniqueId = (*itEnt)->mSkeletonInstance;
+#else
+                        SkeletonInstance* transformUniqueId = (*itEnt)->mSkeletonInstance;
+#endif
                         MapTransformId::iterator itLu = transformToId.find(transformUniqueId);
                         if (itLu == transformToId.end())
                         {
@@ -445,7 +449,13 @@ namespace Ogre
             }
         }
 
-        return OGRE_NEW InstancedEntity(this, static_cast<uint32>(num), sharedTransformEntity);
+        return OGRE_NEW InstancedEntity( Id::generateNewId<InstancedEntity>(),
+                                         &mLocalObjectMemoryManager,
+                                         this, static_cast<uint32>(num),
+                                 #ifndef OGRE_LEGACY_ANIMATIONS
+                                         0,
+                                 #endif
+                                         sharedTransformEntity );
     }
 
 
@@ -460,24 +470,21 @@ namespace Ogre
         return 1;
     }
     //-----------------------------------------------------------------------
-    void BaseInstanceBatchVTF::_updateRenderQueue(RenderQueue* queue)
+    void BaseInstanceBatchVTF::_updateRenderQueue(RenderQueue* queue, Camera *camera,
+                                                  const Camera *lodCamera)
     {
-        InstanceBatch::_updateRenderQueue( queue );
-
-        if( mBoundsUpdated || mDirtyAnimation || mManager->getCameraRelativeRendering() )
-            updateVertexTexture();
-
-        mBoundsUpdated = false;
+        InstanceBatch::_updateRenderQueue( queue, camera, lodCamera );
     }
     //-----------------------------------------------------------------------
     // InstanceBatchVTF
     //-----------------------------------------------------------------------
     InstanceBatchVTF::InstanceBatchVTF( 
+        IdType id, ObjectMemoryManager *objectMemoryManager,
         InstanceManager *creator, MeshPtr &meshReference, 
         const MaterialPtr &material, size_t instancesPerBatch, 
-        const Mesh::IndexMap *indexToBoneMap, const String &batchName )
-            : BaseInstanceBatchVTF (creator, meshReference, material, 
-                                    instancesPerBatch, indexToBoneMap, batchName)
+        const Mesh::IndexMap *indexToBoneMap )
+            : BaseInstanceBatchVTF (id, objectMemoryManager, creator, meshReference, material,
+                                    instancesPerBatch, indexToBoneMap)
     {
 
     }
@@ -519,7 +526,7 @@ namespace Ogre
 
         hwBoneIdx.resize( baseVertexData->vertexCount * mWeightCount, 0 );
 
-        if( mMeshReference->hasSkeleton() && !mMeshReference->getSkeleton().isNull() )
+        if( mMeshReference->hasSkeleton() && !mMeshReference->getOldSkeleton().isNull() )
         {
             if(mWeightCount > 1)
             {

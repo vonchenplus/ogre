@@ -55,6 +55,7 @@ THE SOFTWARE.
 #include "OgreGLPBRenderTexture.h"
 #include "OgreConfig.h"
 #include "OgreViewport.h"
+#include "OgreRenderOperation.h"
 
 // Convenience macro from ARB_vertex_buffer_object spec
 #define VBO_BUFFER_OFFSET(i) ((char *)NULL + (i))
@@ -656,7 +657,7 @@ namespace Ogre {
         {
             GLint vSize[2];
             glGetIntegerv(GL_POINT_SIZE_RANGE,vSize);
-            rsc->setMaxPointSize(vSize[1]);
+            rsc->setMaxPointSize((Real)vSize[1]);
         }
 
         // Vertex texture fetching
@@ -1309,8 +1310,8 @@ namespace Ogre {
         unsigned short num = 0;
         for (i = lights.begin(); i != iend && num < limit; ++i, ++num)
         {
-            setGLLight(num, *i);
-            mLights[num] = *i;
+            setGLLight(num, i->light);
+            mLights[num] = i->light;
         }
         // Disable extra lights
         for (; num < mCurrentLights; ++num)
@@ -1326,7 +1327,7 @@ namespace Ogre {
         glPopMatrix();
     }
 
-    void GLRenderSystem::setGLLight(size_t index, Light* lt)
+    void GLRenderSystem::setGLLight(size_t index, const Light* lt)
     {
         GLenum gl_index = GL_LIGHT0 + index;
 
@@ -1630,12 +1631,12 @@ namespace Ogre {
         _setTexture(unit, true, tex);
     }
     //-----------------------------------------------------------------------------
-    void GLRenderSystem::_setTesselationHullTexture( size_t unit, const TexturePtr &tex )
+    void GLRenderSystem::_setTessellationHullTexture( size_t unit, const TexturePtr &tex )
     {
         _setTexture(unit, true, tex);
     }
     //-----------------------------------------------------------------------------
-    void GLRenderSystem::_setTesselationDomainTexture( size_t unit, const TexturePtr &tex )
+    void GLRenderSystem::_setTessellationDomainTexture( size_t unit, const TexturePtr &tex )
     {
         _setTexture(unit, true, tex);
     }
@@ -2074,7 +2075,7 @@ namespace Ogre {
         {
             if (mLights[i] != NULL)
             {
-                Light* lt = mLights[i];
+                const Light* lt = mLights[i];
                 setGLLightPositionDirection(lt, GL_LIGHT0 + i);
             }
         }
@@ -2083,13 +2084,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     void GLRenderSystem::_beginFrame(void)
     {
-        if (!mActiveViewport)
-            OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
-                        "Cannot begin frame - no viewport selected.",
-                        "GLRenderSystem::_beginFrame");
-
         mCurrentContext->setCurrent();
-
         // Activate the viewport clipping
         mStateCacheManager->setEnabled(GL_SCISSOR_TEST, true);
     }
@@ -2310,8 +2305,8 @@ namespace Ogre {
         Real tanThetaX = tanThetaY * aspect; //Math::Tan(thetaX);
         Real half_w = tanThetaX * nearPlane;
         Real half_h = tanThetaY * nearPlane;
-		Real iw = 1.0f / half_w;
-		Real ih = 1.0f / half_h;
+        Real iw = 1.0f / half_w;
+        Real ih = 1.0f / half_h;
         Real q;
         if (farPlane == 0)
         {
@@ -2319,7 +2314,7 @@ namespace Ogre {
         }
         else
         {
-			q = 2.0f / (farPlane - nearPlane);
+            q = 2.0f / (farPlane - nearPlane);
         }
         dest = Matrix4::ZERO;
         dest[0][0] = iw;
@@ -2596,7 +2591,7 @@ namespace Ogre {
             maxAnisotropy = largest_supported_anisotropy ?
                 static_cast<uint>(largest_supported_anisotropy) : 1;
         if (_getCurrentAnisotropy(unit) != maxAnisotropy)
-            glTexParameterf(mTextureTypes[unit], GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
+            glTexParameterf(mTextureTypes[unit], GL_TEXTURE_MAX_ANISOTROPY_EXT, (GLfloat)maxAnisotropy);
 
         mStateCacheManager->activateGLTextureUnit(0);
     }
@@ -2823,12 +2818,12 @@ namespace Ogre {
         mStateCacheManager->activateGLTextureUnit(0);
     }
     //---------------------------------------------------------------------
-    void GLRenderSystem::setGLLightPositionDirection(Light* lt, GLenum lightindex)
+    void GLRenderSystem::setGLLightPositionDirection(const Light* lt, GLenum lightindex)
     {
         // Set position / direction
         Vector4 vec;
         // Use general 4D vector which is the same as GL's approach
-        vec = lt->getAs4DVector(true);
+        vec = lt->getAs4DVector();
 
         // Must convert to float*
         float tmp[4] = {static_cast<float>(vec.x),

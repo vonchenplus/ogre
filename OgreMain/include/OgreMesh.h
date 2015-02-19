@@ -95,13 +95,13 @@ namespace Ogre {
         friend class MeshSerializerImpl_v1_1;
 
     public:
-        typedef vector<Real>::type LodValueList;
+        typedef FastArray<Real> LodValueArray;
         typedef vector<MeshLodUsage>::type MeshLodUsageList;
         /// Multimap of vertex bone assignments (orders by vertex index).
         typedef multimap<size_t, VertexBoneAssignment>::type VertexBoneAssignmentList;
         typedef MapIterator<VertexBoneAssignmentList> BoneAssignmentIterator;
         typedef vector<SubMesh*>::type SubMeshList;
-        typedef vector<unsigned short>::type IndexMap;
+        typedef FastArray<unsigned short> IndexMap;
 
     protected:
         /** A list of submeshes which make up this mesh.
@@ -139,7 +139,8 @@ namespace Ogre {
 
         /// Optional linked skeleton.
         String mSkeletonName;
-        SkeletonPtr mSkeleton;
+        SkeletonPtr mOldSkeleton;
+        SkeletonDefPtr mSkeleton;
 
        
         VertexBoneAssignmentList mBoneAssignments;
@@ -155,22 +156,17 @@ namespace Ogre {
             unsigned short numBlendWeightsPerVertex, 
             IndexMap& blendIndexToBoneIndexMap,
             VertexData* targetVertexData);
-#if !OGRE_NO_MESHLOD
-        const LodStrategy *mLodStrategy;
+
+        String mLodStrategyName;
         bool mHasManualLodLevel;
         ushort mNumLods;
-        MeshLodUsageList mMeshLodUsageList;
-#else
-        const LodStrategy *mLodStrategy;
-        const bool mHasManualLodLevel;
-        const ushort mNumLods;
-        MeshLodUsageList mMeshLodUsageList;
-#endif
+        MeshLodUsageList    mMeshLodUsageList;
+        LodValueArray       mLodValues;
+
         HardwareBuffer::Usage mVertexBufferUsage;
         HardwareBuffer::Usage mIndexBufferUsage;
         bool mVertexBufferShadowBuffer;
         bool mIndexBufferShadowBuffer;
-
 
         bool mPreparedForShadowVolumes;
         bool mEdgeListsBuilt;
@@ -412,7 +408,8 @@ namespace Ogre {
         @return
             Weak reference to the skeleton - copy this if you want to hold a strong pointer.
         */
-        const SkeletonPtr& getSkeleton(void) const;
+        const SkeletonPtr& getOldSkeleton(void) const;
+        const SkeletonDefPtr& getSkeleton(void) const                   { return mSkeleton; }
 
         /** Gets the name of any linked Skeleton */
         const String& getSkeletonName(void) const;
@@ -465,6 +462,11 @@ namespace Ogre {
         */
         const VertexBoneAssignmentList& getBoneAssignments() const { return mBoneAssignments; }
 
+        void setLodStrategyName( const String &name )               { mLodStrategyName = name; }
+
+        /// Returns the name of the Lod strategy the user lod values have been calibrated for
+        const String& getLodStrategyName(void) const                { return mLodStrategyName; }
+
         /** Returns the number of levels of detail that this mesh supports. 
         @remarks
             This number includes the original model.
@@ -487,7 +489,7 @@ namespace Ogre {
             meshes as provided by an artist.
         */
         bool hasManualLodLevel(void) const { return mHasManualLodLevel; }
-#if !OGRE_NO_MESHLOD
+
         /** Changes the alternate mesh to use as a manual LOD at the given index.
         @remarks
             Note that the index of a LOD may change if you insert other LODs. If in doubt,
@@ -505,10 +507,8 @@ namespace Ogre {
         void _setLodUsage(unsigned short level, const MeshLodUsage& usage);
         /** Internal methods for loading LOD, do not use. */
         void _setSubMeshLodFaceList(unsigned short subIdx, unsigned short level, IndexData* facedata);
-#endif
         /** Internal methods for loading LOD, do not use. */
         bool _isManualLodLevel(unsigned short level) const;
-
 
         /** Removes all LOD data from this Mesh. */
         void removeLodLevels(void);
@@ -954,12 +954,8 @@ namespace Ogre {
         /** Get pose list. */
         const PoseList& getPoseList(void) const;
 
-        /** Get LOD strategy used by this mesh. */
-        const LodStrategy *getLodStrategy() const;
-#if !OGRE_NO_MESHLOD
-        /** Set the lod strategy used by this mesh. */
-        void setLodStrategy(LodStrategy *lodStrategy);
-#endif
+        const LodValueArray* _getLodValueArray(void) const                      { return &mLodValues; }
+
     };
 
     /** A way of recording the way each LODs is recorded this Mesh. */

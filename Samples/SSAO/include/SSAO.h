@@ -142,23 +142,24 @@ public:
         MaterialManager::getSingleton().removeListener(mGBufSchemeHandler, "GBuffer");
         delete mGBufSchemeHandler;
         mGBufSchemeHandler = NULL;
+        CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
 
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentCompositor, false);
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentPost, false);
+        compositorManager->setCompositorEnabled(mCamera->getLastViewport(), mCurrentCompositor, false);
+        compositorManager->setCompositorEnabled(mCamera->getLastViewport(), mCurrentPost, false);
         
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, "SSAO/GBuffer", false);
-        CompositorManager::getSingleton().removeCompositor(mViewport, "SSAO/GBuffer");
+        compositorManager->setCompositorEnabled(mCamera->getLastViewport(), "SSAO/GBuffer", false);
+        compositorManager->removeCompositor(mCamera->getLastViewport(), "SSAO/GBuffer");
         
         for (unsigned int i = 0; i < mCompositorNames.size(); i++)
         {
-            CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCompositorNames[i], false);
-            CompositorManager::getSingleton().removeCompositor(mViewport, mCompositorNames[i]);
+            compositorManager->setCompositorEnabled(mCamera->getLastViewport(), mCompositorNames[i], false);
+            compositorManager->removeCompositor(mCamera->getLastViewport(), mCompositorNames[i]);
         }
         
         for (unsigned int i = 0; i < mPostNames.size(); i++)
         {
-            CompositorManager::getSingleton().setCompositorEnabled(mViewport, mPostNames[i], false);
-            CompositorManager::getSingleton().removeCompositor(mViewport, mPostNames[i]);
+            compositorManager->setCompositorEnabled(mCamera->getLastViewport(), mPostNames[i], false);
+            compositorManager->removeCompositor(mCamera->getLastViewport(), mPostNames[i]);
         }
         
         MeshManager::getSingleton().remove("sibenik");
@@ -195,16 +196,17 @@ protected:
      */
     void setupCompositors()
     {
-        
-        if (CompositorManager::getSingleton().addCompositor(mViewport, "SSAO/GBuffer"))
-            CompositorManager::getSingleton().setCompositorEnabled(mViewport, "SSAO/GBuffer", true);
+        CompositorManager2 *compositorManager = mRoot->getCompositorManager2();
+
+        if (compositorManager->addCompositor(mCamera->getLastViewport(), "SSAO/GBuffer"))
+            compositorManager->setCompositorEnabled(mViewport, "SSAO/GBuffer", true);
         else
             LogManager::getSingleton().logMessage("Sample_SSAO: Failed to add GBuffer compositor\n");
         
         for (unsigned int i = 0; i < mCompositorNames.size(); i++)
         {
-            if (CompositorManager::getSingleton().addCompositor(mViewport, mCompositorNames[i]))
-                CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCompositorNames[i], false);
+            if (compositorManager->addCompositor(mViewport, mCompositorNames[i]))
+                compositorManager->setCompositorEnabled(mViewport, mCompositorNames[i], false);
             else
                 LogManager::getSingleton().logMessage("Sample_SSAO: Failed to add compositor: " + mCompositorNames[i] + "\n");
         }
@@ -212,14 +214,14 @@ protected:
         for (unsigned int i = 0; i < mPostNames.size(); i++)
         {
             
-            if (CompositorManager::getSingleton().addCompositor(mViewport, mPostNames[i]))
-                CompositorManager::getSingleton().setCompositorEnabled(mViewport, mPostNames[i], false);
+            if (compositorManager->addCompositor(mViewport, mPostNames[i]))
+                compositorManager->setCompositorEnabled(mViewport, mPostNames[i], false);
             else
                 LogManager::getSingleton().logMessage("Sample_SSAO: Failed to add " + mPostNames[i] + " compositor\n");
         }
         
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentCompositor, true);
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentPost, true);
+        compositorManager->setCompositorEnabled(mViewport, mCurrentCompositor, true);
+        compositorManager->setCompositorEnabled(mViewport, mCurrentPost, true);
     }
     
     /**
@@ -439,11 +441,12 @@ protected:
         
         // sibenik
         mCamera->setPosition(27, 9, -2);
-        mCamera->lookAt(Vector3(-6, 2, 1));;
+        mCamera->lookAt(Vector3(-6, 2, 1));
         
         // setup all meshes
         for (unsigned int i = 0; i < mMeshNames.size(); i++) {
-            Entity* ent = mSceneMgr->createEntity(mMeshNames[i], mMeshNames[i] + ".mesh");
+            Entity* ent = mSceneMgr->createEntity(mMeshNames[i] + ".mesh");
+            ent->setName(mMeshNames[i]);
             ent->setVisible(false);
             
             mSceneMgr->getRootSceneNode()->attachObject(ent);
@@ -480,9 +483,9 @@ protected:
      */
     void changeCompositor(Ogre::String compositor)
     {
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentCompositor, false);
+        compositorManager->setCompositorEnabled(mViewport, mCurrentCompositor, false);
         mCurrentCompositor = compositor;
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentCompositor, true);
+        compositorManager->setCompositorEnabled(mViewport, mCurrentCompositor, true);
         
         if (compositor == "SSAO/CreaseShading")
         {
@@ -591,9 +594,9 @@ protected:
      */
     void changePost(Ogre::String post)
     {
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentPost, false);
+        compositorManager->setCompositorEnabled(mViewport, mCurrentPost, false);
         mCurrentPost = post;
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentPost, true);
+        compositorManager->setCompositorEnabled(mViewport, mCurrentPost, true);
         
         if (post == "SSAO/Post/CrossBilateralFilter")
         {
@@ -696,8 +699,8 @@ protected:
         else if(slider->getName() == SSAO_SAMPLE_LENGTH_EXPONENT_NAME)
             setUniform("SSAO/HemisphereMC", "SSAO/HemisphereMC", "cSampleLengthExponent", slider->getValue(), false, 1);
         
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentCompositor, true);
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentPost, true);
+        compositorManager->setCompositorEnabled(mViewport, mCurrentCompositor, true);
+        compositorManager->setCompositorEnabled(mViewport, mCurrentPost, true);
     }
     
     void checkBoxToggled(OgreBites::CheckBox *box) 
@@ -706,8 +709,8 @@ protected:
         {
             if (box->isChecked())
             {
-                CompositorManager::getSingleton().addCompositor(mViewport, "SSAO/Post/Modulate");
-                CompositorManager::getSingleton().setCompositorEnabled(mViewport, "SSAO/Post/Modulate", true);
+                compositorManager->addCompositor(mViewport, "SSAO/Post/Modulate");
+                compositorManager->setCompositorEnabled(mViewport, "SSAO/Post/Modulate", true);
                 mSceneMgr->setAmbientLight(ColourValue(0.5, 0.5, 0.5));
                 mLight = mSceneMgr->createLight();
                 mLight->setPosition(30, 80, 30);
@@ -716,8 +719,8 @@ protected:
             {  
                 mSceneMgr->destroyLight(mLight);
                 mLight = NULL;
-                CompositorManager::getSingleton().setCompositorEnabled(mViewport, "SSAO/Post/Modulate", false);
-                CompositorManager::getSingleton().removeCompositor(mViewport, "SSAO/Post/Modulate");
+                compositorManager->setCompositorEnabled(mViewport, "SSAO/Post/Modulate", false);
+                compositorManager->removeCompositor(mViewport, "SSAO/Post/Modulate");
             }
         }
         else if (box->getName() == SSAO_SAMPLE_SPACE_NAME)
@@ -726,7 +729,7 @@ protected:
             setUniform("SSAO/HorizonBased", "SSAO/HorizonBased", "cSampleInScreenspace", box->isChecked(), false, 1);
             setUniform("SSAO/HemisphereMC", "SSAO/HemisphereMC", "cSampleInScreenspace", box->isChecked(), false, 1);
             setUniform("SSAO/Volumetric", "SSAO/Volumetric", "cSampleInScreenspace", box->isChecked(), false, 1);
-            CompositorManager::getSingleton().setCompositorEnabled(mViewport, mCurrentCompositor, true);
+            compositorManager->setCompositorEnabled(mViewport, mCurrentCompositor, true);
             
             if (box->isChecked()) // we sample in screen space 
             {
@@ -796,14 +799,14 @@ protected:
     void setUniform(Ogre::String compositor, Ogre::String material, Ogre::String uniform, float value, bool setVisible, int position = -1)
     {
         // remove compositor first???
-        CompositorManager::getSingleton().removeCompositor(mViewport, compositor);
+        compositorManager->removeCompositor(mViewport, compositor);
         
         MaterialManager::getSingleton().getByName(material)->getTechnique(0)->
         getPass(0)->getFragmentProgramParameters()->setNamedConstant(uniform, value);
         
         // adding again
-        CompositorManager::getSingleton().addCompositor(mViewport, compositor, position);
-        CompositorManager::getSingleton().setCompositorEnabled(mViewport, compositor, setVisible);
+        compositorManager->addCompositor(mViewport, compositor, position);
+        compositorManager->setCompositorEnabled(mViewport, compositor, setVisible);
     }
 };
 

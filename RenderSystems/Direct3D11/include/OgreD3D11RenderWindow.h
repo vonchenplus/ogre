@@ -123,7 +123,6 @@ namespace Ogre
         unsigned getVSyncInterval() const                       { return mVSyncInterval; }
 
         void swapBuffers();
-        void updateStats(void);
 
     protected:
         DXGI_FORMAT _getSwapChainFormat()                       { return _getGammaFormat(_getBasicFormat(), isHardwareGammaEnabled() && !mUseFlipSequentialMode); }
@@ -238,7 +237,7 @@ namespace Ogre
         virtual void destroy(void);
 
         virtual void resize(unsigned int width, unsigned int height);
-        virtual void update(bool swapBuffers = true);
+        virtual void update();
         virtual void swapBuffers();
 
         virtual bool isVisible() const                          { return mImageSourceNative != NULL; }

@@ -33,7 +33,9 @@ THE SOFTWARE.
 #include "OgreAnimation.h"
 #include "OgreAnimationTrack.h"
 #include "OgreKeyFrame.h"
-#include "OgreBone.h"
+#include "OgreOldBone.h"
+#include "OgreString.h"
+#include "OgreDataStream.h"
 #include "OgreLogManager.h"
 
 namespace Ogre {
@@ -169,7 +171,6 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void SkeletonSerializer::writeSkeleton(const Skeleton* pSkel, SkeletonVersion ver)
     {
-        
         // Write blend mode
         if ((int)ver > (int)SKELETON_VERSION_1_0)
         {
@@ -183,15 +184,15 @@ namespace Ogre {
         unsigned short i;
         for (i = 0; i < numBones; ++i)
         {
-            Bone* pBone = pSkel->getBone(i);
+            OldBone* pBone = pSkel->getBone(i);
             writeBone(pSkel, pBone);
         }
         // Write parents
         for (i = 0; i < numBones; ++i)
         {
-            Bone* pBone = pSkel->getBone(i);
+            OldBone* pBone = pSkel->getBone(i);
             unsigned short handle = pBone->getHandle();
-            Bone* pParent = static_cast<Bone*>(pBone->getParent());
+            OldBone* pParent = (OldBone*)pBone->getParent(); 
             if (pParent != NULL) 
             {
                 writeBoneParent(pSkel, handle, pParent->getHandle());             
@@ -199,7 +200,7 @@ namespace Ogre {
         }
     }
     //---------------------------------------------------------------------
-    void SkeletonSerializer::writeBone(const Skeleton* pSkel, const Bone* pBone)
+    void SkeletonSerializer::writeBone(const Skeleton* pSkel, const OldBone* pBone)
     {
         writeChunkHeader(SKELETON_BONE, calcBoneSize(pSkel, pBone));
 
@@ -269,7 +270,7 @@ namespace Ogre {
         }
 
         // Write all tracks
-        Animation::NodeTrackIterator trackIt = anim->getNodeTrackIterator();
+		Animation::OldNodeTrackIterator trackIt = anim->getOldNodeTrackIterator();
         while(trackIt.hasMoreElements())
         {
             writeAnimationTrack(pSkel, trackIt.getNext());
@@ -280,12 +281,12 @@ namespace Ogre {
     }
     //---------------------------------------------------------------------
     void SkeletonSerializer::writeAnimationTrack(const Skeleton* pSkel, 
-        const NodeAnimationTrack* track)
+        const OldNodeAnimationTrack* track)
     {
         writeChunkHeader(SKELETON_ANIMATION_TRACK, calcAnimationTrackSize(pSkel, track));
 
         // unsigned short boneIndex     : Index of bone to apply to
-        Bone* bone = static_cast<Bone*>(track->getAssociatedNode());
+        OldBone* bone = (OldBone*)track->getAssociatedNode();
         unsigned short boneid = bone->getHandle();
         writeShorts(&boneid, 1);
         pushInnerChunk(mStream);
@@ -318,7 +319,7 @@ namespace Ogre {
     }
     //---------------------------------------------------------------------
     size_t SkeletonSerializer::calcBoneSize(const Skeleton* pSkel, 
-        const Bone* pBone)
+        const OldBone* pBone)
     {
         size_t size = calcBoneSizeWithoutScale(pSkel, pBone);
 
@@ -332,7 +333,7 @@ namespace Ogre {
     }
     //---------------------------------------------------------------------
     size_t SkeletonSerializer::calcBoneSizeWithoutScale(const Skeleton* pSkel, 
-        const Bone* pBone)
+        const OldBone* pBone)
     {
         size_t size = SSTREAM_OVERHEAD_SIZE;
 
@@ -387,7 +388,7 @@ namespace Ogre {
         }
 
         // Nested animation tracks
-        Animation::NodeTrackIterator trackIt = pAnim->getNodeTrackIterator();
+		Animation::OldNodeTrackIterator trackIt = pAnim->getOldNodeTrackIterator();
         while(trackIt.hasMoreElements())
         {
             size += calcAnimationTrackSize(pSkel, trackIt.getNext());
@@ -397,7 +398,7 @@ namespace Ogre {
     }
     //---------------------------------------------------------------------
     size_t SkeletonSerializer::calcAnimationTrackSize(const Skeleton* pSkel, 
-        const NodeAnimationTrack* pTrack)
+        const OldNodeAnimationTrack* pTrack)
     {
         size_t size = SSTREAM_OVERHEAD_SIZE;
 
@@ -478,7 +479,7 @@ namespace Ogre {
         readShorts(stream, &handle, 1);
 
         // Create new bone
-        Bone* pBone = pSkel->createBone(name, handle);
+        OldBone* pBone = pSkel->createBone(name, handle);
 
         // Vector3 position                 : position of this bone relative to parent 
         Vector3 pos;
@@ -508,7 +509,7 @@ namespace Ogre {
     void SkeletonSerializer::readBoneParent(DataStreamPtr& stream, Skeleton* pSkel)
     {
         // All bones have been created by this point
-        Bone *child, *parent;
+        OldBone *child, *parent;
         unsigned short childHandle, parentHandle;
 
         // unsigned short handle             : child bone
@@ -585,10 +586,10 @@ namespace Ogre {
         readShorts(stream, &boneHandle, 1);
 
         // Find bone
-        Bone *targetBone = pSkel->getBone(boneHandle);
+        OldBone *targetBone = pSkel->getBone(boneHandle);
 
         // Create track
-        NodeAnimationTrack* pTrack = anim->createNodeTrack(boneHandle, targetBone);
+		OldNodeAnimationTrack* pTrack = anim->createOldNodeTrack(boneHandle, targetBone);
 
         // Keep looking for nested keyframes
         if (!stream->eof())
@@ -616,7 +617,7 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    void SkeletonSerializer::readKeyFrame(DataStreamPtr& stream, NodeAnimationTrack* track, 
+    void SkeletonSerializer::readKeyFrame(DataStreamPtr& stream, OldNodeAnimationTrack* track, 
         Skeleton* pSkel)
     {
         // float time                    : The time position (seconds)

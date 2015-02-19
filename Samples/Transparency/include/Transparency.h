@@ -20,6 +20,7 @@ public:
         mInfo["Description"] = "Demonstrates the use of transparent materials (or scene blending).";
         mInfo["Thumbnail"] = "thumb_trans.png";
         mInfo["Category"] = "Lighting";
+        mBackgroundColour = ColourValue( 0.6f, 0.0f, 0.6f );
     }
 
     bool frameRenderingQueued(const FrameEvent& evt)
@@ -46,20 +47,24 @@ public:
 protected:
 
     void setupContent()
-    {     
+    {
         mSceneMgr->setSkyBox(true, "Examples/TrippySkyBox");
 
         mCamera->setPosition(0, 0, 300);   // set camera's starting position
 
-        mSceneMgr->createLight()->setPosition(20, 80, 50);   // add basic point light
+        SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        lightNode->setPosition(20, 80, 50);
+        lightNode->attachObject( mSceneMgr->createLight() );
 
         // create a torus knot model, give it the translucent texture, and attach it to the origin
-        Entity* ent = mSceneMgr->createEntity("Knot", "knot.mesh");
+        Entity* ent = mSceneMgr->createEntity( "knot.mesh",
+                                                ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME,
+                                                SCENE_STATIC );
         ent->setMaterialName("Examples/WaterStream");
-        mSceneMgr->getRootSceneNode()->attachObject(ent);
+        mSceneMgr->getRootSceneNode( SCENE_STATIC )->attachObject(ent);
 
         // create a fishy and enable its swimming animation
-        ent = mSceneMgr->createEntity("Fish", "fish.mesh");
+        ent = mSceneMgr->createEntity( "fish.mesh" );
         mFishSwim = ent->getAnimationState("swim");
         mFishSwim->setEnabled(true);
         

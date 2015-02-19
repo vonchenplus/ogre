@@ -81,13 +81,15 @@ namespace Ogre
         
 
         /// @copydoc RenderTarget::_beginUpdate
-        void _beginUpdate();
+        virtual void _beginUpdate();
     
-        /// @copydoc RenderTarget::_updateViewport(Viewport* viewport, bool updateStatistics)
-        void _updateViewport(Viewport* viewport, bool updateStatistics = true);
+        /// @copydoc RenderTarget::_updateViewportRenderPhase02
+        virtual void _updateViewportRenderPhase02( Viewport* viewport, Camera *camera,
+                                                    const Camera *lodCamera, uint8 firstRq,
+                                                    uint8 lastRq, bool updateStatistics );
 
         /// @copydoc RenderTarget::_endUpdate
-        void _endUpdate();
+        virtual void _endUpdate();
 
         /// Accessor for render surface
         IDirect3DSurface9* getRenderSurface();
@@ -121,9 +123,6 @@ namespace Ogre
 
         /** Return the target window style depending on the fullscreen parameter. */
         DWORD getWindowStyle(bool fullScreen) const { if (fullScreen) return mFullscreenWinStyle; return mWindowedWinStyle; }
-
-        // Overridden see RenderTarget
-        virtual void updateStats(void);
 
     protected:
         HINSTANCE                   mInstance;              // Process instance

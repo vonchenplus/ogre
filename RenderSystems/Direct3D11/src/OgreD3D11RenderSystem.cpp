@@ -1868,7 +1868,7 @@ bail:
             _setTexture(stage, true, tex);  
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::_setTesselationHullTexture(size_t stage, const TexturePtr& tex)
+    void D3D11RenderSystem::_setTessellationHullTexture(size_t stage, const TexturePtr& tex)
     {
         if (tex.isNull())
             _setTexture(stage, false, tex);
@@ -1876,7 +1876,7 @@ bail:
             _setTexture(stage, true, tex);  
     }
     //---------------------------------------------------------------------
-    void D3D11RenderSystem::_setTesselationDomainTexture(size_t stage, const TexturePtr& tex)
+    void D3D11RenderSystem::_setTessellationDomainTexture(size_t stage, const TexturePtr& tex)
     {
         if (tex.isNull())
             _setTexture(stage, false, tex);
@@ -2276,9 +2276,6 @@ bail:
     //---------------------------------------------------------------------
     void D3D11RenderSystem::_beginFrame()
     {
-    
-        if( !mActiveViewport )
-            OGRE_EXCEPT( Exception::ERR_INTERNAL_ERROR, "Cannot begin frame - no viewport selected.", "D3D11RenderSystem::_beginFrame" );
     }
     //---------------------------------------------------------------------
     void D3D11RenderSystem::_endFrame()

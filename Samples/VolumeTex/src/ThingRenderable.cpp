@@ -16,14 +16,23 @@ same license as the rest of the engine.
 #include "OgreHardwareIndexBuffer.h"
 #include "OgreHardwareBufferManager.h"
 #include "OgreCamera.h"
+#include <Math/Array/OgreObjectMemoryManager.h>
+
 using namespace Ogre;
 
-ThingRenderable::ThingRenderable(float radius, size_t count, float qsize):
+ThingRenderable::ThingRenderable( IdType id, ObjectMemoryManager *objectMemoryManager,
+								  float radius, size_t count, float qsize ):
+	SimpleRenderable(id, objectMemoryManager),
     mRadius(radius),
     mCount(count),
     mQSize(qsize)
 {
-    mBox = Ogre::AxisAlignedBox(-radius, -radius, -radius, radius, radius, radius);
+	Aabb aabb( Vector3::ZERO, Vector3( radius ) );
+	mObjectData.mLocalAabb->setFromAabb( aabb, mObjectData.mIndex );
+	mObjectData.mLocalRadius[mObjectData.mIndex] = aabb.getRadius();
+
+    mBox = AxisAlignedBox( aabb.getMinimum(), aabb.getMaximum() );
+
     initialise();
     fillBuffer();
 }
@@ -175,7 +184,7 @@ Ogre::Real ThingRenderable::getSquaredViewDepth(const Ogre::Camera* cam) const
 {
     Ogre::Vector3 min, max, mid, dist;
 
-    min = mBox.getMinimum();
+	min = mBox.getMinimum();
     max = mBox.getMaximum();
     mid = ((min - max) * 0.5) + min;
     dist = cam->getDerivedPosition() - mid;

@@ -177,7 +177,7 @@ protected:
 
 
 // Attributes.
-protected:  
+protected:
     // Track per vertex colour type.
     TrackVertexColourType mTrackVertexColourType;
     // Specular component enabled/disabled.
@@ -214,9 +214,6 @@ protected:
     UniformParameterPtr mSurfaceEmissiveColour;
     // Surface shininess parameter.
     UniformParameterPtr mSurfaceShininess;
-    // Shared blank light.
-    static Light msBlankLight;
-
 };
 
 

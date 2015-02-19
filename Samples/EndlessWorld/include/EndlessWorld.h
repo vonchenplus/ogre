@@ -60,18 +60,17 @@ public:
 		, mFly(true)
 		, mFallVelocity(0)
         , mTerrainPos(0,0,0)
-        , mLodInfoOverlay(0)
-        , mLodInfoOverlayContainer(0)
-
-	{
-		mInfo["Title"] = "Endless World";
-		mInfo["Description"] = "Demonstrates use of the terrain plugin with paging option.";
-		mInfo["Thumbnail"] = "thumb_terrain.png";
-		mInfo["Category"] = "Environment";
-		mInfo["Help"] = "Left click and drag anywhere in the scene to look around. Let go again to show "
-			"cursor and access widgets. Use WASD keys to move. You can increase/decrease terrains' LOD level using Page Up/Page Down."
-			"Use C to generate another random terrain";
-	}
+        , mLodInfoOverlay(NULL)
+        , mLodInfoOverlayContainer(NULL)
+    {
+        mInfo["Title"] = "Endless World";
+        mInfo["Description"] = "Demonstrates use of the terrain plugin with paging option.";
+        mInfo["Thumbnail"] = "thumb_terrain.png";
+        mInfo["Category"] = "Environment";
+        mInfo["Help"] = "Left click and drag anywhere in the scene to look around. Let go again to show "
+            "cursor and access widgets. Use WASD keys to move. You can increase/decrease terrains' LOD level using Page Up/Page Down."
+            "Use C to generate another random terrain";
+    }
 
     void testCapabilities(const RenderSystemCapabilities* caps)
 	{
@@ -301,9 +300,9 @@ protected:
 		//mTerrainGlobals->setUseRayBoxDistanceCalculation(true);
 		mTerrainGlobals->getDefaultMaterialGenerator()->setLightmapEnabled(false);
 
-		mTerrainGlobals->setCompositeMapAmbient(mSceneMgr->getAmbientLight());
-		mTerrainGlobals->setCompositeMapDiffuse(l->getDiffuseColour());
-		mTerrainGlobals->setLightMapDirection(l->getDerivedDirection());
+        mTerrainGlobals->setCompositeMapAmbient(mSceneMgr->getAmbientLight());
+        mTerrainGlobals->setCompositeMapDiffuse(l->getDiffuseColour());
+        mTerrainGlobals->setLightMapDirection(l->getDerivedDirectionUpdated());
 
 		// Configure default import settings for if we use imported image
 		Terrain::ImportData& defaultimp = mTerrainGroup->getDefaultImportSettings();
@@ -408,11 +407,14 @@ protected:
 		Vector3 lightdir(0.55, -0.3, 0.75);
 		lightdir.normalise();
 
-		Light* l = mSceneMgr->createLight("tstLight");
-		l->setType(Light::LT_DIRECTIONAL);
-		l->setDirection(lightdir);
-		l->setDiffuseColour(ColourValue::White);
-		l->setSpecularColour(ColourValue(0.4, 0.4, 0.4));
+        Light* l = mSceneMgr->createLight();
+		SceneNode *lightNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+		lightNode->attachObject( l );
+        l->setName("tstLight");
+        l->setType(Light::LT_DIRECTIONAL);
+        l->setDirection(lightdir);
+        l->setDiffuseColour(ColourValue::White);
+        l->setSpecularColour(ColourValue(0.4, 0.4, 0.4));
 
 		mSceneMgr->setAmbientLight(ColourValue(0.2, 0.2, 0.2));
 
@@ -482,9 +484,12 @@ protected:
                 OverlayManager::getSingleton().destroyOverlayElement(*li);
             }
             mLodStatusLabelList.clear();
-
-            OverlayManager::getSingleton().destroyOverlayElement(mLodInfoOverlayContainer);
         }
+
+        if (mLodInfoOverlay)
+            OverlayManager::getSingleton().destroy(mLodInfoOverlay);
+        if (mLodInfoOverlayContainer)
+            OverlayManager::getSingleton().destroyOverlayElement(mLodInfoOverlayContainer);
 
 		SdkSample::_shutdown();
 	}

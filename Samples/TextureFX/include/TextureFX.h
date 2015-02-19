@@ -17,6 +17,7 @@ public:
         mInfo["Thumbnail"] = "thumb_texfx.png";
         mInfo["Category"] = "Unsorted";
         mInfo["Help"] = "Top Left: Multi-frame\nTop Right: Scrolling\nBottom Left: Rotation\nBottom Right: Scaling";
+        mBackgroundColour = ColourValue::White;
     }
 
 protected:
@@ -35,7 +36,7 @@ protected:
         for (unsigned int i = 0; i < 4; i++)
         {
             // create a standard plane entity
-            Entity* ent = mSceneMgr->createEntity("Plane" + StringConverter::toString(i + 1), SceneManager::PT_PLANE);
+            Entity* ent = mSceneMgr->createEntity(SceneManager::PT_PLANE);
 
             // attach it to a node, scale it, and position appropriately
             SceneNode* node = mSceneMgr->getRootSceneNode()->createChildSceneNode();

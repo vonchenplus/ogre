@@ -62,13 +62,13 @@ namespace Ogre {
         ptrAlloc->free = 1;
 
         // Win32 machines with ATI GPU are having issues glMapBuffer, looks like buffer corruption
-        // disable for now until we figure out where the problem lies
-#       if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-        if (Root::getSingleton().getRenderSystem()->getCapabilities()->getVendor() == GPU_AMD)
+        // disable for now until we figure out where the problem lies           
+#   if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+        if (Root::getSingleton().getRenderSystem()->getCapabilities()->getVendor() == GPU_AMD) 
         {
             mMapBufferThreshold = 0xffffffffUL  /* maximum unsigned long value */;
         }
-#       endif
+#   endif
 
     }
 
@@ -309,12 +309,12 @@ namespace Ogre {
         // Should never get here unless there's a corruption
         assert(false && "Memory deallocation error");
     }
-
+    //---------------------------------------------------------------------
     size_t GL3PlusHardwareBufferManagerBase::getGLMapBufferThreshold() const
     {
         return mMapBufferThreshold;
     }
-
+    //---------------------------------------------------------------------
     void GL3PlusHardwareBufferManagerBase::setGLMapBufferThreshold( const size_t value )
     {
         mMapBufferThreshold = value;

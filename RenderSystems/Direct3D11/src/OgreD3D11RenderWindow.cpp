@@ -31,10 +31,12 @@ THE SOFTWARE.
 #include "OgreWindowEventUtilities.h"
 #include "OgreD3D11Driver.h"
 #include "OgreRoot.h"
-#include "OgreLogManager.h"
-#include "OgreViewport.h"
 #include "OgreD3D11DepthBuffer.h"
 #include "OgreD3D11Texture.h"
+#include "OgreViewport.h"
+#include "OgreLogManager.h"
+#include "OgrePixelBox.h"
+
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 #include "OgreD3D11StereoDriverBridge.h"
 #endif
@@ -260,9 +262,9 @@ namespace Ogre
     void D3D11RenderWindowBase::_updateViewportsDimensions()
     {
         // Notify viewports of resize
-        ViewportList::iterator it = mViewportList.begin();
+        ViewportList::const_iterator it = mViewportList.begin();
         while( it != mViewportList.end() )
-            (*it++).second->_updateDimensions();            
+            (*it++)->_updateDimensions();           
     }
     //---------------------------------------------------------------------
     IDXGIDeviceN* D3D11RenderWindowBase::_queryDxgiDevice()
@@ -620,12 +622,6 @@ namespace Ogre
                 OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr, "Error Presenting surfaces", "D3D11RenderWindowSwapChainBased::swapBuffers");
         }
     }
-    //---------------------------------------------------------------------
-    void D3D11RenderWindowSwapChainBased::updateStats( void )
-	{
-		RenderTarget::updateStats();
-		mStats.vBlankMissCount = getVBlankMissCount();
-	}
 	//---------------------------------------------------------------------
 	int D3D11RenderWindowSwapChainBased::getVBlankMissCount()
 	{

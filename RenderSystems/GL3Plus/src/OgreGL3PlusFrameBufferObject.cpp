@@ -291,7 +291,7 @@ namespace Ogre {
                                                           GL_RENDERBUFFER, 0));
         }
     }
-    
+    //-----------------------------------------------------------------------------
     void GL3PlusFrameBufferObject::detachDepthBuffer()
     {
         OGRE_CHECK_GL_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, mMultisampleFB ? mMultisampleFB : mFB ));

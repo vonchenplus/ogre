@@ -76,42 +76,9 @@ namespace Ogre {
 
     };
     //-----------------------------------------------------------------------
-    ParticleSystem::ParticleSystem() 
-      : mAABB(),
-        mBoundingRadius(1.0f),
-        mBoundsAutoUpdate(true),
-        mBoundsUpdateTime(10.0f),
-        mUpdateRemainTime(0),
-        mResourceGroupName(ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME),
-        mIsRendererConfigured(false),
-        mSpeedFactor(1.0f),
-        mIterationInterval(0),
-        mIterationIntervalSet(false),
-        mSorted(false),
-        mLocalSpace(false),
-        mNonvisibleTimeout(0),
-        mNonvisibleTimeoutSet(false),
-        mTimeSinceLastVisible(0),
-        mLastVisibleFrame(0),
-        mTimeController(0),
-        mEmittedEmitterPoolInitialised(false),
-        mIsEmitting(true),
-        mRenderer(0),
-        mCullIndividual(false),
-        mPoolSize(0),
-        mEmittedEmitterPoolSize(0)
-    {
-        initParameters();
-
-        // Default to billboard renderer
-        setRenderer("billboard");
-
-    }
-    //-----------------------------------------------------------------------
-    ParticleSystem::ParticleSystem(const String& name, const String& resourceGroup)
-      : MovableObject(name),
-        mAABB(),
-        mBoundingRadius(1.0f),
+    ParticleSystem::ParticleSystem( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                    const String& resourceGroup )
+      : MovableObject( id, objectMemoryManager, RENDER_QUEUE_MAIN ),
         mBoundsAutoUpdate(true),
         mBoundsUpdateTime(10.0f),
         mUpdateRemainTime(0),
@@ -143,6 +110,8 @@ namespace Ogre {
 
         // Default to billboard renderer
         setRenderer("billboard");
+
+        mObjectData.mQueryFlags[mObjectData.mIndex] = SceneManager::QUERY_FX_DEFAULT_MASK;
     }
     //-----------------------------------------------------------------------
     ParticleSystem::~ParticleSystem()
@@ -572,6 +541,12 @@ namespace Ogre {
 
         Real timeInc = timeElapsed / requested;
 
+        //TODO: (dark_sylinc) Refactor this. ControllerManager gets executed before us
+        //(because it doesn't know if we'll update a SceneNode)
+        const Quaternion derivedOrientation( mParentNode->_getDerivedOrientationUpdated() );
+        const Vector3 derivedPosition( mParentNode->_getDerivedPosition() );
+        const Vector3 derivedScale( mParentNode->_getDerivedScale() );
+
         for (unsigned int j = 0; j < requested; ++j)
         {
             // Create a new particle & init using emitter
@@ -592,12 +567,9 @@ namespace Ogre {
             // Translate position & direction into world space
             if (!mLocalSpace)
             {
-                p->mPosition  =
-                    (mParentNode->_getDerivedOrientation() *
-                    (mParentNode->_getDerivedScale() * p->mPosition))
-                    + mParentNode->_getDerivedPosition();
-                p->mDirection =
-                    (mParentNode->_getDerivedOrientation() * p->mDirection);
+                p->mPosition  = 
+                    (derivedOrientation * (derivedScale * p->mPosition)) + derivedPosition;
+                p->mDirection = (derivedOrientation * p->mDirection);
             }
 
             // apply partial frame motion to this particle
@@ -737,11 +709,20 @@ namespace Ogre {
         return p;
     }
     //-----------------------------------------------------------------------
-    void ParticleSystem::_updateRenderQueue(RenderQueue* queue)
+    void ParticleSystem::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
     {
+        mLastVisibleFrame = Root::getSingleton().getNextFrameNumber();
+        mTimeSinceLastVisible = 0.0f;
+
+        if (mSorted)
+            _sortParticles(camera);
+
         if (mRenderer)
         {
-            mRenderer->_updateRenderQueue(queue, mActiveParticles, mCullIndividual);
+            if (!mIsRendererConfigured)
+                configureRenderer();
+
+            mRenderer->_updateRenderQueue(queue, camera, lodCamera, mActiveParticles, mCullIndividual);
         }
     }
     //---------------------------------------------------------------------
@@ -822,43 +803,32 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void ParticleSystem::_updateBounds()
     {
-
         if (mParentNode && (mBoundsAutoUpdate || mBoundsUpdateTime > 0.0f))
         {
+            Aabb aabb;
             if (mActiveParticles.empty())
             {
                 // No particles, reset to null if auto update bounds
                 if (mBoundsAutoUpdate)
-                {
-                    mWorldAABB.setNull();
-                }
+                    aabb = Aabb::BOX_NULL;
             }
             else
             {
                 Vector3 min;
                 Vector3 max;
-                if (!mBoundsAutoUpdate && mWorldAABB.isFinite())
-                {
-                    // We're on a limit, grow rather than reset each time
-                    // so that we pick up the worst case scenario
-                    min = mWorldAABB.getMinimum();
-                    max = mWorldAABB.getMaximum();
-                }
-                else
-                {
-                    min.x = min.y = min.z = Math::POS_INFINITY;
-                    max.x = max.y = max.z = Math::NEG_INFINITY;
-                }
+                min.x = min.y = min.z = Math::POS_INFINITY;
+                max.x = max.y = max.z = Math::NEG_INFINITY;
+
                 ActiveParticleList::iterator p;
                 Vector3 halfScale = Vector3::UNIT_SCALE * 0.5;
                 Vector3 defaultPadding = 
-                    halfScale * std::max(mDefaultHeight, mDefaultWidth);
+                    halfScale * Ogre::max(mDefaultHeight, mDefaultWidth);
                 for (p = mActiveParticles.begin(); p != mActiveParticles.end(); ++p)
                 {
                     if ((*p)->mOwnDimensions)
                     {
                         Vector3 padding = 
-                            halfScale * std::max((*p)->mWidth, (*p)->mHeight);
+                            halfScale * Ogre::max((*p)->mWidth, (*p)->mHeight);
                         min.makeFloor((*p)->mPosition - padding);
                         max.makeCeil((*p)->mPosition + padding);
                     }
@@ -868,28 +838,21 @@ namespace Ogre {
                         max.makeCeil((*p)->mPosition + defaultPadding);
                     }
                 }
-                mWorldAABB.setExtents(min, max);
+                aabb.setExtents(min, max);
             }
 
 
-            if (mLocalSpace)
-            {
-                // Merge calculated box with current AABB to preserve any user-set AABB
-                mAABB.merge(mWorldAABB);
-            }
-            else
+            if (!mLocalSpace)
             {
                 // We've already put particles in world space to decouple them from the
                 // node transform, so reverse transform back since we're expected to 
                 // provide a local AABB
-                AxisAlignedBox newAABB(mWorldAABB);
-                newAABB.transformAffine(mParentNode->_getFullTransform().inverseAffine());
-
-                // Merge calculated box with current AABB to preserve any user-set AABB
-                mAABB.merge(newAABB);
+                //TODO: (dark_sylinc) refactor the "Updated" part
+                aabb.transformAffine( mParentNode->_getFullTransformUpdated().inverseAffine() );
             }
 
-            mParentNode->needUpdate();
+            mObjectData.mLocalAabb->setFromAabb( aabb, mObjectData.mIndex );
+            mObjectData.mLocalRadius[mObjectData.mIndex] = aabb.getRadius();
         }
     }
     //-----------------------------------------------------------------------
@@ -975,37 +938,12 @@ namespace Ogre {
         return mDefaultHeight;
     }
     //-----------------------------------------------------------------------
-    void ParticleSystem::_notifyCurrentCamera(Camera* cam)
+    void ParticleSystem::_notifyAttached(Node* parent)
     {
-        MovableObject::_notifyCurrentCamera(cam);
-
-        // Record visible
-        if (isVisible())
-        {           
-            mLastVisibleFrame = Root::getSingleton().getNextFrameNumber();
-            mTimeSinceLastVisible = 0.0f;
-
-            if (mSorted)
-            {
-                _sortParticles(cam);
-            }
-
-            if (mRenderer)
-            {
-                if (!mIsRendererConfigured)
-                    configureRenderer();
-
-                mRenderer->_notifyCurrentCamera(cam);
-            }
-        }
-    }
-    //-----------------------------------------------------------------------
-    void ParticleSystem::_notifyAttached(Node* parent, bool isTagPoint)
-    {
-        MovableObject::_notifyAttached(parent, isTagPoint);
+        MovableObject::_notifyAttached(parent);
         if (mRenderer && mIsRendererConfigured)
         {
-            mRenderer->_notifyAttached(parent, isTagPoint);
+            mRenderer->_notifyAttached(parent);
         }
 
         if (parent && !mTimeController)
@@ -1106,14 +1044,13 @@ namespace Ogre {
         if (mRenderer && !mIsRendererConfigured)
         {
             mRenderer->_notifyParticleQuota(mParticlePool.size());
-            mRenderer->_notifyAttached(mParentNode, mParentIsTagPoint);
+            mRenderer->_notifyAttached(mParentNode);
             mRenderer->_notifyDefaultDimensions(mDefaultWidth, mDefaultHeight);
             createVisualParticles(0, mParticlePool.size());
             MaterialPtr mat = MaterialManager::getSingleton().load(
                 mMaterialName, mResourceGroupName).staticCast<Material>();
             mRenderer->_setMaterial(mat);
-            if (mRenderQueueIDSet)
-                mRenderer->setRenderQueueGroup(mRenderQueueID);
+            mRenderer->setRenderQueueGroup(mRenderQueueID);
             mRenderer->setKeepParticlesInLocalSpace(mLocalSpace);
             mIsRendererConfigured = true;
         }
@@ -1170,13 +1107,6 @@ namespace Ogre {
             mRenderer->_destroyVisualData((*i)->getVisualData());
             (*i)->_notifyVisualData(0);
         }
-    }
-    //-----------------------------------------------------------------------
-    void ParticleSystem::setBounds(const AxisAlignedBox& aabb)
-    {
-        mAABB = aabb;
-        mBoundingRadius = Math::boundingRadiusFromAABB(mAABB);
-
     }
     //-----------------------------------------------------------------------
     void ParticleSystem::setBoundsAutoUpdated(bool autoUpdate, Real stopIn)
@@ -1256,11 +1186,6 @@ namespace Ogre {
     {
         // Sort descending by squared distance
         return - (sortPos - p->mPosition).squaredLength();
-    }
-    //-----------------------------------------------------------------------
-    uint32 ParticleSystem::getTypeFlags(void) const
-    {
-        return SceneManager::FX_TYPE_MASK;
     }
     //-----------------------------------------------------------------------
     void ParticleSystem::initialiseEmittedEmitters(void)
