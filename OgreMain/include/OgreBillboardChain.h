@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -113,8 +114,9 @@ namespace Ogre {
         @param useColours If true, use vertex colours from the chain elements
         @param dynamic If true, buffers are created with the intention of being updated
         */
-        BillboardChain( IdType id, ObjectMemoryManager *objectMemoryManager, size_t maxElements = 20,
-                        size_t numberOfChains = 1,  bool useTextureCoords = true, bool useColours = true,
+        BillboardChain( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                        size_t maxElements = 20, size_t numberOfChains = 1,
+                        bool useTextureCoords = true, bool useColours = true,
                         bool dynamic = true );
         /// Destructor
         virtual ~BillboardChain();
@@ -254,16 +256,10 @@ namespace Ogre {
         */
         void setFaceCamera( bool faceCamera, const Vector3 &normalVector=Vector3::UNIT_X );
 
-        /// Get the material name in use
-        virtual const String& getMaterialName(void) const { return mMaterialName; }
-        /// Set the material name to use for rendering
-        virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
-
 
         // Overridden members follow
         Real getSquaredViewDepth(const Camera* cam) const;
         const AxisAlignedBox& getBoundingBox(void) const;
-        const MaterialPtr& getMaterial(void) const;
         const String& getMovableType(void) const;
         void _updateRenderQueue(RenderQueue *, Camera *camera, const Camera *lodCamera);
         void getRenderOperation(RenderOperation &);
@@ -306,9 +302,6 @@ namespace Ogre {
         mutable AxisAlignedBox mAABB;
         /// Bounding radius
         mutable Real mRadius;
-        /// Material 
-        String mMaterialName;
-        MaterialPtr mMaterial;
         /// Texture coord direction
         TexCoordDirection mTexCoordDir;
         /// Other texture coord range
@@ -367,7 +360,8 @@ namespace Ogre {
     {
     protected:
         virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
-                                                    const NameValuePairList* params = 0 );
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         BillboardChainFactory() {}
         ~BillboardChainFactory() {}
@@ -382,6 +376,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
+}
 } // namespace
 
 #include "OgreHeaderSuffix.h"

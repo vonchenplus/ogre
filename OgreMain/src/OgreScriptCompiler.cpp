@@ -1072,17 +1072,10 @@ namespace Ogre
         mIds["alpha_to_coverage"] = ID_ALPHA_TO_COVERAGE;
         mIds["light_scissor"] = ID_LIGHT_SCISSOR;
         mIds["light_clip_planes"] = ID_LIGHT_CLIP_PLANES;
-        mIds["transparent_sorting"] = ID_TRANSPARENT_SORTING;
-        mIds["illumination_stage"] = ID_ILLUMINATION_STAGE;
-        mIds["decal"] = ID_DECAL;
         mIds["cull_hardware"] = ID_CULL_HARDWARE;
+        mIds["cull_mode"] = ID_CULL_MODE;
         mIds["clockwise"] = ID_CLOCKWISE;
         mIds["anticlockwise"] = ID_ANTICLOCKWISE;
-        mIds["cull_software"] = ID_CULL_SOFTWARE;
-        mIds["back"] = ID_BACK;
-        mIds["front"] = ID_FRONT;
-        mIds["normalise_normals"] = ID_NORMALISE_NORMALS;
-        mIds["lighting"] = ID_LIGHTING;
         mIds["shading"] = ID_SHADING;
         mIds["flat"] = ID_FLAT;
         mIds["gouraud"] = ID_GOURAUD;
@@ -1244,6 +1237,8 @@ namespace Ogre
         mIds["num_initial"]     = ID_NUM_INITIAL;
         mIds["identifier"]      = ID_IDENTIFIER;
         mIds["overlays"]        = ID_OVERLAYS;
+        mIds["execution_mask"]  = ID_EXECUTION_MASK;
+        mIds["viewport_modifier_mask"]   = ID_VIEWPORT_MODIFIER_MASK;
 
         mIds["lod_bias"]        = ID_LOD_BIAS;
         mIds["lod_update_list"] = ID_LOD_UPDATE_LIST;
@@ -1294,6 +1289,8 @@ namespace Ogre
         mIds["fsaa"]                    = ID_FSAA;
         mIds["light"]                   = ID_LIGHT;
         mIds["split"]                   = ID_SPLIT;
+
+        mIds["hlms"]            = ID_HLMS;
 
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
         mIds["rtshader_system"] = ID_RT_SHADER_SYSTEM;

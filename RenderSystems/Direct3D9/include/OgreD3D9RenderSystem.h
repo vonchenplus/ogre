@@ -254,8 +254,6 @@ namespace Ogre
         void reinitialise();
         void shutdown();
         void setAmbientLight( float r, float g, float b );
-        void setShadingType( ShadeOptions so );
-        void setLightingEnabled( bool enabled );
         void destroyRenderTarget(const String& name);
         VertexElementType getColourVertexElementType() const;
         void setStencilCheckEnabled(bool enabled);
@@ -266,7 +264,6 @@ namespace Ogre
             StencilOperation passOp = SOP_KEEP, 
             bool twoSidedOperation = false,
             bool readBackAsTexture = false);
-        void setNormaliseNormals(bool normalise);
 
         // Low-level overridden members, mainly for internal use
         void _useLights(const LightList& lights, unsigned short limit);
@@ -291,7 +288,10 @@ namespace Ogre
         void _setSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op );
         void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );
         void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
-        void _setViewport( Viewport *vp );      
+		void _setViewport(Viewport *vp);
+		virtual void _setHlmsMacroblock(const HlmsMacroblock *macroblock);
+		virtual void _setHlmsBlendblock(const HlmsBlendblock *blendblock);
+		virtual void _setProgramsFromHlms(const HlmsCache *hlmsCache);
         void _beginFrame();
         virtual RenderSystemContext* _pauseFrame(void);
         virtual void _resumeFrame(RenderSystemContext* context);
@@ -303,7 +303,6 @@ namespace Ogre
         void _setDepthBufferWriteEnabled(bool enabled = true);
         void _setDepthBufferFunction( CompareFunction func = CMPF_LESS_EQUAL );
         void _setDepthBias(float constantBias, float slopeScaleBias);
-        void _setFog( FogMode mode = FOG_NONE, const ColourValue& colour = ColourValue::White, Real expDensity = 1.0, Real linearStart = 0.0, Real linearEnd = 1.0 );
         void _convertProjectionMatrix(const Matrix4& matrix,
             Matrix4& dest, bool forGpuProgram = false);
         void _makeProjectionMatrix(const Radian& fovy, Real aspect, Real nearPlane, Real farPlane, 

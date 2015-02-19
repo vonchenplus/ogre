@@ -35,6 +35,17 @@ THE SOFTWARE
 #include "OgreTechnique.h"
 #include "OgreBitwise.h"
 
+#include "OgreRoot.h"
+#include "OgreHlmsManager.h"
+#include "OgreHlms.h"
+
+#ifdef OGRE_BUILD_COMPONENT_HLMS_UNLIT
+    #include "OgreHlmsUnlitDatablock.h"
+    #include "OgreHardwarePixelBuffer.h"
+#else
+    #include "OgreHlmsUnlitMobileDatablock.h"
+#endif
+
 #define generic _generic    // keyword for C++/CX
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -57,7 +68,8 @@ namespace Ogre
     Font::Font(ResourceManager* creator, const String& name, ResourceHandle handle,
         const String& group, bool isManual, ManualResourceLoader* loader)
         :Resource (creator, name, handle, group, isManual, loader),
-        mType(FT_TRUETYPE), mCharacterSpacer(5), mTtfSize(0), mTtfResolution(0), mTtfMaxBearingY(0), mAntialiasColour(false)
+        mType(FT_TRUETYPE), mCharacterSpacer(5), mTtfSize(0), mTtfResolution(0), mTtfMaxBearingY(0),
+        mHlmsDatablock(0), mAntialiasColour(false)
     {
 
         if (createParamDictionary("Font"))
@@ -188,24 +200,54 @@ namespace Ogre
             texLayer = mMaterial->getTechnique(0)->getPass(0)->createTextureUnitState(mSource);
         }
 
+        Hlms *hlmsGui = Root::getSingleton().getHlmsManager()->getHlms( HLMS_UNLIT );
+
+        HlmsMacroblock macroblock;
+        HlmsBlendblock blendblock;
+        macroblock.mCullMode = CULL_NONE;
+        macroblock.mDepthCheck = false;
+        macroblock.mDepthWrite = false;
+        if (blendByAlpha)
+        {
+            //Alpha blending
+            blendblock.mSourceBlendFactor       = SBF_SOURCE_ALPHA;
+            blendblock.mSourceBlendFactorAlpha  = SBF_SOURCE_ALPHA;
+            blendblock.mDestBlendFactor         = SBF_ONE_MINUS_SOURCE_ALPHA;
+            blendblock.mDestBlendFactorAlpha    = SBF_ONE_MINUS_SOURCE_ALPHA;
+        }
+        else
+        {
+            //Add
+            blendblock.mSourceBlendFactor       = SBF_ONE;
+            blendblock.mSourceBlendFactorAlpha  = SBF_ONE;
+            blendblock.mDestBlendFactor         = SBF_ONE;
+            blendblock.mDestBlendFactorAlpha    = SBF_ONE;
+        }
+
+        HlmsParamVec paramsVec;
+        //paramsVec.push_back( std::pair<IdString, String>( "diffuse_map", "" ) );
+        std::sort( paramsVec.begin(), paramsVec.end() );
+
+        String datablockName = "Fonts/" + mName;
+        mHlmsDatablock = hlmsGui->createDatablock( datablockName, datablockName,
+                                                   macroblock, blendblock, paramsVec );
+
+        assert( dynamic_cast<OverlayUnlitDatablock*>( mHlmsDatablock ) );
+
+        OverlayUnlitDatablock *guiDatablock = static_cast<OverlayUnlitDatablock*>(mHlmsDatablock);
+#ifdef OGRE_BUILD_COMPONENT_HLMS_UNLIT
+        guiDatablock->setTexture( 0, 0, mTexture );
+#else
+        guiDatablock->setTexture( 0, mTexture, OverlayUnlitDatablock::UvAtlasParams() );
+#endif
+        guiDatablock->calculateHash();
+
         // Make sure material is aware of colour per vertex.
         mMaterial->getTechnique(0)->getPass(0)->setVertexColourTracking(TVC_DIFFUSE);
         // Clamp to avoid fuzzy edges
         texLayer->setTextureAddressingMode( TextureUnitState::TAM_CLAMP );
         // Allow min/mag filter, but no mip
         texLayer->setTextureFiltering(FO_LINEAR, FO_LINEAR, FO_NONE);
-
-
-        // Set up blending
-        if (blendByAlpha)
-        {
-            mMaterial->setSceneBlending( SBT_TRANSPARENT_ALPHA );
-        }
-        else
-        {
-            // Use add if no alpha (assume black background)
-            mMaterial->setSceneBlending(SBT_ADD);
-        }
     }
     //---------------------------------------------------------------------
     void Font::unloadImpl()
@@ -215,6 +257,9 @@ namespace Ogre
             MaterialManager::getSingleton().remove(mMaterial->getHandle());
             mMaterial.setNull();
         }
+
+        mHlmsDatablock->getCreator()->destroyDatablock( mHlmsDatablock->getName() );
+        mHlmsDatablock = 0;
 
         if (!mTexture.isNull())
         {
@@ -425,12 +470,12 @@ namespace Ogre
         img.loadRawData( memStream, finalWidth, finalHeight, PF_BYTE_LA );
 
         Texture* tex = static_cast<Texture*>(res);
+
         // Call internal _loadImages, not loadImage since that's external and 
         // will determine load status etc again, and this is a manual loader inside load()
         ConstImagePtrList imagePtrs;
         imagePtrs.push_back(&img);
         tex->_loadImages( imagePtrs );
-
 
         FT_Done_FreeType(ftLibrary);
     }
