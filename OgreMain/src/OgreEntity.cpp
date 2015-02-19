@@ -236,7 +236,6 @@ namespace Ogre {
 
         mInitialised = true;
         mMeshStateCount = mMesh->getStateCount();
-
     }
     //-----------------------------------------------------------------------
     void Entity::_deinitialise(void)
@@ -400,8 +399,7 @@ namespace Ogre {
         }
 
     }
-
-
+    //-----------------------------------------------------------------------
     void Entity::setMaterial( const MaterialPtr& material )
     {
         // Set for all subentities
@@ -411,7 +409,6 @@ namespace Ogre {
             (*i)->setMaterial(material);
         }
     }
-
     //-----------------------------------------------------------------------
     void Entity::_notifyCurrentCamera(Camera* cam)
     {
