@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "OgreMaterialManager.h"
 #include "OgreSceneManager.h"
 #include "OgreControllerManager.h"
+#include "OgreHlmsManager.h"
 #include "OgreRoot.h"
 
 namespace Ogre {
@@ -77,8 +78,8 @@ namespace Ogre {
     };
     //-----------------------------------------------------------------------
     ParticleSystem::ParticleSystem( IdType id, ObjectMemoryManager *objectMemoryManager,
-                                    const String& resourceGroup )
-      : MovableObject( id, objectMemoryManager, RENDER_QUEUE_MAIN ),
+                                    SceneManager *manager, const String& resourceGroup )
+      : MovableObject( id, objectMemoryManager, manager, 1 ),
         mBoundsAutoUpdate(true),
         mBoundsUpdateTime(10.0f),
         mUpdateRemainTime(0),
@@ -722,7 +723,8 @@ namespace Ogre {
             if (!mIsRendererConfigured)
                 configureRenderer();
 
-            mRenderer->_updateRenderQueue(queue, camera, lodCamera, mActiveParticles, mCullIndividual);
+            mRenderer->_updateRenderQueue(queue, camera, lodCamera, mActiveParticles, mCullIndividual,
+                                          mRenderables);
         }
     }
     //---------------------------------------------------------------------
@@ -970,9 +972,17 @@ namespace Ogre {
         mMaterialName = name;
         if (mIsRendererConfigured)
         {
-            MaterialPtr mat = MaterialManager::getSingleton().load(
-                mMaterialName, mResourceGroupName).staticCast<Material>();
-            mRenderer->_setMaterial(mat);
+            HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+            //Give preference to HLMS materials of the same name
+            HlmsDatablock *datablock = hlmsManager->getDatablockNoDefault( mMaterialName );
+            if( datablock )
+            {
+                mRenderer->_setDatablock( datablock );
+            }
+            else
+            {
+                mRenderer->_setMaterialName( mMaterialName, mResourceGroupName );
+            }
         }
     }
     //-----------------------------------------------------------------------
@@ -1014,7 +1024,7 @@ namespace Ogre {
 
         if (!rendererName.empty())
         {
-            mRenderer = ParticleSystemManager::getSingleton()._createRenderer(rendererName);
+            mRenderer = ParticleSystemManager::getSingleton()._createRenderer(rendererName, mManager);
             mIsRendererConfigured = false;
         }
     }
@@ -1047,11 +1057,21 @@ namespace Ogre {
             mRenderer->_notifyAttached(mParentNode);
             mRenderer->_notifyDefaultDimensions(mDefaultWidth, mDefaultHeight);
             createVisualParticles(0, mParticlePool.size());
-            MaterialPtr mat = MaterialManager::getSingleton().load(
-                mMaterialName, mResourceGroupName).staticCast<Material>();
-            mRenderer->_setMaterial(mat);
             mRenderer->setRenderQueueGroup(mRenderQueueID);
             mRenderer->setKeepParticlesInLocalSpace(mLocalSpace);
+
+            HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+            //Give preference to HLMS materials of the same name
+            HlmsDatablock *datablock = hlmsManager->getDatablockNoDefault( mMaterialName );
+            if( datablock )
+            {
+                mRenderer->_setDatablock( datablock );
+            }
+            else
+            {
+                mRenderer->_setMaterialName( mMaterialName, mResourceGroupName );
+            }
+
             mIsRendererConfigured = true;
         }
     }
@@ -1124,12 +1144,11 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void ParticleSystem::setRenderQueueGroupAndPriority(uint8 queueID, ushort priority)
+    void ParticleSystem::setRenderQueueSubGroup( uint8 subGroup )
     {
-        MovableObject::setRenderQueueGroupAndPriority(queueID, priority);
         if (mRenderer)
         {
-            mRenderer->setRenderQueueGroupAndPriority(queueID, priority);
+            mRenderer->setRenderQueueSubGroup( subGroup );
         }
     }
     //-----------------------------------------------------------------------

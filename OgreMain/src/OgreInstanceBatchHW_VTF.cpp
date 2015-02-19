@@ -38,6 +38,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     static const uint16 c_maxTexWidthHW = 4096;
     static const uint16 c_maxTexHeightHW    = 4096;
 
@@ -427,7 +429,7 @@ namespace Ogre
             ObjectData objData;
             const size_t numObjs = mLocalObjectMemoryManager.getFirstObjectData( objData, 0 );
 
-            visibleObjects = &mManager->_getTmpVisibleObjectsList()[0];
+            visibleObjects = &mManager->_getTmpVisibleObjectsList()[0][mRenderQueueID];
             visibleObjects->clear();
 
             //TODO: Static batches aren't yet supported (camera ptr will be null and crash)
@@ -510,11 +512,12 @@ namespace Ogre
                                                   const Camera *lodCamera )
     {
         //if( !mKeepStatic )
-        {
+        /*{
+            TODO: RENDER QUEUE
             //Completely override base functionality, since we don't cull on an "all-or-nothing" basis
             if( (mRenderOperation.numberOfInstances = updateVertexTexture( camera, lodCamera )) )
                 queue->addRenderable( this, mRenderQueueID, mRenderQueuePriority );
-        }
+        }*/
         /*else
         {
             if( mManager->getCameraRelativeRendering() )
@@ -590,4 +593,5 @@ namespace Ogre
         instancedEntity->writeDualQuatTransform( pDest, boneIdxStart, boneIdxEnd );
         ++mInstancesWritten;
     }
+}
 }

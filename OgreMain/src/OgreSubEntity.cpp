@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreException.h"
 
 namespace Ogre {
+namespace v1 {
     //-----------------------------------------------------------------------
     SubEntity::SubEntity (Entity* parent, SubMesh* subMeshBasis)
         : Renderable(), mParentEntity(parent), //mMaterialName("BaseWhite"),
@@ -50,7 +51,8 @@ namespace Ogre {
         mHardwarePoseCount = 0;
         mIndexStart = 0;
         mIndexEnd = 0;
-        setMaterialName("BaseWhite");
+
+        mHasSkeletonAnimation = !subMeshBasis->parent->getSkeleton().isNull();
     }
     //-----------------------------------------------------------------------
     SubEntity::~SubEntity()
@@ -65,76 +67,20 @@ namespace Ogre {
         return mSubMesh;
     }
     //-----------------------------------------------------------------------
-    const String& SubEntity::getMaterialName(void) const
-    {
-        return !mMaterialPtr.isNull() ? mMaterialPtr->getName() : BLANKSTRING;
-    }
-    //-----------------------------------------------------------------------
-    void SubEntity::setMaterialName( const String& name, const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
-    {
-        MaterialPtr material = MaterialManager::getSingleton().getByName(name, groupName);
-
-        if( material.isNull() )
-        {
-            LogManager::getSingleton().logMessage("Can't assign material " + name +
-                " to SubEntity of " + mParentEntity->getName() + " because this "
-                "Material does not exist. Have you forgotten to define it in a "
-                ".material script?", LML_CRITICAL);
-
-            material = MaterialManager::getSingleton().getByName("BaseWhite");
-
-            if (material.isNull())
-            {
-                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
-                    "to SubEntity of " + mParentEntity->getName() + ". Did "
-                    "you forget to call MaterialManager::initialise()?",
-                    "SubEntity::setMaterialName");
-            }
-        }
-
-        setMaterial( material );
-    }
-    //-----------------------------------------------------------------------
     void SubEntity::setMaterial( const MaterialPtr& material )
     {
-        mMaterialPtr = material;
-        
-        if (mMaterialPtr.isNull())
-        {
-            LogManager::getSingleton().logMessage("Can't assign material "  
-                " to SubEntity of " + mParentEntity->getName() + " because this "
-                "Material does not exist. Have you forgotten to define it in a "
-                ".material script?", LML_CRITICAL);
-            
-            mMaterialPtr = MaterialManager::getSingleton().getByName("BaseWhite");
-            
-            if (mMaterialPtr.isNull())
-            {
-                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
-                    "to SubEntity of " + mParentEntity->getName() + ". Did "
-                    "you forget to call MaterialManager::initialise()?",
-                    "SubEntity::setMaterial");
-            }
-        }
-        
-        // Ensure new material loaded (will not load again if already loaded)
-        mMaterialPtr->load();
-
-        size_t subEntityIndex = this - &(*mParentEntity->mSubEntityList.begin());
-        mParentEntity->mLodMaterial[subEntityIndex] = mMaterialPtr->_getLodValues();
+        Renderable::setMaterial( material );
 
         // tell parent to reconsider material vertex processing options
         mParentEntity->reevaluateVertexProcessing();
     }
     //-----------------------------------------------------------------------
-    const MaterialPtr& SubEntity::getMaterial(void) const
+    void SubEntity::setDatablock( HlmsDatablock *datablock )
     {
-        return mMaterialPtr;
-    }
-    //-----------------------------------------------------------------------
-    Technique* SubEntity::getTechnique(void) const
-    {
-        return mMaterialPtr->getBestTechnique(mMaterialLodIndex, this);
+        Renderable::setDatablock( datablock );
+
+        // tell parent to reconsider material vertex processing options
+        mParentEntity->reevaluateVertexProcessing();
     }
     //-----------------------------------------------------------------------
     void SubEntity::getRenderOperation(RenderOperation& op)
@@ -459,4 +405,5 @@ namespace Ogre {
         }
 
     }
+}
 }

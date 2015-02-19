@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -116,15 +117,13 @@ namespace Ogre {
         /// Rotation type of each billboard
         BillboardRotationType mRotationType;
 
+        String  mMaterialName;
+        String  mMaterialGroup;
+
         /// Default width of each billboard
         Real mDefaultWidth;
         /// Default height of each billboard
         Real mDefaultHeight;
-
-        /// Name of the material to use
-        String mMaterialName;
-        /// Pointer to the material to use
-        MaterialPtr mMaterial;
 
         /// True if no billboards in this set have been resized - greater efficiency.
         bool mAllDefaultSize;
@@ -172,8 +171,15 @@ namespace Ogre {
 
         /// The vertex position data for all billboards in this set.
         VertexData* mVertexData;
-        /// Shortcut to main buffer (positions, colours, texture coords)
+        /// Shortcut to current main buffer (positions, colours, texture coords)
         HardwareVertexBufferSharedPtr mMainBuf;
+        typedef vector<HardwareVertexBufferSharedPtr>::type HardwareVertexBufferSharedPtrVec;
+        typedef vector<HardwareVertexBufferSharedPtrVec>::type HardwareVertexBufferSharedPtrVecVec;
+        HardwareVertexBufferSharedPtrVecVec mMainBuffers;
+        uint32 mLastLockedBuffer;
+        /// Frame number in which we did the last lock. We use it to know which buffer to
+        /// lock (we can't lock the same buffer twice with HBL_NO_OVERWRITE in the same frame)
+        uint32 mLastLockedFrame;
         /// Locked pointer to buffer
         float* mLockPtr;
         /// Boundary offsets based on origin and camera orientation
@@ -207,6 +213,10 @@ namespace Ogre {
         Vector3 mCommonDirection;
         /// Common up-vector for billboards of type BBT_PERPENDICULAR_SELF and BBT_PERPENDICULAR_COMMON
         Vector3 mCommonUpVector;
+
+        /// Ugly dependency from a v1 object to a v2 object. The VaoManager is used to properly
+        /// synchronize HBU_NO_OVERWRITE and avoid expensive stalls (specially on GL)
+        VaoManager *mVaoManager;
 
         /// Internal method for culling individual billboards
         inline bool billboardVisible(const Camera* cam, const Billboard& bill);
@@ -291,6 +301,8 @@ namespace Ogre {
         /// True if the billboard data changed. Will cause vertex buffer update.
         bool mBillboardDataChanged;
 
+        void createExtraVertexBuffer( size_t vertexSize );
+
         /** Internal method creates vertex and index buffers.
         */
         void _createBuffers(void);
@@ -319,9 +331,9 @@ namespace Ogre {
         @see
             BillboardSet::setAutoextend
         */
-        BillboardSet( IdType id, ObjectMemoryManager *objectMemoryManager,
-                        unsigned int poolSize = 20, bool externalDataSource = false,
-                        uint8 renderQueueId=RENDER_QUEUE_MAIN );
+        BillboardSet( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                      unsigned int poolSize = 20, bool externalDataSource = false,
+                      uint8 renderQueueId=0 );
 
         virtual ~BillboardSet();
 
@@ -516,17 +528,6 @@ namespace Ogre {
         /** See setDefaultDimensions - this gets 1 component individually. */
         virtual Real getDefaultHeight(void) const;
 
-        /** Sets the name of the material to be used for this billboard set.
-        @param name
-            The new name of the material to use for this set.
-        */
-        virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
-
-        /** Sets the name of the material to be used for this billboard set.
-        @return The name of the material that is used for this set.
-        */
-        virtual const String& getMaterialName(void) const;
-
         /** Overridden from MovableObject
         @see
             MovableObject
@@ -555,18 +556,6 @@ namespace Ogre {
             MovableObject
         */
         virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
-
-        /** Overridden from MovableObject
-        @see
-            MovableObject
-        */
-        virtual const MaterialPtr& getMaterial(void) const;
-
-        /** Sets the name of the material to be used for this billboard set.
-        @param material
-            The new material to use for this set.
-         */
-        virtual void setMaterial( const MaterialPtr& material );
 
         /** Overridden from MovableObject
         @see
@@ -833,6 +822,9 @@ namespace Ogre {
         */
         void notifyBillboardDataChanged(void) { mBillboardDataChanged = true; }
 
+        virtual void setMaterial( const MaterialPtr& material );
+        virtual void setDatablock( HlmsDatablock *datablock );
+
     };
 
     /** Factory object for creating BillboardSet instances */
@@ -840,7 +832,8 @@ namespace Ogre {
     {
     protected:
         virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
-                                                    const NameValuePairList* params = 0 );
+                                                   SceneManager* manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         BillboardSetFactory() {}
         ~BillboardSetFactory() {}
@@ -853,7 +846,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
-
+}
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"

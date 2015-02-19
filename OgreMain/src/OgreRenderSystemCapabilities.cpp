@@ -39,6 +39,9 @@ namespace Ogre {
         , mStencilBufferBitDepth(0)
         , mNumVertexBlendMatrices(0)
         , mNumMultiRenderTargets(1)
+        , mMaxTextureResolution2D(1024)
+        , mMaxTextureResolution3D(512)
+        , mMaxTextureResolutionCubemap(512)
         , mNonPOW2TexturesLimited(false)
         , mMaxSupportedAnisotropy(0)
         , mVertexTextureUnitsShared(0)
@@ -220,9 +223,6 @@ namespace Ogre {
         }
 
         pLog->logMessage(
-            " * Scissor Rectangle: "
-            + StringConverter::toString(hasCapability(RSC_SCISSOR_TEST), true));
-        pLog->logMessage(
             " * Hardware Occlusion Query: "
             + StringConverter::toString(hasCapability(RSC_HWOCCLUSION), true));
         pLog->logMessage(
@@ -250,6 +250,12 @@ namespace Ogre {
         pLog->logMessage(
             " * Volume textures: "
             + StringConverter::toString(hasCapability(RSC_TEXTURE_3D), true));
+        pLog->logMessage( " * Max Texture resolution (2D) "
+            + StringConverter::toString(mMaxTextureResolution2D) );
+        pLog->logMessage( " * Max Texture resolution (3D) "
+            + StringConverter::toString(mMaxTextureResolution3D) );
+        pLog->logMessage( " * Max Texture resolution (Cubemaps) "
+            + StringConverter::toString(mMaxTextureResolutionCubemap) );
         pLog->logMessage(
             " * Multiple Render Targets: "
             + StringConverter::toString(mNumMultiRenderTargets));
