@@ -32,17 +32,19 @@ THE SOFTWARE.
 #include "TransparencyTest.h"
 #include "TextureEffectsTest.h"
 #include "CubeMappingTest.h"
+#include "TextureBlitTest.h"
 #include "OgreResourceGroupManager.h"
 
 VTestPlugin::VTestPlugin()
     :SamplePlugin("VTestPlugin")
 {
     // add the playpen tests
-    addSample(new ParticleTest());
-    addSample(new StencilShadowTest());
-    addSample(new TransparencyTest());
-    addSample(new CubeMappingTest());
-    addSample(new TextureEffectsTest());
+    addSample(new TextureBlitTest());
+//    addSample(new CubeMappingTest()); // no bg on Win
+//    addSample(new ParticleTest());
+    // addSample(new StencilShadowTest()); // crashes on Windows; should show ogre head, barrel, taurus
+//    addSample(new TextureEffectsTest());
+//    addSample(new TransparencyTest());
 }
 //---------------------------------------------------------------------
 

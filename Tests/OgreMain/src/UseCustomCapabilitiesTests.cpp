@@ -185,7 +185,7 @@ void UseCustomCapabilitiesTests::testCustomCapabilitiesGL()
     using namespace Ogre;
 
 #ifdef OGRE_STATIC_LIB
-    Root* root = OGRE_NEW Root(StringUtil::BLANK);        
+    Root* root = OGRE_NEW Root(BLANKSTRING);        
     mStaticPluginLoader.load();
 #else
 
@@ -250,7 +250,7 @@ void UseCustomCapabilitiesTests::testCustomCapabilitiesD3D9()
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
 #ifdef OGRE_STATIC_LIB
-    Root* root = OGRE_NEW Root(StringUtil::BLANK);        
+    Root* root = OGRE_NEW Root(BLANKSTRING);        
     mStaticPluginLoader.load();
 #else
     Root* root = OGRE_NEW Root("plugins.cfg");

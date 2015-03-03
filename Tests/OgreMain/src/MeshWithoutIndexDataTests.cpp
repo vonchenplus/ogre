@@ -73,8 +73,6 @@ void MeshWithoutIndexDataTests::tearDown()
 void MeshWithoutIndexDataTests::testCreateSimpleLine()
 {
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     ManualObject* line = OGRE_NEW ManualObject("line");
     line->begin("BaseWhiteNoLighting", RenderOperation::OT_LINE_LIST);
@@ -113,8 +111,6 @@ void MeshWithoutIndexDataTests::testCreateSimpleLine()
 //--------------------------------------------------------------------------
 void MeshWithoutIndexDataTests::testCreateLineList()
 {
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     ManualObject* lineList = OGRE_NEW ManualObject("line");
@@ -159,8 +155,6 @@ void MeshWithoutIndexDataTests::testCreateLineList()
 void MeshWithoutIndexDataTests::testCreateLineStrip()
 {
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     ManualObject* lineStrip = OGRE_NEW ManualObject("line");
     lineStrip->begin("BaseWhiteNoLighting", RenderOperation::OT_LINE_STRIP);
@@ -202,8 +196,6 @@ void MeshWithoutIndexDataTests::testCreateLineStrip()
 void MeshWithoutIndexDataTests::testCreatePointList()
 {
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     ManualObject* pointList = OGRE_NEW ManualObject("line");
     pointList->begin("BaseWhiteNoLighting", RenderOperation::OT_POINT_LIST);
@@ -244,8 +236,6 @@ void MeshWithoutIndexDataTests::testCreatePointList()
 //--------------------------------------------------------------------------
 void MeshWithoutIndexDataTests::testCreateLineWithMaterial()
 {
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     String matName = "lineMat";
@@ -356,8 +346,6 @@ void createMeshWithMaterial(String fileName)
 void MeshWithoutIndexDataTests::testCreateMesh()
 {
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     String fileName = "indexMix.mesh";
     createMeshWithMaterial(fileName);
@@ -390,8 +378,6 @@ void MeshWithoutIndexDataTests::testCreateMesh()
 void MeshWithoutIndexDataTests::testCloneMesh()
 {
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     String originalName = "toClone.mesh";
     createMeshWithMaterial(originalName);
@@ -418,8 +404,6 @@ void MeshWithoutIndexDataTests::testCloneMesh()
 //--------------------------------------------------------------------------
 void MeshWithoutIndexDataTests::testEdgeList()
 {
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     String fileName = "testEdgeList.mesh";
@@ -448,8 +432,6 @@ void MeshWithoutIndexDataTests::testEdgeList()
 void MeshWithoutIndexDataTests::testGenerateExtremes()
 {
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     String fileName = "testGenerateExtremes.mesh";
     createMeshWithMaterial(fileName);
@@ -477,8 +459,6 @@ void MeshWithoutIndexDataTests::testGenerateExtremes()
 //--------------------------------------------------------------------------
 void MeshWithoutIndexDataTests::testBuildTangentVectors()
 {
-    UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
-//--------------------------------------------------------------------------
     UnitTestSuite::getSingletonPtr()->startTestMethod(__FUNCTION__);
 
     String fileName = "testBuildTangentVectors.mesh";
