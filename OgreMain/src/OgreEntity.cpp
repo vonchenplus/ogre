@@ -236,7 +236,6 @@ namespace Ogre {
 
         mInitialised = true;
         mMeshStateCount = mMesh->getStateCount();
-
     }
     //-----------------------------------------------------------------------
     void Entity::_deinitialise(void)
