@@ -31,9 +31,18 @@ THE SOFTWARE.
 #include "OgreStringConverter.h"
 #include "OgreHardwareBufferManager.h"
 #include "OgreRoot.h"
+#include "OgreHlms.h"
+#include "OgreHlmsManager.h"
 #include "OgreRenderSystem.h"
 
+#ifdef OGRE_BUILD_COMPONENT_HLMS_UNLIT
+    #include "OgreHlmsUnlitDatablock.h"
+#else
+    #include "OgreHlmsUnlitMobileDatablock.h"
+#endif
+
 namespace Ogre {
+namespace v1 {
     //---------------------------------------------------------------------
     String PanelOverlayElement::msTypeName = "Panel";
     PanelOverlayElement::CmdTiling PanelOverlayElement::msCmdTiling;
@@ -181,7 +190,7 @@ namespace Ogre {
         if (mVisible)
         {
 
-            if (!mTransparent && !mMaterial.isNull())
+            if (!mTransparent && !mMaterialName.empty())
             {
                 OverlayElement::_updateRenderQueue(queue, camera, lodCamera);
             }
@@ -249,10 +258,20 @@ namespace Ogre {
     void PanelOverlayElement::updateTextureGeometry(void)
     {
         // Generate for as many texture layers as there are in material
-        if (!mMaterial.isNull() && mInitialised)
+        if (!mMaterialName.empty() && mInitialised)
         {
-            // Assume one technique and pass for the moment
-            size_t numLayers = mMaterial->getTechnique(0)->getPass(0)->getNumTextureUnitStates();
+            HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+            Hlms *hlms = hlmsManager->getHlms( HLMS_UNLIT );
+            HlmsDatablock *datablock = hlms->getDatablock( mMaterialName );
+            assert( dynamic_cast<OverlayUnlitDatablock*>( datablock ) );
+
+            OverlayUnlitDatablock *guiDatablock = static_cast<OverlayUnlitDatablock*>(datablock);
+
+#ifdef OGRE_BUILD_COMPONENT_HLMS_UNLIT
+            uint8 numLayers = 1; //TODO?
+#else
+            uint8 numLayers = guiDatablock->getNumUvSets();
+#endif
 
             VertexDeclaration* decl = mRenderOp.vertexData->vertexDeclaration;
             // Check the number of texcoords we have in our buffer now
@@ -419,7 +438,7 @@ namespace Ogre {
             StringConverter::parseReal(vec[3])
             );
     }
-
+}
 }
 
 

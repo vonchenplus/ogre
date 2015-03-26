@@ -680,17 +680,10 @@ namespace Ogre
         ID_ALPHA_TO_COVERAGE,
         ID_LIGHT_SCISSOR,
         ID_LIGHT_CLIP_PLANES,
-        ID_TRANSPARENT_SORTING,
-        ID_ILLUMINATION_STAGE,
-            ID_DECAL,
         ID_CULL_HARDWARE,
+        ID_CULL_MODE,
             ID_CLOCKWISE,
             ID_ANTICLOCKWISE,
-        ID_CULL_SOFTWARE,
-            ID_BACK,
-            ID_FRONT,
-        ID_NORMALISE_NORMALS,
-        ID_LIGHTING,
         ID_SHADING,
             ID_FLAT, 
             ID_GOURAUD,
@@ -748,9 +741,6 @@ namespace Ogre
             ID_BILINEAR,
             ID_TRILINEAR,
             ID_ANISOTROPIC,
-        ID_CMPTEST,
-            ID_ON,
-            ID_OFF,
         ID_CMPFUNC,
         ID_MAX_ANISOTROPY,
         ID_MIPMAP_BIAS,
@@ -845,6 +835,8 @@ namespace Ogre
                     ID_NUM_INITIAL,
                     ID_IDENTIFIER,
                     ID_OVERLAYS,
+                    ID_EXECUTION_MASK,
+                    ID_VIEWPORT_MODIFIER_MASK,
 
                     //Used by PASS_SCENE
                     ID_LOD_BIAS,
@@ -900,6 +892,8 @@ namespace Ogre
                 ID_FSAA,
                 ID_LIGHT,
                 ID_SPLIT,
+
+        ID_HLMS,
 
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
         ID_RT_SHADER_SYSTEM,

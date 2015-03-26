@@ -303,7 +303,7 @@ namespace Ogre {
             mProps[x].valid = false;
 
             // Fetch GL format token
-            GLenum internalFormat = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x);
+            GLenum internalFormat = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x, false);
             GLenum originFormat = GL3PlusPixelUtil::getGLOriginFormat((PixelFormat)x);
             GLenum dataType = GL3PlusPixelUtil::getGLOriginDataType((PixelFormat)x);
             if(internalFormat == GL_NONE && x != 0)
@@ -508,7 +508,7 @@ namespace Ogre {
             else
             {
                 // New one
-                GL3PlusRenderBuffer *rb = new GL3PlusRenderBuffer(format, width, height, fsaa);
+                v1::GL3PlusRenderBuffer *rb = new v1::GL3PlusRenderBuffer(format, width, height, fsaa);
                 mRenderBufferMap[key] = RBRef(rb);
                 retval.buffer = rb;
                 retval.zoffset = 0;

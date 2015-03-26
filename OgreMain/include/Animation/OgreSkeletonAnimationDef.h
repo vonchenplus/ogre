@@ -34,6 +34,11 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+    namespace v1
+    {
+        class TimeIndex;
+    }
+
     class _OgreExport SkeletonAnimationDef : public AnimationAlloc
     {
         friend class SkeletonAnimation;
@@ -57,6 +62,15 @@ namespace Ogre
         typedef vector<Real>::type TimestampVec;
         typedef map<size_t, TimestampVec>::type TimestampsPerBlock;
 
+        /** Same as @see OldNodeAnimationTrack::getInterpolatedKeyFrame, but doesn't normalize
+            the interpolated quaternion, otherwise the rotation speed would be completely
+            changed after we create additional keyframes to maintain compatibility within
+            the SIMD block.
+        */
+        static void getInterpolatedUnnormalizedKeyFrame( v1::OldNodeAnimationTrack *oldTrack,
+                                                         const v1::TimeIndex& timeIndex,
+                                                         v1::TransformKeyFrame* kf );
+
         /** Allocates enough memory in mKfTransformMemoryManager, creates all the mTracks
             (one per each entry in timestampsByBlock), and allocates all the keyframes
             from each track in a cache friendly manner, according to the usage pattern
@@ -77,7 +91,7 @@ namespace Ogre
         void setName( const String &name )                              { mName = name; }
         void _setSkeletonDef( const SkeletonDef *skeletonDef )          { mSkeletonDef = skeletonDef; }
 
-        void build( const Skeleton *skeleton, const Animation *animation, Real frameRate );
+        void build( const v1::Skeleton *skeleton, const v1::Animation *animation, Real frameRate );
 
         /// Dumps all the tracks in CSV format to the output string argument.
         /// Mostly for debugging purposes. (also easy example to show how to

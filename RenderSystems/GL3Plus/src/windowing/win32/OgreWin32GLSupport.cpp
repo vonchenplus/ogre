@@ -40,6 +40,8 @@
 using namespace Ogre;
 
 namespace Ogre {
+	PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = 0;
+
     Win32GLSupport::Win32GLSupport()
         : mInitialWindow(0)
         , mHasPixelFormatARB(false)
@@ -82,7 +84,6 @@ namespace Ogre {
         ConfigOption optFSAA;
         ConfigOption optRTTMode;
         ConfigOption optSRGB;
-        ConfigOption optEnableFixedPipeline;
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		ConfigOption optStereoMode;
 #endif
@@ -163,12 +164,6 @@ namespace Ogre {
         optSRGB.currentValue = "No";
         optSRGB.immutable = false;
 
-        optEnableFixedPipeline.name = "Fixed Pipeline Enabled";
-        optEnableFixedPipeline.possibleValues.push_back( "Yes" );
-        optEnableFixedPipeline.possibleValues.push_back( "No" );
-        optEnableFixedPipeline.currentValue = "Yes";
-        optEnableFixedPipeline.immutable = false;
-
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		optStereoMode.name = "Stereo Mode";
 		optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_NONE));
@@ -188,7 +183,6 @@ namespace Ogre {
         mOptions[optFSAA.name] = optFSAA;
         mOptions[optRTTMode.name] = optRTTMode;
         mOptions[optSRGB.name] = optSRGB;
-        mOptions[optEnableFixedPipeline.name] = optEnableFixedPipeline;
 
         refreshConfig();
     }
@@ -324,12 +318,6 @@ namespace Ogre {
             String multisample_hint;
             if (aavalues.size() > 1)
                 multisample_hint = aavalues[1];
-
-            opt = mOptions.find("Fixed Pipeline Enabled");
-            if (opt == mOptions.end())
-                OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find Fixed Pipeline enabled options!", "Win32GLSupport::createWindow");
-            bool enableFixedPipeline = (opt->second.currentValue == "Yes");
-            renderSystem->setFixedPipelineEnabled(enableFixedPipeline);
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 			opt = mOptions.find("Stereo Mode");
@@ -556,6 +544,9 @@ namespace Ogre {
             HDC oldhdc = wglGetCurrentDC();
             // if wglMakeCurrent fails, wglGetProcAddress will return null
             wglMakeCurrent(hdc, hrc);
+
+            wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)
+                                            wglGetProcAddress("wglCreateContextAttribsARB");
             
             PFNWGLGETEXTENSIONSSTRINGARBPROC _wglGetExtensionsStringARB =
                 (PFNWGLGETEXTENSIONSSTRINGARBPROC)
@@ -626,6 +617,15 @@ namespace Ogre {
         // clean up our dummy window and class
         DestroyWindow(hwnd);
         UnregisterClass(dummyText, hinst);
+
+        if( !wglCreateContextAttribsARB )
+        {
+            OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
+                         "WGL_ARB_create_context extension required for OpenGL 3.3."
+                         " Update your graphics card driver, or your card doesn't "
+                         "support OpenGL 3.3",
+                         "Win32GLSupport::initialiseWGL" );
+        }
     }
 
     LRESULT Win32GLSupport::dummyWndProc(HWND hwnd, UINT umsg, WPARAM wp, LPARAM lp)
