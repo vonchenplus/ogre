@@ -46,6 +46,9 @@ THE SOFTWARE.
 #include "OgreRoot.h"
 #include "OgreHighLevelGpuProgram.h"
 
+#include "OgreHlms.h"
+#include "OgreHlmsManager.h"
+
 #include "Compositor/OgreCompositorManager2.h"
 #include "Compositor/OgreCompositorWorkspaceDef.h"
 #include "Compositor/OgreCompositorShadowNodeDef.h"
@@ -635,6 +638,577 @@ namespace Ogre{
     }
 
     /**************************************************************************
+     * HlmsTranslator
+     *************************************************************************/
+    /*HlmsTranslator::HlmsTranslator()
+    {
+    }*/
+
+    void HlmsTranslator::translate(ScriptCompiler *compiler, const AbstractNodePtr &node)
+    {
+        ObjectAbstractNode *obj = reinterpret_cast<ObjectAbstractNode*>(node.get());
+        if(obj->name.empty())
+        {
+            compiler->addError(ScriptCompiler::CE_OBJECTNAMEEXPECTED, obj->file, obj->line);
+            return;
+        }
+
+        // Must have an HLMS type
+        if(obj->values.empty())
+        {
+            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, obj->file, obj->line,
+                               "HLMS materials require type declaration. i.e. 'hlms myMaterial pbs'.");
+            return;
+        }
+
+        // Get the type
+        String type;
+        if( !getString(obj->values.front(), &type) )
+        {
+            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line);
+            return;
+        }
+
+        HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+        Hlms *hlms = 0;
+        HlmsParamVec paramVec;
+
+        paramVec.reserve( obj->children.size() );
+
+        const IdString idType( type );
+        for( size_t i=0; i<HLMS_MAX && !hlms; ++i )
+        {
+            hlms = hlmsManager->getHlms( static_cast<HlmsTypes>( i ) );
+
+            if( hlms && idType != hlms->getTypeName() )
+                hlms = 0; //This one isn't, keep looking
+        }
+
+        if( !hlms )
+        {
+            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, node->file, node->line,
+                               type + " is not a valid hlms type");
+            return;
+        }
+
+        HlmsMacroblock macroblock;
+        HlmsBlendblock blendblock;
+        //obj->values
+
+        // Create the workspace definition*/
+        /*CreateCompositorScriptCompilerEvent evt(obj->file, obj->name, compiler->getResourceGroup());
+        bool processed = compiler->_fireEvent(&evt, (void*)&mWorkspaceDef);
+
+        if(!processed)
+        {
+            CompositorManager2 *compositorMgr = Root::getSingleton().getCompositorManager2();
+            mWorkspaceDef = compositorMgr->addWorkspaceDefinition( obj->name );
+        }
+
+        if(mWorkspaceDef == 0)
+        {
+            compiler->addError(ScriptCompiler::CE_OBJECTALLOCATIONERROR, obj->file, obj->line);
+            return;
+        }*/
+
+        obj->context = Any(hlms);
+
+        AbstractNodeList::iterator i = obj->children.begin();
+        try
+        {
+        for(i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = reinterpret_cast<PropertyAbstractNode*>((*i).get());
+                switch(prop->id)
+                {
+                case ID_DEPTH_CHECK:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "depth_check must have 1 argument");
+                    }
+                    else
+                    {
+                        if(!getBoolean(prop->values.front(), &macroblock.mDepthCheck))
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               "depth_check third argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
+                        }
+                    }
+                    break;
+                case ID_DEPTH_WRITE:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "depth_write must have 1 argument");
+                    }
+                    else
+                    {
+                        if(!getBoolean(prop->values.front(), &macroblock.mDepthWrite))
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               "depth_write third argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
+                        }
+
+                    }
+                    break;
+                case ID_DEPTH_BIAS:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 2)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "depth_bias must have at most 2 arguments");
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator i1 = getNodeAt(prop->values, 0), i0 = i1++;
+                        if(getFloat(*i0, &macroblock.mDepthBiasConstant))
+                        {
+                            if(i1 != prop->values.end())
+                                getFloat(*i1, &macroblock.mDepthBiasSlopeScale);
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               "depth_bias does not support \"" + (*i0)->getValue() + "\" for argument 1");
+                        }
+                    }
+                    break;
+                case ID_DEPTH_FUNC:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "depth_func must have 1 argument");
+                    }
+                    else
+                    {
+                        if(!getCompareFunction(prop->values.front(), &macroblock.mDepthFunc))
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               prop->values.front()->getValue() + " is not a valid CompareFunction");
+                        }
+                    }
+                    break;
+                case ID_ALPHA_TO_COVERAGE:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "alpha_to_coverage must have 1 argument");
+                    }
+                    else
+                    {
+                        if(!getBoolean(prop->values.front(), &blendblock.mAlphaToCoverageEnabled))
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               "alpha_to_coverage argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
+                        }
+                    }
+                    break;
+                case ID_POLYGON_MODE:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "polygon_mode must have at most 1 argument");
+                    }
+                    else
+                    {
+                        if(prop->values.front()->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
+                            switch(atom->id)
+                            {
+                            case ID_SOLID:
+                                macroblock.mPolygonMode = PM_SOLID;
+                                break;
+                            case ID_POINTS:
+                                macroblock.mPolygonMode = PM_POINTS;
+                                break;
+                            case ID_WIREFRAME:
+                                macroblock.mPolygonMode = PM_WIREFRAME;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   prop->values.front()->getValue() + " is not a valid polygon mode (solid, points, or wireframe)");
+                            }
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               prop->values.front()->getValue() + " is not a valid polygon mode (solid, points, or wireframe)");
+                        }
+                    }
+                    break;
+                case ID_CULL_MODE:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "cull_hardware must have at most 1 argument");
+                    }
+                    else
+                    {
+                        if(prop->values.front()->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
+                            switch(atom->id)
+                            {
+                            case ID_CLOCKWISE:
+                                macroblock.mCullMode = CULL_CLOCKWISE;
+                                break;
+                            case ID_ANTICLOCKWISE:
+                                macroblock.mCullMode = CULL_ANTICLOCKWISE;
+                                break;
+                            case ID_NONE:
+                                macroblock.mCullMode = CULL_NONE;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   prop->values.front()->getValue() + " is not a valid CullingMode");
+                            }
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               prop->values.front()->getValue() + " is not a valid CullingMode");
+                        }
+                    }
+                    break;
+                case ID_SCENE_BLEND:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 2)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "scene_blend supports at most 2 arguments");
+                    }
+                    else if(prop->values.size() == 1)
+                    {
+                        if(prop->values.front()->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
+                            switch(atom->id)
+                            {
+                            case ID_ADD:
+                                Pass::_getBlendFlags( SBT_ADD,
+                                                      blendblock.mSourceBlendFactor,
+                                                      blendblock.mDestBlendFactor );
+                                break;
+                            case ID_MODULATE:
+                                Pass::_getBlendFlags( SBT_MODULATE,
+                                                      blendblock.mSourceBlendFactor,
+                                                      blendblock.mDestBlendFactor );
+                                break;
+                            case ID_COLOUR_BLEND:
+                                Pass::_getBlendFlags( SBT_TRANSPARENT_COLOUR,
+                                                      blendblock.mSourceBlendFactor,
+                                                      blendblock.mDestBlendFactor );
+                                break;
+                            case ID_ALPHA_BLEND:
+                                Pass::_getBlendFlags( SBT_TRANSPARENT_ALPHA,
+                                                      blendblock.mSourceBlendFactor,
+                                                      blendblock.mDestBlendFactor );
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   "scene_blend does not support \"" + prop->values.front()->getValue() + "\" for argument 1");
+                            }
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               "scene_blend does not support \"" + prop->values.front()->getValue() + "\" for argument 1");
+                        }
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0), i1 = getNodeAt(prop->values, 1);
+                        if( !getSceneBlendFactor(*i0, &blendblock.mSourceBlendFactor) ||
+                            !getSceneBlendFactor(*i1, &blendblock.mDestBlendFactor) )
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               "scene_blend does not support \"" + (*i0)->getValue() + "\" and \"" + (*i1)->getValue() + "\" as arguments");
+                        }
+                    }
+                    break;
+                case ID_SEPARATE_SCENE_BLEND:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() == 3)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "separate_scene_blend must have 2 or 4 arguments");
+                    }
+                    else if(prop->values.size() > 4)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "separate_scene_blend must have 2 or 4 arguments");
+                    }
+                    else if(prop->values.size() == 2)
+                    {
+                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0), i1 = getNodeAt(prop->values, 1);
+                        if((*i0)->type == ANT_ATOM && (*i1)->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom0 = (AtomAbstractNode*)(*i0).get(), *atom1 = (AtomAbstractNode*)(*i1).get();
+                            SceneBlendType sbt0, sbt1;
+                            switch(atom0->id)
+                            {
+                            case ID_ADD:
+                                sbt0 = SBT_ADD;
+                                break;
+                            case ID_MODULATE:
+                                sbt0 = SBT_MODULATE;
+                                break;
+                            case ID_COLOUR_BLEND:
+                                sbt0 = SBT_TRANSPARENT_COLOUR;
+                                break;
+                            case ID_ALPHA_BLEND:
+                                sbt0 = SBT_TRANSPARENT_ALPHA;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   "separate_scene_blend does not support \"" + atom0->value + "\" as argument 1");
+                                return;
+                            }
+
+                            switch(atom1->id)
+                            {
+                            case ID_ADD:
+                                sbt1 = SBT_ADD;
+                                break;
+                            case ID_MODULATE:
+                                sbt1 = SBT_MODULATE;
+                                break;
+                            case ID_COLOUR_BLEND:
+                                sbt1 = SBT_TRANSPARENT_COLOUR;
+                                break;
+                            case ID_ALPHA_BLEND:
+                                sbt1 = SBT_TRANSPARENT_ALPHA;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   "separate_scene_blend does not support \"" + atom1->value + "\" as argument 2");
+                                return;
+                            }
+
+                            Pass::_getBlendFlags( sbt0,
+                                                  blendblock.mSourceBlendFactor,
+                                                  blendblock.mDestBlendFactor );
+                            Pass::_getBlendFlags( sbt1,
+                                                  blendblock.mSourceBlendFactorAlpha,
+                                                  blendblock.mDestBlendFactorAlpha );
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               "separate_scene_blend does not support \"" + (*i0)->getValue() + "\" as argument 1");
+                        }
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0), i1 = getNodeAt(prop->values, 1),
+                            i2 = getNodeAt(prop->values, 2), i3 = getNodeAt(prop->values, 3);
+                        if((*i0)->type == ANT_ATOM && (*i1)->type == ANT_ATOM && (*i2)->type == ANT_ATOM && (*i3)->type == ANT_ATOM)
+                        {
+                            if( !getSceneBlendFactor(*i0, &blendblock.mSourceBlendFactor) ||
+                                !getSceneBlendFactor(*i1, &blendblock.mDestBlendFactor) ||
+                                !getSceneBlendFactor(*i2, &blendblock.mSourceBlendFactorAlpha) ||
+                                !getSceneBlendFactor(*i3, &blendblock.mDestBlendFactorAlpha) )
+                            {
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   "one of the arguments to separate_scene_blend is not a valid scene blend factor directive");
+                            }
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               "one of the arguments to separate_scene_blend is not a valid scene blend factor directive");
+                        }
+                    }
+                    break;
+                case ID_SCENE_BLEND_OP:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "scene_blend_op must have 1 argument");
+                    }
+                    else
+                    {
+                        if(prop->values.front()->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom = reinterpret_cast<AtomAbstractNode*>(prop->values.front().get());
+                            switch(atom->id)
+                            {
+                            case ID_ADD:
+                                blendblock.mBlendOperation = SBO_ADD;
+                                break;
+                            case ID_SUBTRACT:
+                                blendblock.mBlendOperation = SBO_SUBTRACT;
+                                break;
+                            case ID_REVERSE_SUBTRACT:
+                                blendblock.mBlendOperation = SBO_REVERSE_SUBTRACT;
+                                break;
+                            case ID_MIN:
+                                blendblock.mBlendOperation = SBO_MIN;
+                                break;
+                            case ID_MAX:
+                                blendblock.mBlendOperation = SBO_MAX;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   atom->value + ": unrecognized argument");
+                            }
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               prop->values.front()->getValue() + ": unrecognized argument");
+                        }
+                    }
+                    break;
+                case ID_SEPARATE_SCENE_BLEND_OP:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() != 2)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "separate_scene_blend_op must have 2 arguments");
+                    }
+                    else
+                    {
+                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0), i1 = getNodeAt(prop->values, 1);
+                        if((*i0)->type == ANT_ATOM && (*i1)->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom0 = reinterpret_cast<AtomAbstractNode*>((*i0).get()),
+                                *atom1 = reinterpret_cast<AtomAbstractNode*>((*i1).get());
+                            switch(atom0->id)
+                            {
+                            case ID_ADD:
+                                blendblock.mBlendOperation = SBO_ADD;
+                                break;
+                            case ID_SUBTRACT:
+                                blendblock.mBlendOperation = SBO_SUBTRACT;
+                                break;
+                            case ID_REVERSE_SUBTRACT:
+                                blendblock.mBlendOperation = SBO_REVERSE_SUBTRACT;
+                                break;
+                            case ID_MIN:
+                                blendblock.mBlendOperation = SBO_MIN;
+                                break;
+                            case ID_MAX:
+                                blendblock.mBlendOperation = SBO_MAX;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   atom0->value + ": unrecognized first argument");
+                            }
+
+                            switch(atom1->id)
+                            {
+                            case ID_ADD:
+                                blendblock.mBlendOperationAlpha = SBO_ADD;
+                                break;
+                            case ID_SUBTRACT:
+                                blendblock.mBlendOperationAlpha = SBO_SUBTRACT;
+                                break;
+                            case ID_REVERSE_SUBTRACT:
+                                blendblock.mBlendOperationAlpha = SBO_REVERSE_SUBTRACT;
+                                break;
+                            case ID_MIN:
+                                blendblock.mBlendOperationAlpha = SBO_MIN;
+                                break;
+                            case ID_MAX:
+                                blendblock.mBlendOperationAlpha = SBO_MAX;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   atom1->value + ": unrecognized second argument");
+                            }
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               prop->values.front()->getValue() + ": unrecognized argument");
+                        }
+                    }
+                    break;
+                default:
+                    {
+                    String value;
+                    AbstractNodeList::const_iterator itor = prop->values.begin();
+                    AbstractNodeList::const_iterator end  = prop->values.end();
+                    if( itor != end )
+                    {
+                        if( (*itor)->type == ANT_ATOM )
+                            value += static_cast<AtomAbstractNode*>((*itor).get())->getValue();
+                        ++itor;
+                        while( itor != end )
+                        {
+                            if( (*itor)->type == ANT_ATOM )
+                                value += " " + static_cast<AtomAbstractNode*>((*itor).get())->getValue();
+                            ++itor;
+                        }
+                    }
+                    paramVec.push_back( std::pair<IdString, String>( prop->name, value ) );
+                    }
+                }
+            }
+            else
+            {
+                compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, (*i)->file, (*i)->line,
+                    "token not recognized");
+            }
+        }
+
+        std::sort( paramVec.begin(), paramVec.end(), OrderParamVecByKey );
+        hlms->createDatablock( obj->name, obj->name, macroblock, blendblock, paramVec );
+
+        }
+        catch( Exception & )
+        {
+            if( i != obj->children.end() )
+                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, (*i)->file, (*i)->line);
+        }
+    }
+
+    /**************************************************************************
      * MaterialTranslator
      *************************************************************************/
     MaterialTranslator::MaterialTranslator()
@@ -1009,6 +1583,9 @@ namespace Ogre{
         if(!obj->name.empty())
             mPass->setName(obj->name);
 
+        HlmsMacroblock macroblock;
+        HlmsBlendblock blendblock;
+
         // Set the properties for the material
         for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
         {
@@ -1201,16 +1778,24 @@ namespace Ogre{
                             switch(atom->id)
                             {
                             case ID_ADD:
-                                mPass->setSceneBlending(SBT_ADD);
+                                Pass::_getBlendFlags( SBT_ADD,
+                                                      blendblock.mSourceBlendFactor,
+                                                      blendblock.mDestBlendFactor );
                                 break;
                             case ID_MODULATE:
-                                mPass->setSceneBlending(SBT_MODULATE);
+                                Pass::_getBlendFlags( SBT_MODULATE,
+                                                      blendblock.mSourceBlendFactor,
+                                                      blendblock.mDestBlendFactor );
                                 break;
                             case ID_COLOUR_BLEND:
-                                mPass->setSceneBlending(SBT_TRANSPARENT_COLOUR);
+                                Pass::_getBlendFlags( SBT_TRANSPARENT_COLOUR,
+                                                      blendblock.mSourceBlendFactor,
+                                                      blendblock.mDestBlendFactor );
                                 break;
                             case ID_ALPHA_BLEND:
-                                mPass->setSceneBlending(SBT_TRANSPARENT_ALPHA);
+                                Pass::_getBlendFlags( SBT_TRANSPARENT_ALPHA,
+                                                      blendblock.mSourceBlendFactor,
+                                                      blendblock.mDestBlendFactor );
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
@@ -1226,12 +1811,8 @@ namespace Ogre{
                     else
                     {
                         AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0), i1 = getNodeAt(prop->values, 1);
-                        SceneBlendFactor sbf0, sbf1;
-                        if(getSceneBlendFactor(*i0, &sbf0) && getSceneBlendFactor(*i1, &sbf1))
-                        {
-                            mPass->setSceneBlending(sbf0, sbf1);
-                        }
-                        else
+                        if( !getSceneBlendFactor(*i0, &blendblock.mSourceBlendFactor) ||
+                            !getSceneBlendFactor(*i1, &blendblock.mDestBlendFactor) )
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                "scene_blend does not support \"" + (*i0)->getValue() + "\" and \"" + (*i1)->getValue() + "\" as arguments");
@@ -1300,7 +1881,12 @@ namespace Ogre{
                                 return;
                             }
 
-                            mPass->setSeparateSceneBlending(sbt0, sbt1);
+                            Pass::_getBlendFlags( sbt0,
+                                                  blendblock.mSourceBlendFactor,
+                                                  blendblock.mDestBlendFactor );
+                            Pass::_getBlendFlags( sbt1,
+                                                  blendblock.mSourceBlendFactorAlpha,
+                                                  blendblock.mDestBlendFactorAlpha );
                         }
                         else
                         {
@@ -1314,13 +1900,10 @@ namespace Ogre{
                             i2 = getNodeAt(prop->values, 2), i3 = getNodeAt(prop->values, 3);
                         if((*i0)->type == ANT_ATOM && (*i1)->type == ANT_ATOM && (*i2)->type == ANT_ATOM && (*i3)->type == ANT_ATOM)
                         {
-                            SceneBlendFactor sbf0, sbf1, sbf2, sbf3;
-                            if(getSceneBlendFactor(*i0, &sbf0) && getSceneBlendFactor(*i1, &sbf1) && getSceneBlendFactor(*i2, &sbf2) &&
-                               getSceneBlendFactor(*i3, &sbf3))
-                            {
-                                mPass->setSeparateSceneBlending(sbf0, sbf1, sbf2, sbf3);
-                            }
-                            else
+                            if( !getSceneBlendFactor(*i0, &blendblock.mSourceBlendFactor) ||
+                                !getSceneBlendFactor(*i1, &blendblock.mDestBlendFactor) ||
+                                !getSceneBlendFactor(*i2, &blendblock.mSourceBlendFactorAlpha) ||
+                                !getSceneBlendFactor(*i3, &blendblock.mDestBlendFactorAlpha) )
                             {
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                    "one of the arguments to separate_scene_blend is not a valid scene blend factor directive");
@@ -1351,19 +1934,19 @@ namespace Ogre{
                             switch(atom->id)
                             {
                             case ID_ADD:
-                                mPass->setSceneBlendingOperation(SBO_ADD);
+                                blendblock.mBlendOperation = SBO_ADD;
                                 break;
                             case ID_SUBTRACT:
-                                mPass->setSceneBlendingOperation(SBO_SUBTRACT);
+                                blendblock.mBlendOperation = SBO_SUBTRACT;
                                 break;
                             case ID_REVERSE_SUBTRACT:
-                                mPass->setSceneBlendingOperation(SBO_REVERSE_SUBTRACT);
+                                blendblock.mBlendOperation = SBO_REVERSE_SUBTRACT;
                                 break;
                             case ID_MIN:
-                                mPass->setSceneBlendingOperation(SBO_MIN);
+                                blendblock.mBlendOperation = SBO_MIN;
                                 break;
                             case ID_MAX:
-                                mPass->setSceneBlendingOperation(SBO_MAX);
+                                blendblock.mBlendOperation = SBO_MAX;
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
@@ -1394,23 +1977,22 @@ namespace Ogre{
                         {
                             AtomAbstractNode *atom0 = static_cast<AtomAbstractNode*>((*i0).get()),
                                              *atom1 = static_cast<AtomAbstractNode*>((*i1).get());
-                            SceneBlendOperation op = SBO_ADD, alphaOp = SBO_ADD;
                             switch(atom0->id)
                             {
                             case ID_ADD:
-                                op = SBO_ADD;
+                                blendblock.mBlendOperation = SBO_ADD;
                                 break;
                             case ID_SUBTRACT:
-                                op = SBO_SUBTRACT;
+                                blendblock.mBlendOperation = SBO_SUBTRACT;
                                 break;
                             case ID_REVERSE_SUBTRACT:
-                                op = SBO_REVERSE_SUBTRACT;
+                                blendblock.mBlendOperation = SBO_REVERSE_SUBTRACT;
                                 break;
                             case ID_MIN:
-                                op = SBO_MIN;
+                                blendblock.mBlendOperation = SBO_MIN;
                                 break;
                             case ID_MAX:
-                                op = SBO_MAX;
+                                blendblock.mBlendOperation = SBO_MAX;
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
@@ -1420,26 +2002,24 @@ namespace Ogre{
                             switch(atom1->id)
                             {
                             case ID_ADD:
-                                alphaOp = SBO_ADD;
+                                blendblock.mBlendOperationAlpha = SBO_ADD;
                                 break;
                             case ID_SUBTRACT:
-                                alphaOp = SBO_SUBTRACT;
+                                blendblock.mBlendOperationAlpha = SBO_SUBTRACT;
                                 break;
                             case ID_REVERSE_SUBTRACT:
-                                alphaOp = SBO_REVERSE_SUBTRACT;
+                                blendblock.mBlendOperationAlpha = SBO_REVERSE_SUBTRACT;
                                 break;
                             case ID_MIN:
-                                alphaOp = SBO_MIN;
+                                blendblock.mBlendOperationAlpha = SBO_MIN;
                                 break;
                             case ID_MAX:
-                                alphaOp = SBO_MAX;
+                                blendblock.mBlendOperationAlpha = SBO_MAX;
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                    atom1->value + ": unrecognized second argument");
                             }
-
-                            mPass->setSeparateSceneBlendingOperation(op, alphaOp);
                         }
                         else
                         {
@@ -1460,12 +2040,11 @@ namespace Ogre{
                     }
                     else
                     {
-                        bool val = true;
-                        if(getBoolean(prop->values.front(), &val))
-                            mPass->setDepthCheckEnabled(val);
-                        else
+                        if(!getBoolean(prop->values.front(), &macroblock.mDepthCheck))
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                "depth_check third argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
+                        }
                     }
                     break;
                 case ID_DEPTH_WRITE:
@@ -1480,12 +2059,12 @@ namespace Ogre{
                     }
                     else
                     {
-                        bool val = true;
-                        if(getBoolean(prop->values.front(), &val))
-                            mPass->setDepthWriteEnabled(val);
-                        else
+                        if(!getBoolean(prop->values.front(), &macroblock.mDepthWrite))
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                "depth_write third argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
+                        }
+
                     }
                     break;
                 case ID_DEPTH_BIAS:
@@ -1500,13 +2079,11 @@ namespace Ogre{
                     }
                     else
                     {
-                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0), i1 = getNodeAt(prop->values, 1);
-                        float val0, val1 = 0.0f;
-                        if(getFloat(*i0, &val0))
+                        AbstractNodeList::const_iterator i1 = getNodeAt(prop->values, 0), i0 = i1++;
+                        if(getFloat(*i0, &macroblock.mDepthBiasConstant))
                         {
                             if(i1 != prop->values.end())
-                                getFloat(*i1, &val1);
-                            mPass->setDepthBias(val0, val1);
+                                getFloat(*i1, &macroblock.mDepthBiasSlopeScale);
                         }
                         else
                         {
@@ -1527,15 +2104,14 @@ namespace Ogre{
                     }
                     else
                     {
-                        CompareFunction func;
-                        if(getCompareFunction(prop->values.front(), &func))
-                            mPass->setDepthFunction(func);
-                        else
+                        if(!getCompareFunction(prop->values.front(), &macroblock.mDepthFunc))
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                prop->values.front()->getValue() + " is not a valid CompareFunction");
+                        }
                     }
                     break;
-                case ID_ITERATION_DEPTH_BIAS:
+                case ID_ALPHA_TO_COVERAGE:
                     if(prop->values.empty())
                     {
                         compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
@@ -1543,16 +2119,92 @@ namespace Ogre{
                     else if(prop->values.size() > 1)
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "iteration_depth_bias must have 1 argument");
+                                           "alpha_to_coverage must have 1 argument");
                     }
                     else
                     {
-                        float val = 0.0f;
-                        if(getFloat(prop->values.front(), &val))
-                            mPass->setIterationDepthBias(val);
-                        else
+                        if(!getBoolean(prop->values.front(), &blendblock.mAlphaToCoverageEnabled))
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid float value");
+                                               "alpha_to_coverage argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
+                        }
+                    }
+                    break;
+                case ID_POLYGON_MODE:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "polygon_mode must have at most 1 argument");
+                    }
+                    else
+                    {
+                        if(prop->values.front()->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
+                            switch(atom->id)
+                            {
+                            case ID_SOLID:
+                                macroblock.mPolygonMode = PM_SOLID;
+                                break;
+                            case ID_POINTS:
+                                macroblock.mPolygonMode = PM_POINTS;
+                                break;
+                            case ID_WIREFRAME:
+                                macroblock.mPolygonMode = PM_WIREFRAME;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   prop->values.front()->getValue() + " is not a valid polygon mode (solid, points, or wireframe)");
+                            }
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               prop->values.front()->getValue() + " is not a valid polygon mode (solid, points, or wireframe)");
+                        }
+                    }
+                    break;
+                case ID_CULL_MODE:
+                case ID_CULL_HARDWARE:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                           "cull_hardware must have at most 1 argument");
+                    }
+                    else
+                    {
+                        if(prop->values.front()->type == ANT_ATOM)
+                        {
+                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
+                            switch(atom->id)
+                            {
+                            case ID_CLOCKWISE:
+                                macroblock.mCullMode = CULL_CLOCKWISE;
+                                break;
+                            case ID_ANTICLOCKWISE:
+                                macroblock.mCullMode = CULL_ANTICLOCKWISE;
+                                break;
+                            case ID_NONE:
+                                macroblock.mCullMode = CULL_NONE;
+                                break;
+                            default:
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                                   prop->values.front()->getValue() + " is not a valid CullingMode");
+                            }
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               prop->values.front()->getValue() + " is not a valid CullingMode");
+                        }
                     }
                     break;
                 case ID_ALPHA_REJECTION:
@@ -1575,7 +2227,10 @@ namespace Ogre{
                             {
                                 uint32 val = 0;
                                 if(getUInt(*i1, &val))
-                                    mPass->setAlphaRejectSettings(func, static_cast<unsigned char>(val));
+                                {
+                                    mPass->setAlphaRejectFunction(func);
+                                    mPass->setAlphaRejectValue(static_cast<unsigned char>(val));
+                                }
                                 else
                                     compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                        (*i1)->getValue() + " is not a valid integer");
@@ -1586,26 +2241,6 @@ namespace Ogre{
                         else
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                (*i0)->getValue() + " is not a valid CompareFunction");
-                    }
-                    break;
-                case ID_ALPHA_TO_COVERAGE:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "alpha_to_coverage must have 1 argument");
-                    }
-                    else
-                    {
-                        bool val = true;
-                        if(getBoolean(prop->values.front(), &val))
-                            mPass->setAlphaToCoverageEnabled(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "alpha_to_coverage argument must be \"true\", \"false\", \"yes\", \"no\", \"on\", or \"off\"");
                     }
                     break;
                 case ID_LIGHT_SCISSOR:
@@ -1648,194 +2283,6 @@ namespace Ogre{
                                                prop->values.front()->getValue() + " is not a valid boolean");
                     }
                     break;
-                case ID_TRANSPARENT_SORTING:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "transparent_sorting must have at most 1 argument");
-                    }
-                    else
-                    {
-                        bool val = true;
-                        if(getBoolean(prop->values.front(), &val))
-                        {
-                            mPass->setTransparentSortingEnabled(val);
-                            mPass->setTransparentSortingForced(false);
-                        }
-                        else
-                        {
-                            String val2;
-                            if (getString(prop->values.front(), &val2) && val2=="force")
-                            {
-                                mPass->setTransparentSortingEnabled(true);
-                                mPass->setTransparentSortingForced(true);
-                            }
-                            else
-                            {
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   prop->values.front()->getValue() + " must be boolean or force");
-                            }
-                        }
-                    }
-                    break;
-                case ID_ILLUMINATION_STAGE:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "illumination_stage must have at most 1 argument");
-                    }
-                    else
-                    {
-                        if(prop->values.front()->type == ANT_ATOM)
-                        {
-                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
-                            switch(atom->id)
-                            {
-                            case ID_AMBIENT:
-                                mPass->setIlluminationStage(IS_AMBIENT);
-                                break;
-                            case ID_PER_LIGHT:
-                                mPass->setIlluminationStage(IS_PER_LIGHT);
-                                break;
-                            case ID_DECAL:
-                                mPass->setIlluminationStage(IS_DECAL);
-                                break;
-                            default:
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   prop->values.front()->getValue() + " is not a valid IlluminationStage");
-                            }
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid IlluminationStage");
-                        }
-                    }
-                    break;
-                case ID_CULL_HARDWARE:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "cull_hardware must have at most 1 argument");
-                    }
-                    else
-                    {
-                        if(prop->values.front()->type == ANT_ATOM)
-                        {
-                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
-                            switch(atom->id)
-                            {
-                            case ID_CLOCKWISE:
-                                mPass->setCullingMode(CULL_CLOCKWISE);
-                                break;
-                            case ID_ANTICLOCKWISE:
-                                mPass->setCullingMode(CULL_ANTICLOCKWISE);
-                                break;
-                            case ID_NONE:
-                                mPass->setCullingMode(CULL_NONE);
-                                break;
-                            default:
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   prop->values.front()->getValue() + " is not a valid CullingMode");
-                            }
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid CullingMode");
-                        }
-                    }
-                    break;
-                case ID_CULL_SOFTWARE:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "cull_software must have at most 1 argument");
-                    }
-                    else
-                    {
-                        if(prop->values.front()->type == ANT_ATOM)
-                        {
-                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
-                            switch(atom->id)
-                            {
-                            case ID_FRONT:
-                                mPass->setManualCullingMode(MANUAL_CULL_FRONT);
-                                break;
-                            case ID_BACK:
-                                mPass->setManualCullingMode(MANUAL_CULL_BACK);
-                                break;
-                            case ID_NONE:
-                                mPass->setManualCullingMode(MANUAL_CULL_NONE);
-                                break;
-                            default:
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   prop->values.front()->getValue() + " is not a valid ManualCullingMode");
-                            }
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid ManualCullingMode");
-                        }
-                    }
-                    break;
-                case ID_NORMALISE_NORMALS:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "normalise_normals must have at most 1 argument");
-                    }
-                    else
-                    {
-                        bool val = false;
-                        if(getBoolean(prop->values.front(), &val))
-                            mPass->setNormaliseNormals(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid boolean");
-                    }
-                    break;
-                case ID_LIGHTING:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "lighting must have at most 1 argument");
-                    }
-                    else
-                    {
-                        bool val = false;
-                        if(getBoolean(prop->values.front(), &val))
-                            mPass->setLightingEnabled(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid boolean");
-                    }
-                    break;
                 case ID_SHADING:
                     if(prop->values.empty())
                     {
@@ -1871,44 +2318,6 @@ namespace Ogre{
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                prop->values.front()->getValue() + " is not a valid shading mode (flat, gouraud, or phong)");
-                        }
-                    }
-                    break;
-                case ID_POLYGON_MODE:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "polygon_mode must have at most 1 argument");
-                    }
-                    else
-                    {
-                        if(prop->values.front()->type == ANT_ATOM)
-                        {
-                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
-                            switch(atom->id)
-                            {
-                            case ID_SOLID:
-                                mPass->setPolygonMode(PM_SOLID);
-                                break;
-                            case ID_POINTS:
-                                mPass->setPolygonMode(PM_POINTS);
-                                break;
-                            case ID_WIREFRAME:
-                                mPass->setPolygonMode(PM_WIREFRAME);
-                                break;
-                            default:
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   prop->values.front()->getValue() + " is not a valid polygon mode (solid, points, or wireframe)");
-                            }
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " is not a valid polygon mode (solid, points, or wireframe)");
                         }
                     }
                     break;
@@ -2051,7 +2460,9 @@ namespace Ogre{
                     {
                         bool val = false;
                         if(getBoolean(prop->values.front(), &val))
-                            mPass->setColourWriteEnabled(val);
+                        {
+                            blendblock.mBlendChannelMask = val ? HlmsBlendblock::BlendChannelAll : 0;
+                        }
                         else
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                prop->values.front()->getValue() + " is not a valid boolean");
@@ -2454,6 +2865,9 @@ namespace Ogre{
                 }
             }
         }
+
+        mPass->setMacroblock( macroblock );
+        mPass->setBlendblock( blendblock );
     }
     //-------------------------------------------------------------------------
     void PassTranslator::translateFragmentProgramRef(Ogre::ScriptCompiler *compiler, Ogre::ObjectAbstractNode *node)
@@ -2683,6 +3097,9 @@ namespace Ogre{
         // Get the name of the technique
         if(!obj->name.empty())
             mUnit->setName(obj->name);
+
+        HlmsSamplerblock samplerblock;
+        samplerblock.setAddressinMode( TAM_WRAP );
 
         // Set the properties for the material
         for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
@@ -2984,8 +3401,6 @@ namespace Ogre{
                             AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0),
                                 i1 = getNodeAt(prop->values, 1),
                                 i2 = getNodeAt(prop->values, 2);
-                            TextureUnitState::UVWAddressingMode mode;
-                            mode.u = mode.v = mode.w = TextureUnitState::TAM_WRAP;
 
                             if(i0 != prop->values.end() && (*i0)->type == ANT_ATOM)
                             {
@@ -2993,24 +3408,24 @@ namespace Ogre{
                                 switch(atom->id)
                                 {
                                 case ID_WRAP:
-                                    mode.u = TextureUnitState::TAM_WRAP;
+                                    samplerblock.mU = TAM_WRAP;
                                     break;
                                 case ID_CLAMP:
-                                    mode.u = TextureUnitState::TAM_CLAMP;
+                                    samplerblock.mU = TAM_CLAMP;
                                     break;
                                 case ID_MIRROR:
-                                    mode.u = TextureUnitState::TAM_MIRROR;
+                                    samplerblock.mU = TAM_MIRROR;
                                     break;
                                 case ID_BORDER:
-                                    mode.u = TextureUnitState::TAM_BORDER;
+                                    samplerblock.mU = TAM_BORDER;
                                     break;
                                 default:
                                     compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                        (*i0)->getValue() + " not supported as first argument (must be \"wrap\", \"clamp\", \"mirror\", or \"border\")");
                                 }
                             }
-                            mode.v = mode.u;
-                            mode.w = mode.u;
+                            samplerblock.mV = samplerblock.mU;
+                            samplerblock.mW = samplerblock.mU;
 
                             if(i1 != prop->values.end() && (*i1)->type == ANT_ATOM)
                             {
@@ -3018,16 +3433,16 @@ namespace Ogre{
                                 switch(atom->id)
                                 {
                                 case ID_WRAP:
-                                    mode.v = TextureUnitState::TAM_WRAP;
+                                    samplerblock.mV = TAM_WRAP;
                                     break;
                                 case ID_CLAMP:
-                                    mode.v = TextureUnitState::TAM_CLAMP;
+                                    samplerblock.mV = TAM_CLAMP;
                                     break;
                                 case ID_MIRROR:
-                                    mode.v = TextureUnitState::TAM_MIRROR;
+                                    samplerblock.mV = TAM_MIRROR;
                                     break;
                                 case ID_BORDER:
-                                    mode.v = TextureUnitState::TAM_BORDER;
+                                    samplerblock.mV = TAM_BORDER;
                                     break;
                                 default:
                                     compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
@@ -3041,24 +3456,22 @@ namespace Ogre{
                                 switch(atom->id)
                                 {
                                 case ID_WRAP:
-                                    mode.w = TextureUnitState::TAM_WRAP;
+                                    samplerblock.mW = TAM_WRAP;
                                     break;
                                 case ID_CLAMP:
-                                    mode.w = TextureUnitState::TAM_CLAMP;
+                                    samplerblock.mW = TAM_CLAMP;
                                     break;
                                 case ID_MIRROR:
-                                    mode.w = TextureUnitState::TAM_MIRROR;
+                                    samplerblock.mW = TAM_MIRROR;
                                     break;
                                 case ID_BORDER:
-                                    mode.w = TextureUnitState::TAM_BORDER;
+                                    samplerblock.mW = TAM_BORDER;
                                     break;
                                 default:
                                     compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                        (*i0)->getValue() + " not supported as third argument (must be \"wrap\", \"clamp\", \"mirror\", or \"border\")");
                                 }
                             }
-
-                            mUnit->setTextureAddressingMode(mode);
                         }
                     }
                     break;
@@ -3069,12 +3482,11 @@ namespace Ogre{
                     }
                     else
                     {
-                        ColourValue val;
-                        if(getColour(prop->values.begin(), prop->values.end(), &val))
-                            mUnit->setTextureBorderColour(val);
-                        else
+                        if(!getColour(prop->values.begin(), prop->values.end(), &samplerblock.mBorderColour))
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                "tex_border_colour only accepts a colour argument");
+                        }
                     }
                     break;
                 case ID_FILTERING:
@@ -3090,16 +3502,16 @@ namespace Ogre{
                             switch(atom->id)
                             {
                             case ID_NONE:
-                                mUnit->setTextureFiltering(TFO_NONE);
+                                samplerblock.setFiltering(TFO_NONE);
                                 break;
                             case ID_BILINEAR:
-                                mUnit->setTextureFiltering(TFO_BILINEAR);
+                                samplerblock.setFiltering(TFO_BILINEAR);
                                 break;
                             case ID_TRILINEAR:
-                                mUnit->setTextureFiltering(TFO_TRILINEAR);
+                                samplerblock.setFiltering(TFO_TRILINEAR);
                                 break;
                             case ID_ANISOTROPIC:
-                                mUnit->setTextureFiltering(TFO_ANISOTROPIC);
+                                samplerblock.setFiltering(TFO_ANISOTROPIC);
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
@@ -3124,20 +3536,19 @@ namespace Ogre{
                             AtomAbstractNode *atom0 = (AtomAbstractNode*)(*i0).get(),
                                 *atom1 = (AtomAbstractNode*)(*i1).get(),
                                 *atom2 = (AtomAbstractNode*)(*i2).get();
-                            FilterOptions tmin = FO_NONE, tmax = FO_NONE, tmip = FO_NONE;
                             switch(atom0->id)
                             {
                             case ID_NONE:
-                                tmin = FO_NONE;
+                                samplerblock.mMinFilter = FO_NONE;
                                 break;
                             case ID_POINT:
-                                tmin = FO_POINT;
+                                samplerblock.mMinFilter = FO_POINT;
                                 break;
                             case ID_LINEAR:
-                                tmin = FO_LINEAR;
+                                samplerblock.mMinFilter = FO_LINEAR;
                                 break;
                             case ID_ANISOTROPIC:
-                                tmin = FO_ANISOTROPIC;
+                                samplerblock.mMinFilter = FO_ANISOTROPIC;
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
@@ -3147,16 +3558,16 @@ namespace Ogre{
                             switch(atom1->id)
                             {
                             case ID_NONE:
-                                tmax = FO_NONE;
+                                samplerblock.mMagFilter = FO_NONE;
                                 break;
                             case ID_POINT:
-                                tmax = FO_POINT;
+                                samplerblock.mMagFilter = FO_POINT;
                                 break;
                             case ID_LINEAR:
-                                tmax = FO_LINEAR;
+                                samplerblock.mMagFilter = FO_LINEAR;
                                 break;
                             case ID_ANISOTROPIC:
-                                tmax = FO_ANISOTROPIC;
+                                samplerblock.mMagFilter = FO_ANISOTROPIC;
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
@@ -3166,23 +3577,21 @@ namespace Ogre{
                             switch(atom2->id)
                             {
                             case ID_NONE:
-                                tmip = FO_NONE;
+                                samplerblock.mMipFilter = FO_NONE;
                                 break;
                             case ID_POINT:
-                                tmip = FO_POINT;
+                                samplerblock.mMipFilter = FO_POINT;
                                 break;
                             case ID_LINEAR:
-                                tmip = FO_LINEAR;
+                                samplerblock.mMipFilter = FO_LINEAR;
                                 break;
                             case ID_ANISOTROPIC:
-                                tmip = FO_ANISOTROPIC;
+                                samplerblock.mMipFilter = FO_ANISOTROPIC;
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                    (*i0)->getValue() + " not supported as third argument (must be \"none\", \"point\", \"linear\", or \"anisotropic\")");
                             }
-
-                            mUnit->setTextureFiltering(tmin, tmax, tmip);
                         }
                         else
                         {
@@ -3193,38 +3602,6 @@ namespace Ogre{
                     {
                         compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
                                            "filtering must have either 1 or 3 arguments");
-                    }
-                    break;
-                case ID_CMPTEST:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() > 1)
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "compare_test must have at most 1 argument");
-                    }
-                    else
-                    {
-                        if(prop->values.front()->type == ANT_ATOM)
-                        {
-                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
-                            bool enabled = false;
-                            switch(atom->id)
-                            {
-                            case ScriptCompiler::ID_ON:
-                                enabled=true;
-                                break;
-                            case ScriptCompiler::ID_OFF:
-                                enabled=false;
-                                break;
-                            default:
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   prop->values.front()->getValue() + " is not a valid parameter");
-                            }
-                            mUnit->setTextureCompareEnabled(enabled);
-                        }
                     }
                     break;
                 case ID_CMPFUNC:
@@ -3242,39 +3619,36 @@ namespace Ogre{
                         if(prop->values.front()->type == ANT_ATOM)
                         {
                             AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
-                            CompareFunction func = CMPF_GREATER_EQUAL;
                             switch(atom->id)
                             {
                             case ID_ALWAYS_FAIL:
-                                func = CMPF_ALWAYS_FAIL;
+                                samplerblock.mCompareFunction = CMPF_ALWAYS_FAIL;
                                 break;
                             case ID_ALWAYS_PASS:
-                                func = CMPF_ALWAYS_PASS;
+                                samplerblock.mCompareFunction = CMPF_ALWAYS_PASS;
                                 break;
                             case ID_LESS:
-                                func = CMPF_LESS;
+                                samplerblock.mCompareFunction = CMPF_LESS;
                                 break;
                             case ID_LESS_EQUAL:
-                                func = CMPF_LESS_EQUAL;
+                                samplerblock.mCompareFunction = CMPF_LESS_EQUAL;
                                 break;
                             case ID_EQUAL:
-                                func = CMPF_EQUAL;
+                                samplerblock.mCompareFunction = CMPF_EQUAL;
                                 break;
                             case ID_NOT_EQUAL:
-                                func = CMPF_NOT_EQUAL;
+                                samplerblock.mCompareFunction = CMPF_NOT_EQUAL;
                                 break;
                             case ID_GREATER_EQUAL:
-                                func = CMPF_GREATER_EQUAL;
+                                samplerblock.mCompareFunction = CMPF_GREATER_EQUAL;
                                 break;
                             case ID_GREATER:
-                                func = CMPF_GREATER;
+                                samplerblock.mCompareFunction = CMPF_GREATER;
                                 break;
                             default:
                                 compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                    prop->values.front()->getValue() + "is not a valid parameter");
                             }
-
-                            mUnit->setTextureCompareFunction(func);
                         }
                     }
                     break;
@@ -3290,12 +3664,11 @@ namespace Ogre{
                     }
                     else
                     {
-                        uint32 val = 0;
-                        if(getUInt(prop->values.front(), &val))
-                            mUnit->setTextureAnisotropy(val);
-                        else
+                        if(!getFloat(prop->values.front(), &samplerblock.mMaxAnisotropy))
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                prop->values.front()->getValue() + " is not a valid integer argument");
+                        }
                     }
                     break;
                 case ID_MIPMAP_BIAS:
@@ -3310,12 +3683,11 @@ namespace Ogre{
                     }
                     else
                     {
-                        Real val = 0.0f;
-                        if(getReal(prop->values.front(), &val))
-                            mUnit->setTextureMipmapBias(val);
-                        else
+                        if(!getReal(prop->values.front(), &samplerblock.mMipLodBias))
+                        {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
                                                prop->values.front()->getValue() + " is not a valid number argument");
+                        }
                     }
                     break;
                 case ID_COLOUR_OP:
@@ -4123,6 +4495,8 @@ namespace Ogre{
                 processNode(compiler, *i);
             }
         }
+
+        mUnit->setSamplerblock( samplerblock );
     }
 
     /**************************************************************************
@@ -7103,6 +7477,8 @@ namespace Ogre{
                 case ID_IDENTIFIER:
                 case ID_NUM_INITIAL:
                 case ID_OVERLAYS:
+                case ID_EXECUTION_MASK:
+                case ID_VIEWPORT_MODIFIER_MASK:
                     break;
                 default:
                     compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
@@ -7182,6 +7558,7 @@ namespace Ogre{
                         }
                     }
                     break;
+                case ID_HLMS:
                 case ID_MATERIAL:
                     if(prop->values.empty())
                     {
@@ -7195,6 +7572,8 @@ namespace Ogre{
                     }
                     else
                     {
+                        passQuad->mMaterialIsHlms = prop->id == ID_HLMS;
+
                         String val;
                         if( !getString(prop->values.front(), &passQuad->mMaterialName) )
                         {
@@ -7245,6 +7624,8 @@ namespace Ogre{
                 case ID_IDENTIFIER:
                 case ID_NUM_INITIAL:
                 case ID_OVERLAYS:
+                case ID_EXECUTION_MASK:
+                case ID_VIEWPORT_MODIFIER_MASK:
                     break;
                 default:
                     compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
@@ -7497,6 +7878,8 @@ namespace Ogre{
                 case ID_IDENTIFIER:
                 case ID_NUM_INITIAL:
                 case ID_OVERLAYS:
+                case ID_EXECUTION_MASK:
+                case ID_VIEWPORT_MODIFIER_MASK:
                     break;
                 default:
                     compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
@@ -7602,6 +7985,8 @@ namespace Ogre{
                 case ID_IDENTIFIER:
                 case ID_NUM_INITIAL:
                 case ID_OVERLAYS:
+                case ID_EXECUTION_MASK:
+                case ID_VIEWPORT_MODIFIER_MASK:
                     break;
                 default:
                     compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line, 
@@ -7668,10 +8053,10 @@ namespace Ogre{
                 {
                 case ID_VIEWPORT:
                     {
-                        if(prop->values.size() != 4)
+                        if(prop->values.size() != 4 || prop->values.size() != 8)
                         {
                             compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                "4 numeric arguments expected");
+                                                "4 or 8 numeric arguments expected");
                             return;
                         }
                         AbstractNodeList::const_iterator it3 = prop->values.begin();
@@ -7682,7 +8067,30 @@ namespace Ogre{
                         if( !getFloat( *it0, &mPassDef->mVpLeft ) || !getFloat( *it1, &mPassDef->mVpTop ) ||
                             !getFloat( *it2, &mPassDef->mVpWidth ) || !getFloat( *it3, &mPassDef->mVpHeight ) )
                         {
-                             compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                                compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                        }
+
+                        if( prop->values.size() == 8 )
+                        {
+                            AbstractNodeList::const_iterator it7 = it3;
+                            AbstractNodeList::const_iterator it4 = it7++;
+                            AbstractNodeList::const_iterator it5 = it7++;
+                            AbstractNodeList::const_iterator it6 = it7++;
+
+                            if( !getFloat( *it4, &mPassDef->mVpScissorLeft ) ||
+                                !getFloat( *it5, &mPassDef->mVpScissorTop ) ||
+                                !getFloat( *it6, &mPassDef->mVpScissorWidth ) ||
+                                !getFloat( *it7, &mPassDef->mVpScissorHeight ) )
+                            {
+                                 compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+                            }
+                        }
+                        else
+                        {
+                            mPassDef->mVpScissorLeft    = mPassDef->mVpLeft;
+                            mPassDef->mVpScissorTop     = mPassDef->mVpTop;
+                            mPassDef->mVpScissorWidth   = mPassDef->mVpWidth;
+                            mPassDef->mVpScissorHeight  	= mPassDef->mVpHeight;
                         }
                     }
                     break;
@@ -7744,6 +8152,54 @@ namespace Ogre{
                         }
                     }
                     break;
+                case ID_EXECUTION_MASK:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "execution_mask only supports 1 argument");
+                    }
+                    else
+                    {
+                        uint32 val;
+                        if( !getHex(prop->values.front(), &val) )
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                "execution_mask argument must be an 8-bit hexadecimal value");
+                        }
+                        else
+                        {
+                            mPassDef->mExecutionMask = static_cast<uint8>( val & 0xFF );
+                        }
+                    }
+                    break;
+                case ID_VIEWPORT_MODIFIER_MASK:
+                    if(prop->values.empty())
+                    {
+                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                    }
+                    else if(prop->values.size() > 1)
+                    {
+                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                            "viewport_mask only supports 1 argument");
+                    }
+                    else
+                    {
+                        uint32 val;
+                        if( !getHex(prop->values.front(), &val) )
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                "viewport_mask argument must be an 8-bit hexadecimal value");
+                        }
+                        else
+                        {
+                            mPassDef->mViewportModifierMask = static_cast<uint8>( val & 0xFF );
+                        }
+                    }
+                    break;
                 }
             }
         }
@@ -7769,7 +8225,9 @@ namespace Ogre{
         {
             ObjectAbstractNode *obj = static_cast<ObjectAbstractNode*>(node.get());
             ObjectAbstractNode *parent = obj->parent ? static_cast<ObjectAbstractNode*>(obj->parent) : 0;
-            if(obj->id == ID_MATERIAL)
+            if(obj->id == ID_HLMS)
+                translator = &mHlmsTranslator;
+            else if(obj->id == ID_MATERIAL)
                 translator = &mMaterialTranslator;
             else if(obj->id == ID_TECHNIQUE && parent && parent->id == ID_MATERIAL)
                 translator = &mTechniqueTranslator;

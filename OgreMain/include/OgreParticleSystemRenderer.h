@@ -37,6 +37,8 @@ THE SOFTWARE.
 
 namespace Ogre {
 
+    typedef FastArray<Renderable*> RenderableArray;
+
     /** \addtogroup Core
     *  @{
     */
@@ -64,10 +66,12 @@ namespace Ogre {
         */
         virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera,
             const Camera *lodCamera, list<Particle*>::type& currentParticles,
-            bool cullIndividually) = 0;
+            bool cullIndividually, RenderableArray &outRenderables ) = 0;
 
+        /** Sets the HLMS material this renderer must use; called by ParticleSystem. */
+        virtual void _setDatablock( HlmsDatablock *datablock ) = 0;
         /** Sets the material this renderer must use; called by ParticleSystem. */
-        virtual void _setMaterial(MaterialPtr& mat) = 0;
+        virtual void _setMaterialName( const String &matName, const String &resourceGroup ) = 0;
         /** Delegated to by ParticleSystem::_notifyCurrentCamera */
         virtual void _notifyCurrentCamera(Camera* cam) = 0;
         /** Delegated to by ParticleSystem::_notifyAttached */
@@ -109,10 +113,8 @@ namespace Ogre {
             output.
         */
         virtual void setRenderQueueGroup(uint8 queueID) = 0;
-        /** Sets which render queue group and priority this renderer should target with it's
-            output.
-        */
-        virtual void setRenderQueueGroupAndPriority(uint8 queueID, ushort priority) = 0;
+
+        virtual void setRenderQueueSubGroup( uint8 subGroupId ) = 0;
 
         /** Setting carried over from ParticleSystem.
         */
@@ -135,6 +137,10 @@ namespace Ogre {
     {
     public:
         // No methods, must just override all methods inherited from FactoryObj
+        ParticleSystemRendererFactory() : mCurrentSceneManager(0) {}
+
+        /// Needs to be set directly before calling createInstance
+        SceneManager *mCurrentSceneManager;
     };
     /** @} */
     /** @} */

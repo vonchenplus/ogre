@@ -39,10 +39,13 @@ THE SOFTWARE.
 #include "OgreMaterialManager.h"
 #include "OgreLogManager.h"
 #include "OgreViewport.h"
+#include "OgreHlmsManager.h"
+#include "OgreHlms.h"
 
 #include <limits>
 
 namespace Ogre {
+namespace v1 {
     const size_t BillboardChain::SEGMENT_EMPTY = std::numeric_limits<size_t>::max();
     //-----------------------------------------------------------------------
     BillboardChain::Element::Element()
@@ -63,9 +66,10 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------
     BillboardChain::BillboardChain( IdType id, ObjectMemoryManager *objectMemoryManager,
-            size_t maxElements, size_t numberOfChains, bool useTextureCoords,
-            bool useColours, bool dynamic )
-        :MovableObject( id, objectMemoryManager, RENDER_QUEUE_MAIN ),
+                                    SceneManager *manager, size_t maxElements,
+                                    size_t numberOfChains, bool useTextureCoords,
+                                    bool useColours, bool dynamic )
+        :MovableObject( id, objectMemoryManager, manager, 1 ),
         mMaxElementsPerChain(maxElements),
         mChainCount(numberOfChains),
         mUseTexCoords(useTextureCoords),
@@ -92,8 +96,9 @@ namespace Ogre {
 
         mVertexData->vertexStart = 0;
         // index data set up later
-        // set basic white material
-        this->setMaterialName("BaseWhiteNoLighting");
+
+        Hlms *hlms = Root::getSingleton().getHlmsManager()->getHlms( HLMS_UNLIT );
+        setDatablock( hlms->getDefaultDatablock() );
 
     }
     //-----------------------------------------------------------------------
@@ -153,6 +158,9 @@ namespace Ogre {
                     "visible on some rendering APIs so you should change this "
                     "so you use one or the other.");
             }
+
+            mHlmsDatablock->getCreator()->calculateHashFor( this, mHlmsHash, mHlmsCasterHash );
+
             mVertexDeclDirty = false;
         }
     }
@@ -699,35 +707,6 @@ namespace Ogre {
         return mAABB;
     }
     //-----------------------------------------------------------------------
-    const MaterialPtr& BillboardChain::getMaterial(void) const
-    {
-        return mMaterial;
-    }
-    //-----------------------------------------------------------------------
-    void BillboardChain::setMaterialName( const String& name, const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
-    {
-        mMaterialName = name;
-        mMaterial = MaterialManager::getSingleton().getByName(mMaterialName, groupName);
-
-        if (mMaterial.isNull())
-        {
-            LogManager::getSingleton().logMessage("Can't assign material " + name +
-                " to BillboardChain " + mName + " because this "
-                "Material does not exist. Have you forgotten to define it in a "
-                ".material script?", LML_CRITICAL);
-            mMaterial = MaterialManager::getSingleton().getByName("BaseWhiteNoLighting");
-            if (mMaterial.isNull())
-            {
-                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
-                    "to BillboardChain of " + mName + ". Did "
-                    "you forget to call MaterialManager::initialise()?",
-                    "BillboardChain.setMaterialName");
-            }
-        }
-        // Ensure new material loaded (will not load again if already loaded)
-        mMaterial->load();
-    }
-    //-----------------------------------------------------------------------
     const String& BillboardChain::getMovableType(void) const
     {
         return BillboardChainFactory::FACTORY_TYPE_NAME;
@@ -738,7 +717,10 @@ namespace Ogre {
         updateIndexBuffer();
 
         if (mIndexData->indexCount > 0)
-            queue->addRenderable(this, mRenderQueueID, mRenderQueuePriority);
+        {
+            //TODO: RENDER QUEUE
+            //queue->addRenderable(this, mRenderQueueID, mRenderQueuePriority);
+        }
 	}
 	//-----------------------------------------------------------------------
 	void BillboardChain::getRenderOperation(RenderOperation& op)
@@ -790,8 +772,9 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------
     MovableObject* BillboardChainFactory::createInstanceImpl( IdType id,
-                                            ObjectMemoryManager *objectMemoryManager,
-                                            const NameValuePairList* params )
+                                                              ObjectMemoryManager *objectMemoryManager,
+                                                              SceneManager *manager,
+                                                              const NameValuePairList* params )
     {
         size_t maxElements = 20;
         size_t numberOfChains = 1;
@@ -829,7 +812,7 @@ namespace Ogre {
 
         }
 
-        return OGRE_NEW BillboardChain( id, objectMemoryManager, maxElements,
+        return OGRE_NEW BillboardChain( id, objectMemoryManager, manager, maxElements,
                                         numberOfChains, useTex, useCol, dynamic);
 
     }
@@ -838,7 +821,5 @@ namespace Ogre {
     {
         OGRE_DELETE  obj;
     }
-
 }
-
-
+}

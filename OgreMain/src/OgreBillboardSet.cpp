@@ -39,17 +39,23 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 #include "OgreException.h"
 #include "OgreSceneNode.h"
+#include "OgreHlms.h"
+#include "OgreHlmsManager.h"
 #include "OgreLogManager.h"
 #include <algorithm>
 
+#include "Vao/OgreVaoManager.h"
+
 namespace Ogre {
+namespace v1 {
     // Init statics
     RadixSort<BillboardSet::ActiveBillboardList, Billboard*, float> BillboardSet::mRadixSorter;
 
     //-----------------------------------------------------------------------
     BillboardSet::BillboardSet( IdType id, ObjectMemoryManager *objectMemoryManager,
-                                unsigned int poolSize, bool externalData, uint8 renderQueueId ) :
-        MovableObject( id, objectMemoryManager, renderQueueId ),
+                                SceneManager *manager, unsigned int poolSize,
+                                bool externalData, uint8 renderQueueId ) :
+        MovableObject( id, objectMemoryManager, manager, renderQueueId ),
         mOriginType( BBO_CENTER ),
         mRotationType( BBR_TEXCOORD ),
         mAllDefaultSize( true ),
@@ -59,11 +65,13 @@ namespace Ogre {
         mAllDefaultRotation(true),
         mWorldSpace(false),
         mVertexData(0),
+        mLastLockedFrame( (uint32)-1 ),
         mIndexData(0),
         mCullIndividual( false ),
         mBillboardType(BBT_POINT),
         mCommonDirection(Ogre::Vector3::UNIT_Z),
         mCommonUpVector(Vector3::UNIT_Y),
+        mVaoManager(0),
         mPointRendering(false),
         mBuffersCreated(false),
         mPoolSize(poolSize),
@@ -72,7 +80,9 @@ namespace Ogre {
         mBillboardDataChanged(true)
     {
         setDefaultDimensions( 100, 100 );
-        setMaterialName( "BaseWhite" );
+
+        mRenderables.push_back( this );
+
         setPoolSize( poolSize );
         setCastShadows( false );
         setTextureStacksAndSlices( 1, 1 );
@@ -273,30 +283,6 @@ namespace Ogre {
         return mDefaultHeight;
     }
     //-----------------------------------------------------------------------
-    void BillboardSet::setMaterialName( const String& name , const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */ )
-    {
-        mMaterialName = name;
-
-        mMaterial = MaterialManager::getSingleton().getByName(name, groupName);
-
-        if (mMaterial.isNull())
-            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find material " + name,
-                "BillboardSet::setMaterialName" );
-
-        /* Ensure that the new material was loaded (will not load again if
-           already loaded anyway)
-        */
-        mMaterial->load();
-        mLodMaterial[0] = mMaterial->_getLodValues();
-    }
-
-    //-----------------------------------------------------------------------
-    const String& BillboardSet::getMaterialName(void) const
-    {
-        return mMaterialName;
-    }
-
-    //-----------------------------------------------------------------------
     void BillboardSet::_sortBillboards( Camera* cam)
     {
         switch (_getSortMode())
@@ -387,6 +373,20 @@ namespace Ogre {
         if(!mBuffersCreated)
             _createBuffers();
 
+        if( mLastLockedFrame == mVaoManager->getFrameCount() )
+        {
+            createExtraVertexBuffer( mMainBuffers[0][0]->getVertexSize() );
+            ++mLastLockedBuffer;
+        }
+        else
+        {
+            mLastLockedBuffer = 0;
+            mLastLockedFrame  = mVaoManager->getFrameCount();
+        }
+
+        mMainBuf = mMainBuffers[mVaoManager->waitForTailFrameToFinish()][mLastLockedBuffer];
+        mVertexData->vertexBufferBinding->setBinding(0, mMainBuf);
+
         // Only calculate vertex offets et al if we're not point rendering
         if (!mPointRendering)
         {
@@ -434,15 +434,16 @@ namespace Ogre {
             assert (numBillboards * billboardSize <= mMainBuf->getSizeInBytes());
 
             mLockPtr = static_cast<float*>(
-                mMainBuf->lock(0, numBillboards * billboardSize, 
-                mMainBuf->getUsage() & HardwareBuffer::HBU_DYNAMIC ?
-                HardwareBuffer::HBL_DISCARD : HardwareBuffer::HBL_NORMAL) );
+                mMainBuf->lock( 0, numBillboards * billboardSize,
+                                mMainBuf->getUsage() & HardwareBuffer::HBU_DYNAMIC ?
+                                    HardwareBuffer::HBL_NO_OVERWRITE : HardwareBuffer::HBL_NORMAL) );
         }
         else // lock the entire thing
+        {
             mLockPtr = static_cast<float*>(
-            mMainBuf->lock(mMainBuf->getUsage() & HardwareBuffer::HBU_DYNAMIC ?
-            HardwareBuffer::HBL_DISCARD : HardwareBuffer::HBL_NORMAL) );
-
+                        mMainBuf->lock( mMainBuf->getUsage() & HardwareBuffer::HBU_DYNAMIC ?
+                                HardwareBuffer::HBL_NO_OVERWRITE : HardwareBuffer::HBL_NORMAL) );
+        }
     }
     //-----------------------------------------------------------------------
     void BillboardSet::injectBillboard(const Billboard& bb, const Camera *camera)
@@ -580,48 +581,14 @@ namespace Ogre {
                 injectBillboard(*(*it), camera);
             }
             endBillboards();
+
+            mRenderables.clear();
+            if( !mActiveBillboards.empty() )
+                mRenderables.push_back( this );
+
             mBillboardDataChanged = false;
         }
-
-        queue->addRenderable( this, mRenderQueueID, mRenderQueuePriority );
     }
-
-    //-----------------------------------------------------------------------
-    const MaterialPtr& BillboardSet::getMaterial(void) const
-    {
-        return mMaterial;
-    }
-
-    void BillboardSet::setMaterial( const MaterialPtr& material )
-    {
-        mMaterial = material;
-        
-        if (mMaterial.isNull())
-        {
-            LogManager::getSingleton().logMessage("Can't assign material "  
-                                                  " to BillboardSet of " + getName() + " because this "
-                                                  "Material does not exist. Have you forgotten to define it in a "
-                                                  ".material script?", LML_CRITICAL);
-            
-            mMaterial = MaterialManager::getSingleton().getByName("BaseWhite");
-            
-            if (mMaterial.isNull())
-            {
-                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
-                            "to BillboardSet " + getName() + ". Did "
-                            "you forget to call MaterialManager::initialise()?",
-                            "BillboardSet::setMaterial");
-            }
-        }
-        
-        mMaterialName = mMaterial->getName();
-        
-        // Ensure new material loaded (will not load again if already loaded)
-        mMaterial->load();
-
-        mLodMaterial[0] = mMaterial->_getLodValues();
-    }
-
     //-----------------------------------------------------------------------
     void BillboardSet::getRenderOperation(RenderOperation& op)
     {
@@ -710,10 +677,43 @@ namespace Ogre {
 
         _destroyBuffers();
     }
+    //-----------------------------------------------------------------------
+    void BillboardSet::createExtraVertexBuffer( size_t vertexSize )
+    {
+        if( mAutoUpdate )
+        {
+            const size_t dynamicBufferMultiplier = mVaoManager->getDynamicBufferMultiplier();
 
+            if( mMainBuffers.size() != dynamicBufferMultiplier )
+                mMainBuffers.resize( dynamicBufferMultiplier );
+
+            for( size_t i=0; i<dynamicBufferMultiplier; ++i )
+            {
+                mMainBuffers[i].push_back(
+                            HardwareBufferManager::getSingleton().createVertexBuffer(
+                                vertexSize,
+                                mVertexData->vertexCount * dynamicBufferMultiplier,
+                                HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE) );
+            }
+        }
+        else
+        {
+            if( mMainBuffers.empty() )
+                mMainBuffers.resize( 1 );
+
+            assert( mMainBuffers[0].empty() );
+
+            mMainBuffers[0].push_back(
+                        HardwareBufferManager::getSingleton().createVertexBuffer(
+                            vertexSize, mVertexData->vertexCount,
+                            HardwareBuffer::HBU_STATIC_WRITE_ONLY) );
+        }
+    }
     //-----------------------------------------------------------------------
     void BillboardSet::_createBuffers(void)
     {
+        mVaoManager = mManager->getDestinationRenderSystem()->getVaoManager();
+
         /* Allocate / reallocate vertex data
            Note that we allocate enough space for ALL the billboards in the pool, but only issue
            rendering operations for the sections relating to the active billboards
@@ -760,14 +760,14 @@ namespace Ogre {
             decl->addElement(0, offset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0);
         }
 
-        mMainBuf =
-            HardwareBufferManager::getSingleton().createVertexBuffer(
-                decl->getVertexSize(0),
-                mVertexData->vertexCount,
-                mAutoUpdate ? HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE : 
-                HardwareBuffer::HBU_STATIC_WRITE_ONLY);
+        createExtraVertexBuffer( decl->getVertexSize(0) );
+
+        mLastLockedBuffer   = 0;
+        mLastLockedFrame    = mVaoManager->getFrameCount() - 1;
+        mMainBuf = mMainBuffers[0][0];
+
         // bind position and diffuses
-        binding->setBinding(0, mMainBuf);
+        binding->setBinding(0, mMainBuffers[0][0]);
 
         if (!mPointRendering)
         {
@@ -817,7 +817,39 @@ namespace Ogre {
 
             mIndexData->indexBuffer->unlock();
         }
+
+        if( mHlmsDatablock && getMaterial().isNull() )
+        {
+            //Needed to force Hlms to recalculate the hash (vertex attributes may have changed)
+            mHlmsDatablock->_unlinkRenderable( this );
+            mHlmsDatablock = 0;
+        }
+
         mBuffersCreated = true;
+
+        if( mMaterialName.empty() )
+        {
+            Hlms *hlms = Root::getSingleton().getHlmsManager()->getHlms( HLMS_PBS );
+            setDatablock( hlms->getDefaultDatablock() );
+        }
+        else
+        {
+            if( mMaterialGroup.empty() )
+            {
+                Hlms *hlms = Root::getSingleton().getHlmsManager()->getHlms( HLMS_PBS );
+                HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+                HlmsDatablock *datablock = hlmsManager->getDatablockNoDefault( mMaterialName );
+
+                if( datablock )
+                    setDatablock( datablock );
+                else
+                    setDatablock( hlms->getDefaultDatablock() );
+            }
+            else
+            {
+                setMaterialName( mMaterialName, mMaterialGroup );
+            }
+        }
     }
     //-----------------------------------------------------------------------
     void BillboardSet::_destroyBuffers(void)
@@ -836,7 +868,38 @@ namespace Ogre {
         mMainBuf.setNull();
 
         mBuffersCreated = false;
+    }
+    //-----------------------------------------------------------------------
+    void BillboardSet::setMaterial( const MaterialPtr& material )
+    {
+        mMaterialName   = material->getName();
+        mMaterialGroup  = material->getGroup();
 
+        if( mBuffersCreated )
+            Renderable::setMaterial( material );
+    }
+    //-----------------------------------------------------------------------
+    void BillboardSet::setDatablock( HlmsDatablock *datablock )
+    {
+        mMaterialName.clear();
+        mMaterialGroup.clear();
+
+        const String *fullDatablockName = datablock->getFullName();
+        if( fullDatablockName )
+        {
+            mMaterialName = *fullDatablockName;
+        }
+        else
+        {
+            LogManager::getSingleton().logMessage(
+                        "Couldn't retrieve full material name of datablock '" +
+                        datablock->getName().getFriendlyText() +
+                        "' Billboard may not render as expected. "
+                        "May be the datablock is scheduled for deletion?" );
+        }
+
+        if( mBuffersCreated )
+            Renderable::setDatablock( datablock );
     }
     //-----------------------------------------------------------------------
     unsigned int BillboardSet::getPoolSize(void) const
@@ -1451,8 +1514,9 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------
     MovableObject* BillboardSetFactory::createInstanceImpl( IdType id,
-                                            ObjectMemoryManager *objectMemoryManager,
-                                            const NameValuePairList* params )
+                                                            ObjectMemoryManager *objectMemoryManager,
+                                                            SceneManager *manager,
+                                                            const NameValuePairList* params )
     {
         // may have parameters
         bool externalData = false;
@@ -1475,11 +1539,11 @@ namespace Ogre {
 
         if (poolSize > 0)
         {
-            return OGRE_NEW BillboardSet(id, objectMemoryManager, poolSize, externalData);
+            return OGRE_NEW BillboardSet(id, objectMemoryManager, manager, poolSize, externalData);
         }
         else
         {
-            return OGRE_NEW BillboardSet(id, objectMemoryManager);
+            return OGRE_NEW BillboardSet(id, objectMemoryManager, manager);
         }
 
     }
@@ -1489,5 +1553,5 @@ namespace Ogre {
         OGRE_DELETE obj;
     }
 
-
+}
 }

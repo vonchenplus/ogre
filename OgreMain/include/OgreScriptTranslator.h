@@ -128,6 +128,16 @@ namespace Ogre{
     };
 
     /**************************************************************************
+     * HLMS compilation section
+     *************************************************************************/
+    class _OgreExport HlmsTranslator : public ScriptTranslator
+    {
+    public:
+        //HlmsTranslator();
+        void translate(ScriptCompiler *compiler, const AbstractNodePtr &node);
+    };
+
+    /**************************************************************************
      * Material compilation section
      *************************************************************************/
     class _OgreExport MaterialTranslator : public ScriptTranslator
@@ -313,6 +323,7 @@ namespace Ogre{
     class _OgreExport BuiltinScriptTranslatorManager : public ScriptTranslatorManager
     {
     private:
+        HlmsTranslator      mHlmsTranslator;
         MaterialTranslator mMaterialTranslator;
         TechniqueTranslator mTechniqueTranslator;
         PassTranslator mPassTranslator;

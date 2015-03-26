@@ -36,7 +36,10 @@ THE SOFTWARE.
 
 namespace Ogre
 {
-    class Rectangle2D;
+    namespace v1
+    {
+        class Rectangle2D;
+    }
     class CompositorPassQuadDef;
 
     /** \addtogroup Core
@@ -83,7 +86,8 @@ namespace Ogre
     {
         CompositorPassQuadDef const *mDefinition;
     protected:
-        Rectangle2D     *mFsRect;
+        v1::Rectangle2D *mFsRect;
+        HlmsDatablock   *mDatablock;
         Pass            *mPass;
         Camera          *mCamera;
 
@@ -98,6 +102,7 @@ namespace Ogre
         virtual void execute( const Camera *lodCamera );
 
         /// Don't make this const (useful for compile-time multithreading errors)
+        /// Pointer can be null if using HLMS
         Pass* getPass(void)                                     { return mPass; }
     };
 
