@@ -30,6 +30,7 @@ THE SOFTWARE.
 
 #include "OgreD3D11Prerequisites.h"
 #include "OgreTextureUnitState.h"
+#include "OgreHlmsSamplerblock.h"
 #include "OgreRenderSystem.h"
 #include "OgreRoot.h"
 #include "OgreD3D11RenderSystem.h"
@@ -39,8 +40,8 @@ namespace Ogre
 	class D3D11Mappings
 	{
 	public:
-		/// return a D3D11 equivalent for a Ogre TextureAddressingMode value
-		static D3D11_TEXTURE_ADDRESS_MODE get(TextureUnitState::TextureAddressingMode tam);
+        /// return a D3D11 equivalent for a Ogre TextureAddressingMode value
+        static D3D11_TEXTURE_ADDRESS_MODE get(TextureAddressingMode tam);
 		/// return a D3D11 equivalent for a Ogre SceneBlendFactor value
 		static D3D11_BLEND get(SceneBlendFactor sbf, bool forAlpha);
 		/// return a D3D11 equivalent for a Ogre SceneBlendOperation value
@@ -56,9 +57,9 @@ namespace Ogre
 		/// return a D3D11 state type for Ogre FilterOption min/mag/mip values
 		static D3D11_FILTER get(const FilterOptions minification, const FilterOptions magnification, const FilterOptions mips, const bool comparison = false);
 		/// Get lock options
-		static D3D11_MAP get(HardwareBuffer::LockOptions options, HardwareBuffer::Usage usage);
+        static D3D11_MAP get(v1::HardwareBuffer::LockOptions options, v1::HardwareBuffer::Usage usage);
 		/// Get index type
-		static DXGI_FORMAT getFormat(HardwareIndexBuffer::IndexType itype);
+        static DXGI_FORMAT getFormat(v1::HardwareIndexBuffer::IndexType itype);
 		/// Get vertex data type
 		static DXGI_FORMAT get(VertexElementType vType);
 		/// Get vertex semantic
@@ -77,12 +78,12 @@ namespace Ogre
 		/// utility method, convert Ogre pixel format to D3D11 pixel format
 		static DXGI_FORMAT _getPF(PixelFormat ogrePF);
 
-		static D3D11_USAGE _getUsage(HardwareBuffer::Usage usage);
-		static D3D11_USAGE _getUsage(TextureUsage usage) { return _getUsage(static_cast<HardwareBuffer::Usage>(usage)); }
-		static UINT _getAccessFlags(HardwareBuffer::Usage usage);
-		static UINT _getAccessFlags(TextureUsage usage) { return _getAccessFlags(static_cast<HardwareBuffer::Usage>(usage)); }
-		static bool _isDynamic(HardwareBuffer::Usage usage);
-		static bool _isDynamic(TextureUsage usage) { return _isDynamic(static_cast<HardwareBuffer::Usage>(usage)); }
+        static D3D11_USAGE _getUsage(v1::HardwareBuffer::Usage usage);
+        static D3D11_USAGE _getUsage(TextureUsage usage) { return _getUsage(static_cast<v1::HardwareBuffer::Usage>(usage)); }
+        static UINT _getAccessFlags(v1::HardwareBuffer::Usage usage);
+        static UINT _getAccessFlags(TextureUsage usage) { return _getAccessFlags(static_cast<v1::HardwareBuffer::Usage>(usage)); }
+        static bool _isDynamic(v1::HardwareBuffer::Usage usage);
+        static bool _isDynamic(TextureUsage usage) { return _isDynamic(static_cast<v1::HardwareBuffer::Usage>(usage)); }
 
 		/// utility method, find closest Ogre pixel format that D3D11 can support
 		static PixelFormat _getClosestSupportedPF(PixelFormat ogrePF);
@@ -90,7 +91,7 @@ namespace Ogre
 		static TextureType _getTexType(D3D11_SRV_DIMENSION type);
 
 		static UINT _getTextureBindFlags(DXGI_FORMAT format, TextureUsage usage);
-		static UINT _getTextureMiscFlags(UINT bindflags, TextureType textype, bool isdynamic);
+        static UINT _getTextureMiscFlags(UINT bindflags, TextureType textype, bool isdynamic, int usage);
 	};
 }
 #endif

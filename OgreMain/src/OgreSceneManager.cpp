@@ -33,6 +33,8 @@ THE SOFTWARE.
 #include "OgreMeshManager.h"
 #include "OgreEntity.h"
 #include "OgreSubEntity.h"
+#include "OgreItem.h"
+#include "OgreMesh2.h"
 #include "OgreLight.h"
 #include "OgreControllerManager.h"
 #include "OgreMaterialManager.h"
@@ -48,7 +50,6 @@ THE SOFTWARE.
 #include "OgreStaticGeometry.h"
 #include "OgreHardwarePixelBuffer.h"
 #include "OgreManualObject.h"
-#include "OgreRenderQueueInvocation.h"
 #include "OgreBillboardChain.h"
 #include "OgreRibbonTrail.h"
 #include "OgreParticleSystemManager.h"
@@ -65,6 +66,8 @@ THE SOFTWARE.
 #include "OgreLodStrategyManager.h"
 #include "OgreRenderQueueListener.h"
 #include "OgreViewport.h"
+#include "OgreHlmsManager.h"
+#include "OgreForward3D.h"
 #include "Animation/OgreSkeletonDef.h"
 #include "Animation/OgreSkeletonInstance.h"
 #include "Compositor/OgreCompositorShadowNode.h"
@@ -89,12 +92,13 @@ SceneManager::SceneManager(const String& name, size_t numWorkerThreads,
 mStaticMinDepthLevelDirty( 0 ),
 mStaticEntitiesDirty( true ),
 mName(name),
-mRenderQueue(0),
-mLastRenderQueueInvocationCustom(false),
+mRenderQueue( 0 ),
+mForward3DImpl( 0 ),
 mAmbientLight(ColourValue::Black),
 mCameraInProgress(0),
 mCurrentViewport(0),
 mCurrentShadowNode(0),
+mShadowNodeIsReused( false ),
 mSkyPlaneEntity(0),
 mSkyBoxObj(0),
 mSkyPlaneNode(0),
@@ -108,24 +112,19 @@ mFogColour(),
 mFogStart(0),
 mFogEnd(0),
 mFogDensity(0),
-mSpecialCaseQueueMode(SCRQM_EXCLUDE),
-mWorldGeometryRenderQueue(RENDER_QUEUE_WORLD_GEOMETRY_1),
 mLastFrameNumber(0),
 mResetIdentityView(false),
 mResetIdentityProj(false),
-mNormaliseNormalsOnScale(true),
 mFlipCullingOnNegativeScale(true),
 mShadowCasterPlainBlackPass(0),
 mDisplayNodes(false),
 mShowBoundingBoxes(false),
-mActiveCompositorChain(0),
 mLateMaterialResolving(false),
 mShadowColour(ColourValue(0.25, 0.25, 0.25)),
 mShadowIndexBufferUsedSize(0),
 mFullScreenQuad(0),
 mShadowDirLightExtrudeDist(10000),
 mIlluminationStage(IRS_NONE),
-mShadowCasterRenderBackFaces(true),
 mLightClippingInfoMapFrameNumber(999),
 mDefaultShadowFarDist(0),
 mDefaultShadowFarDistSquared(0),
@@ -171,8 +170,8 @@ mGpuParamsDirty((uint16)GPV_ALL)
     if (root)
         _setDestinationRenderSystem(root->getRenderSystem());
 
-    // Setup default queued renderable visitor
-    mActiveQueuedRenderableVisitor = &mDefaultQueuedRenderableVisitor;
+    mRenderQueue = OGRE_NEW RenderQueue( root->getHlmsManager(), this,
+                                         mDestRenderSystem->getVaoManager() );
 
     // create the auto param data source instance
     mAutoParamDataSource = createAutoParamDataSource();
@@ -244,69 +243,21 @@ SceneManager::~SceneManager()
     OGRE_DELETE mSkyBoxObj;
 
     for( size_t i=0; i<NUM_SCENE_MEMORY_MANAGER_TYPES; ++i )
+    {
         OGRE_DELETE mSceneRoot[i];
+        mSceneRoot[i] = 0;
+    }
     OGRE_DELETE mFullScreenQuad;
+    OGRE_DELETE mForward3DImpl;
     OGRE_DELETE mRenderQueue;
     OGRE_DELETE mAutoParamDataSource;
 
+    mFullScreenQuad         = 0;
+    mForward3DImpl          = 0;
+    mRenderQueue            = 0;
+    mAutoParamDataSource    = 0;
+
     stopWorkerThreads();
-}
-//-----------------------------------------------------------------------
-RenderQueue* SceneManager::getRenderQueue(void)
-{
-    if (!mRenderQueue)
-    {
-        initRenderQueue();
-    }
-    return mRenderQueue;
-}
-//-----------------------------------------------------------------------
-void SceneManager::initRenderQueue(void)
-{
-    mRenderQueue = OGRE_NEW RenderQueue();
-    mRenderQueue->getQueueGroup(RENDER_QUEUE_OVERLAY); //TODO: This feels hacky to get Overlays working
-}
-//-----------------------------------------------------------------------
-void SceneManager::addSpecialCaseRenderQueue(uint8 qid)
-{
-    mSpecialCaseQueueList.insert(qid);
-}
-//-----------------------------------------------------------------------
-void SceneManager::removeSpecialCaseRenderQueue(uint8 qid)
-{
-    mSpecialCaseQueueList.erase(qid);
-}
-//-----------------------------------------------------------------------
-void SceneManager::clearSpecialCaseRenderQueues(void)
-{
-    mSpecialCaseQueueList.clear();
-}
-//-----------------------------------------------------------------------
-void SceneManager::setSpecialCaseRenderQueueMode(SceneManager::SpecialCaseRenderQueueMode mode)
-{
-    mSpecialCaseQueueMode = mode;
-}
-//-----------------------------------------------------------------------
-SceneManager::SpecialCaseRenderQueueMode SceneManager::getSpecialCaseRenderQueueMode(void)
-{
-    return mSpecialCaseQueueMode;
-}
-//-----------------------------------------------------------------------
-bool SceneManager::isRenderQueueToBeProcessed(uint8 qid)
-{
-    bool inList = mSpecialCaseQueueList.find(qid) != mSpecialCaseQueueList.end();
-    return (inList && mSpecialCaseQueueMode == SCRQM_INCLUDE)
-        || (!inList && mSpecialCaseQueueMode == SCRQM_EXCLUDE);
-}
-//-----------------------------------------------------------------------
-void SceneManager::setWorldGeometryRenderQueue(uint8 qid)
-{
-    mWorldGeometryRenderQueue = qid;
-}
-//-----------------------------------------------------------------------
-uint8 SceneManager::getWorldGeometryRenderQueue(void)
-{
-    return mWorldGeometryRenderQueue;
 }
 //-----------------------------------------------------------------------
 Camera* SceneManager::createCamera( const String &name, bool isVisible, bool forCubemapping )
@@ -339,10 +290,9 @@ Camera* SceneManager::createCamera( const String &name, bool isVisible, bool for
 Camera* SceneManager::findCamera( IdString name ) const
 {
     Camera *retVal = findCameraNoThrow( name );
-
     if( !retVal )
     {
-        OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, 
+        OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND,
                      "Camera with name '" + name.getFriendlyText() + "' not found",
                      "SceneManager::findCamera" );
     }
@@ -353,7 +303,6 @@ Camera* SceneManager::findCamera( IdString name ) const
 Camera* SceneManager::findCameraNoThrow( IdString name ) const
 {
     Camera *retVal = 0;
-
     CameraMap::const_iterator itor = mCamerasByName.find( name );
     if( itor != mCamerasByName.end() )
         retVal = itor->second;
@@ -422,6 +371,7 @@ void SceneManager::destroyAllCameras(void)
 void SceneManager::clearFrameData(void)
 {
     mGlobalLightList.lights.clear();
+    mRenderQueue->clearState();
 }
 //-----------------------------------------------------------------------
 Light* SceneManager::createLight()
@@ -455,7 +405,35 @@ void SceneManager::destroyAllLights(void)
     destroyAllMovableObjectsByType(LightFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-Entity* SceneManager::createEntity( PrefabType ptype, SceneMemoryMgrTypes sceneType )
+Item* SceneManager::createItem( const String& meshName,
+                                const String& groupName, /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */
+                                SceneMemoryMgrTypes sceneType /*= SCENE_DYNAMIC */ )
+{
+    // delegate to factory implementation
+    NameValuePairList params;
+    params["mesh"] = meshName;
+    params["resourceGroup"] = groupName;
+    return static_cast<Item*>( createMovableObject( ItemFactory::FACTORY_TYPE_NAME,
+                                                    &mEntityMemoryManager[sceneType], &params) );
+
+}
+//---------------------------------------------------------------------
+Item* SceneManager::createItem( const MeshPtr& pMesh, SceneMemoryMgrTypes sceneType )
+{
+    return createItem(pMesh->getName(), pMesh->getGroup(), sceneType);
+}
+//-----------------------------------------------------------------------
+void SceneManager::destroyItem( Item *i )
+{
+    destroyMovableObject( i );
+}
+//-----------------------------------------------------------------------
+void SceneManager::destroyAllItems(void)
+{
+    destroyAllMovableObjectsByType(ItemFactory::FACTORY_TYPE_NAME);
+}
+//-----------------------------------------------------------------------
+v1::Entity* SceneManager::createEntity( PrefabType ptype, SceneMemoryMgrTypes sceneType )
 {
     switch (ptype)
     {
@@ -475,32 +453,52 @@ Entity* SceneManager::createEntity( PrefabType ptype, SceneMemoryMgrTypes sceneT
     OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Unknown prefab type", "SceneManager::createEntity" );
 }
 //-----------------------------------------------------------------------
-Entity* SceneManager::createEntity(const String& meshName,
-                                   const String& groupName, /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */
-                                   SceneMemoryMgrTypes sceneType /*= SCENE_DYNAMIC */ )
+v1::Entity* SceneManager::createEntity( const String& meshName,
+                                        const String& groupName, /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */
+                                        SceneMemoryMgrTypes sceneType /*= SCENE_DYNAMIC */ )
 {
     // delegate to factory implementation
     NameValuePairList params;
     params["mesh"] = meshName;
     params["resourceGroup"] = groupName;
-    return static_cast<Entity*>( createMovableObject( EntityFactory::FACTORY_TYPE_NAME,
-                                                        &mEntityMemoryManager[sceneType], &params) );
+    return static_cast<v1::Entity*>( createMovableObject( v1::EntityFactory::FACTORY_TYPE_NAME,
+                                                          &mEntityMemoryManager[sceneType], &params) );
 
 }
 //---------------------------------------------------------------------
-Entity* SceneManager::createEntity(const MeshPtr& pMesh, SceneMemoryMgrTypes sceneType)
+v1::Entity* SceneManager::createEntity( const v1::MeshPtr& pMesh, SceneMemoryMgrTypes sceneType )
 {
     return createEntity(pMesh->getName(), pMesh->getGroup(), sceneType);
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyEntity(Entity *e)
+void SceneManager::destroyEntity(v1::Entity *e)
 {
     destroyMovableObject(e);
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllEntities(void)
 {
-    destroyAllMovableObjectsByType(EntityFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::EntityFactory::FACTORY_TYPE_NAME);
+}
+//-----------------------------------------------------------------------
+v1::Rectangle2D* SceneManager::createRectangle2D( bool bQuad, SceneMemoryMgrTypes sceneType )
+{
+    // delegate to factory implementation
+    NameValuePairList params;
+    params["quad"] = StringConverter::toString( bQuad );
+    return static_cast<v1::Rectangle2D*>( createMovableObject( v1::Rectangle2DFactory::FACTORY_TYPE_NAME,
+                                                               &mEntityMemoryManager[sceneType],
+                                                               &params ) );
+}
+//-----------------------------------------------------------------------
+void SceneManager::destroyRectangle2D( v1::Rectangle2D *rect )
+{
+    destroyMovableObject( rect );
+}
+//-----------------------------------------------------------------------
+void SceneManager::destroyAllRectangle2D(void)
+{
+    destroyAllMovableObjectsByType(v1::Rectangle2DFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
 void SceneManager::_addCompositorTexture( IdString name, const TextureVec *texs )
@@ -525,55 +523,56 @@ void SceneManager::destroySkeletonInstance( SkeletonInstance *skeletonInstance )
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllBillboardSets(void)
 {
-    destroyAllMovableObjectsByType(BillboardSetFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::BillboardSetFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-ManualObject* SceneManager::createManualObject( SceneMemoryMgrTypes sceneType )
+v1::ManualObject* SceneManager::createManualObject( SceneMemoryMgrTypes sceneType )
 {
-    return static_cast<ManualObject*>(
-        createMovableObject(ManualObjectFactory::FACTORY_TYPE_NAME, &mEntityMemoryManager[sceneType]) );
+    return static_cast<v1::ManualObject*>(
+        createMovableObject(v1::ManualObjectFactory::FACTORY_TYPE_NAME, &mEntityMemoryManager[sceneType]) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyManualObject(ManualObject* obj)
+void SceneManager::destroyManualObject(v1::ManualObject* obj)
 {
     destroyMovableObject(obj);
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllManualObjects(void)
 {
-    destroyAllMovableObjectsByType(ManualObjectFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::ManualObjectFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-BillboardChain* SceneManager::createBillboardChain()
+v1::BillboardChain* SceneManager::createBillboardChain()
 {
-    return static_cast<BillboardChain*>( createMovableObject(BillboardChainFactory::FACTORY_TYPE_NAME,
-                                                             &mEntityMemoryManager[SCENE_DYNAMIC]) );
+    return static_cast<v1::BillboardChain*>( createMovableObject(
+                                                 v1::BillboardChainFactory::FACTORY_TYPE_NAME,
+                                                 &mEntityMemoryManager[SCENE_DYNAMIC]) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyBillboardChain(BillboardChain* obj)
+void SceneManager::destroyBillboardChain(v1::BillboardChain* obj)
 {
     destroyMovableObject(obj);
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllBillboardChains(void)
 {
-    destroyAllMovableObjectsByType(BillboardChainFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::BillboardChainFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
-RibbonTrail* SceneManager::createRibbonTrail()
+v1::RibbonTrail* SceneManager::createRibbonTrail()
 {
-    return static_cast<RibbonTrail*>( createMovableObject(RibbonTrailFactory::FACTORY_TYPE_NAME,
-                                                            &mEntityMemoryManager[SCENE_DYNAMIC]) );
+    return static_cast<v1::RibbonTrail*>( createMovableObject( v1::RibbonTrailFactory::FACTORY_TYPE_NAME,
+                                                               &mEntityMemoryManager[SCENE_DYNAMIC]) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyRibbonTrail(RibbonTrail* obj)
+void SceneManager::destroyRibbonTrail(v1::RibbonTrail* obj)
 {
     destroyMovableObject(obj);
 }
 //-----------------------------------------------------------------------
 void SceneManager::destroyAllRibbonTrails(void)
 {
-    destroyAllMovableObjectsByType(RibbonTrailFactory::FACTORY_TYPE_NAME);
+    destroyAllMovableObjectsByType(v1::RibbonTrailFactory::FACTORY_TYPE_NAME);
 }
 //-----------------------------------------------------------------------
 ParticleSystem* SceneManager::createParticleSystem(const String& templateName)
@@ -637,9 +636,8 @@ void SceneManager::clearScene(void)
     mSkyBoxNode = mSkyPlaneNode = mSkyDomeNode = 0;
     mSkyBoxEnabled = mSkyPlaneEnabled = mSkyDomeEnabled = false; 
 
-    // Clear render queue, empty completely
     if (mRenderQueue)
-        mRenderQueue->clear(true);
+        mRenderQueue->clear();
 
 }
 //-----------------------------------------------------------------------
@@ -769,6 +767,22 @@ void SceneManager::unregisterSceneNodeListener( SceneNode *sceneNode )
         mSceneNodesWithListeners.erase( itor );
 }
 //-----------------------------------------------------------------------
+void SceneManager::setForward3D( bool bEnable, uint32 width, uint32 height, uint32 numSlices,
+                                 uint32 lightsPerCell, float minDistance, float maxDistance )
+{
+    OGRE_DELETE mForward3DImpl;
+    mForward3DImpl = 0;
+
+    if( bEnable )
+    {
+        mForward3DImpl = OGRE_NEW Forward3D( width, height, numSlices, lightsPerCell,
+                                             minDistance, maxDistance, this );
+
+        if( mDestRenderSystem )
+            mForward3DImpl->_changeRenderSystem( mDestRenderSystem );
+    }
+}
+//-----------------------------------------------------------------------
 const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed, 
                                    bool shadowDerivation)
 {
@@ -879,20 +893,6 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 
         if (passSurfaceAndLightParams)
         {
-            // Set surface reflectance properties, only valid if lighting is enabled
-            if (pass->getLightingEnabled())
-            {
-                mDestRenderSystem->_setSurfaceParams( 
-                    pass->getAmbient(), 
-                    pass->getDiffuse(), 
-                    pass->getSpecular(), 
-                    pass->getSelfIllumination(), 
-                    pass->getShininess(),
-            pass->getVertexColourTracking() );
-            }
-
-            // Dynamic lighting enabled?
-            mDestRenderSystem->setLightingEnabled(pass->getLightingEnabled());
         }
 
         // Using a fragment program?
@@ -937,14 +937,6 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
                 newFogEnd = mFogEnd;
                 newFogDensity = mFogDensity;
             }
-
-            /* In D3D, it applies to shaders prior
-            to version vs_3_0 and ps_3_0. And in OGL, it applies to "ARB_fog_XXX" in
-            fragment program, and in other ways, them maybe access by gpu program via
-            "state.fog.XXX".
-            */
-            mDestRenderSystem->_setFog(
-                newFogMode, newFogColour, newFogDensity, newFogStart, newFogEnd);
         }
         // Tell params about ORIGINAL fog
         // Need to be able to override fixed function fog, but still have
@@ -953,31 +945,6 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
             mFogMode, mFogColour, mFogDensity, mFogStart, mFogEnd);
 
         // The rest of the settings are the same no matter whether we use programs or not
-
-        // Set scene blending
-        if ( pass->hasSeparateSceneBlending( ) )
-        {
-            mDestRenderSystem->_setSeparateSceneBlending(
-                pass->getSourceBlendFactor(), pass->getDestBlendFactor(),
-                pass->getSourceBlendFactorAlpha(), pass->getDestBlendFactorAlpha(),
-                pass->getSceneBlendingOperation(), 
-                pass->hasSeparateSceneBlendingOperations() ? pass->getSceneBlendingOperation() : pass->getSceneBlendingOperationAlpha() );
-        }
-        else
-        {
-            if(pass->hasSeparateSceneBlendingOperations( ) )
-            {
-                mDestRenderSystem->_setSeparateSceneBlending(
-                    pass->getSourceBlendFactor(), pass->getDestBlendFactor(),
-                    pass->getSourceBlendFactor(), pass->getDestBlendFactor(),
-                    pass->getSceneBlendingOperation(), pass->getSceneBlendingOperationAlpha() );
-            }
-            else
-            {
-                mDestRenderSystem->_setSceneBlending(
-                    pass->getSourceBlendFactor(), pass->getDestBlendFactor(), pass->getSceneBlendingOperation() );
-            }
-        }
 
         // Set point parameters
         mDestRenderSystem->_setPointParameters(
@@ -1034,20 +1001,17 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 
         // Set up non-texture related material settings
         // Depth buffer settings
-        mDestRenderSystem->_setDepthBufferFunction(pass->getDepthFunction());
+        /*mDestRenderSystem->_setDepthBufferFunction(pass->getDepthFunction());
         mDestRenderSystem->_setDepthBufferCheckEnabled(pass->getDepthCheckEnabled());
         mDestRenderSystem->_setDepthBufferWriteEnabled(pass->getDepthWriteEnabled());
         mDestRenderSystem->_setDepthBias(pass->getDepthBiasConstant(), 
             pass->getDepthBiasSlopeScale());
         // Alpha-reject settings
         mDestRenderSystem->_setAlphaRejectSettings(
-            pass->getAlphaRejectFunction(), pass->getAlphaRejectValue(), pass->isAlphaToCoverageEnabled());
+            pass->getAlphaRejectFunction(), pass->getAlphaRejectValue(), pass->isAlphaToCoverageEnabled());*/
         // Set colour write mode
-        // Right now we only use on/off, not per-channel
-        bool colWrite = pass->getColourWriteEnabled();
-        mDestRenderSystem->_setColourBufferWriteEnabled(colWrite, colWrite, colWrite, colWrite);
         // Culling mode
-        if ( mIlluminationStage == IRS_RENDER_TO_TEXTURE
+        /*if ( mIlluminationStage == IRS_RENDER_TO_TEXTURE
             && mShadowCasterRenderBackFaces
             && pass->getCullingMode() == CULL_CLOCKWISE)
         {
@@ -1058,12 +1022,10 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
         {
             mPassCullingMode = pass->getCullingMode();
         }
-        mDestRenderSystem->_setCullingMode(mPassCullingMode);
+        mDestRenderSystem->_setCullingMode(mPassCullingMode);*/
         
         // Shading
-        mDestRenderSystem->setShadingType(pass->getShadingMode());
-        // Polygon mode
-        mDestRenderSystem->_setPolygonMode(pass->getPolygonMode());
+        //mDestRenderSystem->setShadingType(pass->getShadingMode());
 
         // set pass number
         mAutoParamDataSource->setPassNumber( pass->getIndex() );
@@ -1078,9 +1040,10 @@ const Pass* SceneManager::_setPass(const Pass* pass, bool evenIfSuppressed,
 //-----------------------------------------------------------------------
 void SceneManager::prepareRenderQueue(void)
 {
+    /* TODO: RENDER QUEUE
     RenderQueue* q = getRenderQueue();
     // Clear the render queue
-    q->clear(Root::getSingleton().getRemoveRenderQueueStructuresOnClear());
+    q->clear();
 
     // Prep the ordering options
 
@@ -1130,13 +1093,14 @@ void SceneManager::prepareRenderQueue(void)
         }
 
         mLastRenderQueueInvocationCustom = false;
-    }
+    }*/
 
 }
 //-----------------------------------------------------------------------
 void SceneManager::_swapVisibleObjectsForShadowMapping()
 {
     mVisibleObjects.swap( mVisibleObjectsBackup );
+    mRenderQueue->_swapQueuesForShadowMapping();
 }
 //-----------------------------------------------------------------------
 //-----------------------------------------------------------------------
@@ -1146,7 +1110,6 @@ void SceneManager::_cullPhase01( Camera* camera, const Camera *lodCamera, Viewpo
     OgreProfileGroup("_cullPhase01", OGREPROF_GENERAL);
 
     Root::getSingleton()._pushCurrentSceneManager(this);
-    mActiveQueuedRenderableVisitor->targetSceneMgr = this;
     mAutoParamDataSource->setCurrentSceneManager(this);
 
     setViewport( vp );
@@ -1154,13 +1117,15 @@ void SceneManager::_cullPhase01( Camera* camera, const Camera *lodCamera, Viewpo
 
     {
         // Lock scene graph mutex, no more changes until we're ready to render
-            OGRE_LOCK_MUTEX(sceneGraphMutex);
+        OGRE_LOCK_MUTEX(sceneGraphMutex);
 
         // Prepare render queue for receiving new objects
         /*{
             OgreProfileGroup("prepareRenderQueue", OGREPROF_GENERAL);
             prepareRenderQueue();
         }*/
+
+        mRenderQueue->clear();
 
         if (mFindVisibleObjects)
         {
@@ -1190,6 +1155,7 @@ void SceneManager::_cullPhase01( Camera* camera, const Camera *lodCamera, Viewpo
             camera->_setRenderedRqs( realFirstRq, realLastRq );
 
             CullFrustumRequest cullRequest( realFirstRq, realLastRq,
+                                            mIlluminationStage == IRS_RENDER_TO_TEXTURE, true,
                                             &mEntitiesMemoryManagerCulledList, camera, lodCamera );
             fireCullFrustumThreads( cullRequest );
         }
@@ -1249,6 +1215,11 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera, Viewp
             prepareRenderQueue();
         }
 
+        if( mIlluminationStage != IRS_RENDER_TO_TEXTURE && mForward3DImpl )
+        {
+            mForward3DImpl->collectLights( camera );
+        }
+
         if (mFindVisibleObjects)
         {
             OgreProfileGroup("_updateRenderQueue", OGREPROF_CULLING);
@@ -1265,20 +1236,39 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera, Viewp
             VisibleObjectsPerThreadArray::const_iterator it = mVisibleObjects.begin();
             VisibleObjectsPerThreadArray::const_iterator en = mVisibleObjects.end();
 
-            //TODO: _updateRenderQueue MIGHT be called in parallel
+            bool casterPass = mIlluminationStage == IRS_RENDER_TO_TEXTURE;
+
             firePreFindVisibleObjects(vp);
+
             while( it != en )
             {
-                MovableObject::MovableObjectArray::const_iterator itor = it->begin();
-                MovableObject::MovableObjectArray::const_iterator end  = it->end();
-
-                while( itor != end )
+                for( uint8 i=firstRq; i<lastRq; ++i )
                 {
-                    (*itor)->_updateRenderQueue( getRenderQueue(), camera, lodCamera );
-                    ++itor;
+                    MovableObject::MovableObjectArray::const_iterator itor = (*it)[i].begin();
+                    MovableObject::MovableObjectArray::const_iterator end  = (*it)[i].end();
+
+                    while( itor != end )
+                    {
+                        //Only v1 are added here. v2 objects have already
+                        //been added in parallel in phase 01.
+                        (*itor)->_updateRenderQueue( mRenderQueue, camera, lodCamera );
+
+                        RenderableArray::const_iterator itRend = (*itor)->mRenderables.begin();
+                        RenderableArray::const_iterator enRend = (*itor)->mRenderables.end();
+
+                        while( itRend != enRend )
+                        {
+                            mRenderQueue->addRenderableV1( i, casterPass, *itRend, *itor );
+                            ++itRend;
+                        }
+
+                        ++itor;
+                    }
                 }
+
                 ++it;
             }
+
             firePostFindVisibleObjects(vp);
         }
         // Queue skies, if viewport seems it
@@ -1286,12 +1276,13 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera, Viewp
         {
             _queueSkiesForRendering(camera);
         }
+
+        //TODO: Remove this hacky listener (mostly needed by OverlayManager)
+        for( uint8 i=firstRq; i<lastRq; ++i )
+            fireRenderQueueStarted( i, BLANKSTRING );
     } // end lock on scene graph mutex
 
     mDestRenderSystem->_beginGeometryCount();
-
-    // Set rasterisation mode
-    mDestRenderSystem->_setPolygonMode(camera->getPolygonMode());
 
     // Set initial camera state
     mDestRenderSystem->_setProjectionMatrix(mCameraInProgress->getProjectionMatrixRS());
@@ -1302,8 +1293,12 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera, Viewp
 
     // Render scene content
     {
-        OgreProfileGroup("_renderVisibleObjects", OGREPROF_RENDERING);
-        _renderVisibleObjects();
+        //OgreProfileGroup("_renderVisibleObjects", OGREPROF_RENDERING);
+        //_renderVisibleObjects();
+        OgreProfileGroup("RenderQueue::render", OGREPROF_RENDERING);
+        //TODO: RENDER QUEUE Add Dual Paraboloid mapping
+        mRenderQueue->render( mDestRenderSystem, firstRq, lastRq,
+                              mIlluminationStage == IRS_RENDER_TO_TEXTURE, false );
     }
 
     // Notify camera of vis faces
@@ -1314,16 +1309,51 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera, Viewp
 
     Root::getSingleton()._popCurrentSceneManager(this);
 }
+//-----------------------------------------------------------------------
+void SceneManager::cullLights( Camera *camera, Light::LightTypes startType,
+                               Light::LightTypes endType, LightArray &outLights )
+{
+    mVisibleObjects.swap( mTmpVisibleObjects );
+    CullFrustumRequest cullRequest( startType, endType, false, false,
+                                    &mLightsMemoryManagerCulledList, camera, camera );
+    fireCullFrustumThreads( cullRequest );
 
+    outLights.clear();
 
+    VisibleObjectsPerThreadArray::const_iterator it = mVisibleObjects.begin();
+    VisibleObjectsPerThreadArray::const_iterator en = mVisibleObjects.end();
+
+    while( it != en )
+    {
+        for( uint8 i=startType; i<endType; ++i )
+        {
+            MovableObject::MovableObjectArray::const_iterator itor = (*it)[i].begin();
+            MovableObject::MovableObjectArray::const_iterator end  = (*it)[i].end();
+
+            Light * const *lightBegin  = reinterpret_cast<Light * const *>( itor );
+            Light * const *lightEnd    = reinterpret_cast<Light * const *>( end );
+
+            outLights.appendPOD( lightBegin, lightEnd );
+        }
+
+        ++it;
+    }
+
+    mVisibleObjects.swap( mTmpVisibleObjects );
+}
+//-----------------------------------------------------------------------
+void SceneManager::_frameEnded(void)
+{
+    mRenderQueue->frameEnded();
+}
 //-----------------------------------------------------------------------
 void SceneManager::_setDestinationRenderSystem(RenderSystem* sys)
 {
     mDestRenderSystem = sys;
 
+    if( mForward3DImpl )
+        mForward3DImpl->_changeRenderSystem( sys );
 }
-
-
 //-----------------------------------------------------------------------
 void SceneManager::prepareWorldGeometry(const String& filename)
 {
@@ -1360,15 +1390,14 @@ void SceneManager::setWorldGeometry(DataStreamPtr& stream,
         "SceneManager::setWorldGeometry");
 }
 //-----------------------------------------------------------------------
-void SceneManager::_setSkyPlane(
-                               bool enable,
+void SceneManager::_setSkyPlane(bool enable,
                                const Plane& plane,
                                const String& materialName,
+                               uint8 renderQueue,
                                Real gscale,
                                Real tiling,
-                               uint8 renderQueue,
-                               Real bow, 
-                               int xsegments, int ysegments, 
+                               Real bow,
+                               int xsegments, int ysegments,
                                const String& groupName)
 {
     if (enable)
@@ -1384,16 +1413,16 @@ void SceneManager::_setSkyPlane(
                 "SceneManager::setSkyPlane");
         }
         // Make sure the material doesn't update the depth buffer
-        m->setDepthWriteEnabled(false);
+        //m->setDepthWriteEnabled(false);
         // Ensure loaded
         m->load();
 
         // Set up the plane
-        MeshPtr planeMesh = MeshManager::getSingleton().getByName(meshName);
+        v1::MeshPtr planeMesh = v1::MeshManager::getSingleton().getByName(meshName);
         if (!planeMesh.isNull())
         {
             // Destroy the old one
-            MeshManager::getSingleton().remove(planeMesh->getHandle());
+            v1::MeshManager::getSingleton().remove(planeMesh->getHandle());
         }
 
         // Create up vector
@@ -1405,13 +1434,13 @@ void SceneManager::_setSkyPlane(
         if( bow > 0 )
         {
             // Build a curved skyplane
-            planeMesh = MeshManager::getSingleton().createCurvedPlane(
+            planeMesh = v1::MeshManager::getSingleton().createCurvedPlane(
                 meshName, groupName, plane, gscale * 100, gscale * 100, gscale * bow * 100, 
                 xsegments, ysegments, false, 1, tiling, tiling, up);
         }
         else
         {
-            planeMesh = MeshManager::getSingleton().createPlane(
+            planeMesh = v1::MeshManager::getSingleton().createPlane(
                 meshName, groupName, plane, gscale * 100, gscale * 100, xsegments, ysegments, false, 
                 1, tiling, tiling, up);
         }
@@ -1426,10 +1455,10 @@ void SceneManager::_setSkyPlane(
         // Create, use the same name for mesh and entity
         // manually construct as we don't want this to be destroyed on destroyAllMovableObjects
         MovableObjectFactory* factory = 
-            Root::getSingleton().getMovableObjectFactory(EntityFactory::FACTORY_TYPE_NAME);
+            Root::getSingleton().getMovableObjectFactory(v1::EntityFactory::FACTORY_TYPE_NAME);
         NameValuePairList params;
         params["mesh"] = meshName;
-        mSkyPlaneEntity = static_cast<Entity*>(factory->createInstance(
+        mSkyPlaneEntity = static_cast<v1::Entity*>(factory->createInstance(
                                             Id::generateNewId<MovableObject>(),
                                             &mEntityMemoryManager[SCENE_DYNAMIC], this, &params ));
         mSkyPlaneEntity->setName( meshName );
@@ -1438,7 +1467,8 @@ void SceneManager::_setSkyPlane(
         mSkyPlaneEntity->setRenderQueueGroup( renderQueue );
         mSkyPlaneEntity->setQueryFlags( 0 );
 
-        MovableObjectCollection* objectMap = getMovableObjectCollection(EntityFactory::FACTORY_TYPE_NAME);
+        MovableObjectCollection* objectMap = getMovableObjectCollection(
+                                                    v1::EntityFactory::FACTORY_TYPE_NAME );
         objectMap->movableObjects.push_back( mSkyPlaneEntity );
         mSkyPlaneEntity->mGlobalIndex = objectMap->movableObjects.size() - 1;
 
@@ -1473,16 +1503,14 @@ void SceneManager::setSkyPlane(
                                int xsegments, int ysegments, 
                                const String& groupName)
 {
-    _setSkyPlane(enable, plane, materialName, gscale, tiling, 
-        static_cast<uint8>(drawFirst?RENDER_QUEUE_SKIES_EARLY: RENDER_QUEUE_SKIES_LATE), 
-        bow, xsegments, ysegments, groupName);
+    _setSkyPlane(enable, plane, materialName, 0, gscale, tiling,
+                 bow, xsegments, ysegments, groupName);
 }
 //-----------------------------------------------------------------------
-void SceneManager::_setSkyBox(
-                             bool enable,
+void SceneManager::_setSkyBox(bool enable,
                              const String& materialName,
-                             Real distance,
                              uint8 renderQueue,
+                             Real distance,
                              const Quaternion& orientation,
                              const String& groupName)
 {
@@ -1520,8 +1548,9 @@ void SceneManager::_setSkyBox(
         // Create object
         if (!mSkyBoxObj)
         {
-            mSkyBoxObj = OGRE_NEW ManualObject( Id::generateNewId<MovableObject>(),
-                                                &mEntityMemoryManager[SCENE_DYNAMIC] );
+            mSkyBoxObj = OGRE_NEW v1::ManualObject( Id::generateNewId<MovableObject>(),
+                                                    &mEntityMemoryManager[SCENE_DYNAMIC],
+                                                    this );
             mSkyBoxObj->setCastShadows(false);
             mSkyBoxObj->setRenderQueueGroup( renderQueue );
             mSkyBoxObj->setQueryFlags( 0 );
@@ -1639,7 +1668,7 @@ void SceneManager::_setSkyBox(
                     boxMat->load();
                 }
                 // Make sure the material doesn't update the depth buffer
-                boxMat->setDepthWriteEnabled(false);
+                //boxMat->setDepthWriteEnabled(false);
                 // Set active frame
                 Material::TechniqueIterator ti = boxMat->getSupportedTechniqueIterator();
                 while (ti.hasMoreElements())
@@ -1648,15 +1677,19 @@ void SceneManager::_setSkyBox(
                     if (tech->getPass(0)->getNumTextureUnitStates() > 0)
                     {
                         TextureUnitState* t = tech->getPass(0)->getTextureUnitState(0);
+
                         // Also clamp texture, don't wrap (otherwise edges can get filtered)
-                        t->setTextureAddressingMode(TextureUnitState::TAM_CLAMP);
+                        HlmsSamplerblock samplerblock = *t->getSamplerblock();
+                        samplerblock.setAddressinMode( TAM_CLAMP );
+
+                        t->setSamplerblock( samplerblock );
                         t->setCurrentFrame(i);
 
                     }
                 }
 
                 // section per material
-                mSkyBoxObj->begin(matName, RenderOperation::OT_TRIANGLE_LIST, groupName);
+                mSkyBoxObj->begin(matName, v1::RenderOperation::OT_TRIANGLE_LIST, groupName);
                 // top left
                 mSkyBoxObj->position(middle + up - right);
                 mSkyBoxObj->textureCoord(0,0);
@@ -1697,18 +1730,16 @@ void SceneManager::setSkyBox(
                              const Quaternion& orientation,
                              const String& groupName)
 {
-    _setSkyBox(enable, materialName, distance, 
-        static_cast<uint8>(drawFirst?RENDER_QUEUE_SKIES_EARLY: RENDER_QUEUE_SKIES_LATE), 
-        orientation, groupName);
+    _setSkyBox(enable, materialName, 0, distance,
+               orientation, groupName);
 }
 //-----------------------------------------------------------------------
-void SceneManager::_setSkyDome(
-                              bool enable,
+void SceneManager::_setSkyDome(bool enable,
                               const String& materialName,
+                              uint8 renderQueue,
                               Real curvature,
                               Real tiling,
                               Real distance,
-                              uint8 renderQueue,
                               const Quaternion& orientation,
                               int xsegments, int ysegments, int ySegmentsToKeep,
                               const String& groupName)
@@ -1723,7 +1754,7 @@ void SceneManager::_setSkyDome(
                 "SceneManager::setSkyDome");
         }
         // Make sure the material doesn't update the depth buffer
-        m->setDepthWriteEnabled(false);
+        //m->setDepthWriteEnabled(false);
         // Ensure loaded
         m->load();
 
@@ -1741,7 +1772,7 @@ void SceneManager::_setSkyDome(
         // Set up the dome (5 planes)
         for (int i = 0; i < 5; ++i)
         {
-            MeshPtr planeMesh = createSkydomePlane((BoxPlane)i, curvature, 
+            v1::MeshPtr planeMesh = createSkydomePlane((BoxPlane)i, curvature,
                 tiling, distance, orientation, xsegments, ysegments, 
                 i!=BP_UP ? ySegmentsToKeep : -1, groupName);
 
@@ -1756,11 +1787,11 @@ void SceneManager::_setSkyDome(
             }
             // construct manually so we don't have problems if destroyAllMovableObjects called
             MovableObjectFactory* factory = 
-                Root::getSingleton().getMovableObjectFactory(EntityFactory::FACTORY_TYPE_NAME);
+                Root::getSingleton().getMovableObjectFactory(v1::EntityFactory::FACTORY_TYPE_NAME);
 
             NameValuePairList params;
             params["mesh"] = planeMesh->getName();
-            mSkyDomeEntity[i] = static_cast<Entity*>(factory->createInstance(
+            mSkyDomeEntity[i] = static_cast<v1::Entity*>(factory->createInstance(
                                                 Id::generateNewId<MovableObject>(),
                                                 &mEntityMemoryManager[SCENE_DYNAMIC], this, &params ));
             mSkyDomeEntity[i]->setName( entName );
@@ -1769,7 +1800,8 @@ void SceneManager::_setSkyDome(
             mSkyDomeEntity[i]->setRenderQueueGroup( renderQueue );
             mSkyDomeEntity[i]->setQueryFlags( 0 );
 
-            MovableObjectCollection* objectMap = getMovableObjectCollection(EntityFactory::FACTORY_TYPE_NAME);
+            MovableObjectCollection* objectMap = getMovableObjectCollection(
+                                                        v1::EntityFactory::FACTORY_TYPE_NAME );
             objectMap->movableObjects.push_back( mSkyDomeEntity[i] );
             mSkyDomeEntity[i]->mGlobalIndex = objectMap->movableObjects.size() - 1;
 
@@ -1798,12 +1830,11 @@ void SceneManager::setSkyDome(
                               int xsegments, int ysegments, int ySegmentsToKeep,
                               const String& groupName)
 {
-    _setSkyDome(enable, materialName, curvature, tiling, distance, 
-        static_cast<uint8>(drawFirst?RENDER_QUEUE_SKIES_EARLY: RENDER_QUEUE_SKIES_LATE), 
-        orientation, xsegments, ysegments, ySegmentsToKeep, groupName);
+    _setSkyDome(enable, materialName, 0, curvature, tiling, distance, 
+                orientation, xsegments, ysegments, ySegmentsToKeep, groupName);
 }
 //-----------------------------------------------------------------------
-MeshPtr SceneManager::createSkyboxPlane(
+v1::MeshPtr SceneManager::createSkyboxPlane(
                                       BoxPlane bp,
                                       Real distance,
                                       const Quaternion& orientation,
@@ -1855,8 +1886,8 @@ MeshPtr SceneManager::createSkyboxPlane(
 
 
     // Check to see if existing plane
-    MeshManager& mm = MeshManager::getSingleton();
-    MeshPtr planeMesh = mm.getByName(meshName, groupName);
+    v1::MeshManager& mm = v1::MeshManager::getSingleton();
+    v1::MeshPtr planeMesh = mm.getByName(meshName, groupName);
     if(!planeMesh.isNull())
     {
         // destroy existing
@@ -1874,7 +1905,7 @@ MeshPtr SceneManager::createSkyboxPlane(
 
 }
 //-----------------------------------------------------------------------
-MeshPtr SceneManager::createSkydomePlane(
+v1::MeshPtr SceneManager::createSkydomePlane(
                                        BoxPlane bp,
                                        Real curvature,
                                        Real tiling,
@@ -1920,15 +1951,15 @@ MeshPtr SceneManager::createSkydomePlane(
         break;
     case BP_DOWN:
         // no down
-        return MeshPtr();
+        return v1::MeshPtr();
     }
     // Modify by orientation
     plane.normal = orientation * plane.normal;
     up = orientation * up;
 
     // Check to see if existing plane
-    MeshManager& mm = MeshManager::getSingleton();
-    MeshPtr planeMesh = mm.getByName(meshName, groupName);
+    v1::MeshManager& mm = v1::MeshManager::getSingleton();
+    v1::MeshPtr planeMesh = mm.getByName(meshName, groupName);
     if(!planeMesh.isNull())
     {
         // destroy existing
@@ -1939,7 +1970,8 @@ MeshPtr SceneManager::createSkydomePlane(
     planeMesh = mm.createCurvedIllusionPlane(meshName, groupName, plane, 
         planeSize, planeSize, curvature, 
         xsegments, ysegments, false, 1, tiling, tiling, up, 
-        orientation, HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY, HardwareBuffer::HBU_STATIC_WRITE_ONLY, 
+        orientation, v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY,
+        v1::HardwareBuffer::HBU_STATIC_WRITE_ONLY,
         false, false, ysegments_keep);
 
     //planeMesh->_dumpContents(meshName);
@@ -2046,8 +2078,7 @@ void SceneManager::updateAnimationTransforms( BySkeletonDef &bySkeletonDef, size
 void SceneManager::updateAllAnimations()
 {
     mRequestType = UPDATE_ALL_ANIMATIONS;
-    mWorkerThreadsBarrier->sync(); //Fire threads
-    mWorkerThreadsBarrier->sync(); //Wait them to complete
+    fireWorkerThreadsAndWait();
 }
 //-----------------------------------------------------------------------
 void SceneManager::updateAllTransformsThread( const UpdateTransformRequest &request, size_t threadIdx )
@@ -2092,8 +2123,7 @@ void SceneManager::updateAllTransforms()
             //Send them to worker threads (dark_sylinc). We need to go depth by depth because
             //we may depend on parents which could be processed by different threads.
             mUpdateTransformRequest = UpdateTransformRequest( t, nodesPerThread, numNodes );
-            mWorkerThreadsBarrier->sync(); //Fire threads
-            mWorkerThreadsBarrier->sync(); //Wait them to complete
+            fireWorkerThreadsAndWait();
             //Node::updateAllTransforms( numNodes, t );
         }
 
@@ -2150,8 +2180,7 @@ void SceneManager::updateAllBounds( const ObjectMemoryManagerVec &objectMemManag
 {
     mUpdateBoundsRequest    = &objectMemManager;
     mRequestType            = UPDATE_ALL_BOUNDS;
-    mWorkerThreadsBarrier->sync(); //Fire threads
-    mWorkerThreadsBarrier->sync(); //Wait them to complete
+    fireWorkerThreadsAndWait();
 }
 //-----------------------------------------------------------------------
 void SceneManager::updateAllLodsThread( const UpdateLodRequest &request, size_t threadIdx )
@@ -2204,28 +2233,45 @@ void SceneManager::updateAllLods( const Camera *lodCamera, Real lodBias, uint8 f
     mUpdateLodRequest.camera->getFrustumPlanes();
     mUpdateLodRequest.lodCamera->getFrustumPlanes();
 
-    mWorkerThreadsBarrier->sync(); //Fire threads
-    mWorkerThreadsBarrier->sync(); //Wait them to complete
+    fireWorkerThreadsAndWait();
 }
 //-----------------------------------------------------------------------
 void SceneManager::instanceBatchCullFrustumThread( const InstanceBatchCullRequest &request,
-                                                    size_t threadIdx )
+                                                   size_t threadIdx )
 {
-    MovableObject::MovableObjectArray::const_iterator itor = mVisibleObjects[threadIdx].begin();
-    MovableObject::MovableObjectArray::const_iterator end  = mVisibleObjects[threadIdx].end();
+    VisibleObjectsPerRq::const_iterator it = mVisibleObjects[threadIdx].begin();
+    VisibleObjectsPerRq::const_iterator en = mVisibleObjects[threadIdx].begin();
 
-    while( itor != end )
+    while( it != en )
     {
-        (*itor)->instanceBatchCullFrustumThreaded( request.frustum, request.lodCamera,
-                                                   request.combinedVisibilityFlags );
-        ++itor;
+        MovableObject::MovableObjectArray::const_iterator itor = it->begin();
+        MovableObject::MovableObjectArray::const_iterator end  = it->end();
+
+        while( itor != end )
+        {
+            (*itor)->instanceBatchCullFrustumThreaded( request.frustum, request.lodCamera,
+                                                       request.combinedVisibilityFlags );
+            ++itor;
+        }
+
+        ++it;
     }
 }
 //-----------------------------------------------------------------------
 void SceneManager::cullFrustum( const CullFrustumRequest &request, size_t threadIdx )
 {
-    MovableObject::MovableObjectArray &outVisibleObjects = *(mVisibleObjects.begin() + threadIdx);
-    outVisibleObjects.clear();
+    VisibleObjectsPerRq &visibleObjectsPerRq = *(mVisibleObjects.begin() + threadIdx);
+    {
+        visibleObjectsPerRq.resize( 255 );
+        VisibleObjectsPerRq::iterator itor = visibleObjectsPerRq.begin();
+        VisibleObjectsPerRq::iterator end  = visibleObjectsPerRq.end();
+
+        while( itor != end )
+        {
+            itor->clear();
+            ++itor;
+        }
+    }
 
     const Camera *camera    = request.camera;
     const Camera *lodCamera = request.lodCamera;
@@ -2242,6 +2288,8 @@ void SceneManager::cullFrustum( const CullFrustumRequest &request, size_t thread
 
         for( size_t i=firstRq; i<lastRq; ++i )
         {
+            MovableObject::MovableObjectArray &outVisibleObjects = *(visibleObjectsPerRq.begin() + i);
+
             ObjectData objData;
             const size_t totalObjs = memoryManager->getFirstObjectData( objData, i );
 
@@ -2263,21 +2311,144 @@ void SceneManager::cullFrustum( const CullFrustumRequest &request, size_t thread
                     (camera->getLastViewport()->getVisibilityMask() &
                                         ~VisibilityFlags::RESERVED_VISIBILITY_FLAGS),
                     outVisibleObjects, lodCamera );
+
+            if( mRenderQueue->getRenderQueueMode(i) == RenderQueue::FAST && request.addToRenderQueue )
+            {
+                //V2 meshes can be added to the render queue in parallel
+                bool casterPass = request.casterPass;
+                MovableObject::MovableObjectArray::const_iterator itor = outVisibleObjects.begin();
+                MovableObject::MovableObjectArray::const_iterator end  = outVisibleObjects.end();
+
+                while( itor != end )
+                {
+                    RenderableArray::const_iterator itRend = (*itor)->mRenderables.begin();
+                    RenderableArray::const_iterator enRend = (*itor)->mRenderables.end();
+
+                    while( itRend != enRend )
+                    {
+                        mRenderQueue->addRenderableV2( threadIdx, i, casterPass, *itRend, *itor );
+                        ++itRend;
+                    }
+                    ++itor;
+                }
+
+                outVisibleObjects.clear();
+            }
         }
 
         ++it;
     }
 }
 //-----------------------------------------------------------------------
+inline bool OrderLightByShadowCastThenId( const Light *_l, const Light *_r )
+{
+    if( _l->getCastShadows() && !_r->getCastShadows() )
+        return true;
+    if( !_l->getCastShadows() && _r->getCastShadows() )
+        return false;
+
+    return _l->getId() < _r->getId();
+}
+
+void quickSortDirectionalLights( LightListInfo &_globalLightList, const size_t startIdx, const size_t n )
+{
+    if( n < 2 )
+        return;
+
+    LightListInfo lightList;
+    lightList.lights.swap( _globalLightList.lights );
+    lightList.visibilityMask = _globalLightList.visibilityMask;
+    lightList.boundingSphere = _globalLightList.boundingSphere;
+
+    size_t i, j;
+    Light const *p;
+
+    p = lightList.lights[startIdx + (n >> 1)];
+    for( i = 0, j = n - 1;; ++i, --j )
+    {
+        while( OrderLightByShadowCastThenId( lightList.lights[startIdx + i], p ) )
+            i++;
+        while( OrderLightByShadowCastThenId( p, lightList.lights[startIdx + j] ) )
+            j--;
+        if( i >= j )
+            break;
+
+        std::swap( lightList.lights[startIdx + i],          lightList.lights[startIdx + j] );
+        std::swap( lightList.visibilityMask[startIdx + i],  lightList.visibilityMask[startIdx + j] );
+        std::swap( lightList.boundingSphere[startIdx + i],  lightList.boundingSphere[startIdx + j] );
+    }
+
+    quickSortDirectionalLights( lightList, startIdx, i );
+    quickSortDirectionalLights( lightList, startIdx + i, n - i );
+
+    //Nullify the pointers to prevent freeing them in the destructor (we do not own them).
+    lightList.lights.swap( _globalLightList.lights );
+    lightList.visibilityMask = 0;
+    lightList.boundingSphere = 0;
+}
+
 void SceneManager::buildLightList()
 {
     mGlobalLightList.lights.clear();
 
+    {
+        //Copy directional lights first. They aren't many. And we need them sorted:
+        //  1. Shadow casting lights first
+        //  2. Then ordered by ID (order of creation)
+        ObjectMemoryManagerVec::const_iterator it = mLightsMemoryManagerCulledList.begin();
+        ObjectMemoryManagerVec::const_iterator en = mLightsMemoryManagerCulledList.end();
+
+        size_t idx = 0;
+
+        while( it != en )
+        {
+            ObjectMemoryManager *objMemoryManager = *it;
+
+            //Cull the lights against all cameras to build the list of visible lights.
+            ObjectData objData;
+
+            const size_t numRenderQueues = objMemoryManager->getNumRenderQueues();
+
+            if( numRenderQueues )
+            {
+                const size_t totalObjs = objMemoryManager->getFirstObjectData( objData, 0 );
+
+                for( size_t i=0; i<totalObjs; ++i )
+                {
+                    for( size_t j=0; j<ARRAY_PACKED_REALS; ++j )
+                    {
+                        const bool isVisible = (objData.mVisibilityFlags[j] &
+                                                VisibilityFlags::LAYER_VISIBILITY) != 0;
+                        if( isVisible )
+                        {
+                            mGlobalLightList.visibilityMask[idx] = objData.mVisibilityFlags[j];
+                            mGlobalLightList.boundingSphere[idx] = Sphere(
+                                        objData.mWorldAabb->mCenter.getAsVector3( j ),
+                                        objData.mWorldRadius[j] );
+                            assert( dynamic_cast<Light*>( objData.mOwner[j] ) );
+                            mGlobalLightList.lights.push_back( static_cast<Light*>(
+                                                                   objData.mOwner[j] ) );
+
+                            ++idx;
+                        }
+                    }
+
+                    objData.advanceFrustumPack();
+                }
+            }
+
+            ++it;
+        }
+
+        quickSortDirectionalLights( mGlobalLightList, 0, mGlobalLightList.lights.size() );
+    }
+
     //Perform frustum culling against the lights to build the light list,
     //but first, calculate the startLightIdx for each thread.
-    size_t accumStartLightIdx = 0;
+    size_t accumStartLightIdx = mGlobalLightList.lights.size();
     for( size_t threadIdx=0; threadIdx<mNumWorkerThreads; ++threadIdx )
     {
+        size_t totalObjsInThread = 0;
         ObjectMemoryManagerVec::const_iterator it = mLightsMemoryManagerCulledList.begin();
         ObjectMemoryManagerVec::const_iterator en = mLightsMemoryManagerCulledList.end();
 
@@ -2287,7 +2458,7 @@ void SceneManager::buildLightList()
             const size_t numRenderQueues = objMemoryManager->getNumRenderQueues();
 
             //Cull the lights against all cameras to build the list of visible lights.
-            for( size_t i=0; i<numRenderQueues; ++i )
+            for( size_t i=1; i<numRenderQueues; ++i )
             {
                 ObjectData objData;
                 const size_t totalObjs = objMemoryManager->getFirstObjectData( objData, i );
@@ -2304,12 +2475,20 @@ void SceneManager::buildLightList()
                 //when there are less entities than ARRAY_PACKED_REALS
                 numObjs = std::min( numObjs, totalObjs - toAdvance );
 
-                mBuildLightListRequestPerThread[threadIdx].startLightIdx = accumStartLightIdx;
-                accumStartLightIdx += numObjs;
+                totalObjsInThread += numObjs;
             }
 
             ++it;
         }
+
+        mBuildLightListRequestPerThread[threadIdx].startLightIdx = accumStartLightIdx;
+        accumStartLightIdx += totalObjsInThread;
+    }
+
+    if( accumStartLightIdx == mGlobalLightList.lights.size() )
+    {
+        //All of the lights were directional. We're done. Avoid the sync point with worker threads.
+        return;
     }
 
     mRequestType = BUILD_LIGHT_LIST01;
@@ -2335,38 +2514,51 @@ void SceneManager::buildLightList()
             ++itor;
         }
     }
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+    _updateWorkerThread( NULL );
+#else
     mWorkerThreadsBarrier->sync(); //Fire threads
     mWorkerThreadsBarrier->sync(); //Wait them to complete
+#endif
 
     //Now merge the results into a single list.
 
-    size_t dstOffset = 0;
+    size_t dstOffset = mGlobalLightList.lights.size(); //Start where the directional lights end
     for( size_t i=0; i<mNumWorkerThreads; ++i )
     {
         mGlobalLightList.lights.appendPOD( mGlobalLightListPerThread[i].begin(),
                                            mGlobalLightListPerThread[i].end() );
+
+        size_t numCollectedLights = mGlobalLightListPerThread[i].size();
 
         size_t srcOffset = mBuildLightListRequestPerThread[i].startLightIdx;
 
         if( dstOffset != srcOffset )
         {
             //Make it contiguous
-            size_t numCollectedLights = mGlobalLightListPerThread[i].size();
             memmove( mGlobalLightList.visibilityMask + dstOffset,
                      mGlobalLightList.visibilityMask + srcOffset,
                      sizeof( uint32 ) * numCollectedLights );
             memmove( mGlobalLightList.boundingSphere + dstOffset,
                      mGlobalLightList.boundingSphere + srcOffset,
                      sizeof( Sphere ) * numCollectedLights );
-
-            dstOffset += numCollectedLights;
         }
+
+        dstOffset += numCollectedLights;
     }
 
     //Now fire the threads again, to build the per-MovableObject lists
+
+    if( mForward3DImpl )
+        return; //Don't do this on non-forward passes.
+
     mRequestType = BUILD_LIGHT_LIST02;
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+    _updateWorkerThread( NULL );
+#else
     mWorkerThreadsBarrier->sync(); //Fire threads
     mWorkerThreadsBarrier->sync(); //Wait them to complete
+#endif
 }
 //-----------------------------------------------------------------------
 void SceneManager::buildLightListThread01( const BuildLightListRequest &buildLightListRequest,
@@ -2391,7 +2583,7 @@ void SceneManager::buildLightListThread01( const BuildLightListRequest &buildLig
         const size_t numRenderQueues = objMemoryManager->getNumRenderQueues();
 
         //Cull the lights against all cameras to build the list of visible lights.
-        for( size_t i=0; i<numRenderQueues; ++i )
+        for( size_t i=1; i<numRenderQueues; ++i )
         {
             ObjectData objData;
             const size_t totalObjs = objMemoryManager->getFirstObjectData( objData, i );
@@ -2417,6 +2609,7 @@ void SceneManager::buildLightListThread01( const BuildLightListRequest &buildLig
     }
 
     threadLocalLightList.lights.swap( outVisibleLights );
+    //Nullify the pointers to prevent freeing them in the destructor (we do not own them).
     threadLocalLightList.visibilityMask = 0;
     threadLocalLightList.boundingSphere = 0;
 }
@@ -2571,312 +2764,11 @@ void SceneManager::updateSceneGraph()
         mAutoParamDataSource->setTextureProjector( 0, i );
 }
 //-----------------------------------------------------------------------
-void SceneManager::_renderVisibleObjects(void)
-{
-    RenderQueueInvocationSequence* invocationSequence = 
-        mCurrentViewport->_getRenderQueueInvocationSequence();
-    // Use custom sequence only if we're not doing the texture shadow render
-    // since texture shadow render should not be interfered with by suppressing
-    // render state changes for example
-    if (invocationSequence && mIlluminationStage != IRS_RENDER_TO_TEXTURE)
-    {
-        renderVisibleObjectsCustomSequence(invocationSequence);
-    }
-    else
-    {
-        renderVisibleObjectsDefaultSequence();
-    }
-}
-//-----------------------------------------------------------------------
-void SceneManager::renderVisibleObjectsCustomSequence(RenderQueueInvocationSequence* seq)
-{
-    firePreRenderQueues();
-
-    RenderQueueInvocationIterator invocationIt = seq->iterator();
-    while (invocationIt.hasMoreElements())
-    {
-        RenderQueueInvocation* invocation = invocationIt.getNext();
-        uint8 qId = invocation->getRenderQueueGroupID();
-        // Skip this one if not to be processed
-        if (!isRenderQueueToBeProcessed(qId))
-            continue;
-
-
-        bool repeatQueue = false;
-        const String& invocationName = invocation->getInvocationName();
-        RenderQueueGroup* queueGroup = getRenderQueue()->getQueueGroup(qId);
-        do // for repeating queues
-        {
-            // Fire queue started event
-            if (fireRenderQueueStarted(qId, invocationName))
-            {
-                // Someone requested we skip this queue
-                break;
-            }
-
-            // Invoke it
-            invocation->invoke(queueGroup, this);
-
-            // Fire queue ended event
-            if (fireRenderQueueEnded(qId, invocationName))
-            {
-                // Someone requested we repeat this queue
-                repeatQueue = true;
-            }
-            else
-            {
-                repeatQueue = false;
-            }
-        } while (repeatQueue);
-
-
-    }
-
-    firePostRenderQueues();
-}
-//-----------------------------------------------------------------------
-void SceneManager::renderVisibleObjectsDefaultSequence(void)
-{
-    firePreRenderQueues();
-
-    // Render each separate queue
-    RenderQueue::QueueGroupIterator queueIt = getRenderQueue()->_getQueueGroupIterator();
-
-    // NB only queues which have been created are rendered, no time is wasted
-    //   parsing through non-existent queues (even though there are 10 available)
-
-    while (queueIt.hasMoreElements())
-    {
-        // Get queue group id
-        uint8 qId = queueIt.peekNextKey();
-        RenderQueueGroup* pGroup = queueIt.getNext();
-        // Skip this one if not to be processed
-        if (!isRenderQueueToBeProcessed(qId))
-            continue;
-
-
-        bool repeatQueue = false;
-        do // for repeating queues
-        {
-            // Fire queue started event
-            if (fireRenderQueueStarted(qId, 
-                mIlluminationStage == IRS_RENDER_TO_TEXTURE ? 
-                    RenderQueueInvocation::RENDER_QUEUE_INVOCATION_SHADOWS : 
-                    BLANKSTRING))
-            {
-                // Someone requested we skip this queue
-                break;
-            }
-
-            _renderQueueGroupObjects(pGroup, QueuedRenderableCollection::OM_PASS_GROUP);
-
-            // Fire queue ended event
-            if (fireRenderQueueEnded(qId, 
-                mIlluminationStage == IRS_RENDER_TO_TEXTURE ? 
-                    RenderQueueInvocation::RENDER_QUEUE_INVOCATION_SHADOWS : 
-                    BLANKSTRING))
-            {
-                // Someone requested we repeat this queue
-                repeatQueue = true;
-            }
-            else
-            {
-                repeatQueue = false;
-            }
-        } while (repeatQueue);
-
-    } // for each queue group
-
-    firePostRenderQueues();
-
-}
-//-----------------------------------------------------------------------
-void SceneManager::renderTextureShadowCasterQueueGroupObjects(
-    RenderQueueGroup* pGroup, 
-    QueuedRenderableCollection::OrganisationMode om)
-{
-    // This is like the basic group render, except we skip all transparents
-    // and we also render any non-shadowed objects
-    // Note that non-shadow casters will have already been eliminated during
-    // _cullPhase01
-
-    // Iterate through priorities
-    RenderQueueGroup::PriorityMapIterator groupIt = pGroup->getIterator();
-
-    // Override auto param ambient to force vertex programs and fixed function to 
-    // Use shadow colour as caster colour if modulative
-    mAutoParamDataSource->setAmbientLightColour(mShadowColour);
-    mDestRenderSystem->setAmbientLight(mShadowColour.r, mShadowColour.g, mShadowColour.b);
-
-    while (groupIt.hasMoreElements())
-    {
-        RenderPriorityGroup* pPriorityGrp = groupIt.getNext();
-
-        // Sort the queue first
-        pPriorityGrp->sort(mCameraInProgress);
-
-        // Do solids, override light list incase any vertex programs use them
-        renderObjects( pPriorityGrp->getSolidsBasic(), om, false, false );
-        // Do unsorted transparents that cast shadows
-        renderObjects( pPriorityGrp->getTransparentsUnsorted(), om, false, false );
-        // Do transparents that cast shadows
-        renderTransparentShadowCasterObjects(
-                pPriorityGrp->getTransparents(), 
-                QueuedRenderableCollection::OM_SORT_DESCENDING, 
-                false, false );
-
-
-    }// for each priority
-
-    // reset ambient light
-    mAutoParamDataSource->setAmbientLightColour(mAmbientLight);
-    mDestRenderSystem->setAmbientLight(mAmbientLight.r, mAmbientLight.g, mAmbientLight.b);
-}
-//-----------------------------------------------------------------------
-void SceneManager::SceneMgrQueuedRenderableVisitor::visit(Renderable* r)
-{
-    if( targetSceneMgr->_getCurrentRenderStage() != IRS_RENDER_TO_TEXTURE || mUsedPass->getIndex() == 0 )
-    {
-        // Render a single object, this will set up auto params if required
-        targetSceneMgr->renderSingleObject(r, mUsedPass, scissoring, autoLights);
-    }
-}
-//-----------------------------------------------------------------------
-bool SceneManager::SceneMgrQueuedRenderableVisitor::visit(const Pass* p)
-{
-    // Give SM a chance to eliminate this pass
-    if (!targetSceneMgr->validatePassForRendering(p))
-        return false;
-
-    // Set pass, store the actual one used
-    mUsedPass = targetSceneMgr->_setPass(p);
-
-
-    return true;
-}
-//-----------------------------------------------------------------------
-void SceneManager::SceneMgrQueuedRenderableVisitor::visit(RenderablePass* rp)
-{
-    // Skip this one if we're in transparency cast shadows mode & it doesn't
-    // Don't need to implement this one in the other visit methods since
-    // transparents are never grouped, always sorted
-    if (transparentShadowCastersMode && 
-        !rp->pass->getParent()->getParent()->getTransparencyCastsShadows())
-        return;
-
-    // Give SM a chance to eliminate
-    if( targetSceneMgr->_getCurrentRenderStage() != IRS_RENDER_TO_TEXTURE || rp->pass->getIndex() == 0 )
-    {
-        mUsedPass = targetSceneMgr->_setPass(rp->pass);
-        targetSceneMgr->renderSingleObject(rp->renderable, mUsedPass, scissoring, autoLights);
-    }
-}
-//-----------------------------------------------------------------------
-bool SceneManager::validatePassForRendering(const Pass* pass)
-{
-    // Bypass if we're doing a texture shadow render and 
-    // this pass is after the first (only 1 pass needed for shadow texture render, and 
-    // one pass for shadow texture receive for modulative technique)
-    // Also bypass if passes above the first if render state changes are
-    // suppressed since we're not actually using this pass data anyway
-    if( (mIlluminationStage == IRS_RENDER_TO_TEXTURE || mSuppressRenderStateChanges) && 
-        pass->getIndex() > 0 )
-    {
-        return false;
-    }
-
-    // If using late material resolving, check if there is a pass with the same index
-    // as this one in the 'late' material. If not, skip.
-    if (isLateMaterialResolving())
-    {
-        Technique* lateTech = pass->getParent()->getParent()->getBestTechnique();
-        if (lateTech->getNumPasses() <= pass->getIndex())
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-//-----------------------------------------------------------------------
-void SceneManager::renderObjects(const QueuedRenderableCollection& objs, 
-                                 QueuedRenderableCollection::OrganisationMode om, 
-                                 bool lightScissoringClipping,
-                                 bool doLightIteration)
-{
-    mActiveQueuedRenderableVisitor->autoLights = doLightIteration;
-    mActiveQueuedRenderableVisitor->transparentShadowCastersMode = false;
-    mActiveQueuedRenderableVisitor->scissoring = lightScissoringClipping;
-    // Use visitor
-    objs.acceptVisitor(mActiveQueuedRenderableVisitor, om);
-}
-//-----------------------------------------------------------------------
-void SceneManager::_renderQueueGroupObjects(RenderQueueGroup* pGroup, 
-                                           QueuedRenderableCollection::OrganisationMode om)
-{
-    // Modulative texture shadows in use
-    if (mIlluminationStage == IRS_RENDER_TO_TEXTURE)
-    {
-        // Shadow caster pass
-        if (!mSuppressRenderStateChanges)
-        {
-            renderTextureShadowCasterQueueGroupObjects(pGroup, om);
-        }
-    }
-    else
-    {
-        // Either no shadows or rendering the receiver's pass
-        renderBasicQueueGroupObjects(pGroup, om);
-    }
-}
-//-----------------------------------------------------------------------
-void SceneManager::renderBasicQueueGroupObjects(RenderQueueGroup* pGroup, 
-                                                QueuedRenderableCollection::OrganisationMode om)
-{
-    // Basic render loop
-    // Iterate through priorities
-    RenderQueueGroup::PriorityMapIterator groupIt = pGroup->getIterator();
-
-    while (groupIt.hasMoreElements())
-    {
-        RenderPriorityGroup* pPriorityGrp = groupIt.getNext();
-
-        // Sort the queue first
-        pPriorityGrp->sort(mCameraInProgress);
-
-        // Do solids
-        renderObjects(pPriorityGrp->getSolidsBasic(), om, true, true);
-        // Do unsorted transparents
-        renderObjects(pPriorityGrp->getTransparentsUnsorted(), om, true, true);
-        // Do transparents (always descending)
-        renderObjects(pPriorityGrp->getTransparents(), 
-            QueuedRenderableCollection::OM_SORT_DESCENDING, true, true);
-
-
-    }// for each priority
-}
-//-----------------------------------------------------------------------
-void SceneManager::renderTransparentShadowCasterObjects(
-    const QueuedRenderableCollection& objs, 
-    QueuedRenderableCollection::OrganisationMode om, bool lightScissoringClipping, 
-    bool doLightIteration)
-{
-    mActiveQueuedRenderableVisitor->transparentShadowCastersMode = true;
-    mActiveQueuedRenderableVisitor->autoLights = doLightIteration;
-    mActiveQueuedRenderableVisitor->scissoring = lightScissoringClipping;
-    
-    // Sort descending (transparency)
-    objs.acceptVisitor(mActiveQueuedRenderableVisitor, 
-        QueuedRenderableCollection::OM_SORT_DESCENDING);
-
-    mActiveQueuedRenderableVisitor->transparentShadowCastersMode = false;
-}
-//-----------------------------------------------------------------------
 void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass, 
                                       bool lightScissoringClipping, bool doLightIteration )
 {
     unsigned short numMatrices;
-    RenderOperation ro;
+    v1::RenderOperation ro;
 
     OgreProfileBeginGPUEvent("Material: " + pass->getParent()->getParent()->getName());
 #if OGRE_DEBUG_MODE
@@ -2946,15 +2838,6 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
             ++unit;
         }
 
-        // Sort out normalisation
-        // Assume first world matrix representative - shaders that use multiple
-        // matrices should control renormalisation themselves
-        if ((pass->getNormaliseNormals() || mNormaliseNormalsOnScale)
-            && mTempXform[0].hasScale())
-            mDestRenderSystem->setNormaliseNormals(true);
-        else
-            mDestRenderSystem->setNormaliseNormals(false);
-
         // Sort out negative scaling
         // Assume first world matrix representative 
         if (mFlipCullingOnNegativeScale)
@@ -2976,27 +2859,13 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 };
             }
 
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
             // this also copes with returning from negative scale in previous render op
             // for same pass
             if (cullMode != mDestRenderSystem->_getCullingMode())
                 mDestRenderSystem->_setCullingMode(cullMode);
+#endif
         }
-
-        // Set up the solid / wireframe override
-        // Precedence is Camera, Object, Material
-        // Camera might not override object if not overrideable
-        PolygonMode reqMode = pass->getPolygonMode();
-        if (pass->getPolygonModeOverrideable() && rend->getPolygonModeOverrideable())
-        {
-            PolygonMode camPolyMode = mCameraInProgress->getPolygonMode();
-            // check camera detial only when render detail is overridable
-            if (reqMode > camPolyMode)
-            {
-                // only downgrade detail; if cam says wireframe we don't go up to solid
-                reqMode = camPolyMode;
-            }
-        }
-        mDestRenderSystem->_setPolygonMode(reqMode);
 
         if (doLightIteration)
         {
@@ -3130,7 +2999,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 }
                 // Do we need to update light states? 
                 // Only do this if fixed-function vertex lighting applies
-                if (pass->getLightingEnabled() && passSurfaceAndLightParams)
+                if (passSurfaceAndLightParams)
                 {
                     useLights(*pLightListToUse, pass->getMaxSimultaneousLights());
                 }
@@ -3158,7 +3027,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 // nfz: check for gpu_multipass
                 mDestRenderSystem->setCurrentPassIterationCount(pass->getPassIterationCount());
                 // We might need to update the depth bias each iteration
-                if (pass->getIterationDepthBias() != 0.0f)
+                /*if (pass->getIterationDepthBias() != 0.0f)
                 {
                     float depthBiasBase = pass->getDepthBiasConstant() + 
                         pass->getIterationDepthBias() * depthInc;
@@ -3182,7 +3051,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 else
                 {
                     mDestRenderSystem->setDeriveDepthBias(false);
-                }
+                }*/
                 depthInc += pass->getPassIterationCount();
 
                 // Finalise GPU parameter bindings
@@ -3194,10 +3063,10 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                     mDestRenderSystem->_render(ro);
                 rend->postRender(this, mDestRenderSystem);
 
-                if (scissored == CLIPPED_SOME)
+                /*if (scissored == CLIPPED_SOME)
                     resetScissor();
                 if (clipped == CLIPPED_SOME)
-                    resetLightClip();
+                    resetLightClip();*/
             } // possibly iterate per light
         }
         else // no automatic light processing
@@ -3231,7 +3100,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
 
                     useLightsGpuProgram( pass, lightList );
                 }
-                else if( pass->getLightingEnabled() && passSurfaceAndLightParams )
+                else if( passSurfaceAndLightParams )
                 {
                     // Use manual lights if present, and not using vertex programs that don't use fixed pipeline
                     useLights( *lightList, pass->getMaxSimultaneousLights() );
@@ -3264,10 +3133,10 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                         mDestRenderSystem->_render(ro);
                     rend->postRender(this, mDestRenderSystem);
                 }
-                if (scissored == CLIPPED_SOME)
+                /*if (scissored == CLIPPED_SOME)
                     resetScissor();
                 if (clipped == CLIPPED_SOME)
-                    resetLightClip();
+                    resetLightClip();*/
                 
             } // !skipBecauseOfLightType
         }
@@ -3355,16 +3224,17 @@ Real SceneManager::getFogDensity(void) const
     return mFogDensity;
 }
 //-----------------------------------------------------------------------
-BillboardSet* SceneManager::createBillboardSet(unsigned int poolSize)
+v1::BillboardSet* SceneManager::createBillboardSet(unsigned int poolSize)
 {
     NameValuePairList params;
     params["poolSize"] = StringConverter::toString(poolSize);
-    return static_cast<BillboardSet*>( createMovableObject(BillboardSetFactory::FACTORY_TYPE_NAME,
-                                                            &mEntityMemoryManager[SCENE_DYNAMIC],
-                                                            &params) );
+    return static_cast<v1::BillboardSet*>( createMovableObject(
+                                               v1::BillboardSetFactory::FACTORY_TYPE_NAME,
+                                               &mEntityMemoryManager[SCENE_DYNAMIC],
+                                               &params) );
 }
 //-----------------------------------------------------------------------
-void SceneManager::destroyBillboardSet(BillboardSet* set)
+void SceneManager::destroyBillboardSet(v1::BillboardSet* set)
 {
     destroyMovableObject(set);
 }
@@ -3374,7 +3244,7 @@ void SceneManager::setDisplaySceneNodes(bool display)
     mDisplayNodes = display;
 }
 //-----------------------------------------------------------------------
-Animation* SceneManager::createAnimation(const String& name, Real length)
+v1::Animation* SceneManager::createAnimation(const String& name, Real length)
 {
     OGRE_LOCK_MUTEX(mAnimationsListMutex);
 
@@ -3387,12 +3257,12 @@ Animation* SceneManager::createAnimation(const String& name, Real length)
             "SceneManager::createAnimation" );
     }
 
-    Animation* pAnim = OGRE_NEW Animation(name, length);
+    v1::Animation* pAnim = OGRE_NEW v1::Animation(name, length);
     mAnimationsList[name] = pAnim;
     return pAnim;
 }
 //-----------------------------------------------------------------------
-Animation* SceneManager::getAnimation(const String& name) const
+v1::Animation* SceneManager::getAnimation(const String& name) const
 {
     OGRE_LOCK_MUTEX(mAnimationsListMutex);
 
@@ -3449,17 +3319,17 @@ void SceneManager::destroyAllAnimations(void)
     mAnimationsList.clear();
 }
 //-----------------------------------------------------------------------
-AnimationState* SceneManager::createAnimationState(const String& animName)
+v1::AnimationState* SceneManager::createAnimationState(const String& animName)
 {
     // Get animation, this will throw an exception if not found
-    Animation* anim = getAnimation(animName);
+    v1::Animation* anim = getAnimation(animName);
 
     // Create new state
     return mAnimationStates.createAnimationState(animName, 0, anim->getLength());
 
 }
 //-----------------------------------------------------------------------
-AnimationState* SceneManager::getAnimationState(const String& animName) const
+v1::AnimationState* SceneManager::getAnimationState(const String& animName) const
 {
     return mAnimationStates.getAnimationState(animName);
 
@@ -3486,29 +3356,29 @@ void SceneManager::_applySceneAnimations(void)
     OGRE_LOCK_MUTEX(mAnimationStates.OGRE_AUTO_MUTEX_NAME);
 
     // Iterate twice, once to reset, once to apply, to allow blending
-    ConstEnabledAnimationStateIterator stateIt = mAnimationStates.getEnabledAnimationStateIterator();
+    v1::ConstEnabledAnimationStateIterator stateIt = mAnimationStates.getEnabledAnimationStateIterator();
 
     while (stateIt.hasMoreElements())
     {
-        const AnimationState* state = stateIt.getNext();
-        Animation* anim = getAnimation(state->getAnimationName());
+        const v1::AnimationState* state = stateIt.getNext();
+        v1::Animation* anim = getAnimation(state->getAnimationName());
 
         // Reset any nodes involved
-        Animation::NodeTrackIterator nodeTrackIt = anim->getNodeTrackIterator();
+        v1::Animation::NodeTrackIterator nodeTrackIt = anim->getNodeTrackIterator();
         while(nodeTrackIt.hasMoreElements())
         {
 			nodeTrackIt.getNext()->resetNodeToInitialState();
         }
 
-		Animation::OldNodeTrackIterator OldNodeTrackIt = anim->getOldNodeTrackIterator();
+        v1::Animation::OldNodeTrackIterator OldNodeTrackIt = anim->getOldNodeTrackIterator();
 		while(OldNodeTrackIt.hasMoreElements())
 		{
-			OldNode* nd = OldNodeTrackIt.getNext()->getAssociatedNode();
+            v1::OldNode* nd = OldNodeTrackIt.getNext()->getAssociatedNode();
 			if (nd)
 				nd->resetToInitialState();
 		}
 
-        Animation::NumericTrackIterator numTrackIt = anim->getNumericTrackIterator();
+        v1::Animation::NumericTrackIterator numTrackIt = anim->getNumericTrackIterator();
         while(numTrackIt.hasMoreElements())
         {
             const AnimableValuePtr& animPtr = numTrackIt.getNext()->getAssociatedAnimable();
@@ -3521,14 +3391,14 @@ void SceneManager::_applySceneAnimations(void)
     stateIt = mAnimationStates.getEnabledAnimationStateIterator();
     while (stateIt.hasMoreElements())
     {
-        const AnimationState* state = stateIt.getNext();
-        Animation* anim = getAnimation(state->getAnimationName());
+        const v1::AnimationState* state = stateIt.getNext();
+        v1::Animation* anim = getAnimation(state->getAnimationName());
         // Apply the animation
         anim->apply(state->getTimePosition(), state->getWeight());
     }
 }
 //---------------------------------------------------------------------
-void SceneManager::manualRender(RenderOperation* rend, 
+void SceneManager::manualRender(v1::RenderOperation* rend,
                                 Pass* pass, Viewport* vp, const Matrix4& worldMatrix, 
                                 const Matrix4& viewMatrix, const Matrix4& projMatrix, 
                                 bool doBeginEndFrame) 
@@ -3729,9 +3599,12 @@ void SceneManager::removeRenderObjectListener(RenderObjectListener* delListener)
     }
 }
 //---------------------------------------------------------------------
-void SceneManager::_setCurrentShadowNode( CompositorShadowNode *shadowNode )
+void SceneManager::_setCurrentShadowNode( CompositorShadowNode *shadowNode, bool isReused )
 {
     mCurrentShadowNode = shadowNode;
+    mShadowNodeIsReused= isReused;
+    if( !shadowNode )
+        mShadowNodeIsReused = false;
     mAutoParamDataSource->setCurrentShadowNode( shadowNode );
 }
 //---------------------------------------------------------------------
@@ -3770,7 +3643,7 @@ bool SceneManager::fireRenderQueueStarted(uint8 id, const String& invocation)
     RenderQueueListenerList::iterator i, iend;
     bool skip = false;
 
-    RenderQueue *rq = getRenderQueue();
+    RenderQueue *rq = mRenderQueue;
 
     iend = mRenderQueueListeners.end();
     for (i = mRenderQueueListeners.begin(); i != iend; ++i)
@@ -3928,12 +3801,12 @@ const Pass* SceneManager::deriveShadowCasterPass(const Pass* pass)
 
     
     // Special case alpha-blended passes
-    if ((pass->getSourceBlendFactor() == SBF_SOURCE_ALPHA && 
-        pass->getDestBlendFactor() == SBF_ONE_MINUS_SOURCE_ALPHA) 
-        || pass->getAlphaRejectFunction() != CMPF_ALWAYS_PASS)
+    /*if ((pass->getSourceBlendFactor() == SBF_SOURCE_ALPHA &&
+        pass->getDestBlendFactor() == SBF_ONE_MINUS_SOURCE_ALPHA))
+        //|| pass->getAlphaRejectFunction() != CMPF_ALWAYS_PASS)
     {
         // Alpha blended passes must retain their transparency
-        retPass->setAlphaRejectSettings(pass->getAlphaRejectFunction(), 
+        retPass->setAlphaRejectSettings(pass->getAlphaRejectFunction(),
             pass->getAlphaRejectValue());
         retPass->setSceneBlending(pass->getSourceBlendFactor(), pass->getDestBlendFactor());
         retPass->getParent()->getParent()->setTransparencyCastsShadows(true);
@@ -3974,12 +3847,7 @@ const Pass* SceneManager::deriveShadowCasterPass(const Pass* pass)
         {
             retPass->removeTextureUnitState(0);
         }
-    }
-
-    // Propagate culling modes
-    retPass->setCullingMode(pass->getCullingMode());
-    retPass->setManualCullingMode(pass->getManualCullingMode());
-    
+    }*/
 
     // Does incoming pass have a custom shadow caster program?
     if (!pass->getShadowCasterVertexProgramName().empty())
@@ -4096,9 +3964,7 @@ const RealRect& SceneManager::getLightScissorRect( const Light* l, const Camera*
 //---------------------------------------------------------------------
 ClipResult SceneManager::buildAndSetScissor(const LightList& ll, const Camera* cam)
 {
-    if (!mDestRenderSystem->getCapabilities()->hasCapability(RSC_SCISSOR_TEST))
-        return CLIPPED_NONE;
-
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
     RealRect finalRect;
     // init (inverted since we want to grow from nothing)
     finalRect.left = finalRect.bottom = 1.0f;
@@ -4148,6 +4014,7 @@ ClipResult SceneManager::buildAndSetScissor(const LightList& ll, const Camera* c
         return CLIPPED_SOME;
     }
     else
+#endif
         return CLIPPED_NONE;
 
 }
@@ -4157,14 +4024,6 @@ void SceneManager::buildScissor(const Light* light, const Camera* cam, RealRect&
     // Project the sphere onto the camera
     Sphere sphere(light->getParentNode()->_getDerivedPosition(), light->getAttenuationRange());
     cam->projectSphere(sphere, &(rect.left), &(rect.top), &(rect.right), &(rect.bottom));
-}
-//---------------------------------------------------------------------
-void SceneManager::resetScissor()
-{
-    if (!mDestRenderSystem->getCapabilities()->hasCapability(RSC_SCISSOR_TEST))
-        return;
-
-    mDestRenderSystem->setScissorTest(false);
 }
 //---------------------------------------------------------------------
 const AxisAlignedBox& SceneManager::getCurrentCastersBox(void) const
@@ -4544,7 +4403,6 @@ SceneManager::RenderContext* SceneManager::_pauseRendering()
     context->renderQueue = mRenderQueue;
     context->viewport = mCurrentViewport;
     context->camera = mCameraInProgress;
-    context->activeChain = _getActiveCompositorChain();
 
     context->rsContext = mDestRenderSystem->_pauseFrame();
     mRenderQueue = 0;
@@ -4555,7 +4413,6 @@ void SceneManager::_resumeRendering(SceneManager::RenderContext* context)
 {
     delete mRenderQueue;
     mRenderQueue = context->renderQueue;
-    _setActiveCompositorChain(context->activeChain);
     Ogre::Viewport* vp = context->viewport;
     Ogre::Camera* camera = context->camera;
 
@@ -4584,9 +4441,6 @@ void SceneManager::_resumeRendering(SceneManager::RenderContext* context)
     mCameraInProgress = context->camera;
     mDestRenderSystem->_resumeFrame(context->rsContext);
 
-    // Set rasterisation mode
-    mDestRenderSystem->_setPolygonMode(mCameraInProgress->getPolygonMode());
-
     // Set initial camera state
     mDestRenderSystem->_setProjectionMatrix(mCameraInProgress->getProjectionMatrixRS());
     
@@ -4596,7 +4450,7 @@ void SceneManager::_resumeRendering(SceneManager::RenderContext* context)
     delete context;
 }
 //---------------------------------------------------------------------
-StaticGeometry* SceneManager::createStaticGeometry(const String& name)
+v1::StaticGeometry* SceneManager::createStaticGeometry(const String& name)
 {
     // Check not existing
     if (mStaticGeometryList.find(name) != mStaticGeometryList.end())
@@ -4605,12 +4459,12 @@ StaticGeometry* SceneManager::createStaticGeometry(const String& name)
             "StaticGeometry with name '" + name + "' already exists!", 
             "SceneManager::createStaticGeometry");
     }
-    StaticGeometry* ret = OGRE_NEW StaticGeometry(this, name);
+    v1::StaticGeometry* ret = OGRE_NEW v1::StaticGeometry(this, name);
     mStaticGeometryList[name] = ret;
     return ret;
 }
 //---------------------------------------------------------------------
-StaticGeometry* SceneManager::getStaticGeometry(const String& name) const
+v1::StaticGeometry* SceneManager::getStaticGeometry(const String& name) const
 {
     StaticGeometryList::const_iterator i = mStaticGeometryList.find(name);
     if (i == mStaticGeometryList.end())
@@ -4628,7 +4482,7 @@ bool SceneManager::hasStaticGeometry(const String& name) const
 }
 
 //---------------------------------------------------------------------
-void SceneManager::destroyStaticGeometry(StaticGeometry* geom)
+void SceneManager::destroyStaticGeometry(v1::StaticGeometry* geom)
 {
     destroyStaticGeometry(geom->getName());
 }
@@ -4655,15 +4509,16 @@ void SceneManager::destroyAllStaticGeometry(void)
     mStaticGeometryList.clear();
 }
 //---------------------------------------------------------------------
-InstanceManager* SceneManager::createInstanceManager( const String &customName, const String &meshName,
-                                                      const String &groupName,
-                                                      InstanceManager::InstancingTechnique technique,
-                                                      size_t numInstancesPerBatch, uint16 flags,
-                                                      unsigned short subMeshIdx )
+v1::InstanceManager* SceneManager::createInstanceManager( const String &customName,
+                                                          const String &meshName,
+                                                          const String &groupName,
+                                                          v1::InstanceManager::InstancingTechnique technique,
+                                                          size_t numInstancesPerBatch, uint16 flags,
+                                                          unsigned short subMeshIdx )
 {
     InstanceManagerVec::iterator itor = std::lower_bound( mInstanceManagers.begin(),
-                                                            mInstanceManagers.end(),
-                                                            customName, InstanceManagerCmp() );
+                                                          mInstanceManagers.end(),
+                                                          customName, v1::InstanceManagerCmp() );
     if (itor != mInstanceManagers.end() && (*itor)->getName() == customName )
     {
         OGRE_EXCEPT( Exception::ERR_DUPLICATE_ITEM, 
@@ -4671,18 +4526,19 @@ InstanceManager* SceneManager::createInstanceManager( const String &customName, 
             "SceneManager::createInstanceManager");
     }
 
-    InstanceManager *retVal = new InstanceManager( customName, this, meshName, groupName, technique,
-                                                    flags, numInstancesPerBatch, subMeshIdx );
+    v1::InstanceManager *retVal = new v1::InstanceManager( customName, this, meshName, groupName,
+                                                           technique, flags, numInstancesPerBatch,
+                                                           subMeshIdx );
 
     mInstanceManagers.insert( itor, retVal );
     return retVal;
 }
 //---------------------------------------------------------------------
-InstanceManager* SceneManager::getInstanceManager( IdString managerName ) const
+v1::InstanceManager* SceneManager::getInstanceManager( IdString managerName ) const
 {
     InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
                                                                 mInstanceManagers.end(),
-                                                                managerName, InstanceManagerCmp() );
+                                                                managerName, v1::InstanceManagerCmp() );
     if (itor == mInstanceManagers.end() || (*itor)->getName() != managerName )
     {
         OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
@@ -4697,7 +4553,7 @@ bool SceneManager::hasInstanceManager( IdString managerName ) const
 {
     InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
                                                                 mInstanceManagers.end(),
-                                                                managerName, InstanceManagerCmp() );
+                                                                managerName, v1::InstanceManagerCmp() );
     return itor != mInstanceManagers.end() && (*itor)->getName() == managerName;
 }
 //---------------------------------------------------------------------
@@ -4705,7 +4561,7 @@ void SceneManager::destroyInstanceManager( IdString name )
 {
     InstanceManagerVec::iterator itor = std::lower_bound( mInstanceManagers.begin(),
                                                             mInstanceManagers.end(),
-                                                            name, InstanceManagerCmp() );
+                                                            name, v1::InstanceManagerCmp() );
     if (itor != mInstanceManagers.end() && (*itor)->getName() == name )
     {
         OGRE_DELETE *itor;
@@ -4713,7 +4569,7 @@ void SceneManager::destroyInstanceManager( IdString name )
     }
 }
 //---------------------------------------------------------------------
-void SceneManager::destroyInstanceManager( InstanceManager *instanceManager )
+void SceneManager::destroyInstanceManager( v1::InstanceManager *instanceManager )
 {
     destroyInstanceManager( instanceManager->getName() );
 }
@@ -4731,21 +4587,22 @@ void SceneManager::destroyAllInstanceManagers(void)
 //---------------------------------------------------------------------
 size_t SceneManager::getNumInstancesPerBatch( const String &meshName, const String &groupName,
                                               const String &materialName,
-                                              InstanceManager::InstancingTechnique technique,
+                                              v1::InstanceManager::InstancingTechnique technique,
                                               size_t numInstancesPerBatch, uint16 flags,
                                               unsigned short subMeshIdx )
 {
-    InstanceManager tmpMgr( "TmpInstanceManager", this, meshName, groupName,
-                            technique, flags, numInstancesPerBatch, subMeshIdx );
+    v1::InstanceManager tmpMgr( "TmpInstanceManager", this, meshName, groupName,
+                                technique, flags, numInstancesPerBatch, subMeshIdx );
     
     return tmpMgr.getMaxOrBestNumInstancesPerBatch( materialName, numInstancesPerBatch, flags );
 }
 //---------------------------------------------------------------------
-InstancedEntity* SceneManager::createInstancedEntity( const String &materialName, const String &managerName )
+v1::InstancedEntity* SceneManager::createInstancedEntity( const String &materialName,
+                                                          const String &managerName )
 {
     InstanceManagerVec::const_iterator itor = std::lower_bound( mInstanceManagers.begin(),
                                                                 mInstanceManagers.end(),
-                                                                managerName, InstanceManagerCmp() );
+                                                                managerName, v1::InstanceManagerCmp() );
 
     if (itor == mInstanceManagers.end() || (*itor)->getName() != managerName )
     {
@@ -4757,7 +4614,7 @@ InstancedEntity* SceneManager::createInstancedEntity( const String &materialName
     return (*itor)->createInstancedEntity( materialName );
 }
 //---------------------------------------------------------------------
-void SceneManager::destroyInstancedEntity( InstancedEntity *instancedEntity )
+void SceneManager::destroyInstancedEntity( v1::InstancedEntity *instancedEntity )
 {
     instancedEntity->_getOwner()->removeInstancedEntity( instancedEntity );
 }
@@ -4792,8 +4649,7 @@ void SceneManager::updateInstanceManagers(void)
 {
     // First update the individual instances from multiple threads
     mRequestType = UPDATE_INSTANCE_MANAGERS;
-    mWorkerThreadsBarrier->sync(); //Fire threads
-    mWorkerThreadsBarrier->sync(); //Wait them to complete
+    fireWorkerThreadsAndWait();
 
     // Now perform the final pass from a single thread
     InstanceManagerVec::const_iterator itor = mInstanceManagers.begin();
@@ -5103,6 +4959,13 @@ void SceneManager::extractAllMovableObjectsByType(const String& typeName)
     }
 }
 //---------------------------------------------------------------------
+void SceneManager::_renderSingleObject( Renderable* pRend, const MovableObject *pMovableObject,
+                                        bool casterPass, bool dualParaboloid )
+{
+    mRenderQueue->renderSingleObject( pRend, pMovableObject, mDestRenderSystem,
+                                      casterPass, dualParaboloid );
+}
+//---------------------------------------------------------------------
 void SceneManager::_injectRenderWithPass( Pass *pass, Renderable *rend, Camera *activeCamera,
                                           bool shadowDerivation, bool doLightIteration )
 {
@@ -5129,19 +4992,7 @@ uint32 SceneManager::_getCombinedVisibilityMask(void) const
         (mCurrentViewport->getVisibilityMask() & mVisibilityMask) |
         (mCurrentViewport->getVisibilityMask() & ~VisibilityFlags::RESERVED_VISIBILITY_FLAGS) :
                 mVisibilityMask;
-}
-//---------------------------------------------------------------------
-void SceneManager::setQueuedRenderableVisitor(SceneManager::SceneMgrQueuedRenderableVisitor* visitor)
-{
-    if (visitor)
-        mActiveQueuedRenderableVisitor = visitor;
-    else
-        mActiveQueuedRenderableVisitor = &mDefaultQueuedRenderableVisitor;
-}
-//---------------------------------------------------------------------
-SceneManager::SceneMgrQueuedRenderableVisitor* SceneManager::getQueuedRenderableVisitor(void) const
-{
-    return mActiveQueuedRenderableVisitor;
+
 }
 //-----------------------------------------------------------------------------------
 /*void SceneManager::buildDiffList( ArrayMemoryManager::ManagerType managerType, uint16 level,
@@ -5388,6 +5239,15 @@ void SceneManager::updateGpuProgramParameters(const Pass* pass)
     }
 
 }
+void SceneManager::fireWorkerThreadsAndWait(void)
+{
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+    _updateWorkerThread( NULL );
+#else
+    mWorkerThreadsBarrier->sync(); //Fire threads
+    mWorkerThreadsBarrier->sync(); //Wait them to complete
+#endif
+}
 //---------------------------------------------------------------------
 //---------------------------------------------------------------------
 void SceneManager::fireCullFrustumThreads( const CullFrustumRequest &request )
@@ -5399,8 +5259,7 @@ void SceneManager::fireCullFrustumThreads( const CullFrustumRequest &request )
     //in case they weren't up to date.
     mCurrentCullFrustumRequest.camera->getFrustumPlanes();
     mCurrentCullFrustumRequest.lodCamera->getFrustumPlanes();
-    mWorkerThreadsBarrier->sync(); //Fire threads
-    mWorkerThreadsBarrier->sync(); //Wait them to complete
+    fireWorkerThreadsAndWait();
 }
 //---------------------------------------------------------------------
 void SceneManager::fireCullFrustumInstanceBatchThreads( const InstanceBatchCullRequest &request )
@@ -5409,23 +5268,29 @@ void SceneManager::fireCullFrustumInstanceBatchThreads( const InstanceBatchCullR
     mRequestType = CULL_FRUSTUM_INSTANCEDENTS;
     mInstanceBatchCullRequest.frustum->getFrustumPlanes(); // Ensure they're up to date.
     mInstanceBatchCullRequest.lodCamera->getFrustumPlanes(); // Ensure they're up to date.
-    mWorkerThreadsBarrier->sync(); //Fire threads
-    mWorkerThreadsBarrier->sync(); //Wait them to complete
+    fireWorkerThreadsAndWait();
 }
 //---------------------------------------------------------------------
 void SceneManager::executeUserScalableTask( UniformScalableTask *task, bool bBlock )
 {
     mRequestType = USER_UNIFORM_SCALABLE_TASK;
     mUserTask = task;
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+    _updateWorkerThread( NULL );
+#else
     mWorkerThreadsBarrier->sync(); //Fire threads
     if( bBlock )
         mWorkerThreadsBarrier->sync(); //Wait them to complete
+#endif
 }
 //---------------------------------------------------------------------
 void SceneManager::waitForPendingUserScalableTask()
 {
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
     assert( mRequestType == USER_UNIFORM_SCALABLE_TASK );
     mWorkerThreadsBarrier->sync(); //Wait them to complete
+#endif
 }
 //---------------------------------------------------------------------
 unsigned long updateWorkerThread( ThreadHandle *threadHandle )
@@ -5437,6 +5302,7 @@ THREAD_DECLARE( updateWorkerThread );
 //---------------------------------------------------------------------
 void SceneManager::startWorkerThreads()
 {
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
     mWorkerThreadsBarrier = new Barrier( mNumWorkerThreads+1 );
     mWorkerThreads.reserve( mNumWorkerThreads );
     for( size_t i=0; i<mNumWorkerThreads; ++i )
@@ -5444,26 +5310,33 @@ void SceneManager::startWorkerThreads()
         ThreadHandlePtr th = Threads::CreateThread( THREAD_GET( updateWorkerThread ), i, this );
         mWorkerThreads.push_back( th );
     }
+#endif
 }
 //---------------------------------------------------------------------
 void SceneManager::stopWorkerThreads()
 {
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
     mExitWorkerThreads = true;
     mWorkerThreadsBarrier->sync(); // Wake up worker threads so they stop
     Threads::WaitForThreads( mWorkerThreads );
 
     delete mWorkerThreadsBarrier;
     mWorkerThreadsBarrier = 0;
+#endif
 }
 //---------------------------------------------------------------------
 unsigned long SceneManager::_updateWorkerThread( ThreadHandle *threadHandle )
 {
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
     size_t threadIdx = threadHandle->getThreadIdx();
     while( !mExitWorkerThreads )
     {
         mWorkerThreadsBarrier->sync();
         if( !mExitWorkerThreads )
         {
+#else
+    size_t threadIdx = 0;
+#endif
             switch( mRequestType )
             {
             case CULL_FRUSTUM:
@@ -5496,9 +5369,11 @@ unsigned long SceneManager::_updateWorkerThread( ThreadHandle *threadHandle )
             default:
                 break;
             }
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
             mWorkerThreadsBarrier->sync();
         }
     }
+#endif
 
     return 0;
 }

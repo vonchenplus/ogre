@@ -63,7 +63,7 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------------------
-    void SkeletonAnimationDef::build( const Skeleton *skeleton, const Animation *animation,
+    void SkeletonAnimationDef::build( const v1::Skeleton *skeleton, const v1::Animation *animation,
                                       Real frameRate )
     {
         mOriginalFrameRate = frameRate;
@@ -77,7 +77,7 @@ namespace Ogre
         //much memory to allocate, as we don't listen for resizes.
         //We also build a list of unique keyframe timestamps per block
         //(i.e. merge the keyframes from two bones that the same block)
-		Animation::OldNodeTrackIterator itor = animation->getOldNodeTrackIterator();
+        v1::Animation::OldNodeTrackIterator itor = animation->getOldNodeTrackIterator();
         {
             //Count the number of blocks needed by counting the number of unique keyframes per block.
             //i.e. When ARRAY_PACKED_REALS = 4; if 2 bones are in the same block and have the same
@@ -89,7 +89,7 @@ namespace Ogre
             while( itor.hasMoreElements() )
             {
                 size_t boneIdx              = itor.peekNextKey();
-                OldNodeAnimationTrack *track   = itor.getNext();
+                v1::OldNodeAnimationTrack *track   = itor.getNext();
 
                 if( track->getNumKeyFrames() > 0 )
                 {
@@ -154,42 +154,11 @@ namespace Ogre
 
 					if( animation->hasOldNodeTrack( boneIdx ) )
                     {
-						OldNodeAnimationTrack *oldTrack = animation->getOldNodeTrack( boneIdx );
+                        v1::OldNodeAnimationTrack *oldTrack = animation->getOldNodeTrack( boneIdx );
 
-                        TransformKeyFrame originalKF( 0, fTime );
-                        /*oldTrack->getInterpolatedKeyFrame( animation->_getTimeIndex( fTime ),
-                                                           &originalKF );*/
-                        {
-                            KeyFrame *kBase1, *kBase2;
-                            TransformKeyFrame *k1, *k2;
-                            unsigned short firstKeyIndex;
-
-                            Real t = oldTrack->getKeyFramesAtTime( animation->_getTimeIndex( fTime ),
-                                                                   &kBase1, &kBase2, &firstKeyIndex);
-                            k1 = static_cast<TransformKeyFrame*>(kBase1);
-                            k2 = static_cast<TransformKeyFrame*>(kBase2);
-
-                            if (t == 0.0)
-                            {
-                                // Just use k1
-                                originalKF = *k1;
-                            }
-                            else
-                            {
-                                // Interpolate by t
-                                Vector3 base;
-                                // Translation
-                                base = k1->getTranslate();
-                                originalKF.setTranslate( base + ((k2->getTranslate() - base) * t) );
-
-                                // Scale
-                                base = k1->getScale();
-                                originalKF.setScale( base + ((k2->getScale() - base) * t) );
-
-                                Quaternion qBase = k1->getRotation();
-                                originalKF.setRotation( qBase + ((k2->getRotation() - qBase) * t) );
-                            }
-                        }
+                        v1::TransformKeyFrame originalKF( 0, fTime );
+                        getInterpolatedUnnormalizedKeyFrame( oldTrack, animation->_getTimeIndex( fTime ),
+                                                             &originalKF );
 
                         itKeys->mBoneTransform->mPosition.setFromVector3( originalKF.getTranslate(), i );
                         itKeys->mBoneTransform->mOrientation.setFromQuaternion( originalKF.getRotation(),
@@ -213,6 +182,42 @@ namespace Ogre
             itTrack->_bakeUnusedSlots();
 
             ++itTrack;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void SkeletonAnimationDef::getInterpolatedUnnormalizedKeyFrame( v1::OldNodeAnimationTrack *oldTrack,
+                                                                    const v1::TimeIndex& timeIndex,
+                                                                    v1::TransformKeyFrame* kf )
+    {
+        v1::KeyFrame *kBase1, *kBase2;
+        v1::TransformKeyFrame *k1, *k2;
+        unsigned short firstKeyIndex;
+
+        Real t = oldTrack->getKeyFramesAtTime( timeIndex, &kBase1, &kBase2, &firstKeyIndex);
+        k1 = static_cast<v1::TransformKeyFrame*>(kBase1);
+        k2 = static_cast<v1::TransformKeyFrame*>(kBase2);
+
+        if (t == 0.0)
+        {
+            // Just use k1
+            kf->setRotation(k1->getRotation());
+            kf->setTranslate(k1->getTranslate());
+            kf->setScale(k1->getScale());
+        }
+        else
+        {
+            // Interpolate by t
+            Vector3 base;
+            // Translation
+            base = k1->getTranslate();
+            kf->setTranslate( base + ((k2->getTranslate() - base) * t) );
+
+            // Scale
+            base = k1->getScale();
+            kf->setScale( base + ((k2->getScale() - base) * t) );
+
+            Quaternion qBase = k1->getRotation();
+            kf->setRotation( qBase + ((k2->getRotation() - qBase) * t) );
         }
     }
     //-----------------------------------------------------------------------------------

@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -63,7 +64,7 @@ namespace Ogre {
 
     public:
         /// Constructor
-        SimpleRenderable( IdType id, ObjectMemoryManager *objectMemoryManager );
+        SimpleRenderable( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
 
         virtual void setMaterial( const String& matName );
         virtual const MaterialPtr& getMaterial(void) const;
@@ -77,7 +78,6 @@ namespace Ogre {
         void setBoundingBox( const AxisAlignedBox& box );
         virtual const AxisAlignedBox& getBoundingBox(void) const;
 
-        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
         /// @copydoc MovableObject::visitRenderables
         void visitRenderables(Renderable::Visitor* visitor, 
             bool debugRenderables = false);
@@ -94,6 +94,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"
