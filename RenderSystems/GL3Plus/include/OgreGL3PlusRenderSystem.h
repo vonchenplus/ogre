@@ -33,6 +33,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 #include "OgreMaterialManager.h"
 #include "OgreRenderSystem.h"
+#include "OgreHlmsSamplerblock.h"
 #include "OgreGLSLShader.h"
 
 namespace Ogre {
@@ -41,7 +42,11 @@ namespace Ogre {
     class GL3PlusRTTManager;
     class GLSLShaderManager;
     class GLSLShaderFactory;
-    class HardwareBufferManager;
+
+    namespace v1
+    {
+        class HardwareBufferManager;
+    }
 
     /**
        Implementation of GL 3 as a rendering system.
@@ -84,10 +89,13 @@ namespace Ogre {
         void initConfigOptions(void);
 
         /// Store last colour write state
-        bool mColourWrite[4];
+        uint8 mBlendChannelMask;
 
         /// Store last depth write state
         bool mDepthWrite;
+
+        /// Store last scissor enable state
+        bool mScissorsEnabled;
 
         /// Store last stencil mask state
         uint32 mStencilWriteMask;
@@ -109,9 +117,15 @@ namespace Ogre {
         /// List of background thread contexts
         GL3PlusContextList mBackgroundContextList;
 
+        /// For rendering legacy objects.
+        GLuint  mGlobalVao;
+        v1::VertexData  *mCurrentVertexBuffer;
+        v1::IndexData   *mCurrentIndexBuffer;
+        GLenum          mCurrentPolygonMode;
+
         GLSLShaderManager *mShaderManager;
         GLSLShaderFactory* mGLSLShaderFactory;
-        HardwareBufferManager* mHardwareBufferManager;
+        v1::HardwareBufferManager* mHardwareBufferManager;
 
         /** Manager object for creating render textures.
             Direct render to texture via FBO is preferable
@@ -129,23 +143,20 @@ namespace Ogre {
 
         /// Check if the GL system has already been initialised
         bool mGLInitialised;
+        bool mUseAdjacency;
 
         // local data members of _render that were moved here to improve performance
         // (save allocations)
         vector<GLuint>::type mRenderAttribsBound;
         vector<GLuint>::type mRenderInstanceAttribsBound;
 
+        GLint getCombinedMinMipFilter(void) const;
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		/// @copydoc RenderSystem::setDrawBuffer
 		virtual bool setDrawBuffer(ColourBufferType colourBuffer);
 #endif
 
-        /**
-            Cache the polygon mode value
-        */
-        GLenum mPolygonMode;
-
-        GLint getCombinedMinMipFilter(void) const;
+        unsigned char *mSwIndirectBufferPtr;
 
         GLSLShader* mCurrentVertexShader;
         GLSLShader* mCurrentFragmentShader;
@@ -154,15 +165,18 @@ namespace Ogre {
         GLSLShader* mCurrentDomainShader;
         GLSLShader* mCurrentComputeShader;
 
-        GLint getTextureAddressingMode(TextureUnitState::TextureAddressingMode tam) const;
+        GLint getTextureAddressingMode(TextureAddressingMode tam) const;
         GLenum getBlendMode(SceneBlendFactor ogreBlend) const;
 
         bool activateGLTextureUnit(size_t unit);
-        void bindVertexElementToGpu( const VertexElement &elem, HardwareVertexBufferSharedPtr vertexBuffer,
+        void bindVertexElementToGpu( const v1::VertexElement &elem,
+                                     v1::HardwareVertexBufferSharedPtr vertexBuffer,
                                      const size_t vertexStart,
                                      vector<GLuint>::type &attribsBound,
                                      vector<GLuint>::type &instanceAttribsBound,
                                      bool updateVAO);
+
+        void transformViewportCoords( int x, int &y, int width, int height );
 
     public:
         // Default constructor / destructor
@@ -218,14 +232,6 @@ namespace Ogre {
             RenderSystem
         */
         void setAmbientLight(float r, float g, float b) { };   // Not supported
-        /** See
-            RenderSystem
-        */
-        void setShadingType(ShadeOptions so) { };   // Not supported
-        /** See
-            RenderSystem
-        */
-        void setLightingEnabled(bool enabled) { };   // Not supported
 
         /// @copydoc RenderSystem::_createRenderWindow
         RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height,
@@ -257,10 +263,6 @@ namespace Ogre {
             RenderSystem
         */
         VertexElementType getColourVertexElementType(void) const;
-        /** See
-            RenderSystem
-        */
-        void setNormaliseNormals(bool normalise) { };   // Not supported
 
         // -----------------------------
         // Low-level overridden members
@@ -324,7 +326,7 @@ namespace Ogre {
         /** See
             RenderSystem
         */
-        void _setTexture(size_t unit, bool enabled, const TexturePtr &tex);
+        void _setTexture(size_t unit, bool enabled, Texture *tex);
         /** See
             RenderSystem
         */
@@ -341,23 +343,23 @@ namespace Ogre {
         /** See
             RenderSystem
         */
-        void _setTextureAddressingMode(size_t stage, const TextureUnitState::UVWAddressingMode& uvw);
-        /** See
-            RenderSystem
-        */
-        void _setTextureBorderColour(size_t stage, const ColourValue& colour);
-        /** See
-            RenderSystem
-        */
-        void _setTextureMipmapBias(size_t unit, float bias);
-        /** See
-            RenderSystem
-        */
         void _setTextureMatrix(size_t stage, const Matrix4& xform) { };   // Not supported
         /** See
             RenderSystem
         */
         void _setViewport(Viewport *vp);
+        virtual void _hlmsMacroblockCreated( HlmsMacroblock *newBlock );
+        virtual void _hlmsMacroblockDestroyed( HlmsMacroblock *block );
+        virtual void _hlmsBlendblockCreated( HlmsBlendblock *newBlock );
+        virtual void _hlmsBlendblockDestroyed( HlmsBlendblock *block );
+        virtual void _hlmsSamplerblockCreated( HlmsSamplerblock *newBlock );
+        virtual void _hlmsSamplerblockDestroyed( HlmsSamplerblock *block );
+        virtual void _setHlmsMacroblock( const HlmsMacroblock *macroblock );
+        virtual void _setHlmsBlendblock( const HlmsBlendblock *blendblock );
+        virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *samplerblock );
+        virtual void _setProgramsFromHlms( const HlmsCache *hlmsCache );
+
+        virtual void _setIndirectBuffer( IndirectBufferPacked *indirectBuffer );
         /** See
             RenderSystem
         */
@@ -369,35 +371,7 @@ namespace Ogre {
         /** See
             RenderSystem
         */
-        void _setCullingMode(CullingMode mode);
-        /** See
-            RenderSystem
-        */
-        void _setDepthBufferParams(bool depthTest = true, bool depthWrite = true, CompareFunction depthFunction = CMPF_LESS_EQUAL);
-        /** See
-            RenderSystem
-        */
-        void _setDepthBufferCheckEnabled(bool enabled = true);
-        /** See
-            RenderSystem
-        */
-        void _setDepthBufferWriteEnabled(bool enabled = true);
-        /** See
-            RenderSystem
-        */
-        void _setDepthBufferFunction(CompareFunction func = CMPF_LESS_EQUAL);
-        /** See
-            RenderSystem
-        */
         void _setDepthBias(float constantBias, float slopeScaleBias);
-        /** See
-            RenderSystem
-        */
-        void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha);
-        /** See
-            RenderSystem
-        */
-        void _setFog(FogMode mode, const ColourValue& colour, Real density, Real start, Real end);
         /** See
             RenderSystem
         */
@@ -434,10 +408,6 @@ namespace Ogre {
         /** See
             RenderSystem
         */
-        void _setPolygonMode(PolygonMode level);
-        /** See
-            RenderSystem
-        */
         void setStencilCheckEnabled(bool enabled);
         /** See
             RenderSystem.
@@ -452,39 +422,30 @@ namespace Ogre {
         /** See
             RenderSystem
         */
-        void _setTextureUnitFiltering(size_t unit, FilterType ftype, FilterOptions filter);
+        void setVertexDeclaration(v1::VertexDeclaration* decl) {}
         /** See
             RenderSystem
         */
-        void _setTextureUnitCompareFunction(size_t unit, CompareFunction function);
-        /** See
-            RenderSystem
-        */
-        void _setTextureUnitCompareEnabled(size_t unit, bool compare);
-        /** See
-            RenderSystem
-        */
-        void _setTextureLayerAnisotropy(size_t unit, unsigned int maxAnisotropy);
-        /** See
-            RenderSystem
-        */
-        void setVertexDeclaration(VertexDeclaration* decl) {}
-        /** See
-            RenderSystem
-        */
-        void setVertexDeclaration(VertexDeclaration* decl, VertexBufferBinding* binding) {}
+        void setVertexDeclaration(v1::VertexDeclaration* decl, v1::VertexBufferBinding* binding) {}
         /** See
             RenderSystem.
         */
-        void setVertexBufferBinding(VertexBufferBinding* binding) {}
+        void setVertexBufferBinding(v1::VertexBufferBinding* binding) {}
         /** See
             RenderSystem
         */
-        void _render(const RenderOperation& op);
-        /** See
-            RenderSystem
-        */
-        void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
+        void _render(const v1::RenderOperation& op);
+
+        virtual void _setVertexArrayObject( const VertexArrayObject *vao );
+        virtual void _render( const CbDrawCallIndexed *cmd );
+        virtual void _render( const CbDrawCallStrip *cmd );
+        virtual void _renderEmulated( const CbDrawCallIndexed *cmd );
+        virtual void _renderEmulated( const CbDrawCallStrip *cmd );
+
+        virtual void _startLegacyV1Rendering(void);
+        virtual void _setRenderOperation( const v1::CbRenderOp *cmd );
+        virtual void _render( const v1::CbDrawCallIndexed *cmd );
+        virtual void _render( const v1::CbDrawCallStrip *cmd );
 
         void clearFrameBuffer(unsigned int buffers,
                               const ColourValue& colour = ColourValue::Black,
@@ -539,12 +500,8 @@ namespace Ogre {
         void _setSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op );
         /// @copydoc RenderSystem::_setSeparateSceneBlending
         void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );
-        /// @copydoc RenderSystem::_setAlphaRejectSettings
-        void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
         /// @copydoc RenderSystem::getDisplayMonitorCount
         unsigned int getDisplayMonitorCount() const;
-
-        GLenum _getPolygonMode(void) { return mPolygonMode; }
 
         void _setSceneBlendingOperation(SceneBlendOperation op);
         void _setSeparateSceneBlendingOperation(SceneBlendOperation op, SceneBlendOperation alphaOp);

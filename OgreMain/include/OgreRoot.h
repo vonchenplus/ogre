@@ -87,9 +87,10 @@ namespace Ogre
         DynLibManager* mDynLibManager;
         ArchiveManager* mArchiveManager;
         MaterialManager* mMaterialManager;
+        v1::MeshManager* mMeshManagerV1;
         MeshManager* mMeshManager;
         ParticleSystemManager* mParticleManager;
-        OldSkeletonManager* mOldSkeletonManager;
+        v1::OldSkeletonManager* mOldSkeletonManager;
         SkeletonManager* mSkeletonManager;
         
         ArchiveFactory *mZipArchiveFactory;
@@ -113,12 +114,14 @@ namespace Ogre
         Profiler* mProfiler;
         HighLevelGpuProgramManager* mHighLevelGpuProgramManager;
         ExternalTextureSourceManager* mExternalTextureSourceManager;
+        HlmsManager         *mHlmsManager;
+        HlmsLowLevel        *mHlmsLowLevelProxy;
         CompositorManager2 *mCompositorManager2;
         unsigned long mNextFrame;
         Real mFrameSmoothingTime;
         bool mRemoveQueueStructuresOnClear;
         Real mDefaultMinPixelSize;
-        HardwareBuffer::UploadOptions mFreqUpdatedBuffersUploadOption;
+        v1::HardwareBuffer::UploadOptions mFreqUpdatedBuffersUploadOption;
 
     public:
         typedef vector<DynLib*>::type PluginLibList;
@@ -134,14 +137,12 @@ namespace Ogre
         uint32 mNextMovableObjectTypeFlag;
         // stock movable factories
         MovableObjectFactory* mEntityFactory;
+        MovableObjectFactory* mItemFactory;
         MovableObjectFactory* mLightFactory;
         MovableObjectFactory* mBillboardSetFactory;
         MovableObjectFactory* mManualObjectFactory;
         MovableObjectFactory* mBillboardChainFactory;
         MovableObjectFactory* mRibbonTrailFactory;
-
-        typedef map<String, RenderQueueInvocationSequence*>::type RenderQueueInvocationSequenceMap;
-        RenderQueueInvocationSequenceMap mRQSequenceMap;
 
         /// Are we initialised yet?
         bool mIsInitialised;
@@ -314,6 +315,9 @@ namespace Ogre
         */
         RenderSystem* getRenderSystem(void);
 
+        /// Gets the HlmsManager, which is needed to register generators at startup.
+        HlmsManager* getHlmsManager(void) const                     { return mHlmsManager; }
+
         CompositorManager2* getCompositorManager2() const           { return mCompositorManager2; }
 
         /** Initialises the renderer.
@@ -470,7 +474,7 @@ namespace Ogre
                 This performs the same function as MeshManager::getSingleton
                 and is provided for convenience to scripting engines.
         */
-        MeshManager* getMeshManager(void);
+        v1::MeshManager* getMeshManagerV1(void);
 
         /** Utility function for getting a better description of an error
             code.
@@ -926,33 +930,6 @@ namespace Ogre
         */
         bool _updateAllRenderTargets(FrameEvent& evt);
 
-        /** Create a new RenderQueueInvocationSequence, useful for linking to
-            Viewport instances to perform custom rendering.
-        @param name The name to give the new sequence
-        */
-        RenderQueueInvocationSequence* createRenderQueueInvocationSequence(
-            const String& name);
-
-        /** Get a RenderQueueInvocationSequence. 
-        @param name The name to identify the sequence
-        */
-        RenderQueueInvocationSequence* getRenderQueueInvocationSequence(
-            const String& name);
-
-        /** Destroy a RenderQueueInvocationSequence. 
-        @remarks
-            You must ensure that no Viewports are using this sequence.
-        @param name The name to identify the sequence
-        */
-        void destroyRenderQueueInvocationSequence(
-            const String& name);
-
-        /** Destroy all RenderQueueInvocationSequences. 
-        @remarks
-            You must ensure that no Viewports are using custom sequences.
-        */
-        void destroyAllRenderQueueInvocationSequences(void);
-
         /** Override standard Singleton retrieval.
             @remarks
                 Why do we do this? Well, it's because the Singleton
@@ -1107,12 +1084,12 @@ namespace Ogre
         as it will upload frequently changing buffers to devices that require them.
         However setting the HBU_ON_DEMAND may also introduce hiccups.
         */
-        void setFreqUpdatedBuffersUploadOption(HardwareBuffer::UploadOptions uploadOp) { mFreqUpdatedBuffersUploadOption = uploadOp; }
+        void setFreqUpdatedBuffersUploadOption(v1::HardwareBuffer::UploadOptions uploadOp) { mFreqUpdatedBuffersUploadOption = uploadOp; }
         /** Get the default upload option for buffers that frequently changed
         @note
             To use this feature see Camera::setFreqUpdatedBuffersUploadOption()
         */
-        HardwareBuffer::UploadOptions getFreqUpdatedBuffersUploadOption() const { return mFreqUpdatedBuffersUploadOption; }
+        v1::HardwareBuffer::UploadOptions getFreqUpdatedBuffersUploadOption() const { return mFreqUpdatedBuffersUploadOption; }
 
     };
     /** @} */

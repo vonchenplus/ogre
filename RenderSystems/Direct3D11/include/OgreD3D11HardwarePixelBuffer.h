@@ -35,7 +35,7 @@ THE SOFTWARE.
 struct ID3D11Resource;
 
 namespace Ogre {
-
+namespace v1 {
     class D3D11HardwarePixelBuffer: public HardwarePixelBuffer
     {
     protected:
@@ -71,14 +71,15 @@ namespace Ogre {
         ID3D11Resource *mStagingBuffer;
         
         void _map(ID3D11Resource *res, D3D11_MAP flags, PixelBox & box);
-        void *_mapstagingbuffer(D3D11_MAP flags);
+        void _mapstagingbuffer(D3D11_MAP flags, PixelBox &box);
         void *_mapstaticbuffer(PixelBox lock);
         void _unmap(ID3D11Resource *res);
         void _unmapstagingbuffer(bool copyback = true);
         void _unmapstaticbuffer();
     public:
         D3D11HardwarePixelBuffer(D3D11Texture * parentTexture, D3D11Device & device, size_t subresourceIndex,
-            size_t width, size_t height, size_t depth, size_t face, PixelFormat format, HardwareBuffer::Usage usage);
+            size_t width, size_t height, size_t depth, size_t face, PixelFormat format,
+                                 HardwareBuffer::Usage usage);
 
         /// @copydoc HardwarePixelBuffer::blit
         void blit(const HardwarePixelBufferSharedPtr &src, const Image::Box &srcBox, const Image::Box &dstBox);
@@ -111,5 +112,6 @@ namespace Ogre {
         size_t getSubresourceIndex() const;
         size_t getFace() const;
     };
+}
 };
 #endif

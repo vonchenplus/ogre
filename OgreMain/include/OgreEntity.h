@@ -41,6 +41,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -92,10 +93,11 @@ namespace Ogre {
 
         /** Private constructor (instances cannot be created directly).
         */
-        Entity( IdType id, ObjectMemoryManager *objectMemoryManager );
+        Entity( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
         /** Private constructor.
         */
-        Entity( IdType id, ObjectMemoryManager *objectMemoryManager, const MeshPtr& mesh );
+        Entity( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                const MeshPtr& mesh );
 
         /** The Mesh that this Entity is based on.
         */
@@ -224,7 +226,7 @@ namespace Ogre {
         bool mSkipAnimStateUpdates;
         /// Flag indicating whether to update the main entity skeleton even when an LOD is displayed.
         bool mAlwaysUpdateMainSkeleton;
-		/// Flag indicating whether to update the bounding box from the bones of the skeleton.
+        /// Flag indicating whether to update the bounding box from the bones of the skeleton.
         bool mUpdateBoundingBoxFromSkeleton;
 
         /** List of LOD Entity instances (for manual LODs).
@@ -302,6 +304,12 @@ namespace Ogre {
         */
         size_t getNumSubEntities(void) const;
 
+        /// Sets the given HLMS datablock to all SubEntities
+        void setDatablock( HlmsDatablock *datablock );
+
+        /// Sets the given HLMS datablock to all SubEntities
+        void setDatablock( IdString datablockName );
+
         /** Clones this entity and returns a pointer to the clone.
         @remarks
             Useful method for duplicating an entity. The new entity must be
@@ -312,6 +320,17 @@ namespace Ogre {
             Name for the new entity.
         */
         Entity* clone(void) const;
+
+        /** Sets the material to use for the whole of this Item.
+        @remarks
+            This is a shortcut method to set all the materials for all
+            subentities of this Item. Only use this method is you want to
+            set the same material for all subentities or if you know there
+            is only one. Otherwise call getSubItem() and call the same
+            method on the individual SubItem.
+        */
+        void setDatablockOrMaterialName( const String& name,
+                                         const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 
         /** Sets the material to use for the whole of this entity.
         @remarks
@@ -334,15 +353,22 @@ namespace Ogre {
         */
         void setMaterial(const MaterialPtr& material);
 
+        /** Sets the RenderQueue subgroup ID for the whole of this entity.
+        @remarks
+            This is a shortcut method to set all the subgroups for all
+            subentities of this entity. Only use this method is you want to
+            set the same subgroup for all subentities or if you know there
+            is only one. Otherwise call getSubEntity() and call the same
+            method on the individual SubEntity.
+        */
+        void setRenderQueueSubGroup( uint8 subGroup );
+
         /** @copydoc MovableObject::_notifyCurrentCamera.
         */
         void _notifyCurrentCamera(Camera* cam);
 
         /// @copydoc MovableObject::setRenderQueueGroup.
         void setRenderQueueGroup(uint8 queueID);
-
-        /// @copydoc MovableObject::setRenderQueueGroupAndPriority.
-        void setRenderQueueGroupAndPriority(uint8 queueID, ushort priority);
 
         /** @copydoc MovableObject::_updateRenderQueue.
         */
@@ -379,7 +405,7 @@ namespace Ogre {
         */
         bool getDisplaySkeleton(void) const;
 
-		/** Gets a pointer to the entity representing the numbered manual level of detail.
+        /** Gets a pointer to the entity representing the numbered manual level of detail.
         @remarks
             The zero-based index never includes the original entity, unlike
             Mesh::getLodLevel.
@@ -720,7 +746,8 @@ namespace Ogre {
     {
     protected:
         virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
-                                                    const NameValuePairList* params = 0 );
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         EntityFactory() {}
         ~EntityFactory() {}
@@ -734,6 +761,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
+}
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"

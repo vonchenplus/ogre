@@ -168,7 +168,6 @@ namespace Ogre
         ConfigOption optFSAA;
         ConfigOption optRTTMode;
         ConfigOption optSRGB;
-        ConfigOption optEnableFixedPipeline;
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 		ConfigOption optStereoMode;
 #endif
@@ -197,12 +196,6 @@ namespace Ogre
 
         optSRGB.name = "sRGB Gamma Conversion";
         optSRGB.immutable = false;
-
-        optEnableFixedPipeline.name = "Fixed Pipeline Enabled";
-        optEnableFixedPipeline.possibleValues.push_back( "Yes" );
-        optEnableFixedPipeline.possibleValues.push_back( "No" );
-        optEnableFixedPipeline.currentValue = "Yes";
-        optEnableFixedPipeline.immutable = false;
 
         optFullScreen.possibleValues.push_back("No");
         optFullScreen.possibleValues.push_back("Yes");
@@ -267,7 +260,6 @@ namespace Ogre
         mOptions[optRTTMode.name] = optRTTMode;
         mOptions[optFSAA.name] = optFSAA;
         mOptions[optSRGB.name] = optSRGB;
-        mOptions[optEnableFixedPipeline.name] = optEnableFixedPipeline;
 
         refreshConfig();
     }
@@ -381,12 +373,6 @@ namespace Ogre
 
             if((opt = mOptions.find("sRGB Gamma Conversion")) != end)
                 miscParams["gamma"] = opt->second.currentValue;
-
-            opt = mOptions.find("Fixed Pipeline Enabled");
-            if (opt == mOptions.end())
-                OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Can't find Fixed Pipeline enabled options!", "Win32GLSupport::createWindow");
-            bool enableFixedPipeline = (opt->second.currentValue == "Yes");
-            renderSystem->setFixedPipelineEnabled(enableFixedPipeline);
 
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 			opt = mOptions.find("Stereo Mode");
@@ -550,7 +536,7 @@ namespace Ogre
         if (! fbConfig)
         {
             int minAttribs[] = {
-                GLX_DRAWABLE_TYPE,  GLX_WINDOW_BIT || GLX_PIXMAP_BIT,
+                GLX_DRAWABLE_TYPE,  GLX_WINDOW_BIT | GLX_PIXMAP_BIT,
                 GLX_RENDER_TYPE,        GLX_RGBA_BIT,
                 GLX_RED_SIZE,      1,
                 GLX_BLUE_SIZE,    1,
@@ -845,9 +831,12 @@ namespace Ogre
         ::GLXContext glxContext = NULL;
         int context_attribs[] =
             {
-                GLX_CONTEXT_MAJOR_VERSION_ARB, 5,
-                GLX_CONTEXT_MINOR_VERSION_ARB, 0,
+                GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
+                GLX_CONTEXT_MINOR_VERSION_ARB, 3,
                 GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+#if OGRE_DEBUG_MODE
+                GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB,
+#endif
                 None
             };
 

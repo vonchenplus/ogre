@@ -166,9 +166,7 @@ namespace Ogre
         static String msMovableType;
 
         mutable AxisAlignedBox mBoundingBox;
-        mutable VertexData mVertexData;
-
-        MaterialPtr mMaterial;
+        mutable v1::VertexData mVertexData; //TODO: Remove this
         mutable Vector3 mWorldSpaceCorners[8];
 
         /// Is this frustum to act as a reflection of itself?
@@ -421,7 +419,7 @@ namespace Ogre
         @remarks
             The clipping planes are ordered as declared in enumerate constants FrustumPlane.
         */
-        virtual const Plane* getFrustumPlanes(void) const;
+        const Plane* getFrustumPlanes(void) const;
 
         /// Returns the frustum planes, doesn't check if dirty.
         const Plane* _getCachedFrustumPlanes(void) const                { return mFrustumPlanes; }
@@ -430,7 +428,7 @@ namespace Ogre
         @remarks
             Gets a reference to one of the planes which make up the frustum frustum, e.g. for clipping purposes.
         */
-        virtual const Plane& getFrustumPlane( unsigned short plane ) const;
+        const Plane& getFrustumPlane( unsigned short plane ) const;
 
         /** Tests whether the given container is visible in the Frustum.
         @param bound
@@ -475,19 +473,13 @@ namespace Ogre
         const AxisAlignedBox& getBoundingBox(void) const;
 
         /** Overridden from MovableObject */
-        void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
-
-        /** Overridden from MovableObject */
         const String& getMovableType(void) const;
 
         /** Overridden from MovableObject */
         void _notifyCurrentCamera(Camera* cam);
 
         /** Overridden from Renderable */
-        const MaterialPtr& getMaterial(void) const;
-
-        /** Overridden from Renderable */
-        void getRenderOperation(RenderOperation& op);
+        void getRenderOperation(v1::RenderOperation& op);
 
         /** Overridden from Renderable */
         void getWorldTransforms(Matrix4* xform) const;

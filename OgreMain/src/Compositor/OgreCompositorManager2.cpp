@@ -38,10 +38,13 @@ THE SOFTWARE.
 #include "Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h"
 #include "Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h"
 
+#include "Math/Array/OgreObjectMemoryManager.h"
+
 #include "OgreRectangle2D.h"
 #include "OgreTextureManager.h"
 #include "OgreHardwarePixelBuffer.h"
 #include "OgreRenderSystem.h"
+#include "OgreSceneManagerEnumerator.h"
 
 namespace Ogre
 {
@@ -73,10 +76,12 @@ namespace Ogre
         mFrameCount( 0 ),
         mRenderSystem( renderSystem ),
         mSharedTriangleFS( 0 ),
-        mSharedQuadFS( 0 )
+        mSharedQuadFS( 0 ),
+        mDummyObjectMemoryManager( 0 )
     {
-        mSharedTriangleFS   = OGRE_NEW Rectangle2D( false );
-        mSharedQuadFS       = OGRE_NEW Rectangle2D( true );
+        mDummyObjectMemoryManager = new ObjectMemoryManager();
+        mSharedTriangleFS   = OGRE_NEW v1::Rectangle2D( false, 0, mDummyObjectMemoryManager, 0 );
+        mSharedQuadFS       = OGRE_NEW v1::Rectangle2D( true, 0, mDummyObjectMemoryManager, 0 );
 
         //----------------------------------------------------------------
         // Create a default Node & Workspace for basic rendering:
@@ -189,6 +194,9 @@ namespace Ogre
         mSharedTriangleFS = 0;
         OGRE_DELETE mSharedQuadFS;
         mSharedQuadFS = 0;
+
+        delete mDummyObjectMemoryManager;
+        mDummyObjectMemoryManager = 0;
     }
     //-----------------------------------------------------------------------------------
     bool CompositorManager2::hasNodeDefinition( IdString nodeDefName ) const
@@ -338,17 +346,22 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     CompositorWorkspace* CompositorManager2::addWorkspace( SceneManager *sceneManager,
                                              RenderTarget *finalRenderTarget, Camera *defaultCam,
-                                             IdString definitionName, bool bEnabled, int position )
+                                             IdString definitionName, bool bEnabled, int position,
+                                             const Vector4 &vpOffsetScale,
+                                             uint8 vpModifierMask, uint8 executionMask )
     {
         CompositorChannel channel;
         channel.target = finalRenderTarget;
-        return addWorkspace( sceneManager, channel, defaultCam, definitionName, bEnabled, position );
+        return addWorkspace( sceneManager, channel, defaultCam, definitionName, bEnabled, position,
+                             vpOffsetScale, vpModifierMask, executionMask );
     }
     //-----------------------------------------------------------------------------------
     CompositorWorkspace* CompositorManager2::addWorkspace( SceneManager *sceneManager,
                                              const CompositorChannel &finalRenderTarget,
                                              Camera *defaultCam, IdString definitionName,
-                                             bool bEnabled, int position )
+                                             bool bEnabled, int position,
+                                             const Vector4 &vpOffsetScale,
+                                             uint8 vpModifierMask, uint8 executionMask )
     {
         validateAllNodes();
 
@@ -365,7 +378,8 @@ namespace Ogre
         {
             workspace = OGRE_NEW CompositorWorkspace(
                                 Id::generateNewId<CompositorWorkspace>(), itor->second,
-                                finalRenderTarget, sceneManager, defaultCam, mRenderSystem, bEnabled );
+                                finalRenderTarget, sceneManager, defaultCam, mRenderSystem,
+                                bEnabled, executionMask, vpModifierMask, vpOffsetScale );
 
             position = std::min<int>( position, mWorkspaces.size() );
 
@@ -437,7 +451,7 @@ namespace Ogre
         mNullTextureList.push_back( shadowTex );
 
         // lock & populate the texture based on format
-        shadowTex->getBuffer()->lock(HardwareBuffer::HBL_DISCARD);
+        shadowTex->getBuffer()->lock(v1::HardwareBuffer::HBL_DISCARD);
         const PixelBox& box = shadowTex->getBuffer()->getCurrentLock();
 
         // set high-values across all bytes of the format 
@@ -465,7 +479,7 @@ namespace Ogre
         mUnfinishedShadowNodes.clear();
     }
     //-----------------------------------------------------------------------------------
-    void CompositorManager2::_update(void)
+    void CompositorManager2::_update( SceneManagerEnumerator &sceneManagers )
     {
         WorkspaceVec::const_iterator itor = mWorkspaces.begin();
         WorkspaceVec::const_iterator end  = mWorkspaces.end();
@@ -478,6 +492,8 @@ namespace Ogre
                 workspace->_validateFinalTarget();
             ++itor;
         }
+
+        mRenderSystem->_beginFrameOnce();
 
         itor = mWorkspaces.begin();
 
@@ -522,6 +538,17 @@ namespace Ogre
             ++itor;
         }
 
+        SceneManagerEnumerator::SceneManagerIterator sceneManagerItor =
+                sceneManagers.getSceneManagerIterator();
+
+        while( sceneManagerItor.hasMoreElements() )
+        {
+            SceneManager *sceneManager = sceneManagerItor.getNext();
+            sceneManager->_frameEnded();
+        }
+
+        mRenderSystem->_update();
+
         ++mFrameCount;
     }
     //-----------------------------------------------------------------------------------
@@ -530,11 +557,22 @@ namespace Ogre
         WorkspaceVec::const_iterator itor = mWorkspaces.begin();
         WorkspaceVec::const_iterator end  = mWorkspaces.end();
 
+        vector<RenderTarget*>::type swappedTargets;
+        swappedTargets.reserve( mWorkspaces.size() );
+
         while( itor != end )
         {
             CompositorWorkspace *workspace = (*itor);
-            if( workspace->getEnabled() && workspace->isValid() )
+
+            RenderTarget *finalTarget = workspace->getFinalTarget();
+            bool alreadySwapped = std::find( swappedTargets.begin(),
+                                             swappedTargets.end(), finalTarget ) != swappedTargets.end();
+
+            if( workspace->getEnabled() && workspace->isValid() && !alreadySwapped )
+            {
                 workspace->_swapFinalTarget();
+                swappedTargets.push_back( finalTarget );
+            }
 
             ++itor;
         }
