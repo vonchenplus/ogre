@@ -735,10 +735,10 @@ namespace Ogre {
                                                                                 (objData.mLightMask);
 
             for( size_t j=0; j<ARRAY_PACKED_REALS; ++j )
-            {
                 objData.mOwner[j]->mLightList.clear();
-                objData.mOwner[j]->mLightList.dirtyHash();
-            }
+
+            ArrayMaskI isVisible = Mathlib::TestFlags4( *objVisibilityMask,
+                                                        Mathlib::SetAll( LAYER_VISIBILITY ) );
 
             //Now iterate through all lights to find the influence on these 4 Objects at once
             LightArray::const_iterator lightsIt             = globalLightList.lights.begin();
@@ -759,9 +759,6 @@ namespace Ogre {
                 //rMask = ( intersects() && lightMask & visibilityMask )
                 rMask = Mathlib::TestFlags4( rMask, Mathlib::And( *objLightMask, *visibilityMask ) );
 
-                ArrayMaskI isVisible = Mathlib::TestFlags4( *objVisibilityMask,
-                                                            Mathlib::SetAll( LAYER_VISIBILITY ) );
-
                 rMask = Mathlib::And( rMask, isVisible );
 
                 //Convert rMask into something smaller we can work with.
@@ -775,6 +772,7 @@ namespace Ogre {
                     if( IS_BIT_SET( k, r ) )
                     {
                         LightList &lightList = objData.mOwner[k]->mLightList;
+                        lightList.dirtyHash(); //Don't calculate hash incrementally
                         lightList.push_back( LightClosest( *lightsIt, lightList.size(), distance[k] ) );
                     }
                 }
@@ -786,9 +784,18 @@ namespace Ogre {
 
             for( size_t j=0; j<ARRAY_PACKED_REALS; ++j )
             {
-                std::stable_sort( objData.mOwner[j]->mLightList.begin(),
-                                    objData.mOwner[j]->mLightList.end() );
-                objData.mOwner[j]->mLightList.getHash();
+                //Trying to sort an empty container will cause two things:
+                //  * (Only debug layers?) Wreaks havoc during multithreading
+                //    due to the dummy NullEntity pointer on some stl
+                //    implementations.
+                //  * False cache sharing when trying to recalculate the hash.
+                //    of the dummy NullEntity pointer
+                if( !objData.mOwner[j]->mLightList.empty() )
+                {
+                    std::stable_sort( objData.mOwner[j]->mLightList.begin(),
+                                      objData.mOwner[j]->mLightList.end() );
+                    objData.mOwner[j]->mLightList.getHash();
+                }
             }
 
             objData.advanceLightPack();
