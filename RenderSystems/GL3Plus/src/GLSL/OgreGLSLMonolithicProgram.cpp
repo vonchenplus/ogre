@@ -39,36 +39,36 @@
 
 namespace Ogre {
 
-    GLint getGLGeometryInputPrimitiveType(RenderOperation::OperationType operationType, bool requiresAdjacency)
+    GLint getGLGeometryInputPrimitiveType(v1::RenderOperation::OperationType operationType, bool requiresAdjacency)
     {
         switch (operationType)
         {
-        case RenderOperation::OT_POINT_LIST:
+        case v1::RenderOperation::OT_POINT_LIST:
             return GL_POINTS;
-        case RenderOperation::OT_LINE_LIST:
+        case v1::RenderOperation::OT_LINE_LIST:
             return requiresAdjacency ? GL_LINES_ADJACENCY : GL_LINES;
-        case RenderOperation::OT_LINE_STRIP:
+        case v1::RenderOperation::OT_LINE_STRIP:
             return requiresAdjacency ? GL_LINE_STRIP_ADJACENCY : GL_LINES;
         default:
-        case RenderOperation::OT_TRIANGLE_LIST:
+        case v1::RenderOperation::OT_TRIANGLE_LIST:
             return requiresAdjacency ? GL_TRIANGLES_ADJACENCY : GL_TRIANGLES;
-        case RenderOperation::OT_TRIANGLE_STRIP:
+        case v1::RenderOperation::OT_TRIANGLE_STRIP:
             return requiresAdjacency ? GL_TRIANGLE_STRIP_ADJACENCY : GL_TRIANGLES;
-        case RenderOperation::OT_TRIANGLE_FAN:
+        case v1::RenderOperation::OT_TRIANGLE_FAN:
             return requiresAdjacency ? GL_TRIANGLES_ADJACENCY : GL_TRIANGLES;
         }
     }
 
 
-    GLint getGLGeometryOutputPrimitiveType(RenderOperation::OperationType operationType)
+    GLint getGLGeometryOutputPrimitiveType(v1::RenderOperation::OperationType operationType)
     {
         switch (operationType)
         {
-        case RenderOperation::OT_POINT_LIST:
+        case v1::RenderOperation::OT_POINT_LIST:
             return GL_POINTS;
-        case RenderOperation::OT_LINE_STRIP:
+        case v1::RenderOperation::OT_LINE_STRIP:
             return GL_LINE_STRIP;
-        case RenderOperation::OT_TRIANGLE_STRIP:
+        case v1::RenderOperation::OT_TRIANGLE_STRIP:
             return GL_TRIANGLE_STRIP;
         default:
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
@@ -136,7 +136,7 @@ namespace Ogre {
 
     void GLSLMonolithicProgram::compileAndLink()
     {
-        mVertexArrayObject = new GL3PlusVertexArrayObject();
+        mVertexArrayObject = new GL3PlusOldVertexArrayObject();
         mVertexArrayObject->bind();
 
         // Compile and attach Vertex Program
@@ -205,6 +205,8 @@ namespace Ogre {
 
             mComputeShader->attachToProgramObject(mGLProgramHandle);
         }
+
+        bindFixedAttributes( mGLProgramHandle );
 
         // the link
         OGRE_CHECK_GL_ERROR(glLinkProgram( mGLProgramHandle ));
@@ -475,7 +477,7 @@ namespace Ogre {
                     case GCT_SAMPLERCUBE:
                     case GCT_SAMPLERRECT:
                         // Samplers handled like 1-element ints
-                        OGRE_CHECK_GL_ERROR(glUniform1iv(currentUniform->mLocation, 1,
+                        OGRE_CHECK_GL_ERROR(glUniform1iv(currentUniform->mLocation, glArraySize,
                                                          (GLint*)params->getIntPointer(def->physicalIndex)));
                         break;
                     default:
@@ -504,7 +506,7 @@ namespace Ogre {
         {
             for (;currentBuffer != endBuffer; ++currentBuffer)
             {
-                GL3PlusHardwareUniformBuffer* hwGlBuffer = static_cast<GL3PlusHardwareUniformBuffer*>(currentBuffer->get());
+                v1::GL3PlusHardwareUniformBuffer* hwGlBuffer = static_cast<v1::GL3PlusHardwareUniformBuffer*>(currentBuffer->get());
                 GpuSharedParametersPtr paramsPtr = it->getSharedParams();
 
                 // Block name is stored in mSharedParams->mName of GpuSharedParamUsageList items

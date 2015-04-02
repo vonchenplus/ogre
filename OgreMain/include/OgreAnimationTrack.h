@@ -37,6 +37,8 @@ THE SOFTWARE.
 
 namespace Ogre 
 {
+namespace v1
+{
     class VertexPoseKeyFrame;
     class KeyFrame;
 
@@ -690,7 +692,7 @@ namespace Ogre
     /** @} */
     /** @} */
 }
-
+}
 #include "OgreHeaderSuffix.h"
 
 #endif

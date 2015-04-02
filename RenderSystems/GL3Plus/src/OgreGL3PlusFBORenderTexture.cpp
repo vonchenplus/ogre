@@ -290,7 +290,8 @@ namespace Ogre {
     {
         // is glGetInternalformativ supported?
         // core since GL 4.2: see https://www.opengl.org/wiki/GLAPI/glGetInternalformat
-        bool hasInternalFormatQuery = mGLSupport.hasMinGLVersion(4, 2)
+        // NOTE! GL_FRAMEBUFFER_RENDERABLE is supported only if the GL version is 4.3 or higher
+        bool hasInternalFormatQuery = mGLSupport.hasMinGLVersion(4, 3)
                 || mGLSupport.checkExtension("GL_ARB_internalformat_query2");
 
         // Try all formats, and report which ones work as target
@@ -304,7 +305,7 @@ namespace Ogre {
             mProps[x].valid = false;
 
             // Fetch GL format token
-            GLenum internalFormat = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x);
+            GLenum internalFormat = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x, false);
             GLenum originFormat = GL3PlusPixelUtil::getGLOriginFormat((PixelFormat)x);
             GLenum dataType = GL3PlusPixelUtil::getGLOriginDataType((PixelFormat)x);
             if(internalFormat == GL_NONE && x != 0)
@@ -509,7 +510,7 @@ namespace Ogre {
             else
             {
                 // New one
-                GL3PlusRenderBuffer *rb = new GL3PlusRenderBuffer(format, width, height, fsaa);
+                v1::GL3PlusRenderBuffer *rb = new v1::GL3PlusRenderBuffer(format, width, height, fsaa);
                 mRenderBufferMap[key] = RBRef(rb);
                 retval.buffer = rb;
                 retval.zoffset = 0;

@@ -250,6 +250,8 @@ namespace Ogre
         convexBody.clip( p );
         p.redefine( Vector3::UNIT_Y, vMaxCamFrustumLS );
         convexBody.clip( p );
+        p.redefine( Vector3::NEGATIVE_UNIT_Z, vMinCamFrustumLS );
+        convexBody.clip( p );
 
         Vector3 vMin( std::numeric_limits<Real>::max(), std::numeric_limits<Real>::max(),
                       std::numeric_limits<Real>::max() );
@@ -278,8 +280,8 @@ namespace Ogre
         }
 
         //Some padding
-        vMax += 10.0f;
-        vMin -= 10.0f;
+        vMax += 2.5f;
+        vMin -= 2.5f;
 
         texCam->setProjectionType( PT_ORTHOGRAPHIC );
         Vector3 shadowCameraPos = (vMin + vMax) * 0.5f;

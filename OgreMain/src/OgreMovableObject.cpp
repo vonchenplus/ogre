@@ -37,13 +37,14 @@ THE SOFTWARE.
 #include "OgreLodListener.h"
 #include "OgreLight.h"
 #include "OgreTechnique.h"
+#include "Animation/OgreSkeletonInstance.h"
 #include "Math/Array/OgreArraySphere.h"
 #include "Math/Array/OgreBooleanMask.h"
 #include "OgreRawPtr.h"
 
 namespace Ogre {
     using namespace VisibilityFlags;
-    const FastArray<Real> c_DefaultLodMesh = FastArray<Real>( 1, std::numeric_limits<Real>::max() );
+    const FastArray<Real> MovableObject::c_DefaultLodMesh = FastArray<Real>( 1, std::numeric_limits<Real>::max() );
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
     const String NullEntity::msMovableType = "NullEntity";
@@ -54,23 +55,20 @@ namespace Ogre {
     uint32 MovableObject::msDefaultVisibilityFlags = 0xFFFFFFFF & (~LAYER_VISIBILITY);
     //-----------------------------------------------------------------------
     MovableObject::MovableObject( IdType id, ObjectMemoryManager *objectMemoryManager,
-                                    uint8 renderQueueId )
+                                  SceneManager *manager, uint8 renderQueueId )
         : IdObject( id )
         , mParentNode(0)
         , mRenderQueueID(renderQueueId)
-        , mRenderQueuePriority(100)
-        , mManager(0)
+        , mManager( manager )
         , mLodMesh( &c_DefaultLodMesh )
         , mCurrentMeshLod( 0 )
         , mMinPixelSize(0)
         , mListener(0)
-        , mDebugDisplay(false)
+        , mSkeletonInstance( 0 )
         , mObjectMemoryManager( objectMemoryManager )
         , mGlobalIndex( -1 )
         , mParentIndex( -1 )
     {
-        mLodMaterial.resize( 1, &c_DefaultLodMesh );
-        mCurrentMaterialLod.resize( 1, 0 );
         if (Root::getSingletonPtr())
             mMinPixelSize = Root::getSingleton().getDefaultMinPixelSize();
 
@@ -82,20 +80,17 @@ namespace Ogre {
     MovableObject::MovableObject( ObjectData *objectDataPtrs )
         : IdObject( 0 )
         , mParentNode(0)
-        , mRenderQueueID(RENDER_QUEUE_MAIN)
-        , mRenderQueuePriority(100)
+        , mRenderQueueID(0)
         , mManager(0)
         , mLodMesh( &c_DefaultLodMesh )
         , mCurrentMeshLod( 0 )
         , mMinPixelSize(0)
         , mListener(0)
-        , mDebugDisplay(false)
+        , mSkeletonInstance( 0 )
         , mObjectMemoryManager( 0 )
         , mGlobalIndex( -1 )
         , mParentIndex( -1 )
     {
-        mLodMaterial.resize( 1, &c_DefaultLodMesh );
-        mCurrentMaterialLod.resize( 1, 0 );
         if (Root::getSingletonPtr())
             mMinPixelSize = Root::getSingleton().getDefaultMinPixelSize();
     }
@@ -117,6 +112,9 @@ namespace Ogre {
 
         if( mObjectMemoryManager )
             mObjectMemoryManager->objectDestroyed( mObjectData, mRenderQueueID );
+
+        //If derived class may have created it, it should've destroyed it by now.
+        assert( !mSkeletonInstance );
     }
     //-----------------------------------------------------------------------
     void MovableObject::_notifyAttached( Node* parent )
@@ -147,6 +145,9 @@ namespace Ogre {
             if( mManager && isStatic() )
                 mManager->notifyStaticAabbDirty( this );
         }
+
+        if( mSkeletonInstance )
+            mSkeletonInstance->setParentNode( parent );
     }
     //---------------------------------------------------------------------
     void MovableObject::detachFromParent(void)
@@ -275,17 +276,6 @@ namespace Ogre {
             mObjectMemoryManager->objectMoved( mObjectData, mRenderQueueID, queueID );
 
         mRenderQueueID = queueID;
-    }
-    //-----------------------------------------------------------------------
-    void MovableObject::setRenderQueueGroupAndPriority(uint8 queueID, ushort priority)
-    {
-        setRenderQueueGroup(queueID);
-        mRenderQueuePriority = priority;
-    }
-    //-----------------------------------------------------------------------
-    uint8 MovableObject::getRenderQueueGroup(void) const
-    {
-        return mRenderQueueID;
     }
     //-----------------------------------------------------------------------
     const Matrix4& MovableObject::_getParentNodeFullTransform(void) const
@@ -420,7 +410,7 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void MovableObject::cullFrustum( const size_t numNodes, ObjectData objData, const Frustum *frustum,
+    void MovableObject::cullFrustum( const size_t numNodes, ObjectData objData, const Camera *frustum,
                                      uint32 sceneVisibilityFlags, MovableObjectArray &outCulledObjects,
                                      const Camera *lodCamera )
     {
@@ -443,7 +433,8 @@ namespace Ogre {
             ArrayReal       planeNegD;
         };
 
-        ArrayVector3 lodCameraPos;
+        ArrayVector3 cameraPos, lodCameraPos;
+        cameraPos.setAll( frustum->_getCachedDerivedPosition() );
         lodCameraPos.setAll( lodCamera->_getCachedDerivedPosition() );
 
         // Flip the bit from shadow caster, and leave only that in "includeNonCasters"
@@ -474,6 +465,8 @@ namespace Ogre {
                                                                         (objData.mWorldRadius);
             ArrayReal * RESTRICT_ALIAS upperDistance = reinterpret_cast<ArrayReal*RESTRICT_ALIAS>
                                                                         (objData.mUpperDistance);
+            ArrayReal * RESTRICT_ALIAS distanceToCamera = reinterpret_cast<ArrayReal*RESTRICT_ALIAS>
+                                                                        (objData.mDistanceToCamera);
 
             //Test all 6 planes and AND the dot product. If one is false, then we're not visible
             ArrayReal dotResult;
@@ -527,6 +520,8 @@ namespace Ogre {
                                                         Mathlib::SetAll( LAYER_VISIBILITY ) ),
                                 Mathlib::TestFlags4( Mathlib::Or( *visibilityFlags, includeNonCasters ),
                                                         Mathlib::SetAll( LAYER_SHADOW_CASTER ) ) );
+
+            *distanceToCamera = cameraPos.distance( objData.mWorldAabb->mCenter ) - *worldRadius;
 
             //Fuse result with visibility flag
             // finalMask = ((visible|infinite_aabb) & sceneFlags & visibilityFlags) != 0 ? 0xffffffff : 0
@@ -621,6 +616,9 @@ namespace Ogre {
             //Initialize mask to 0
             ArrayMaskI mask = ARRAY_INT_ZERO;
 
+            ArrayInt * RESTRICT_ALIAS visibilityFlags = reinterpret_cast<ArrayInt*RESTRICT_ALIAS>
+                                                                        (objData.mVisibilityFlags);
+
             for( size_t j=0; j<numFrustums; ++j )
             {
                 ArrayMaskR tmpMask;
@@ -686,6 +684,12 @@ namespace Ogre {
             //Use the light mask to discard null mOwner ptrs
             mask = Mathlib::TestFlags4( mask, *reinterpret_cast<ArrayInt*RESTRICT_ALIAS>
                                                 (objData.mLightMask) );
+
+            //isVisible = isVisible() //Check if the light is disabled.
+            ArrayMaskI isVisible = Mathlib::TestFlags4( *visibilityFlags,
+                                                        Mathlib::SetAll( LAYER_VISIBILITY ) );
+
+            mask = Mathlib::And( mask, isVisible );
 
             const uint32 scalarMask = BooleanMask4::getScalarMask( mask );
 
@@ -852,40 +856,13 @@ namespace Ogre {
         else
             outBox->setExtents( vMin, vMax );
     }
-    //---------------------------------------------------------------------
-    class MORecvShadVisitor : public Renderable::Visitor
-    {
-    public:
-        bool anyReceiveShadows;
-        MORecvShadVisitor() : anyReceiveShadows(false)
-        {
-
-        }
-        void visit(Renderable* rend, ushort lodIndex, bool isDebug, 
-            Any* pAny = 0)
-        {
-            Technique* tech = rend->getTechnique();
-            bool techReceivesShadows = tech && tech->getParent()->getReceiveShadows();
-            anyReceiveShadows = anyReceiveShadows || 
-                techReceivesShadows || !tech;
-        }
-    };
-    //---------------------------------------------------------------------
-    bool MovableObject::getReceivesShadows()
-    {
-        MORecvShadVisitor visitor;
-        visitRenderables(&visitor);
-        return visitor.anyReceiveShadows;       
-
-    }
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
     MovableObject* MovableObjectFactory::createInstance( IdType id,
                                 ObjectMemoryManager *objectMemoryManager, SceneManager* manager,
                                 const NameValuePairList* params )
     {
-        MovableObject* m = createInstanceImpl( id, objectMemoryManager, params );
-        m->_notifyManager(manager);
+        MovableObject* m = createInstanceImpl( id, objectMemoryManager, manager, params );
         return m;
     }
 
