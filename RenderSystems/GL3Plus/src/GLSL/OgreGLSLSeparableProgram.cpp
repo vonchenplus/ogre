@@ -49,7 +49,7 @@ namespace Ogre
                     fragmentShader,
                     computeShader)
     {
-        mVertexArrayObject = new GL3PlusVertexArrayObject();
+        mVertexArrayObject = new GL3PlusOldVertexArrayObject();
     }
 
     GLSLSeparableProgram::~GLSLSeparableProgram()
@@ -128,7 +128,7 @@ namespace Ogre
             OGRE_CHECK_GL_ERROR(glValidateProgramPipeline(mGLProgramPipelineHandle));
             logObjectInfo( getCombinedName() + String("GLSL program pipeline validation result: "), mGLProgramPipelineHandle );
 
-            //            if (getGLSupport()->checkExtension("GL_KHR_debug") || gl3wIsSupported(4, 3))
+            //            if (getGLSupport()->checkExtension("GL_KHR_debug") || mHasGL43)
             //                glObjectLabel(GL_PROGRAM_PIPELINE, mGLProgramPipelineHandle, 0,
             //                                 (mVertexShader->getName() + "/" + mFragmentShader->getName()).c_str());
         }
@@ -185,6 +185,9 @@ namespace Ogre
                     mTriedToLinkAndFailed = true;
                     return;
                 }
+
+                if( program->getType() == GPT_VERTEX_PROGRAM )
+                    bindFixedAttributes( programHandle );
 
                 program->attachToProgramObject(programHandle);
                 OGRE_CHECK_GL_ERROR(glLinkProgram(programHandle));
@@ -563,7 +566,7 @@ namespace Ogre
                     case GCT_SAMPLERCUBE:
                     case GCT_SAMPLERRECT:
                         // Samplers handled like 1-element ints
-                        OGRE_CHECK_GL_ERROR(glProgramUniform1iv(progID, currentUniform->mLocation, 1,
+                        OGRE_CHECK_GL_ERROR(glProgramUniform1iv(progID, currentUniform->mLocation, glArraySize,
                                                                 params->getIntPointer(def->physicalIndex)));
                         break;
                     default:
@@ -604,7 +607,7 @@ namespace Ogre
 
                     // Get the buffer this atomic counter belongs to.
                     //TODO exception handling
-                    HardwareCounterBufferSharedPtr atomic_buffer = mGLCounterBufferReferences[glBinding];
+                    v1::HardwareCounterBufferSharedPtr atomic_buffer = mGLCounterBufferReferences[glBinding];
 
                     // Update the value.
                     atomic_buffer->writeData(glOffset, sizeof(GLuint) * glArraySize, params->getUnsignedIntPointer(def->physicalIndex));
@@ -682,7 +685,7 @@ namespace Ogre
             GpuSharedParametersPtr paramsPtr = currentPair->first;
 
             //FIXME Possible buffer does not exist if no associated uniform block.
-            GL3PlusHardwareUniformBuffer* hwGlBuffer = static_cast<GL3PlusHardwareUniformBuffer*>(currentPair->second.get());
+            v1::GL3PlusHardwareUniformBuffer* hwGlBuffer = static_cast<v1::GL3PlusHardwareUniformBuffer*>(currentPair->second.get());
 
             if (!paramsPtr->isDirty()) continue;
 

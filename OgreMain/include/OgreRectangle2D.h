@@ -30,9 +30,11 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 
+#include "OgreMovableObject.h"
 #include "OgreRenderable.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -47,7 +49,7 @@ namespace Ogre {
     Beginning Ogre 2.0, it supports building a full screen triangle instead
     of rectangle. Position & UVs are in the first source. Normals are in the second one
     */
-    class _OgreExport Rectangle2D : public Renderable, public MovableAlloc
+    class _OgreExport Rectangle2D : public Renderable, public MovableObject
     {
     protected:
         Vector3     mPosition;
@@ -56,13 +58,13 @@ namespace Ogre {
 
         bool        mQuad;
 
-        MaterialPtr mMaterial;
         RenderOperation mRenderOp;
 
         void initRectangle2D(void);
 
     public:
-        Rectangle2D( bool bQuad );
+        Rectangle2D( bool bQuad, IdType id, ObjectMemoryManager *objectMemoryManager,
+                     SceneManager *manager );
         ~Rectangle2D();
 
         /** Sets the corners of the rectangle, in relative coordinates.
@@ -84,16 +86,39 @@ namespace Ogre {
 
         Real getSquaredViewDepth(const Camera* cam) const   { (void)cam; return 0; }
 
-        void setMaterial( const String& matName );
-        virtual const MaterialPtr& getMaterial(void) const;
         virtual void getWorldTransforms( Matrix4* xform ) const;
         virtual void getRenderOperation( RenderOperation& op );
         virtual const LightList& getLights(void) const;
 
+        /** Returns the type name of this object. */
+        virtual const String& getMovableType(void) const;
+
+        virtual void visitRenderables( Renderable::Visitor* visitor, bool debugRenderables = false) {}
+
     };
+
+    /** Factory object for creating Entity instances */
+    class _OgreExport Rectangle2DFactory : public MovableObjectFactory
+    {
+    protected:
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
+    public:
+        Rectangle2DFactory() {}
+        ~Rectangle2DFactory() {}
+
+        static String FACTORY_TYPE_NAME;
+
+        const String& getType(void) const;
+        void destroyInstance( MovableObject* obj);
+
+    };
+
     /** @} */
     /** @} */
 
+}
 }// namespace
 
 #endif

@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
     class HardwareBufferManagerBase;
 
     /** \addtogroup Core
@@ -94,6 +95,7 @@ namespace Ogre {
 
     /** Locking helper. */    
     typedef HardwareBufferLockGuard<HardwareVertexBufferSharedPtr> HardwareVertexBufferLockGuard;
+}
 
     /// Vertex element semantics, used to identify the meaning of vertex buffer contents
     enum VertexElementSemantic {
@@ -109,17 +111,24 @@ namespace Ogre {
         VES_DIFFUSE = 5,
         /// Specular colours
         VES_SPECULAR = 6,
-        /// Texture coordinates
+        /// Texture coordinates. You can have up to 8 of these. 6 if
+        /// VES_BLEND_WEIGHTS2 or VES_BLEND_INDICES2 if present.
         VES_TEXTURE_COORDINATES = 7,
         /// Binormal (Y axis if normal is Z)
         VES_BINORMAL = 8,
         /// Tangent (X axis if normal is Z)
         VES_TANGENT = 9,
+        /// Second pair of blending weights (i.e. more than 4, less or equal than 8)
+        VES_BLEND_WEIGHTS2 = 10,
+        /// Second pair of blending indices (i.e. more than 4, less or equal than 8)
+        VES_BLEND_INDICES2 = 11,
         /// The  number of VertexElementSemantic elements (note - the first value VES_POSITION is 1) 
-        VES_COUNT = 9
+        VES_COUNT = 11,
     };
 
     /// Vertex element type, used to identify the base types of the vertex contents
+    /// Note that all attributes must be aligned to 4 bytes, that's why VET_SHORT1
+    /// (among others) doesn't exist.
     enum VertexElementType
     {
         VET_FLOAT1 = 0,
@@ -128,9 +137,9 @@ namespace Ogre {
         VET_FLOAT4 = 3,
         /// alias to more specific colour type - use the current rendersystem's colour packing
         VET_COLOUR = 4,
-        VET_SHORT1 = 5,
+        //VET_SHORT1 = 5,   Deprecated for being invalid
         VET_SHORT2 = 6,
-        VET_SHORT3 = 7,
+        //VET_SHORT3 = 7,   Deprecated for being invalid
         VET_SHORT4 = 8,
         VET_UBYTE4 = 9,
         /// D3D style compact colour
@@ -141,10 +150,10 @@ namespace Ogre {
         VET_DOUBLE2 = 13,
         VET_DOUBLE3 = 14,
         VET_DOUBLE4 = 15,
-        VET_USHORT1 = 16,
+        VET_USHORT1_DEPRECATED = 16, // Deprecated for being invalid
         VET_USHORT2 = 17,
-        VET_USHORT3 = 18,
-        VET_USHORT4 = 19,      
+        VET_USHORT3_DEPRECATED = 18, // Deprecated for being invalid
+        VET_USHORT4 = 19,
         VET_INT1 = 20,
         VET_INT2 = 21,
         VET_INT3 = 22,
@@ -152,9 +161,19 @@ namespace Ogre {
         VET_UINT1 = 24,
         VET_UINT2 = 25,
         VET_UINT3 = 26,
-        VET_UINT4 = 27
+        VET_UINT4 = 27,
+        VET_BYTE4 = 28, // signed bytes
+        VET_BYTE4_SNORM = 29,  // signed normalized bytes
+        VET_UBYTE4_NORM = 30,  // unsigned normalized bytes
+        VET_SHORT2_SNORM = 31, // signed normalized shorts
+        VET_SHORT4_SNORM = 32,
+        VET_USHORT2_NORM = 33, // unsigned normalized shorts
+        VET_USHORT4_NORM = 34,
+        VET_HALF2 = 35,
+        VET_HALF4 = 36
     };
 
+namespace v1 {
     /** This class declares the usage of a single vertex buffer as a component
         of a complete VertexDeclaration.
         @remarks
@@ -199,6 +218,8 @@ namespace Ogre {
         static size_t getTypeSize(VertexElementType etype);
         /// Utility method which returns the count of values in a given type
         static unsigned short getTypeCount(VertexElementType etype);
+        /// Utility method which returns true if the type is SNORM or NORM
+        static bool isTypeNormalized(VertexElementType etype);
         /** Simple converter function which will turn a single-value type into a
             multi-value type based on a parameter.
         */
@@ -595,7 +616,7 @@ namespace Ogre {
     /** @} */
 
 
-
+}
 }
 
 #include "OgreHeaderSuffix.h"

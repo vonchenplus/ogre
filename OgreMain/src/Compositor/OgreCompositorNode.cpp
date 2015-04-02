@@ -374,7 +374,6 @@ namespace Ogre
                     newPass = OGRE_NEW CompositorPassScene(
                                             static_cast<CompositorPassSceneDef*>(*itPass),
                                             mWorkspace->getDefaultCamera(), *channel, this );
-                    postInitializePassScene( static_cast<CompositorPassScene*>( newPass ) );
                     break;
                 case PASS_STENCIL:
                     newPass = OGRE_NEW CompositorPassStencil(
@@ -395,6 +394,8 @@ namespace Ogre
                                 "CompositorNode::initializePasses" );
                     break;
                 }
+
+                postInitializePass( newPass );
 
                 mPasses.push_back( newPass );
                 ++itPass;
@@ -426,6 +427,8 @@ namespace Ogre
             ++it;
         }
 
+        uint8 executionMask = mWorkspace->getExecutionMask();
+
         //Execute our passes
         CompositorPassVec::const_iterator itor = mPasses.begin();
         CompositorPassVec::const_iterator end  = mPasses.end();
@@ -433,7 +436,9 @@ namespace Ogre
         while( itor != end )
         {
             CompositorPass *pass = *itor;
-            pass->execute( lodCamera );
+
+            if( executionMask & pass->getDefinition()->mExecutionMask )
+                pass->execute( lodCamera );
             ++itor;
         }
 

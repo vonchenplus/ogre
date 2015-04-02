@@ -30,6 +30,8 @@ THE SOFTWARE.
 #include "OgreGLES2ManagedResourceManager.h"
 #include "OgreGLES2RenderSystem.h"
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+
 namespace Ogre
 {
 
@@ -48,3 +50,5 @@ namespace Ogre
  #endif
 
 }
+
+#endif
