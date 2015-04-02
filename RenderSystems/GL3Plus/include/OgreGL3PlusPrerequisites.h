@@ -34,6 +34,8 @@ THE SOFTWARE.
 
 namespace Ogre {
     // Forward declarations
+    class GL3PlusDynamicBuffer;
+    class GL3PlusStagingBuffer;
     class GL3PlusSupport;
     class GL3PlusRenderSystem;
     class GL3PlusTexture;
@@ -41,11 +43,16 @@ namespace Ogre {
     class GL3PlusContext;
     class GL3PlusRTTManager;
     class GL3PlusFBOManager;
-    class GL3PlusHardwarePixelBuffer;
-    class GL3PlusRenderBuffer;
     class GL3PlusDepthBuffer;
+    class GL3PlusVaoManager;
     
     class GLSLShader;
+
+    namespace v1
+    {
+        class GL3PlusHardwarePixelBuffer;
+        class GL3PlusRenderBuffer;
+    }
 
     typedef SharedPtr<GLSLShader> GLSLShaderPtr;
     typedef SharedPtr<GL3PlusTexture> GL3PlusTexturePtr;
@@ -58,7 +65,7 @@ namespace Ogre {
 #   define NOMINMAX // required to stop windows.h messing up std::min
 #  endif
 #endif
-#   define WGL_WGLEXT_PROTOTYPES
+//#   define WGL_WGLEXT_PROTOTYPES
 #   include <windows.h>
 #   include <wingdi.h>
 #   include <GL/gl3w.h>
@@ -128,5 +135,7 @@ namespace Ogre {
 #else
 #   define OGRE_CHECK_GL_ERROR(glFunc) { glFunc; }
 #endif
+
+#define OCGE OGRE_CHECK_GL_ERROR
 
 #endif //#ifndef __GL3PlusPrerequisites_H__

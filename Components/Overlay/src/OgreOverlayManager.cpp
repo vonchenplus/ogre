@@ -34,12 +34,16 @@ THE SOFTWARE.
 #include "OgreOverlay.h"
 #include "OgreResourceGroupManager.h"
 #include "OgreOverlayElementFactory.h"
+#include "OgreRenderQueue.h"
 #include "OgreStringConverter.h"
+#include "Math/Array/OgreNodeMemoryManager.h"
 
-namespace Ogre {
-
+namespace Ogre
+{
+    template<> v1::OverlayManager *Singleton<v1::OverlayManager>::msSingleton = 0;
+namespace v1
+{
     //---------------------------------------------------------------------
-    template<> OverlayManager *Singleton<OverlayManager>::msSingleton = 0;
     OverlayManager* OverlayManager::getSingletonPtr(void)
     {
         return msSingleton;
@@ -50,15 +54,20 @@ namespace Ogre {
     }
     //---------------------------------------------------------------------
     OverlayManager::OverlayManager() 
-      : mLastViewportWidth(0), 
+      : mDefaultRenderQueueId(254),
+        mLastViewportWidth(0),
         mLastViewportHeight(0), 
-        mLastViewportOrientationMode(OR_DEGREE_0)
+        mLastViewportOrientationMode(OR_DEGREE_0),
+        mDummyNode(0),
+        mNodeMemoryManager(0)
     {
-
         // Scripting is supported by this manager
         mScriptPatterns.push_back("*.overlay");
         ResourceGroupManager::getSingleton()._registerScriptLoader(this);
 
+        mNodeMemoryManager = new NodeMemoryManager();
+        mDummyNode = OGRE_NEW SceneNode( 0, 0, mNodeMemoryManager, 0 );
+        mDummyNode->_getFullTransformUpdated();
     }
     //---------------------------------------------------------------------
     OverlayManager::~OverlayManager()
@@ -71,6 +80,11 @@ namespace Ogre {
         {
             OGRE_DELETE i->second;
         }
+
+        OGRE_DELETE mDummyNode;
+        delete mNodeMemoryManager;
+        mDummyNode = 0;
+        mNodeMemoryManager = 0;
 
         // Unregister with resource group manager
         ResourceGroupManager::getSingleton()._unregisterScriptLoader(this);
@@ -94,8 +108,11 @@ namespace Ogre {
 
         if (i == mOverlayMap.end())
         {
-            ret = OGRE_NEW Overlay(name);
+            ret = OGRE_NEW Overlay( name, Id::generateNewId<Overlay>(),
+                                    &mOverlayMemoryManager, mDefaultRenderQueueId );
             assert(ret && "Overlay creation failed");
+            mDummyNode->attachObject( ret );
+            ret->setVisible( false );
             mOverlayMap[name] = ret;
         }
         else
@@ -134,6 +151,7 @@ namespace Ogre {
         }
         else
         {
+            mDummyNode->detachObject( i->second );
             OGRE_DELETE i->second;
             mOverlayMap.erase(i);
         }
@@ -146,6 +164,7 @@ namespace Ogre {
         {
             if (i->second == overlay)
             {
+                mDummyNode->detachObject( i->second );
                 OGRE_DELETE i->second;
                 mOverlayMap.erase(i);
                 return;
@@ -159,6 +178,7 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void OverlayManager::destroyAll(void)
     {
+        mDummyNode->detachAllObjects();
         for (OverlayMap::iterator i = mOverlayMap.begin();
             i != mOverlayMap.end(); ++i)
         {
@@ -290,7 +310,7 @@ namespace Ogre {
                 o->scroll(0.f, 0.f);
             }
 #endif
-            o->_findVisibleObjects((Camera*)(0), pQueue, vp);
+            o->_updateRenderQueue( pQueue, (Camera*)(0), (Camera*)(0), vp );
         }
     }
     //---------------------------------------------------------------------
@@ -688,4 +708,4 @@ namespace Ogre {
             + " registered.");
     }
 }
-
+}

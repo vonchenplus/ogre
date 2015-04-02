@@ -38,6 +38,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     /** \addtogroup Core
     *  @{
     */
@@ -107,8 +109,6 @@ namespace Ogre
         InstanceManager     *mCreator;
         ObjectMemoryManager mLocalObjectMemoryManager; ///Only one render queue is used
 
-        MaterialPtr         mMaterial;
-
         MeshPtr             mMeshReference;
         Mesh::IndexMap const *mIndexToBoneMap;
 
@@ -176,8 +176,8 @@ namespace Ogre
         /** Used by HW Basic & HW VTF techniques to cull from multiple threads.
             @see InstancingTheadedCullingMethod
         */
-        void instanceBatchCullFrustumThreadedImpl(const Frustum *frustum, const Camera *lodCamera,
-                                                    uint32 combinedVisibilityFlags );
+        void instanceBatchCullFrustumThreadedImpl( const Camera *frustum, const Camera *lodCamera,
+                                                   uint32 combinedVisibilityFlags );
 
     public:
         InstanceBatch( IdType id, ObjectMemoryManager *objectMemoryManager,
@@ -257,7 +257,7 @@ namespace Ogre
         */
         virtual void buildFrom( const SubMesh *baseSubMesh, const RenderOperation &renderOperation );
 
-        const Ogre::MeshPtr& _getMeshReference(void) const { return mMeshReference; }
+        const Ogre::v1::MeshPtr& _getMeshReference(void) const { return mMeshReference; }
 
         /** @return true if it can not create more InstancedEntities
             (Num InstancedEntities == mInstancesPerBatch)
@@ -361,8 +361,6 @@ namespace Ogre
         const Vector4& _getCustomParam( InstancedEntity *instancedEntity, unsigned char idx );
 
         //Renderable overloads
-        /** @copydoc Renderable::getMaterial. */
-        const MaterialPtr& getMaterial(void) const      { return mMaterial; }
         /** @copydoc Renderable::getRenderOperation. */
         void getRenderOperation( RenderOperation& op )  { op = mRenderOperation; }
 
@@ -370,19 +368,17 @@ namespace Ogre
         Real getSquaredViewDepth( const Camera* cam ) const;
         /** @copydoc Renderable::getLights. */
         const LightList& getLights( void ) const;
-        /** @copydoc Renderable::getTechnique. */
-        Technique* getTechnique(void) const;
 
         /** @copydoc MovableObject::getMovableType. */
         const String& getMovableType(void) const;
 
-        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
         void visitRenderables( Renderable::Visitor* visitor, bool debugRenderables = false );
 
         // resolve ambiguity of get/setUserAny due to inheriting from Renderable and MovableObject
         using Renderable::getUserAny;
         using Renderable::setUserAny;
     };
+}
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"

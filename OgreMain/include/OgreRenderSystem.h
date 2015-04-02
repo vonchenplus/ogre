@@ -227,17 +227,6 @@ namespace Ogre
         */
         virtual void setAmbientLight(float r, float g, float b) = 0;
 
-        /** Sets the type of light shading required (default = Gouraud).
-        */
-        virtual void setShadingType(ShadeOptions so) = 0;
-
-        /** Sets whether or not dynamic lighting is enabled.
-        @param
-        enabled If true, dynamic lighting is performed on geometry with normals supplied, geometry without
-        normals will not be displayed. If false, no lighting is applied and all geometry will be full brightness.
-        */
-        virtual void setLightingEnabled(bool enabled) = 0;
-
         /** Sets whether or not W-buffers are enabled if they are available for this renderer.
         @param
         enabled If true and the renderer supports them W-buffers will be used.  If false 
@@ -605,26 +594,22 @@ namespace Ogre
 
         /** Returns the global instance vertex buffer.
         */
-        HardwareVertexBufferSharedPtr getGlobalInstanceVertexBuffer() const;
+        v1::HardwareVertexBufferSharedPtr getGlobalInstanceVertexBuffer() const;
         /** Sets the global instance vertex buffer.
         */
-        void setGlobalInstanceVertexBuffer(const HardwareVertexBufferSharedPtr &val);
+        void setGlobalInstanceVertexBuffer(const v1::HardwareVertexBufferSharedPtr &val);
         /** Gets vertex declaration for the global vertex buffer for the global instancing
         */
-        VertexDeclaration* getGlobalInstanceVertexBufferVertexDeclaration() const;
+        v1::VertexDeclaration* getGlobalInstanceVertexBufferVertexDeclaration() const;
         /** Sets vertex declaration for the global vertex buffer for the global instancing
         */
-        void setGlobalInstanceVertexBufferVertexDeclaration( VertexDeclaration* val);
+        void setGlobalInstanceVertexBufferVertexDeclaration( v1::VertexDeclaration* val);
         /** Gets the global number of instances.
         */
         size_t getGlobalNumberOfInstances() const;
         /** Sets the global number of instances.
         */
         void setGlobalNumberOfInstances(const size_t val);
-
-        /** Sets if fixed pipeline rendering is enabled on the system.
-        */
-        void setFixedPipelineEnabled(bool enabled);
 
         /** Returns true if fixed pipeline rendering is enabled on the system.
         */
@@ -742,8 +727,7 @@ namespace Ogre
         @param enabled Boolean to turn the unit on/off
         @param texPtr Pointer to the texture to use.
         */
-        virtual void _setTexture(size_t unit, bool enabled, 
-            const TexturePtr &texPtr) = 0;
+        virtual void _setTexture(size_t unit, bool enabled,  Texture *texPtr) = 0;
         /**
         Sets the texture to bind to a given texture unit.
 
@@ -758,6 +742,15 @@ namespace Ogre
         already been loaded with TextureManager::load.
         */
         virtual void _setTexture(size_t unit, bool enabled, const String &texname);
+
+        virtual void _hlmsMacroblockCreated( HlmsMacroblock *newBlock ) {}
+        virtual void _hlmsMacroblockDestroyed( HlmsMacroblock *block ) {}
+        virtual void _hlmsBlendblockCreated( HlmsBlendblock *newBlock ) {}
+        virtual void _hlmsBlendblockDestroyed( HlmsBlendblock *block ) {}
+        virtual void _hlmsSamplerblockCreated( HlmsSamplerblock *newBlock ) {}
+        virtual void _hlmsSamplerblockDestroyed( HlmsSamplerblock *block ) {}
+
+        virtual void _setIndirectBuffer( IndirectBufferPacked *indirectBuffer ) = 0;
 
         /** Binds a texture to a vertex, geometry, compute, tessellation hull
         or tessellation domain sampler.
@@ -804,95 +797,11 @@ namespace Ogre
         */
         virtual void _setTextureBlendMode(size_t unit, const LayerBlendModeEx& bm) = 0;
 
-        /** Sets the filtering options for a given texture unit.
-        @param unit The texture unit to set the filtering options for
-        @param minFilter The filter used when a texture is reduced in size
-        @param magFilter The filter used when a texture is magnified
-        @param mipFilter The filter used between mipmap levels, FO_NONE disables mipmapping
-        */
-        virtual void _setTextureUnitFiltering(size_t unit, FilterOptions minFilter,
-            FilterOptions magFilter, FilterOptions mipFilter);
-
-        /** Sets a single filter for a given texture unit.
-        @param unit The texture unit to set the filtering options for
-        @param ftype The filter type
-        @param filter The filter to be used
-        */
-        virtual void _setTextureUnitFiltering(size_t unit, FilterType ftype, FilterOptions filter) = 0;
-
-        /** Sets whether the compare func is enabled or not for this texture unit 
-        @param unit The texture unit to set the filtering options for
-        @param compare The state (enabled/disabled)
-        */
-        virtual void _setTextureUnitCompareEnabled(size_t unit, bool compare) = 0;
-
-
-        /** Sets the compare function to use for a given texture unit
-        @param unit The texture unit to set the filtering options for
-        @param function The comparison function
-        */
-        virtual void _setTextureUnitCompareFunction(size_t unit, CompareFunction function) = 0;
-
-
-        /** Sets the maximal anisotropy for the specified texture unit.*/
-        virtual void _setTextureLayerAnisotropy(size_t unit, unsigned int maxAnisotropy) = 0;
-
-        /** Sets the texture addressing mode for a texture unit.*/
-        virtual void _setTextureAddressingMode(size_t unit, const TextureUnitState::UVWAddressingMode& uvw) = 0;
-
-        /** Sets the texture border colour for a texture unit.*/
-        virtual void _setTextureBorderColour(size_t unit, const ColourValue& colour) = 0;
-
-        /** Sets the mipmap bias value for a given texture unit.
-        @remarks
-        This allows you to adjust the mipmap calculation up or down for a
-        given texture unit. Negative values force a larger mipmap to be used, 
-        positive values force a smaller mipmap to be used. Units are in numbers
-        of levels, so +1 forces the mipmaps to one smaller level.
-        @note Only does something if render system has capability RSC_MIPMAP_LOD_BIAS.
-        */
-        virtual void _setTextureMipmapBias(size_t unit, float bias) = 0;
-
         /** Sets the texture coordinate transformation matrix for a texture unit.
         @param unit Texture unit to affect
         @param xform The 4x4 matrix
         */
         virtual void _setTextureMatrix(size_t unit, const Matrix4& xform) = 0;
-
-        /** Sets the global blending factors for combining subsequent renders with the existing frame contents.
-        The result of the blending operation is:
-        <p align="center">final = (texture * sourceFactor) + (pixel * destFactor)</p>
-        Each of the factors is specified as one of a number of options, as specified in the SceneBlendFactor
-        enumerated type.
-        By changing the operation you can change addition between the source and destination pixels to a different operator.
-        @param sourceFactor The source factor in the above calculation, i.e. multiplied by the texture colour components.
-        @param destFactor The destination factor in the above calculation, i.e. multiplied by the pixel colour components.
-        @param op The blend operation mode for combining pixels
-        */
-        virtual void _setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op = SBO_ADD) = 0;
-
-        /** Sets the global blending factors for combining subsequent renders with the existing frame contents.
-        The result of the blending operation is:
-        <p align="center">final = (texture * sourceFactor) + (pixel * destFactor)</p>
-        Each of the factors is specified as one of a number of options, as specified in the SceneBlendFactor
-        enumerated type.
-        @param sourceFactor The source factor in the above calculation, i.e. multiplied by the texture colour components.
-        @param destFactor The destination factor in the above calculation, i.e. multiplied by the pixel colour components.
-        @param sourceFactorAlpha The source factor in the above calculation for the alpha channel, i.e. multiplied by the texture alpha components.
-        @param destFactorAlpha The destination factor in the above calculation for the alpha channel, i.e. multiplied by the pixel alpha components.
-        @param op The blend operation mode for combining pixels
-        @param alphaOp The blend operation mode for combining pixel alpha values
-        */
-        virtual void _setSeparateSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, 
-            SceneBlendFactor destFactorAlpha, SceneBlendOperation op = SBO_ADD, SceneBlendOperation alphaOp = SBO_ADD) = 0;
-
-        /** Sets the global alpha rejection approach for future renders.
-        By default images are rendered regardless of texture alpha. This method lets you change that.
-        @param func The comparison function which must pass for a pixel to be written.
-        @param value The value to compare each pixels alpha value to (0-255)
-        @param alphaToCoverage Whether to enable alpha to coverage, if supported
-        */
-        virtual void _setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage) = 0;
 
         /** Notify the rendersystem that it should adjust texture projection to be 
             relative to a different origin.
@@ -916,6 +825,10 @@ namespace Ogre
                 freeing GPU RAM.
         */
         void _cleanupDepthBuffers( bool bCleanManualBuffers=true );
+
+        /// Signifies the beginning of the main frame. i.e. will only be called once per frame,
+        /// not per viewport
+        virtual void _beginFrameOnce(void);
 
         /**
         * Signifies the beginning of a frame, i.e. the start of rendering on a single viewport. Will occur
@@ -944,6 +857,10 @@ namespace Ogre
         * Ends rendering of a frame to the current viewport.
         */
         virtual void _endFrame(void) = 0;
+
+        /// Called once per frame, regardless of how many active workspaces there are
+        void _update(void);
+
         /**
         Sets the provided viewport as the active one for future
         rendering operations. This viewport is aware of it's own
@@ -955,62 +872,19 @@ namespace Ogre
         /** Get the current active viewport for rendering. */
         virtual Viewport* _getViewport(void);
 
-        /** Sets the culling mode for the render system based on the 'vertex winding'.
-        A typical way for the rendering engine to cull triangles is based on the
-        'vertex winding' of triangles. Vertex winding refers to the direction in
-        which the vertices are passed or indexed to in the rendering operation as viewed
-        from the camera, and will wither be clockwise or anticlockwise (that's 'counterclockwise' for
-        you Americans out there ;) The default is CULL_CLOCKWISE i.e. that only triangles whose vertices
-        are passed/indexed in anticlockwise order are rendered - this is a common approach and is used in 3D studio models
-        for example. You can alter this culling mode if you wish but it is not advised unless you know what you are doing.
-        You may wish to use the CULL_NONE option for mesh data that you cull yourself where the vertex
-        winding is uncertain.
-        */
-        virtual void _setCullingMode(CullingMode mode) = 0;
+        /// @See HlmsMacroblock
+        virtual void _setHlmsMacroblock( const HlmsMacroblock *macroblock ) = 0;
 
-        virtual CullingMode _getCullingMode(void) const;
+        /// @See HlmsBlendblock
+        virtual void _setHlmsBlendblock( const HlmsBlendblock *blendblock ) = 0;
 
-        /** Sets the mode of operation for depth buffer tests from this point onwards.
-        Sometimes you may wish to alter the behaviour of the depth buffer to achieve
-        special effects. Because it's unlikely that you'll set these options for an entire frame,
-        but rather use them to tweak settings between rendering objects, this is an internal
-        method (indicated by the '_' prefix) which will be used by a SceneManager implementation
-        rather than directly from the client application.
-        If this method is never called the settings are automatically the same as the default parameters.
-        @param depthTest If true, the depth buffer is tested for each pixel and the frame buffer is only updated
-        if the depth function test succeeds. If false, no test is performed and pixels are always written.
-        @param depthWrite If true, the depth buffer is updated with the depth of the new pixel if the depth test succeeds.
-        If false, the depth buffer is left unchanged even if a new pixel is written.
-        @param depthFunction Sets the function required for the depth test.
-        */
-        virtual void _setDepthBufferParams(bool depthTest = true, bool depthWrite = true, CompareFunction depthFunction = CMPF_LESS_EQUAL) = 0;
+        /// @See HlmsSamplerblock. This function MUST be called after _setTexture, not before.
+        /// Otherwise not all APIs may see the change.
+        virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *Samplerblock ) = 0;
 
-        /** Sets whether or not the depth buffer check is performed before a pixel write.
-        @param enabled If true, the depth buffer is tested for each pixel and the frame buffer is only updated
-        if the depth function test succeeds. If false, no test is performed and pixels are always written.
-        */
-        virtual void _setDepthBufferCheckEnabled(bool enabled = true) = 0;
-        /** Sets whether or not the depth buffer is updated after a pixel write.
-        @param enabled If true, the depth buffer is updated with the depth of the new pixel if the depth test succeeds.
-        If false, the depth buffer is left unchanged even if a new pixel is written.
-        */
-        virtual void _setDepthBufferWriteEnabled(bool enabled = true) = 0;
-        /** Sets the comparison function for the depth buffer check.
-        Advanced use only - allows you to choose the function applied to compare the depth values of
-        new and existing pixels in the depth buffer. Only an issue if the deoth buffer check is enabled
-        (see _setDepthBufferCheckEnabled)
-        @param  func The comparison between the new depth and the existing depth which must return true
-        for the new pixel to be written.
-        */
-        virtual void _setDepthBufferFunction(CompareFunction func = CMPF_LESS_EQUAL) = 0;
-        /** Sets whether or not colour buffer writing is enabled, and for which channels. 
-        @remarks
-        For some advanced effects, you may wish to turn off the writing of certain colour
-        channels, or even all of the colour channels so that only the depth buffer is updated
-        in a rendering pass. However, the chances are that you really want to use this option
-        through the Material class.
-        @param red, green, blue, alpha Whether writing is enabled for each of the 4 colour channels. */
-        virtual void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha) = 0;
+        /// @See HlmsCache
+        virtual void _setProgramsFromHlms( const HlmsCache *hlmsCache ) = 0;
+
         /** Sets the depth bias, NB you should use the Material version of this. 
         @remarks
         When polygons are coplanar, you can get problems with 'depth fighting' where
@@ -1032,21 +906,10 @@ namespace Ogre
         of the polygon, see the description above. This is not supported by all
         cards.
 
-        */
-        virtual void _setDepthBias(float constantBias, float slopeScaleBias = 0.0f) = 0;
-        /** Sets the fogging mode for future geometry.
-        @param mode Set up the mode of fog as described in the FogMode enum, or set to FOG_NONE to turn off.
-        @param colour The colour of the fog. Either set this to the same as your viewport background colour,
-        or to blend in with a skydome or skybox.
-        @param expDensity The density of the fog in FOG_EXP or FOG_EXP2 mode, as a value between 0 and 1. The default is 1. i.e. completely opaque, lower values can mean
-        that fog never completely obscures the scene.
-        @param linearStart Distance at which linear fog starts to encroach. The distance must be passed
-        as a parametric value between 0 and 1, with 0 being the near clipping plane, and 1 being the far clipping plane. Only applicable if mode is FOG_LINEAR.
-        @param linearEnd Distance at which linear fog becomes completely opaque.The distance must be passed
-        as a parametric value between 0 and 1, with 0 being the near clipping plane, and 1 being the far clipping plane. Only applicable if mode is FOG_LINEAR.
-        */
-        virtual void _setFog(FogMode mode = FOG_NONE, const ColourValue& colour = ColourValue::White, Real expDensity = 1.0, Real linearStart = 0.0, Real linearEnd = 1.0) = 0;
+        Documentation TODO: This feature was moved to HlmsMacroblock
 
+        */
+        //virtual void _setDepthBias(float constantBias, float slopeScaleBias = 0.0f) = 0;
 
         /** The RenderSystem will keep a count of tris rendered, this resets the count. */
         virtual void _beginGeometryCount(void);
@@ -1124,9 +987,6 @@ namespace Ogre
         */
         virtual void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane, 
             bool forGpuProgram) = 0;
-
-        /** Sets how to rasterise triangles, as points, wireframe or solid polys. */
-        virtual void _setPolygonMode(PolygonMode level) = 0;
 
         /** Turns depth-stencil buffer checking on or off. 
         @remarks
@@ -1214,21 +1074,9 @@ namespace Ogre
 
 
         /** Sets the current vertex declaration, ie the source of vertex data. */
-        virtual void setVertexDeclaration(VertexDeclaration* decl) = 0;
+        virtual void setVertexDeclaration(v1::VertexDeclaration* decl) = 0;
         /** Sets the current vertex buffer binding state. */
-        virtual void setVertexBufferBinding(VertexBufferBinding* binding) = 0;
-
-        /** Sets whether or not normals are to be automatically normalised.
-        @remarks
-        This is useful when, for example, you are scaling SceneNodes such that
-        normals may not be unit-length anymore. Note though that this has an
-        overhead so should not be turn on unless you really need it.
-        @par
-        You should not normally call this direct unless you are rendering
-        world geometry; set it on the Renderable because otherwise it will be
-        overridden by material settings. 
-        */
-        virtual void setNormaliseNormals(bool normalise) = 0;
+        virtual void setVertexBufferBinding(v1::VertexBufferBinding* binding) = 0;
 
         /**
         Render something to the active viewport.
@@ -1242,7 +1090,28 @@ namespace Ogre
         @param op A rendering operation instance, which contains
         details of the operation to be performed.
         */
-        virtual void _render(const RenderOperation& op);
+        virtual void _render(const v1::RenderOperation& op);
+
+        /** Part of the low level rendering interface. Tells the RS which VAO will be bound now.
+            (i.e. Vertex Formats, buffers being bound, etc.)
+            You don't need to rebind if the VAO's mRenderQueueId is the same as previous call.
+        @remarks
+            Assumes _setProgramsFromHlms has already been called.
+        */
+        virtual void _setVertexArrayObject( const VertexArrayObject *vao ) = 0;
+
+        /// Renders the VAO. Assumes _setVertexArrayObject has already been called.
+        virtual void _render( const CbDrawCallIndexed *cmd ) = 0;
+        virtual void _render( const CbDrawCallStrip *cmd ) = 0;
+        virtual void _renderEmulated( const CbDrawCallIndexed *cmd ) = 0;
+        virtual void _renderEmulated( const CbDrawCallStrip *cmd ) = 0;
+
+        /// May override the current VertexArrayObject!
+        virtual void _startLegacyV1Rendering(void) {}
+        virtual void _setRenderOperation( const v1::CbRenderOp *cmd ) = 0;
+        /// Renders a V1 RenderOperation. Assumes _setRenderOperation has already been called.
+        virtual void _render( const v1::CbDrawCallIndexed *cmd ) = 0;
+        virtual void _render( const v1::CbDrawCallStrip *cmd ) = 0;
 
         virtual void _renderUsingReadBackAsTexture(unsigned int secondPass,Ogre::String variableName,unsigned int StartSlot);
 
@@ -1291,6 +1160,8 @@ namespace Ogre
         /** Returns whether or not a Gpu program of the given type is currently bound. */
         virtual bool isGpuProgramBound(GpuProgramType gptype);
 
+        VaoManager* getVaoManager(void) const           { return mVaoManager; }
+
         /**
          * Gets the native shading language version for this render system.
          * Formatted so that it can be used within a shading program. 
@@ -1322,20 +1193,6 @@ namespace Ogre
         @see RenderSystem::setInvertVertexWinding
         */
         virtual bool getInvertVertexWinding(void) const;
-
-        /** Sets the 'scissor region' i.e. the region of the target in which rendering can take place.
-        @remarks
-        This method allows you to 'mask off' rendering in all but a given rectangular area
-        as identified by the parameters to this method.
-        @note
-        Not all systems support this method. Check the RenderSystemCapabilities for the
-        RSC_SCISSOR_TEST capability to see if it is supported.
-        @param enabled True to enable the scissor test, false to disable it.
-        @param left, top, right, bottom The location of the corners of the rectangle, expressed in
-        <i>pixels</i>.
-        */
-        virtual void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, 
-            size_t right = 800, size_t bottom = 600) = 0;
 
         /** Clears one or more frame buffers on the active render target. 
         @param buffers Combination of one or more elements of FrameBufferType
@@ -1568,10 +1425,10 @@ namespace Ogre
         // managed by the RenderSystem
         TextureManager* mTextureManager;
 
+        VaoManager   *mVaoManager;
+
         // Active viewport (dest for future rendering operations)
         Viewport* mActiveViewport;
-
-        CullingMode mCullingMode;
 
         bool mWBuffer;
 
@@ -1597,14 +1454,11 @@ namespace Ogre
         float mDerivedDepthBiasSlopeScale;
 
         /// a global vertex buffer for global instancing
-        HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
+        v1::HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
         /// a vertex declaration for the global vertex buffer for the global instancing
-        VertexDeclaration* mGlobalInstanceVertexBufferVertexDeclaration;
+        v1::VertexDeclaration* mGlobalInstanceVertexBufferVertexDeclaration;
         /// the number of global instances (this number will be multiply by the render op instance number) 
         size_t mGlobalNumberOfInstances;
-
-        /// is fixed pipeline enabled
-        bool mEnableFixedPipeline;
 
         /** updates pass iteration rendering state including bound gpu program parameter
         pass iteration auto constant entry

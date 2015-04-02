@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgreRoot.h"
 #include "OgreRenderSystem.h"
 #include "OgreDDSCodec.h"
+#include "OgrePixelBox.h"
 #include "OgreImage.h"
 #include "OgreException.h"
 #include "OgreLogManager.h"

@@ -39,6 +39,10 @@ THE SOFTWARE.
 #include "OgreD3D11RenderSystem.h"
 #include "OgreStringConverter.h"
 
+#include "Vao/OgreD3D11VaoManager.h"
+#include "Vao/OgreVertexBufferPacked.h"
+#include "Vao/OgreVertexArrayObject.h"
+
 #define  HLSL_PROGRAM_DEFINE_VS "HLSL_VS"
 #define  HLSL_PROGRAM_DEFINE_PS "HLSL_PS"
 #define  HLSL_PROGRAM_DEFINE_GS "HLSL_GS"
@@ -722,10 +726,14 @@ namespace Ogre {
                                             ID3D11ShaderReflectionType* memberType = varType->GetMemberTypeByIndex(m);
                                             memberType->GetDesc(&memberTypeDesc);
 
+                                            const LPCSTR c_unknownPtr = "UNKNOWN";
+                                            if( !memberTypeDesc.Name )
+                                                memberTypeDesc.Name = c_unknownPtr;
+
                                             {
                                                 String * name = new String(memberTypeDesc.Name);
                                                 mSerStrings.push_back(name);
-                                                memberTypeDesc.Name = &(*name)[0]; 
+                                                memberTypeDesc.Name = &(*name)[0];
                                                 mMemberTypeDesc.push_back(memberTypeDesc);
                                             }
                                             {
@@ -735,7 +743,7 @@ namespace Ogre {
                                                 memberTypeName.Name = &(*name)[0];
                                                 mMemberTypeName.push_back(memberTypeName);
                                             }
-                                            
+
                                         }
                                     }
                                 }
@@ -1139,8 +1147,9 @@ namespace Ogre {
                     // Guard to create uniform buffer only once
                     if (it->mUniformBuffer.isNull())
                     {
-                        HardwareUniformBufferSharedPtr uBuffer = HardwareBufferManager::getSingleton().createUniformBuffer(mD3d11ShaderBufferDescs[b].Size, HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE, false);
-                        it->mUniformBuffer = HardwareUniformBufferSharedPtr(uBuffer);
+                        v1::HardwareUniformBufferSharedPtr uBuffer = v1::HardwareBufferManager::getSingleton().createUniformBuffer(
+                                    mD3d11ShaderBufferDescs[b].Size, v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE, false);
+                        it->mUniformBuffer = v1::HardwareUniformBufferSharedPtr(uBuffer);
                     }
                     else
                     {
@@ -1237,6 +1246,17 @@ namespace Ogre {
     {
         mSlotMap.clear();
         mBufferInfoMap.clear();
+
+        InputLayoutVaoBindVec::const_iterator itor = mInputLayoutVaoBind.begin();
+        InputLayoutVaoBindVec::const_iterator end  = mInputLayoutVaoBind.end();
+
+        while( itor != end )
+        {
+            itor->inputLayout->Release();
+            ++itor;
+        }
+
+        mInputLayoutVaoBind.end();
 
         SAFE_RELEASE(mVertexShader);
         SAFE_RELEASE(mPixelShader);
@@ -1913,6 +1933,148 @@ namespace Ogre {
         return it->second;
     }
     //-----------------------------------------------------------------------------
+    ID3D11InputLayout* D3D11HLSLProgram::getLayoutForVao( const VertexArrayObject *vao )
+    {
+        InputLayoutVaoBindVec::iterator itLayout = std::lower_bound(
+                    mInputLayoutVaoBind.begin(), mInputLayoutVaoBind.end(),
+                    InputLayoutVaoBind( vao->getVaoName(), 0 ) );
+
+        //Already cached.
+        if( itLayout != mInputLayoutVaoBind.end() && itLayout->vaoName == vao->getVaoName() )
+            return itLayout->inputLayout;
+
+        size_t numShaderInputs = getNumInputs();
+        size_t numShaderInputsFound = 0;
+
+        const VertexBufferPackedVec &vertexBuffers = vao->getVertexBuffers();
+
+        size_t currDesc = 0;
+        size_t uvCount = 0;
+        size_t colourCount = 0;
+        D3D11_INPUT_ELEMENT_DESC inputDesc[128];
+
+        ZeroMemory( &inputDesc, sizeof(D3D11_INPUT_ELEMENT_DESC) * 128 );
+
+        for( size_t i=0; i<vao->getVertexBuffers().size(); ++i )
+        {
+            size_t bindAccumOffset = 0;
+
+            VertexBufferPacked *vertexBuffer = vertexBuffers[i];
+            const VertexElement2Vec &vertexElements = vertexBuffer->getVertexElements();
+
+            VertexElement2Vec::const_iterator it = vertexElements.begin();
+            VertexElement2Vec::const_iterator en = vertexElements.end();
+
+            while( it != en )
+            {
+                inputDesc[currDesc].SemanticName    = D3D11Mappings::get( it->mSemantic );
+                inputDesc[currDesc].SemanticIndex   = 0;
+                if( it->mSemantic == VES_TEXTURE_COORDINATES )
+                {
+                    inputDesc[currDesc].SemanticIndex = uvCount++;
+                }
+                else if( it->mSemantic == VES_TEXTURE_COORDINATES )
+                {
+                    inputDesc[currDesc].SemanticIndex = colourCount++;
+                }
+
+                inputDesc[currDesc].Format              = D3D11Mappings::get( it->mType );
+                inputDesc[currDesc].InputSlot           = i;
+                inputDesc[currDesc].AlignedByteOffset   = bindAccumOffset;
+
+                /*if( binding.instancingDivisor == 0 );
+                {*/
+                    inputDesc[currDesc].InputSlotClass          = D3D11_INPUT_PER_VERTEX_DATA;
+                    inputDesc[currDesc].InstanceDataStepRate    = 0;
+                /*}
+                else
+                {
+                    inputDesc[currDesc].InputSlotClass          = D3D11_INPUT_PER_INSTANCE_DATA;
+                    inputDesc[currDesc].InstanceDataStepRate    = 1;
+                }*/
+
+                bool bFound = false;
+                for( size_t j=0; j<numShaderInputs && !bFound; ++j )
+                {
+                    D3D11_SIGNATURE_PARAMETER_DESC shaderDesc = mD3d11ShaderInputParameters[j];
+
+                    if( strcmp( inputDesc[currDesc].SemanticName, shaderDesc.SemanticName ) == 0 &&
+                        inputDesc[currDesc].SemanticIndex == shaderDesc.SemanticIndex )
+                    {
+                        ++numShaderInputsFound;
+                        bFound = true;
+                    }
+                }
+
+                if( bFound )
+                    ++currDesc;
+
+                bindAccumOffset += v1::VertexElement::getTypeSize( it->mType );
+
+                ++it;
+            }
+        }
+
+        //Bind the draw ID. Must always be present
+        inputDesc[currDesc].SemanticName            = "DRAWID";
+        inputDesc[currDesc].SemanticIndex           = 0;
+        inputDesc[currDesc].Format                  = DXGI_FORMAT_R32_UINT;
+        inputDesc[currDesc].InputSlot               = vao->getVertexBuffers().size();
+        inputDesc[currDesc].AlignedByteOffset       = 0;
+        inputDesc[currDesc].InputSlotClass          = D3D11_INPUT_PER_INSTANCE_DATA;
+        inputDesc[currDesc].InstanceDataStepRate    = 1;
+
+        {
+            bool bFound = false;
+            for( size_t j=0; j<numShaderInputs && !bFound; ++j )
+            {
+                D3D11_SIGNATURE_PARAMETER_DESC shaderDesc = mD3d11ShaderInputParameters[j];
+
+                if( strcmp( inputDesc[currDesc].SemanticName, shaderDesc.SemanticName ) == 0 &&
+                    inputDesc[currDesc].SemanticIndex == shaderDesc.SemanticIndex )
+                {
+                    ++numShaderInputsFound;
+                    bFound = true;
+                }
+            }
+
+            if( bFound )
+                ++currDesc;
+        }
+
+        if( numShaderInputsFound < numShaderInputs )
+        {
+            OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
+                         "Not all of the shader input semantics are set by the VertexArrayObject",
+                         "D3D11VertexDeclaration::getILayoutByShader");
+        }
+
+        ID3D11DeviceN *d3dDevice = mDevice.get();
+
+        ID3D11InputLayout *d3dInputLayout = 0;
+
+        HRESULT hr = d3dDevice->CreateInputLayout(
+                    inputDesc,
+                    currDesc,
+                    &mMicroCode[0],
+                    mMicroCode.size(),
+                    &d3dInputLayout );
+
+        if( FAILED(hr) || mDevice.isError() )
+        {
+            String errorDescription = mDevice.getErrorDescription(hr);
+            errorDescription += "\nBound shader name: " + mName;
+
+            OGRE_EXCEPT_EX( Exception::ERR_RENDERINGAPI_ERROR, hr,
+                            "Unable to create D3D11 input layout: " + errorDescription,
+                            "D3D11HLSLProgram::bindVao" );
+        }
+
+        mInputLayoutVaoBind.insert( itLayout, InputLayoutVaoBind( vao->getVaoName(), d3dInputLayout ) );
+
+        return d3dInputLayout;
+    }
+    //-----------------------------------------------------------------------------
     ID3D11Buffer* D3D11HLSLProgram::getConstantBuffer(GpuProgramParametersSharedPtr params, uint16 variabilityMask)
     {
         // Update the Constant Buffer
@@ -1923,7 +2085,7 @@ namespace Ogre {
             
             if (!it->mUniformBuffer.isNull())
             {
-                void* pMappedData = it->mUniformBuffer->lock(HardwareBuffer::HBL_DISCARD);
+                void* pMappedData = it->mUniformBuffer->lock(v1::HardwareBuffer::HBL_DISCARD);
 
                 // Only iterate through parsed variables (getting size of list)
                 void* src = 0;
@@ -1951,7 +2113,7 @@ namespace Ogre {
 
                 it->mUniformBuffer->unlock();
 
-                return static_cast<D3D11HardwareUniformBuffer*>(it->mUniformBuffer.get())->getD3DConstantBuffer();
+                return static_cast<v1::D3D11HardwareUniformBuffer*>(it->mUniformBuffer.get())->getD3DConstantBuffer();
             }
         }
 
@@ -1969,7 +2131,7 @@ namespace Ogre {
         {
             if (!it->mUniformBuffer.isNull())
             {
-                void* pMappedData = it->mUniformBuffer->lock(HardwareBuffer::HBL_DISCARD);
+                void* pMappedData = it->mUniformBuffer->lock(v1::HardwareBuffer::HBL_DISCARD);
 
                 // Only iterate through parsed variables (getting size of list)
                 void* src = 0;
@@ -1998,7 +2160,7 @@ namespace Ogre {
                 it->mUniformBuffer->unlock();
 
                 // Add buffer to list
-                buffers[numBuffers] = static_cast<D3D11HardwareUniformBuffer*>(it->mUniformBuffer.get())->getD3DConstantBuffer();
+                buffers[numBuffers] = static_cast<v1::D3D11HardwareUniformBuffer*>(it->mUniformBuffer.get())->getD3DConstantBuffer();
                 // Increment number of buffers
                 numBuffers++;
             }

@@ -408,13 +408,13 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-	bool Quaternion::equals(const Quaternion& rhs, const Radian& tolerance) const
-	{
+    bool Quaternion::equals(const Quaternion& rhs, const Radian& tolerance) const
+    {
         Real d = Dot(rhs);
         Radian angle = Math::ACos(2.0f * d*d - 1.0f);
 
-		return Math::Abs(angle.valueRadians()) <= tolerance.valueRadians();
-	}
+        return Math::Abs(angle.valueRadians()) <= tolerance.valueRadians();
+    }
     //-----------------------------------------------------------------------
     Quaternion Quaternion::Slerp (Real fT, const Quaternion& rkP,
         const Quaternion& rkQ, bool shortestPath)
