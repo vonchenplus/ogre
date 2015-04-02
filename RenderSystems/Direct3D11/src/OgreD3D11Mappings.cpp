@@ -31,7 +31,7 @@ THE SOFTWARE.
 namespace Ogre 
 {
     //---------------------------------------------------------------------
-    D3D11_TEXTURE_ADDRESS_MODE D3D11Mappings::get(TextureUnitState::TextureAddressingMode tam)
+    D3D11_TEXTURE_ADDRESS_MODE D3D11Mappings::get(TextureAddressingMode tam)
     {
         D3D11RenderSystem* rsys = static_cast<D3D11RenderSystem*>(Root::getSingleton().getRenderSystem());
         if (rsys->_getFeatureLevel() == D3D_FEATURE_LEVEL_9_1)
@@ -40,16 +40,16 @@ namespace Ogre
         //return D3D11_TEXTURE_ADDRESS_WRAP;
         switch( tam )
         {
-        case TextureUnitState::TAM_WRAP:
+        case TAM_WRAP:
             return D3D11_TEXTURE_ADDRESS_WRAP;
-        case TextureUnitState::TAM_MIRROR:
+        case TAM_MIRROR:
             return D3D11_TEXTURE_ADDRESS_MIRROR;
-        case TextureUnitState::TAM_CLAMP:
+        case TAM_CLAMP:
             return D3D11_TEXTURE_ADDRESS_CLAMP;
-        case TextureUnitState::TAM_BORDER:
+        case TAM_BORDER:
             return D3D11_TEXTURE_ADDRESS_BORDER;
         }
-		return D3D11_TEXTURE_ADDRESS_WRAP;
+        return D3D11_TEXTURE_ADDRESS_WRAP;
     }
     //---------------------------------------------------------------------
     D3D11_BLEND D3D11Mappings::get(SceneBlendFactor sbf, bool forAlpha)
@@ -212,28 +212,28 @@ namespace Ogre
 		return D3D11_FILTER_MIN_MAG_MIP_LINEAR;
     }
     //---------------------------------------------------------------------
-    D3D11_MAP D3D11Mappings::get(HardwareBuffer::LockOptions options, HardwareBuffer::Usage usage)
+    D3D11_MAP D3D11Mappings::get(v1::HardwareBuffer::LockOptions options, v1::HardwareBuffer::Usage usage)
     {
         D3D11_MAP ret = D3D11_MAP_READ_WRITE;
-        if (options == HardwareBuffer::HBL_DISCARD)
+        if (options == v1::HardwareBuffer::HBL_DISCARD)
         {
             // D3D doesn't like discard or no_overwrite on non-dynamic buffers
-            if (usage & HardwareBuffer::HBU_DYNAMIC)
+            if (usage & v1::HardwareBuffer::HBU_DYNAMIC)
                 ret = D3D11_MAP_WRITE_DISCARD;
         }
-        if (options == HardwareBuffer::HBL_READ_ONLY)
+        if (options == v1::HardwareBuffer::HBL_READ_ONLY)
         {
             // D3D debug runtime doesn't like you locking managed buffers readonly
             // when they were created with write-only (even though you CAN read
             // from the software backed version)
-            if (!(usage & HardwareBuffer::HBU_WRITE_ONLY))
+            if (!(usage & v1::HardwareBuffer::HBU_WRITE_ONLY))
                 ret = D3D11_MAP_READ;
 
         }
-        if (options == HardwareBuffer::HBL_NO_OVERWRITE)
+        if (options == v1::HardwareBuffer::HBL_NO_OVERWRITE)
         {
             // D3D doesn't like discard or no_overwrite on non-dynamic buffers
-            if (usage & HardwareBuffer::HBU_DYNAMIC)
+            if (usage & v1::HardwareBuffer::HBU_DYNAMIC)
                 ret = D3D11_MAP_WRITE_NO_OVERWRITE;
         }
 
@@ -259,9 +259,9 @@ namespace Ogre
         return box;
     }
     //---------------------------------------------------------------------
-    DXGI_FORMAT D3D11Mappings::getFormat(HardwareIndexBuffer::IndexType itype)
+    DXGI_FORMAT D3D11Mappings::getFormat(v1::HardwareIndexBuffer::IndexType itype)
     {
-		return itype == HardwareIndexBuffer::IT_32BIT ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+        return itype == v1::HardwareIndexBuffer::IT_32BIT ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
     }
     //---------------------------------------------------------------------
     DXGI_FORMAT D3D11Mappings::get(VertexElementType vType)
@@ -284,6 +284,44 @@ namespace Ogre
             return DXGI_FORMAT_R16G16_SINT;
         case VET_SHORT4:
             return DXGI_FORMAT_R16G16B16A16_SINT;
+        case VET_USHORT2:
+            return DXGI_FORMAT_R16G16_UINT;
+        case VET_USHORT4:
+            return DXGI_FORMAT_R16G16B16A16_UINT;
+        case VET_INT1:
+            return DXGI_FORMAT_R32_SINT;
+        case VET_INT2:
+            return DXGI_FORMAT_R32G32_SINT;
+        case VET_INT3:
+            return DXGI_FORMAT_R32G32B32_SINT;
+        case VET_INT4:
+            return DXGI_FORMAT_R32G32B32A32_SINT;
+        case VET_UINT1:
+            return DXGI_FORMAT_R32_UINT;
+        case VET_UINT2:
+            return DXGI_FORMAT_R32G32_UINT;
+        case VET_UINT3:
+            return DXGI_FORMAT_R32G32B32_UINT;
+        case VET_UINT4:
+            return DXGI_FORMAT_R32G32B32A32_UINT;
+        case VET_BYTE4:
+            return DXGI_FORMAT_R8G8B8A8_SINT;
+        case VET_BYTE4_SNORM:
+            return DXGI_FORMAT_R8G8B8A8_SNORM;
+        case VET_UBYTE4_NORM:
+            return DXGI_FORMAT_R8G8B8A8_UNORM;
+        case VET_SHORT2_SNORM:
+            return DXGI_FORMAT_R16G16_SNORM;
+        case VET_SHORT4_SNORM:
+            return DXGI_FORMAT_R16G16B16A16_SNORM;
+        case VET_USHORT2_NORM:
+            return DXGI_FORMAT_R16G16_UNORM;
+        case VET_USHORT4_NORM:
+            return DXGI_FORMAT_R16G16B16A16_UNORM;
+        case VET_HALF2:
+            return DXGI_FORMAT_R16G16_FLOAT;
+        case VET_HALF4:
+            return DXGI_FORMAT_R16G16B16A16_FLOAT;
         case VET_UBYTE4:
             return DXGI_FORMAT_R8G8B8A8_UINT;
         }
@@ -407,17 +445,17 @@ namespace Ogre
         case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:     return PF_UNKNOWN;
         case DXGI_FORMAT_X24_TYPELESS_G8_UINT:      return PF_UNKNOWN;
         case DXGI_FORMAT_R8G8_TYPELESS:             return PF_UNKNOWN;
-        case DXGI_FORMAT_R8G8_UNORM:                return PF_UNKNOWN;
-        case DXGI_FORMAT_R8G8_UINT:                 return PF_UNKNOWN;
-        case DXGI_FORMAT_R8G8_SNORM:                return PF_UNKNOWN;
-        case DXGI_FORMAT_R8G8_SINT:                 return PF_UNKNOWN;
+        case DXGI_FORMAT_R8G8_UNORM:                return PF_RG8;
+        case DXGI_FORMAT_R8G8_UINT:                 return PF_R8G8_UINT;
+        case DXGI_FORMAT_R8G8_SNORM:                return PF_R8G8_SNORM;
+        case DXGI_FORMAT_R8G8_SINT:                 return PF_R8G8_SINT;
         case DXGI_FORMAT_R16_TYPELESS:              return PF_UNKNOWN;
         case DXGI_FORMAT_R16_FLOAT:                 return PF_FLOAT16_R;
         case DXGI_FORMAT_D16_UNORM:                 return PF_UNKNOWN;
         case DXGI_FORMAT_R16_UNORM:                 return PF_L16;
-        case DXGI_FORMAT_R16_UINT:                  return PF_UNKNOWN;
-        case DXGI_FORMAT_R16_SNORM:                 return PF_UNKNOWN;
-        case DXGI_FORMAT_R16_SINT:                  return PF_UNKNOWN;
+        case DXGI_FORMAT_R16_UINT:                  return PF_R16_UINT;
+        case DXGI_FORMAT_R16_SNORM:                 return PF_R16_SNORM;
+        case DXGI_FORMAT_R16_SINT:                  return PF_R16_SINT;
         case DXGI_FORMAT_R8_TYPELESS:               return PF_UNKNOWN;
         case DXGI_FORMAT_R8_UNORM:                  return PF_L8;
         case DXGI_FORMAT_R8_UINT:                   return PF_UNKNOWN;
@@ -453,13 +491,13 @@ namespace Ogre
         case DXGI_FORMAT_BC7_TYPELESS:              return PF_BC7_UNORM;
         case DXGI_FORMAT_BC7_UNORM:                 return PF_BC7_UNORM;
         case DXGI_FORMAT_BC7_UNORM_SRGB:            return PF_BC7_UNORM_SRGB;
-
-#if defined(_WIN32_WINNT_WIN8) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8) && defined(DXGI_FORMAT_AYUV)
         case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:return PF_UNKNOWN;
         case DXGI_FORMAT_B8G8R8A8_TYPELESS:         return PF_UNKNOWN;
         case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:       return PF_A8R8G8B8;
         case DXGI_FORMAT_B8G8R8X8_TYPELESS:         return PF_UNKNOWN;
         case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:       return PF_X8R8G8B8;
+
+#if defined(_WIN32_WINNT_WIN8) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8) && defined(DXGI_FORMAT_AYUV)
         case DXGI_FORMAT_AYUV:                      return PF_UNKNOWN;
         case DXGI_FORMAT_Y410:                      return PF_UNKNOWN;
         case DXGI_FORMAT_Y416:                      return PF_UNKNOWN;
@@ -521,6 +559,13 @@ namespace Ogre
         case PF_BC7_UNORM:      return DXGI_FORMAT_BC7_UNORM;
         case PF_BC7_UNORM_SRGB: return DXGI_FORMAT_BC7_UNORM_SRGB;
         case PF_R16G16_SINT:    return DXGI_FORMAT_R16G16_SINT;
+        case PF_RG8:            return DXGI_FORMAT_R8G8_UNORM;
+        case PF_R8G8_SINT:      return DXGI_FORMAT_R8G8_SINT;
+        case PF_R8G8_UINT:      return DXGI_FORMAT_R8G8_UINT;
+        case PF_R8G8_SNORM:     return DXGI_FORMAT_R8G8_SNORM;
+        case PF_R16_SINT:       return DXGI_FORMAT_R16_SINT;
+        case PF_R16_UINT:       return DXGI_FORMAT_R16_UINT;
+        case PF_R16_SNORM:      return DXGI_FORMAT_R16_SNORM;
         case PF_UNKNOWN:
         default:                return DXGI_FORMAT_UNKNOWN;
         }
@@ -544,17 +589,17 @@ namespace Ogre
         }
     }
     //---------------------------------------------------------------------
-	D3D11_USAGE D3D11Mappings::_getUsage(HardwareBuffer::Usage usage)
+    D3D11_USAGE D3D11Mappings::_getUsage(v1::HardwareBuffer::Usage usage)
     {
 		return _isDynamic(usage) ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT;
     }
     //---------------------------------------------------------------------
-	bool D3D11Mappings::_isDynamic(HardwareBuffer::Usage usage)
+    bool D3D11Mappings::_isDynamic(v1::HardwareBuffer::Usage usage)
     {
-		return (usage & HardwareBuffer::HBU_DYNAMIC) != 0;
+        return (usage & v1::HardwareBuffer::HBU_DYNAMIC) != 0;
     }
     //---------------------------------------------------------------------
-	UINT D3D11Mappings::_getAccessFlags(HardwareBuffer::Usage usage)
+    UINT D3D11Mappings::_getAccessFlags(v1::HardwareBuffer::Usage usage)
     {
 		return _isDynamic(usage) ? D3D11_CPU_ACCESS_WRITE : 0;
     }
@@ -586,7 +631,7 @@ namespace Ogre
 		// We mark all textures as render target to be able to use GenerateMips() on it
 		// TODO: use DDSTextureLoader way of determining supported formats via CheckFormatSupport() & D3D11_FORMAT_SUPPORT_MIP_AUTOGEN
 		// TODO: explore DDSTextureLoader way of generating mips on temporary texture, to avoid D3D11_BIND_RENDER_TARGET flag injection 
-		bool isRenderTarget = /*(usage & TU_RENDERTARGET) &&*/ !(usage & TU_DYNAMIC);
+        bool isRenderTarget = (usage & TU_RENDERTARGET) || (!(usage & TU_DYNAMIC) && (usage & TU_AUTOMIPMAP));
 
 		// check for incompatible pixel formats
 		if(isRenderTarget)
@@ -651,15 +696,18 @@ namespace Ogre
 		return isRenderTarget ? D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET : D3D11_BIND_SHADER_RESOURCE;
 	}
 
-    UINT D3D11Mappings::_getTextureMiscFlags(UINT bindflags, TextureType textype, bool isdynamic)
+    UINT D3D11Mappings::_getTextureMiscFlags(UINT bindflags, TextureType textype, bool isdynamic, int usage)
     {
         if(isdynamic)
             return 0;
 
         UINT flags = 0;
 
-		if((bindflags & D3D11_BIND_SHADER_RESOURCE) && (bindflags & D3D11_BIND_RENDER_TARGET))
+        if((bindflags & D3D11_BIND_SHADER_RESOURCE) && (bindflags & D3D11_BIND_RENDER_TARGET) &&
+            (usage & TU_AUTOMIPMAP) )
+        {
 			flags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
+        }
 
         if(textype == TEX_TYPE_CUBE_MAP)
             flags |= D3D11_RESOURCE_MISC_TEXTURECUBE;

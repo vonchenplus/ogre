@@ -51,6 +51,7 @@ THE SOFTWARE.
 #include "Animation/OgreSkeletonManager.h"
 
 namespace Ogre {
+namespace v1 {
     //-----------------------------------------------------------------------
     Mesh::Mesh(ResourceManager* creator, const String& name, ResourceHandle handle,
         const String& group, bool isManual, ManualResourceLoader* loader)
@@ -312,7 +313,27 @@ namespace Ogre {
         // Removes reference to skeleton
         setSkeletonName(BLANKSTRING);
     }
+    //-----------------------------------------------------------------------
+    void Mesh::arrangeEfficientFor( bool oldInterface, bool halfPos, bool halfTexCoords )
+    {
+        /*if( sharedVertexData )
+        {
+            OGRE_EXCEPT( Exception::ERR_INVALID_STATE,
+                         "Meshes with shared verex data are not supported in the interface." );
+        }
+        SubMeshList::const_iterator itor = mSubMeshList.begin();
+        SubMeshList::const_iterator end  = mSubMeshList.end();
 
+        while( itor != end )
+        {
+            if( oldInterface )
+                (*itor)->arrangeEfficientForOldInterface( halfPos, halfTexCoords );
+            else
+                (*itor)->arrangeEfficientForItems( halfPos, halfTexCoords );
+
+            ++itor;
+        }*/
+    }
     //-----------------------------------------------------------------------
     MeshPtr Mesh::clone(const String& newName, const String& newGroup)
     {
@@ -833,11 +854,23 @@ namespace Ogre {
             bindIndex = bind->getNextIndex();
         }
 
+        // Determine what usage to use for the new buffer
+        HardwareBuffer::Usage currentBufferUsage;
+        const VertexBufferBinding::VertexBufferBindingMap & bindingMap = bind->getBindings();
+        VertexBufferBinding::VertexBufferBindingMap::const_iterator currentBindingIt = bindingMap.find(bindIndex);
+        if (currentBindingIt != bindingMap.end()) {
+            currentBufferUsage = currentBindingIt->second->getUsage();
+        } else if (bindingMap.size()) {
+            currentBufferUsage = bindingMap.begin()->second->getUsage();
+        } else {
+            currentBufferUsage = HardwareBuffer::HBU_STATIC_WRITE_ONLY;
+        }
+        // Create a new buffer for bone assignments
         HardwareVertexBufferSharedPtr vbuf =
             HardwareBufferManager::getSingleton().createVertexBuffer(
                 sizeof(unsigned char)*4 + sizeof(float)*numBlendWeightsPerVertex,
                 targetVertexData->vertexCount,
-                HardwareBuffer::HBU_STATIC_WRITE_ONLY,
+                currentBufferUsage,
                 true // use shadow buffer
                 );
         // bind new buffer
@@ -2476,5 +2509,12 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
+    void Mesh::createAzdoBuffers(void)
+    {
+        //mSubMeshList.begin();
+    }
+
+    //---------------------------------------------------------------------
+}
 }
 

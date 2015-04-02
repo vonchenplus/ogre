@@ -63,33 +63,12 @@ namespace Ogre
                 CompositorPass( definition, target, parentNode ),
                 mDefinition( definition ),
                 mFsRect( 0 ),
+                mDatablock( 0 ),
                 mPass( 0 ),
                 mCamera( 0 ),
                 mHorizonalTexelOffset( horizonalTexelOffset ),
                 mVerticalTexelOffset( verticalTexelOffset )
     {
-        MaterialPtr material = MaterialManager::getSingleton().getByName( mDefinition->mMaterialName );
-        if( material.isNull() )
-        {
-            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Cannot find material '" +
-                         mDefinition->mMaterialName + "'", "CompositorPassQuad::CompositorPassQuad" );
-        }
-        material->load();
-
-        if( !material->getBestTechnique() )
-        {
-            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Cannot find best technique for material '" +
-                         mDefinition->mMaterialName + "'", "CompositorPassQuad::CompositorPassQuad" );
-        }
-
-        if( !material->getBestTechnique()->getPass( 0 ) )
-        {
-            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Best technique must have a Pass! Material '" +
-                         mDefinition->mMaterialName + "'", "CompositorPassQuad::CompositorPassQuad" );
-        }
-
-        mPass = material->getBestTechnique()->getPass( 0 );
-
         const CompositorWorkspace *workspace = parentNode->getWorkspace();
 
         if( mDefinition->mUseQuad ||
@@ -101,6 +80,39 @@ namespace Ogre
         {
             mFsRect = workspace->getCompositorManager()->getSharedFullscreenTriangle();
         }
+
+        if( mDefinition->mMaterialIsHlms )
+        {
+            mFsRect->setDatablock( mDefinition->mMaterialName );
+        }
+        else
+        {
+            MaterialPtr material = MaterialManager::getSingleton().getByName( mDefinition->mMaterialName );
+            if( material.isNull() )
+            {
+                OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Cannot find material '" +
+                             mDefinition->mMaterialName + "'", "CompositorPassQuad::CompositorPassQuad" );
+            }
+            material->load();
+
+            if( !material->getBestTechnique() )
+            {
+                OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Cannot find best technique for material '" +
+                             mDefinition->mMaterialName + "'", "CompositorPassQuad::CompositorPassQuad" );
+            }
+
+            if( !material->getBestTechnique()->getPass( 0 ) )
+            {
+                OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Best technique must have a Pass! Material '" +
+                             mDefinition->mMaterialName + "'", "CompositorPassQuad::CompositorPassQuad" );
+            }
+
+            mPass = material->getBestTechnique()->getPass( 0 );
+
+            mFsRect->setMaterial( material );
+        }
+
+        mDatablock = mFsRect->getDatablock();
 
         if( mDefinition->mCameraName != IdString() )
             mCamera = workspace->findCamera( mDefinition->mCameraName );
@@ -122,27 +134,34 @@ namespace Ogre
         if( mDefinition->mBeginRtUpdate )
             mTarget->_beginUpdate();
 
-        //Set the material textures every frame (we don't clone the material)
-        const CompositorPassQuadDef::TextureSources &textureSources = mDefinition->getTextureSources();
-        CompositorPassQuadDef::TextureSources::const_iterator itor = textureSources.begin();
-        CompositorPassQuadDef::TextureSources::const_iterator end  = textureSources.end();
-        while( itor != end )
+        if( mPass )
         {
-            if( itor->texUnitIdx < mPass->getNumTextureUnitStates() )
+            //Set the material textures every frame (we don't clone the material)
+            const CompositorPassQuadDef::TextureSources &textureSources =
+                                                                mDefinition->getTextureSources();
+            CompositorPassQuadDef::TextureSources::const_iterator itor = textureSources.begin();
+            CompositorPassQuadDef::TextureSources::const_iterator end  = textureSources.end();
+            while( itor != end )
             {
-                TextureUnitState *tu = mPass->getTextureUnitState( itor->texUnitIdx );
-                tu->setTexture( mParentNode->getDefinedTexture( itor->textureName, itor->mrtIndex ) );
-            }
+                if( itor->texUnitIdx < mPass->getNumTextureUnitStates() )
+                {
+                    TextureUnitState *tu = mPass->getTextureUnitState( itor->texUnitIdx );
+                    tu->setTexture( mParentNode->getDefinedTexture( itor->textureName,
+                                                                    itor->mrtIndex ) );
+                }
 
-            ++itor;
+                ++itor;
+            }
         }
 
-        const Real hOffset = 2.0f * mHorizonalTexelOffset / mTarget->getWidth();
-        const Real vOffset = 2.0f * mVerticalTexelOffset / mTarget->getHeight();
+        if( mHorizonalTexelOffset != 0 || mVerticalTexelOffset != 0 )
+        {
+            const Real hOffset = 2.0f * mHorizonalTexelOffset / mTarget->getWidth();
+            const Real vOffset = 2.0f * mVerticalTexelOffset / mTarget->getHeight();
 
-        //The rectangle is shared, set the corners each time
-        mFsRect->setCorners( mDefinition->mVpLeft + hOffset, mDefinition->mVpTop - vOffset,
-                             mDefinition->mVpWidth, mDefinition->mVpHeight );
+            //The rectangle is shared, set the corners each time
+            mFsRect->setCorners( 0.0f + hOffset, 0.0f - vOffset, 1.0f, 1.0f );
+        }
 
         if( mDefinition->mFrustumCorners == CompositorPassQuadDef::VIEW_SPACE_CORNERS )
         {
@@ -166,7 +185,12 @@ namespace Ogre
         if( listener )
             listener->passPreExecute( this );
 
-        sceneManager->_injectRenderWithPass( mPass, mFsRect, mCamera, false, false );
+        //sceneManager->_injectRenderWithPass( mPass, mFsRect, mCamera, false, false );
+        mFsRect->setDatablock( mDatablock );
+        sceneManager->_renderSingleObject( mFsRect, mFsRect, false, false );
+
+        if( listener )
+            listener->passPosExecute( this );
 
         //Call endUpdate if we're the last pass in a row to use this RT
         if( mDefinition->mEndRtUpdate )

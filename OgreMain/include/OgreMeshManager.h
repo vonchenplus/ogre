@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     class MeshSerializerListener;
 
@@ -423,6 +424,11 @@ namespace Ogre {
         */
         void setBoundsPaddingFactor(Real paddingFactor);
 
+        /** Called when we you use a mesh which has shared vertices, the function creates separate
+            vertex/index buffers and also recreates the bone assignments.
+        */
+        static void unshareVertices( Mesh *mesh );
+
         /** Sets the listener used to control mesh loading through the serializer.
         */
         void setListener(MeshSerializerListener *listener);
@@ -503,6 +509,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
+}
 } //namespace
 
 #include "OgreHeaderSuffix.h"

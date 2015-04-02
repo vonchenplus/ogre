@@ -32,7 +32,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreGL3PlusRenderSystem.h"
 
 namespace Ogre {
-
+namespace v1 {
     GL3PlusHardwareVertexBuffer::GL3PlusHardwareVertexBuffer(
         HardwareBufferManagerBase* mgr,
         size_t vertexSize,
@@ -81,6 +81,10 @@ namespace Ogre {
         // Use glMapBuffer
         OGRE_CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, mBufferId));
 
+        assert( ((mUsage & HBU_WRITE_ONLY && options != HBL_NORMAL && options != HBL_READ_ONLY) ||
+                !(mUsage & HBU_WRITE_ONLY)) &&
+                "Reading from a write-only buffer! Create the buffer without HBL_WRITE_ONLY bit" );
+
         if (mUsage & HBU_WRITE_ONLY)
         {
             access |= GL_MAP_WRITE_BIT;
@@ -90,7 +94,8 @@ namespace Ogre {
                 // Discard the buffer
                 access |= GL_MAP_INVALIDATE_RANGE_BIT;
             }
-            access |= GL_MAP_UNSYNCHRONIZED_BIT;
+            if( options == HBL_NO_OVERWRITE )
+                access |= GL_MAP_UNSYNCHRONIZED_BIT;
         }
         else if (options == HBL_READ_ONLY)
             access |= GL_MAP_READ_BIT;
@@ -224,7 +229,7 @@ namespace Ogre {
 
             // Zero out this(destination) buffer
             OGRE_CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, mBufferId));
-            OGRE_CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, length, 0, GL3PlusHardwareBufferManager::getGLUsage(mUsage)));
+            OGRE_CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, mSizeInBytes, 0, GL3PlusHardwareBufferManager::getGLUsage(mUsage)));
             OGRE_CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, 0));
 
             // Do it the fast way.
@@ -263,6 +268,5 @@ namespace Ogre {
             mShadowUpdated = false;
         }
     }
-
-
+}
 }
