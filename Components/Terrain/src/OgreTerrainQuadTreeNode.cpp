@@ -134,6 +134,7 @@ namespace Ogre
         mTerrain->getPoint(midpointx, midpointy, 0, &mLocalCentre);
 
         mMovable = OGRE_NEW Movable(Id::generateNewId<MovableObject>(), objectMemoryManager, this);
+        mMovable->_notifyManager(terrain->_getRootSceneNode()->getCreator());
         mRend = OGRE_NEW Rend(this);
     }
     //---------------------------------------------------------------------
@@ -273,8 +274,7 @@ namespace Ogre
         createGpuIndexData();
         if (!mLocalNode)
         {
-            mLocalNode = mTerrain->_getRootSceneNode()->createChildSceneNode();
-            mLocalNode->setPosition(mLocalCentre);
+            mLocalNode = mTerrain->_getRootSceneNode()->createChildSceneNode(SCENE_STATIC, mLocalCentre);
         }
 
         if (!mMovable->isAttached())
