@@ -728,6 +728,48 @@ namespace Ogre
         @param texPtr Pointer to the texture to use.
         */
         virtual void _setTexture(size_t unit, bool enabled,  Texture *texPtr) = 0;
+
+        /** In Direct3D11, UAV & RenderTargets share the same slots. Because of this,
+            we enforce the same behavior on all RenderSystems.
+            An unfortunate consequence is that if you attach an MRT consisting of 3 RTs;
+            the UAV needs to set at slot 3; not slot 0.
+            This setting lets you tell Ogre the starting slot; so queueBindUAV( 0, ... )
+            can goes to slot 3 if you call setUavStartingSlot( 3 )
+        @par
+            Ogre will raise an exception in D3D11 if the starting slot is lower than
+            the number of attached RTs, but will let it pass if you're using GL3+
+            [TODO: Make this behavior consistent?]
+        @remarks
+            Will not take effect until the next call to flushUAVs or setting a new RTT.
+        @param startingSlot
+            Default value: 1.
+        */
+        virtual void setUavStartingSlot( uint32 startingSlot );
+
+        /** Queues the binding of an UAV to the binding point/slot.
+            It won't actually take effect until you flush the UAVs or set another RTT.
+        @param bindPoint
+            The buffer binding location for shader access. For OpenGL this must be unique and
+            is not related to the texture binding point.
+        @param access
+            The texture access privileges given to the shader.
+        @param mipmapLevel
+            The texture mipmap level to use.
+        @param textureArrayIndex
+            The index of the texture array to use. If texture is not a texture array, set to 0.
+        @param format
+            Texture format to be read in by shader. This may be different than the bound texture format.
+            Will be the same is left as PF_UNKNOWN
+        */
+        virtual void queueBindUAV( uint32 slot, TexturePtr texture,
+                                   TextureAccess access = TA_READ_WRITE,
+                                   int32 mipmapLevel = 0, int32 textureArrayIndex = 0,
+                                   PixelFormat pixelFormat = PF_UNKNOWN ) = 0;
+
+        /// Forces to take effect all the queued UAV binding requests. @see _queueBindUAV.
+        /// You don't need to call this if you're going to set the render target next.
+        virtual void flushUAVs(void) = 0;
+
         /**
         Sets the texture to bind to a given texture unit.
 
@@ -1270,8 +1312,11 @@ namespace Ogre
 
         /**
          * Set current render target to target, enabling its device context if needed
+        @param colourWrite
+            False to disable colour writes. @see CompositorPassDef::mColourWrite
+            The RenderTarget is needed to know the depth/stencil information.
          */
-        virtual void _setRenderTarget(RenderTarget *target) = 0;
+        virtual void _setRenderTarget(RenderTarget *target, bool colourWrite) = 0;
 
         /** Defines a listener on the custom events that this render system 
         can raise.
@@ -1452,6 +1497,8 @@ namespace Ogre
         float mDerivedDepthBiasBase;
         float mDerivedDepthBiasMultiplier;
         float mDerivedDepthBiasSlopeScale;
+
+        uint32  mUavStartingSlot;
 
         /// a global vertex buffer for global instancing
         v1::HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
