@@ -1866,6 +1866,8 @@ namespace Ogre
             setProperty( HlmsBaseProp::LightsSpot,        0 );
         }
 
+        mListener->preparePassHash( shadowNode, casterPass, dualParaboloid, sceneManager, this );
+
         assert( mPassCache.size() < 32768 );
         HlmsPropertyVecVec::iterator it = std::find( mPassCache.begin(), mPassCache.end(),
                                                      mSetProperties );
@@ -1891,8 +1893,7 @@ namespace Ogre
         uint32 hash[2];
         hash[0] = casterPass ? queuedRenderable.renderable->getHlmsCasterHash() :
                                queuedRenderable.renderable->getHlmsHash();
-        hash[1] = passCache.hash &
-                        (queuedRenderable.movableObject->getCastShadows() ? 0xffffffff : 0xffffffe1 );
+        hash[1] = passCache.hash;
 
         //MurmurHash3_x86_32( hash, sizeof( hash ), IdString::Seed, &finalHash );
 
