@@ -132,7 +132,8 @@ namespace v1 {
             // was deleted by the user.
             for (SliceTRT::const_iterator it = mSliceTRT.begin(); it != mSliceTRT.end(); ++it)
             {
-                Root::getSingleton().getRenderSystem()->destroyRenderTarget((*it)->getName());
+                if( *it )
+                    Root::getSingleton().getRenderSystem()->destroyRenderTarget((*it)->getName());
             }
         }
     }
@@ -678,9 +679,11 @@ namespace v1 {
                                                        mFaceTarget, mTextureID, mLevel));
             break;
         case GL_TEXTURE_3D:
-        case GL_TEXTURE_2D_ARRAY:
             OGRE_CHECK_GL_ERROR(glFramebufferTexture3D(which, attachment,
                                                        mFaceTarget, mTextureID, mLevel, zoffset));
+            break;
+        case GL_TEXTURE_2D_ARRAY:
+            OGRE_CHECK_GL_ERROR(glFramebufferTextureLayer(which, attachment, mTextureID, mLevel, zoffset));
             break;
         }
     }

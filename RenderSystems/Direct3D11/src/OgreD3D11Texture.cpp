@@ -472,8 +472,6 @@ namespace Ogre
 
         // determine total number of mipmaps including main one (d3d11 convention)
         UINT numMips = (mNumRequestedMipmaps == MIP_UNLIMITED || (1U << mNumRequestedMipmaps) > std::max(mSrcWidth, mSrcHeight)) ? 0 : mNumRequestedMipmaps + 1;
-        if(isBinaryCompressedFormat && numMips > 1)
-            numMips = std::max(1U, numMips - 2);
 
         D3D11_TEXTURE2D_DESC desc;
         desc.Width          = static_cast<UINT>(mSrcWidth);
@@ -1116,7 +1114,8 @@ namespace Ogre
                                             bool writeGamma,
                                             D3D11Device & device ) :
         mDevice(device),
-        RenderTexture(buffer, 0)
+        RenderTexture(buffer, 0),
+        mRenderTargetView(NULL)
     {
         mName = name;
         mHwGamma = writeGamma;

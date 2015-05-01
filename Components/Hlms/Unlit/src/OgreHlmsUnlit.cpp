@@ -30,6 +30,7 @@ THE SOFTWARE.
 
 #include "OgreHlmsUnlit.h"
 #include "OgreHlmsUnlitDatablock.h"
+#include "OgreHlmsListener.h"
 
 #include "OgreViewport.h"
 #include "OgreRenderTarget.h"
@@ -126,7 +127,13 @@ namespace Ogre
     const IdString UnlitProperty::BlendModeIndex15      = IdString( "blend_mode_idx15" );
 
     const IdString UnlitProperty::OutUvCount            = IdString( "out_uv_count" );
-    /*const IdString UnlitProperty::OutUv0TextureMatrix   = IdString( "out_uv0_out_uv" );
+    const IdString UnlitProperty::OutUvHalfCount        = IdString( "out_uv_half_count" );
+    /*
+    //There are out_uv_half_count of this (half of out_uv_count, rounded up)
+    const IdString UnlitProperty::OutUvCount0           = IdString( "out_uv_half_count0" );
+
+    //There are out_uv_count of these
+    const IdString UnlitProperty::OutUv0TextureMatrix   = IdString( "out_uv0_out_uv" );
     const IdString UnlitProperty::OutUv0TextureMatrix   = IdString( "out_uv0_texture_matrix" );
     const IdString UnlitProperty::OutUv0TexUnit         = IdString( "out_uv0_tex_unit" );
     const IdString UnlitProperty::OutUv0Swizzle         = IdString( "out_uv0_swizzle" );
@@ -154,8 +161,8 @@ namespace Ogre
         { &UnlitProperty::UvDiffuse15, &UnlitProperty::UvDiffuseSwizzle15, &UnlitProperty::BlendModeIndex15 },
     };
 
-    HlmsUnlit::HlmsUnlit( Archive *dataFolder ) :
-        HlmsBufferManager( HLMS_UNLIT, "unlit", dataFolder ),
+    HlmsUnlit::HlmsUnlit( Archive *dataFolder, ArchiveVec *libraryFolders ) :
+        HlmsBufferManager( HLMS_UNLIT, "unlit", dataFolder, libraryFolders ),
         ConstBufferPool( HlmsUnlitDatablock::MaterialSizeInGpuAligned,
                          ExtraBufferParams( 64 * NUM_UNLIT_TEXTURE_TYPES ) ),
         mCurrentPassBuffer( 0 ),
@@ -220,24 +227,27 @@ namespace Ogre
         UnlitBakedTextureArray::const_iterator itor = datablock->mBakedTextures.begin();
         UnlitBakedTextureArray::const_iterator end  = datablock->mBakedTextures.end();
 
-        int numTextures = 0;
-        int numArrayTextures = 0;
-        while( itor != end )
+        if( !getProperty( HlmsBaseProp::ShadowCaster ) )
         {
-            if( itor->texture->getTextureType() == TEX_TYPE_2D_ARRAY )
+            int numTextures = 0;
+            int numArrayTextures = 0;
+            while( itor != end )
             {
-                psParams->setNamedConstant( "textureMapsArray[" +
-                                            StringConverter::toString( numArrayTextures++ ) + "]",
-                                            texUnit++ );
-            }
-            else
-            {
-                psParams->setNamedConstant( "textureMaps[" +
-                                            StringConverter::toString( numTextures++ ) + "]",
-                                            texUnit++ );
-            }
+                if( itor->texture->getTextureType() == TEX_TYPE_2D_ARRAY )
+                {
+                    psParams->setNamedConstant( "textureMapsArray[" +
+                                                StringConverter::toString( numArrayTextures++ ) + "]",
+                                                texUnit++ );
+                }
+                else
+                {
+                    psParams->setNamedConstant( "textureMaps[" +
+                                                StringConverter::toString( numTextures++ ) + "]",
+                                                texUnit++ );
+                }
 
-            ++itor;
+                ++itor;
+            }
         }
 
         vsParams->setNamedConstant( "worldMatBuf", 0 );
@@ -367,7 +377,7 @@ namespace Ogre
                     uvOutput.isAnimated = true;
 
                     setProperty( *UnlitProperty::DiffuseMapPtrs[i].uvSource,
-                                 static_cast<int32>( uvOutputs.size() ) );
+                                 static_cast<int32>( uvOutputs.size() >> 1u ) );
                     inOutPieces[PixelShader][uvSourceSwizzleN] = uvOutputs.size() % 2 ? "zw" : "xy";
 
                     uvOutputs.push_back( uvOutput );
@@ -384,9 +394,10 @@ namespace Ogre
                         ++itor;
                     }
 
-                    int32 idx = static_cast<int32>( itor - uvOutputs.begin() );
+                    size_t rawIdx = itor - uvOutputs.begin();
+                    int32 idx = static_cast<int32>( rawIdx >> 1u );
                     setProperty( *UnlitProperty::DiffuseMapPtrs[i].uvSource, idx );
-                    inOutPieces[PixelShader][uvSourceSwizzleN] = idx % 2 ? "zw" : "xy";
+                    inOutPieces[PixelShader][uvSourceSwizzleN] = rawIdx % 2 ? "zw" : "xy";
 
                     if( itor == end )
                     {
@@ -421,13 +432,24 @@ namespace Ogre
             }
         }
 
+        size_t halfUvOutputs = (uvOutputs.size() + 1u) >> 1u;
         setProperty( UnlitProperty::OutUvCount, static_cast<int32>( uvOutputs.size() ) );
+        setProperty( UnlitProperty::OutUvHalfCount, static_cast<int32>( halfUvOutputs ) );
+
+        for( size_t i=0; i<halfUvOutputs; ++i )
+        {
+            //Decide whether to use vec4 or vec2 in VStoPS_block piece:
+            // vec4 uv0; //--> When interpolant contains two uvs in one
+            // vec2 uv0; //--> When interpolant contains the last UV (uvOutputs.size() is odd)
+            setProperty( "out_uv_half_count" + StringConverter::toString( i ),
+                         (i << 1u) == (uvOutputs.size() - 1u) ? 2 : 4 );
+        }
 
         for( size_t i=0; i<uvOutputs.size(); ++i )
         {
             String outPrefix = "out_uv" + StringConverter::toString( i );
 
-            setProperty( outPrefix + "_out_uv", i >> 1 );
+            setProperty( outPrefix + "_out_uv", i >> 1u );
             setProperty( outPrefix + "_texture_matrix", uvOutputs[i].isAnimated );
             setProperty( outPrefix + "_tex_unit", uvOutputs[i].texUnit );
             setProperty( outPrefix + "_source_uv", uvOutputs[i].uvSource );
@@ -511,6 +533,9 @@ namespace Ogre
             //vec2 depthRange;
             size_t mapSize = 4 * 4;
 
+            mapSize += mListener->getPassBufferSize( shadowNode, casterPass,
+                                                     dualParaboloid, sceneManager );
+
             //Arbitrary 16kb (minimum supported by GL), should be enough.
             const size_t maxBufferSize = 16 * 1024;
             assert( mapSize <= maxBufferSize );
@@ -539,6 +564,9 @@ namespace Ogre
             *passBufferPtr++ = fNear;
             *passBufferPtr++ = 1.0f / depthRange;
             passBufferPtr += 2;
+
+            passBufferPtr = mListener->preparePassBuffer( shadowNode, casterPass, dualParaboloid,
+                                                          sceneManager, passBufferPtr );
 
             assert( (size_t)(passBufferPtr - startupPtr) * 4u == mapSize );
 
@@ -627,6 +655,8 @@ namespace Ogre
             }
 
             rebindTexBuffer( commandBuffer );
+
+            mListener->hlmsTypeChanged( casterPass, commandBuffer, datablock );
         }
 
         if( mLastBoundPool != datablock->getAssignedPool() )

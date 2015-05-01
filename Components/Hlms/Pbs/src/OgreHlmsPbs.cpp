@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgreHlmsPbs.h"
 #include "OgreHlmsPbsDatablock.h"
 #include "OgreHlmsManager.h"
+#include "OgreHlmsListener.h"
 
 #include "OgreViewport.h"
 #include "OgreRenderTarget.h"
@@ -121,6 +122,11 @@ namespace Ogre
     const IdString PbsProperty::Pcf4x4            = IdString( "pcf_4x4" );
     const IdString PbsProperty::PcfIterations     = IdString( "pcf_iterations" );
 
+    const IdString PbsProperty::BrdfDefault       = IdString( "BRDF_Default" );
+    const IdString PbsProperty::BrdfCookTorrance  = IdString( "BRDF_CookTorrance" );
+    const IdString PbsProperty::FresnelSeparateDiffuse  = IdString( "fresnel_separate_diffuse" );
+    const IdString PbsProperty::GgxHeightCorrelated     = IdString( "GGX_height_correlated" );
+
     const IdString *PbsProperty::UvSourcePtrs[NUM_PBSM_SOURCES] =
     {
         &PbsProperty::UvDiffuse,
@@ -188,8 +194,8 @@ namespace Ogre
 
     extern const String c_pbsBlendModes[];
 
-    HlmsPbs::HlmsPbs( Archive *dataFolder ) :
-        HlmsBufferManager( HLMS_PBS, "pbs", dataFolder ),
+    HlmsPbs::HlmsPbs( Archive *dataFolder, ArchiveVec *libraryFolders ) :
+        HlmsBufferManager( HLMS_PBS, "pbs", dataFolder, libraryFolders ),
         ConstBufferPool( HlmsPbsDatablock::MaterialSizeInGpuAligned,
                          ConstBufferPool::ExtraBufferParams() ),
         mShadowmapSamplerblock( 0 ),
@@ -386,6 +392,20 @@ namespace Ogre
         HlmsPbsDatablock *datablock = static_cast<HlmsPbsDatablock*>(
                                                         renderable->getDatablock() );
         setProperty( PbsProperty::FresnelScalar, datablock->hasSeparateFresnel() );
+
+        uint32 brdf = datablock->getBrdf();
+        if( (brdf & PbsBrdf::BRDF_MASK) == PbsBrdf::Default )
+        {
+            setProperty( PbsProperty::BrdfDefault, 1 );
+
+            if( !(brdf & PbsBrdf::FLAG_UNCORRELATED) )
+                setProperty( PbsProperty::GgxHeightCorrelated, 1 );
+        }
+        else if( (brdf & PbsBrdf::BRDF_MASK) == PbsBrdf::CookTorrance )
+            setProperty( PbsProperty::BrdfCookTorrance, 1 );
+
+        if( brdf & PbsBrdf::FLAG_SPERATE_DIFFUSE_FRESNEL )
+            setProperty( PbsProperty::FresnelSeparateDiffuse, 1 );
 
         for( size_t i=0; i<PBSM_REFLECTION; ++i )
         {
@@ -604,6 +624,9 @@ namespace Ogre
         {
             mapSize += (2 + 2) * 4;
         }
+
+        mapSize += mListener->getPassBufferSize( shadowNode, casterPass, dualParaboloid,
+                                                 sceneManager );
 
         //Arbitrary 16kb (minimum supported by GL), should be enough.
         const size_t maxBufferSize = 16 * 1024;
@@ -849,6 +872,9 @@ namespace Ogre
             passBufferPtr += 2;
         }
 
+        passBufferPtr = mListener->preparePassBuffer( shadowNode, casterPass, dualParaboloid,
+                                                      sceneManager, passBufferPtr );
+
         assert( (size_t)(passBufferPtr - startupPtr) * 4u == mapSize );
 
         passBuffer->unmap( UO_KEEP_PERSISTENT );
@@ -965,6 +991,8 @@ namespace Ogre
             }
 
             rebindTexBuffer( commandBuffer );
+
+            mListener->hlmsTypeChanged( casterPass, commandBuffer, datablock );
         }
 
         if( mLastBoundPool != datablock->getAssignedPool() )

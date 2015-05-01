@@ -49,6 +49,7 @@ THE SOFTWARE.
 
 #include "OgreTimer.h"
 #include "OgreStringConverter.h"
+#include "OgreLogManager.h"
 
 namespace Ogre
 {
@@ -112,9 +113,17 @@ namespace Ogre
 
         for( size_t i=0; i<2; ++i )
         {
-            //Collect the buffer names from all staging buffers to use one API call
-            StagingBufferVec::const_iterator itor = mStagingBuffers[i].begin();
-            StagingBufferVec::const_iterator end  = mStagingBuffers[i].end();
+            StagingBufferVec::const_iterator itor = mRefedStagingBuffers[i].begin();
+            StagingBufferVec::const_iterator end  = mRefedStagingBuffers[i].end();
+
+            while( itor != end )
+            {
+                static_cast<D3D11StagingBuffer*>(*itor)->getBufferName()->Release();
+                ++itor;
+            }
+
+            itor = mZeroRefStagingBuffers[i].begin();
+            end  = mZeroRefStagingBuffers[i].end();
 
             while( itor != end )
             {
@@ -1270,7 +1279,7 @@ namespace Ogre
         D3D11StagingBuffer *stagingBuffer = OGRE_NEW D3D11StagingBuffer( sizeBytes, this,
                                                                          forUpload, bufferName,
                                                                          mDevice );
-        mStagingBuffers[forUpload].push_back( stagingBuffer );
+        mRefedStagingBuffers[forUpload].push_back( stagingBuffer );
 
         return stagingBuffer;
     }
@@ -1279,6 +1288,29 @@ namespace Ogre
                                                        StagingBuffer *stagingBuffer,
                                                        size_t elementStart, size_t elementCount )
     {
+        if( creator->getBufferType() == BT_IMMUTABLE )
+        {
+            bool delayedBuffersPending = false;
+            for( size_t i=0; i<NumInternalBufferTypes; ++i )
+                delayedBuffersPending |= !mDelayedBuffers[i].empty();
+
+            if( delayedBuffersPending )
+            {
+                LogManager::getSingleton().logMessage(
+                            "PERFORMANCE WARNING D3D11: Calling createAsyncTicket when there are "
+                            "pending immutable buffers to be created. This will force Ogre to "
+                            "create them immediately; which diminish our ability to batch meshes "
+                            "toghether & could affect performance during rendering.\n"
+                            "You should call createAsyncTicket after all immutable meshes have "
+                            "been loaded to ensure they get batched together. If you're already "
+                            "doing this, you can ignore this warning.\n"
+                            "If you're not going to render (i.e. this is a mesh export tool) "
+                            "you can also ignore this warning." );
+            }
+
+            createDelayedImmutableBuffers();
+        }
+
         return AsyncTicketPtr( OGRE_NEW D3D11AsyncTicket( creator, stagingBuffer,
                                                           elementStart, elementCount,
                                                           mDevice ) );
@@ -1320,11 +1352,6 @@ namespace Ogre
                         //Time to delete this buffer.
                         static_cast<D3D11StagingBuffer*>(stagingBuffer)->getBufferName()->Release();
 
-                        //We have to remove it from two lists.
-                        StagingBufferVec::iterator itFullList = std::find( mStagingBuffers[i].begin(),
-                                                                           mStagingBuffers[i].end(),
-                                                                           stagingBuffer );
-                        efficientVectorRemove( mStagingBuffers[i], itFullList );
                         delete *itor;
 
                         itor = efficientVectorRemove( mZeroRefStagingBuffers[i], itor );
