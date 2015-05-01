@@ -26,45 +26,50 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#ifndef __Ogre_Overlay_Prereq_H__
-#define __Ogre_Overlay_Prereq_H__
+#pragma once
 
-#include "OgrePrerequisites.h"
+#include "Ogre.h"
+#include "OgreHlmsPrerequisites.h"
+#include "OgreHlmsPropertyMap.h"
+#include "OgreHlmsShaderTemplate.h"
 
 namespace Ogre
 {
-    // forward decls
-    class Font;
-    class FontManager;
-    class Overlay;
-    class OverlayContainer;
-    class OverlayElement;
-    class OverlayElementFactory;
-    class OverlayManager;
+	/** \addtogroup Component
+	*  @{
+	*/
+	/** \addtogroup Hlms
+	*  @{
+	*/
+	class _OgreHlmsExport HlmsDatablock : public PassAlloc
+	{
+	public:
+		HlmsDatablock(GpuProgramType type, PropertyMap* propertyMap);
 
-    typedef SharedPtr<Font> FontPtr;
+		PropertyMap* getPropertyMap(){ return mPropertyMap; }
+
+		GpuProgramType getShaderType(){ return mShaderType; }
+		const String& getLanguage(){ return mLanguage; }
+		ShaderTemplate* getTemplate();
+		const StringVector& getProfileList(){ return mProfilesList; }
+
+		void setLanguage(const String& language);
+		void setTemplateName(const String& tamplateName);
+		void addProfile(const String& profile);
+
+		uint32 getHash();
+
+	protected:
+		ShaderTemplate mTemplate;
+		String mTamplateName;
+		String mLanguage;
+		GpuProgramType mShaderType;
+		PropertyMap* mPropertyMap;
+		StringVector mProfilesList; // vs_2_0, fs_3_0, ...
+
+		uint32 mHash;
+
+		void reload();
+	};
 }
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
-#   if defined( OGRE_STATIC_LIB )
-#       define _OgreOverlayExport
-#   else
-#       if defined( OGRE_OVERLAY_EXPORTS )
-#           define _OgreOverlayExport __declspec( dllexport )
-#       else
-#           if defined( __MINGW32__ )
-#               define _OgreOverlayExport
-#           else
-#               define _OgreOverlayExport __declspec( dllimport )
-#           endif
-#       endif
-#   endif
-#elif defined ( OGRE_GCC_VISIBILITY )
-#   define _OgreOverlayExport __attribute__ ((visibility("default")))
-#else
-#   define _OgreOverlayExport
-#endif 
-
-
-
-#endif 

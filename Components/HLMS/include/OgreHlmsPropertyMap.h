@@ -26,45 +26,63 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#ifndef __Ogre_Overlay_Prereq_H__
-#define __Ogre_Overlay_Prereq_H__
+#pragma once
 
-#include "OgrePrerequisites.h"
+
+#include "Ogre.h"			
+#include "OgreHlmsPrerequisites.h"
+#include "OgreIdString.h"
 
 namespace Ogre
 {
-    // forward decls
-    class Font;
-    class FontManager;
-    class Overlay;
-    class OverlayContainer;
-    class OverlayElement;
-    class OverlayElementFactory;
-    class OverlayManager;
+	/** \addtogroup Component
+	*  @{
+	*/
+	/** \addtogroup Hlms
+	*  @{
+	*/
+	class _OgreHlmsExport PropertyMap : public PassAlloc
+	{
+	public:
 
-    typedef SharedPtr<Font> FontPtr;
+		struct Property
+		{
+			IdString    keyName;
+			int32 value;
+
+			Property(IdString _keyName, int32 _value) :
+				keyName(_keyName), value(_value) {}
+
+			bool operator == (const Property &_r) const
+			{
+				return this->keyName == _r.keyName && this->value == _r.value;
+			}
+		};
+
+		PropertyMap();
+		virtual ~PropertyMap();
+
+		/** Inserts common properties about the current Renderable,
+			such as hlms_skeleton hlms_uv_count, etc
+			*/
+		void setCommonProperties();
+
+		void setProperty(IdString key, int32 value);
+		bool hasProperty(IdString key);
+		int32 getProperty(IdString key, int32 defaultVal = 0);
+		void removeProperty(IdString key);
+
+		uint32 getHash();
+
+	protected:
+
+		vector<Property>::type mProperties;
+		uint32 mHash;
+
+		static bool orderPropertyByIdString(const PropertyMap::Property &_left, const PropertyMap::Property &_right)
+		{
+			return _left.keyName < _right.keyName;
+		}
+	};
 }
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
-#   if defined( OGRE_STATIC_LIB )
-#       define _OgreOverlayExport
-#   else
-#       if defined( OGRE_OVERLAY_EXPORTS )
-#           define _OgreOverlayExport __declspec( dllexport )
-#       else
-#           if defined( __MINGW32__ )
-#               define _OgreOverlayExport
-#           else
-#               define _OgreOverlayExport __declspec( dllimport )
-#           endif
-#       endif
-#   endif
-#elif defined ( OGRE_GCC_VISIBILITY )
-#   define _OgreOverlayExport __attribute__ ((visibility("default")))
-#else
-#   define _OgreOverlayExport
-#endif 
-
-
-
-#endif 
