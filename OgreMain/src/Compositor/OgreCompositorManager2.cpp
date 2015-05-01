@@ -45,6 +45,8 @@ THE SOFTWARE.
 #include "OgreHardwarePixelBuffer.h"
 #include "OgreRenderSystem.h"
 #include "OgreSceneManagerEnumerator.h"
+#include "OgreHlmsManager.h"
+#include "OgreHlms.h"
 
 namespace Ogre
 {
@@ -381,15 +383,29 @@ namespace Ogre
                                 finalRenderTarget, sceneManager, defaultCam, mRenderSystem,
                                 bEnabled, executionMask, vpModifierMask, vpOffsetScale );
 
-            position = std::min<int>( position, mWorkspaces.size() );
-
-            if( position < 0 )
-                mWorkspaces.push_back( workspace );
-            else
-                mWorkspaces.insert( mWorkspaces.begin() + position, workspace );
+            mQueuedWorkspaces.push_back( QueuedWorkspace( workspace, position ) );
         }
 
         return workspace;
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorManager2::addQueuedWorkspaces(void)
+    {
+        QueuedWorkspaceVec::const_iterator itor = mQueuedWorkspaces.begin();
+        QueuedWorkspaceVec::const_iterator end  = mQueuedWorkspaces.end();
+
+        while( itor != end )
+        {
+            int position = std::min<int>( itor->position, mWorkspaces.size() );
+
+            if( position < 0 )
+                mWorkspaces.push_back( itor->workspace );
+            else
+                mWorkspaces.insert( mWorkspaces.begin() + position, itor->workspace );
+            ++itor;
+        }
+
+        mQueuedWorkspaces.clear();
     }
     //-----------------------------------------------------------------------------------
     void CompositorManager2::removeWorkspace( CompositorWorkspace *workspace )
@@ -397,8 +413,22 @@ namespace Ogre
         WorkspaceVec::iterator itor = std::find( mWorkspaces.begin(), mWorkspaces.end(), workspace );
         if( itor == mWorkspaces.end() )
         {
-            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Workspace not created with this "
-                            "Compositor Manager", "CompositorManager2::removeWorkspace" );
+            QueuedWorkspaceVec::iterator it = mQueuedWorkspaces.begin();
+            QueuedWorkspaceVec::iterator en = mQueuedWorkspaces.end();
+
+            while( it != en && it->workspace != workspace )
+                ++it;
+
+            if( it == mQueuedWorkspaces.end() )
+            {
+                OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Workspace not created with this "
+                             "Compositor Manager", "CompositorManager2::removeWorkspace" );
+            }
+            else
+            {
+                OGRE_DELETE it->workspace;
+                mQueuedWorkspaces.erase( it ); //Preserve the order of workspace execution
+            }
         }
         else
         {
@@ -409,6 +439,7 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void CompositorManager2::removeAllWorkspaces(void)
     {
+        addQueuedWorkspaces();
         deleteAllClear( mWorkspaces );
     }
     //-----------------------------------------------------------------------------------
@@ -479,8 +510,10 @@ namespace Ogre
         mUnfinishedShadowNodes.clear();
     }
     //-----------------------------------------------------------------------------------
-    void CompositorManager2::_update( SceneManagerEnumerator &sceneManagers )
+    void CompositorManager2::_update( SceneManagerEnumerator &sceneManagers, HlmsManager *hlmsManager )
     {
+        addQueuedWorkspaces();
+
         WorkspaceVec::const_iterator itor = mWorkspaces.begin();
         WorkspaceVec::const_iterator end  = mWorkspaces.end();
 
@@ -545,6 +578,13 @@ namespace Ogre
         {
             SceneManager *sceneManager = sceneManagerItor.getNext();
             sceneManager->_frameEnded();
+        }
+
+        for( size_t i=0; i<HLMS_MAX; ++i )
+        {
+            Hlms *hlms = hlmsManager->getHlms( static_cast<HlmsTypes>( i ) );
+            if( hlms )
+                hlms->frameEnded();
         }
 
         mRenderSystem->_update();
