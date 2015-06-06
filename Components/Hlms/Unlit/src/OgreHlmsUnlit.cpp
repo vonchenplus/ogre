@@ -30,6 +30,7 @@ THE SOFTWARE.
 
 #include "OgreHlmsUnlit.h"
 #include "OgreHlmsUnlitDatablock.h"
+#include "OgreHlmsListener.h"
 
 #include "OgreViewport.h"
 #include "OgreRenderTarget.h"
@@ -126,7 +127,13 @@ namespace Ogre
     const IdString UnlitProperty::BlendModeIndex15      = IdString( "blend_mode_idx15" );
 
     const IdString UnlitProperty::OutUvCount            = IdString( "out_uv_count" );
-    /*const IdString UnlitProperty::OutUv0TextureMatrix   = IdString( "out_uv0_out_uv" );
+    const IdString UnlitProperty::OutUvHalfCount        = IdString( "out_uv_half_count" );
+    /*
+    //There are out_uv_half_count of this (half of out_uv_count, rounded up)
+    const IdString UnlitProperty::OutUvCount0           = IdString( "out_uv_half_count0" );
+
+    //There are out_uv_count of these
+    const IdString UnlitProperty::OutUv0TextureMatrix   = IdString( "out_uv0_out_uv" );
     const IdString UnlitProperty::OutUv0TextureMatrix   = IdString( "out_uv0_texture_matrix" );
     const IdString UnlitProperty::OutUv0TexUnit         = IdString( "out_uv0_tex_unit" );
     const IdString UnlitProperty::OutUv0Swizzle         = IdString( "out_uv0_swizzle" );
@@ -154,8 +161,8 @@ namespace Ogre
         { &UnlitProperty::UvDiffuse15, &UnlitProperty::UvDiffuseSwizzle15, &UnlitProperty::BlendModeIndex15 },
     };
 
-    HlmsUnlit::HlmsUnlit( Archive *dataFolder ) :
-        HlmsBufferManager( HLMS_UNLIT, "unlit", dataFolder ),
+    HlmsUnlit::HlmsUnlit( Archive *dataFolder, ArchiveVec *libraryFolders ) :
+        HlmsBufferManager( HLMS_UNLIT, "unlit", dataFolder, libraryFolders ),
         ConstBufferPool( HlmsUnlitDatablock::MaterialSizeInGpuAligned,
                          ExtraBufferParams( 64 * NUM_UNLIT_TEXTURE_TYPES ) ),
         mCurrentPassBuffer( 0 ),
@@ -205,49 +212,66 @@ namespace Ogre
                                                                 queuedRenderable );
 
         if( mShaderProfile == "hlsl" )
-            return retVal; //D3D embeds the texture slots in the shader.
-
-        //Set samplers.
-        GpuProgramParametersSharedPtr vsParams = retVal->vertexShader->getDefaultParameters();
-        GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
-
-        int texUnit = 2; //Vertex shader consumes 2 slots with its two tbuffers.
-
-        assert( dynamic_cast<const HlmsUnlitDatablock*>( queuedRenderable.renderable->getDatablock() ) );
-        const HlmsUnlitDatablock *datablock = static_cast<const HlmsUnlitDatablock*>(
-                                                    queuedRenderable.renderable->getDatablock() );
-
-        UnlitBakedTextureArray::const_iterator itor = datablock->mBakedTextures.begin();
-        UnlitBakedTextureArray::const_iterator end  = datablock->mBakedTextures.end();
-
-        int numTextures = 0;
-        int numArrayTextures = 0;
-        while( itor != end )
         {
-            if( itor->texture->getTextureType() == TEX_TYPE_2D_ARRAY )
-            {
-                psParams->setNamedConstant( "textureMapsArray[" +
-                                            StringConverter::toString( numArrayTextures++ ) + "]",
-                                            texUnit++ );
-            }
-            else
-            {
-                psParams->setNamedConstant( "textureMaps[" +
-                                            StringConverter::toString( numTextures++ ) + "]",
-                                            texUnit++ );
-            }
-
-            ++itor;
+            mListener->shaderCacheEntryCreated( mShaderProfile, retVal, passCache,
+                                                mSetProperties, queuedRenderable );
+            return retVal; //D3D embeds the texture slots in the shader.
         }
 
+        //Set samplers.
+        assert( dynamic_cast<const HlmsUnlitDatablock*>( queuedRenderable.renderable->getDatablock() ) );
+        const HlmsUnlitDatablock *datablock = static_cast<const HlmsUnlitDatablock*>(
+                                                queuedRenderable.renderable->getDatablock() );
+
+        if( !retVal->pixelShader.isNull() )
+        {
+            GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
+
+            int texUnit = 2; //Vertex shader consumes 2 slots with its two tbuffers.
+
+            UnlitBakedTextureArray::const_iterator itor = datablock->mBakedTextures.begin();
+            UnlitBakedTextureArray::const_iterator end  = datablock->mBakedTextures.end();
+
+            if( !getProperty( HlmsBaseProp::ShadowCaster ) )
+            {
+                int numTextures = 0;
+                int numArrayTextures = 0;
+                while( itor != end )
+                {
+                    if( itor->texture->getTextureType() == TEX_TYPE_2D_ARRAY )
+                    {
+                        psParams->setNamedConstant( "textureMapsArray[" +
+                                                    StringConverter::toString( numArrayTextures++ ) +
+                                                    "]", texUnit++ );
+                    }
+                    else
+                    {
+                        psParams->setNamedConstant( "textureMaps[" +
+                                                    StringConverter::toString( numTextures++ ) + "]",
+                                                    texUnit++ );
+                    }
+
+                    ++itor;
+                }
+            }
+        }
+
+        GpuProgramParametersSharedPtr vsParams = retVal->vertexShader->getDefaultParameters();
         vsParams->setNamedConstant( "worldMatBuf", 0 );
         if( datablock->mNumEnabledAnimationMatrices )
             vsParams->setNamedConstant( "animationMatrixBuf", 1 );
 
+        mListener->shaderCacheEntryCreated( mShaderProfile, retVal, passCache,
+                                            mSetProperties, queuedRenderable );
+
         mRenderSystem->_setProgramsFromHlms( retVal );
 
         mRenderSystem->bindGpuProgramParameters( GPT_VERTEX_PROGRAM, vsParams, GPV_ALL );
-        mRenderSystem->bindGpuProgramParameters( GPT_FRAGMENT_PROGRAM, psParams, GPV_ALL );
+        if( !retVal->pixelShader.isNull() )
+        {
+            GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
+            mRenderSystem->bindGpuProgramParameters( GPT_FRAGMENT_PROGRAM, psParams, GPV_ALL );
+        }
 
         return retVal;
     }
@@ -367,7 +391,7 @@ namespace Ogre
                     uvOutput.isAnimated = true;
 
                     setProperty( *UnlitProperty::DiffuseMapPtrs[i].uvSource,
-                                 static_cast<int32>( uvOutputs.size() ) );
+                                 static_cast<int32>( uvOutputs.size() >> 1u ) );
                     inOutPieces[PixelShader][uvSourceSwizzleN] = uvOutputs.size() % 2 ? "zw" : "xy";
 
                     uvOutputs.push_back( uvOutput );
@@ -384,9 +408,10 @@ namespace Ogre
                         ++itor;
                     }
 
-                    int32 idx = static_cast<int32>( itor - uvOutputs.begin() );
+                    size_t rawIdx = itor - uvOutputs.begin();
+                    int32 idx = static_cast<int32>( rawIdx >> 1u );
                     setProperty( *UnlitProperty::DiffuseMapPtrs[i].uvSource, idx );
-                    inOutPieces[PixelShader][uvSourceSwizzleN] = idx % 2 ? "zw" : "xy";
+                    inOutPieces[PixelShader][uvSourceSwizzleN] = rawIdx % 2 ? "zw" : "xy";
 
                     if( itor == end )
                     {
@@ -421,13 +446,24 @@ namespace Ogre
             }
         }
 
+        size_t halfUvOutputs = (uvOutputs.size() + 1u) >> 1u;
         setProperty( UnlitProperty::OutUvCount, static_cast<int32>( uvOutputs.size() ) );
+        setProperty( UnlitProperty::OutUvHalfCount, static_cast<int32>( halfUvOutputs ) );
+
+        for( size_t i=0; i<halfUvOutputs; ++i )
+        {
+            //Decide whether to use vec4 or vec2 in VStoPS_block piece:
+            // vec4 uv0; //--> When interpolant contains two uvs in one
+            // vec2 uv0; //--> When interpolant contains the last UV (uvOutputs.size() is odd)
+            setProperty( "out_uv_half_count" + StringConverter::toString( i ),
+                         (i << 1u) == (uvOutputs.size() - 1u) ? 2 : 4 );
+        }
 
         for( size_t i=0; i<uvOutputs.size(); ++i )
         {
             String outPrefix = "out_uv" + StringConverter::toString( i );
 
-            setProperty( outPrefix + "_out_uv", i >> 1 );
+            setProperty( outPrefix + "_out_uv", i >> 1u );
             setProperty( outPrefix + "_texture_matrix", uvOutputs[i].isAnimated );
             setProperty( outPrefix + "_tex_unit", uvOutputs[i].texUnit );
             setProperty( outPrefix + "_source_uv", uvOutputs[i].uvSource );
@@ -473,7 +509,32 @@ namespace Ogre
     HlmsCache HlmsUnlit::preparePassHash( const CompositorShadowNode *shadowNode, bool casterPass,
                                           bool dualParaboloid, SceneManager *sceneManager )
     {
-        HlmsCache retVal( casterPass, HLMS_UNLIT );
+        mSetProperties.clear();
+
+        //Set the properties and create/retrieve the cache.
+        if( casterPass )
+            setProperty( HlmsBaseProp::ShadowCaster, 1 );
+
+        RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
+        setProperty( HlmsBaseProp::ShadowUsesDepthTexture,
+                     renderTarget->getForceDisableColourWrites() ? 1 : 0 );
+
+        mListener->preparePassHash( shadowNode, casterPass, dualParaboloid, sceneManager, this );
+
+        assert( mPassCache.size() < 32768 );
+        HlmsPropertyVecVec::iterator it = std::find( mPassCache.begin(), mPassCache.end(),
+                                                     mSetProperties );
+        if( it == mPassCache.end() )
+        {
+            mPassCache.push_back( mSetProperties );
+            it = mPassCache.end() - 1;
+        }
+
+        const uint32 hash = it - mPassCache.begin();
+
+        //Fill the buffers
+        HlmsCache retVal( hash, mType );
+        retVal.setProperties = mSetProperties;
 
         Camera *camera = sceneManager->getCameraInProgress();
         Matrix4 viewMatrix = camera->getViewMatrix(true);
@@ -484,7 +545,6 @@ namespace Ogre
         mRenderSystem->_convertProjectionMatrix( Matrix4::IDENTITY,
                                                  identityProjMat, true );
 
-        RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
         if( renderTarget->requiresTextureFlipping() )
         {
             projectionMatrix[1][0]  = -projectionMatrix[1][0];
@@ -503,35 +563,51 @@ namespace Ogre
 
         mSetProperties.clear();
 
+        //mat4 viewProj[2];
+        size_t mapSize = (16 + 16) * 4;
+
         if( casterPass )
         {
-            setProperty( HlmsBaseProp::ShadowCaster, 1 );
-            retVal.setProperties = mSetProperties;
+            //vec2 depthRange; (+padding)
+            mapSize += 4 * 4;
+        }
 
-            //vec2 depthRange;
-            size_t mapSize = 4 * 4;
+        mapSize += mListener->getPassBufferSize( shadowNode, casterPass,
+                                                 dualParaboloid, sceneManager );
 
-            //Arbitrary 16kb (minimum supported by GL), should be enough.
-            const size_t maxBufferSize = 16 * 1024;
-            assert( mapSize <= maxBufferSize );
+        //Arbitrary 16kb (minimum supported by GL), should be enough.
+        const size_t maxBufferSize = 16 * 1024;
+        assert( mapSize <= maxBufferSize );
 
-            if( mCurrentPassBuffer >= mPassBuffers.size() )
-            {
-                mPassBuffers.push_back( mVaoManager->createConstBuffer( /*maxBufferSize*/mapSize,
-                                                                        BT_DYNAMIC_PERSISTENT,
-                                                                        0, false ) );
-            }
+        if( mCurrentPassBuffer >= mPassBuffers.size() )
+        {
+            mPassBuffers.push_back( mVaoManager->createConstBuffer( /*maxBufferSize*/mapSize,
+                                                                    BT_DYNAMIC_PERSISTENT,
+                                                                    0, false ) );
+        }
 
-            ConstBufferPacked *passBuffer = mPassBuffers[mCurrentPassBuffer++];
-            float *passBufferPtr = reinterpret_cast<float*>( passBuffer->map( 0, mapSize ) );
+        ConstBufferPacked *passBuffer = mPassBuffers[mCurrentPassBuffer++];
+        float *passBufferPtr = reinterpret_cast<float*>( passBuffer->map( 0, mapSize ) );
 
 #ifndef NDEBUG
-            const float *startupPtr = passBufferPtr;
+        const float *startupPtr = passBufferPtr;
 #endif
-            //---------------------------------------------------------------------------
-            //                          ---- VERTEX SHADER ----
-            //---------------------------------------------------------------------------
+        //---------------------------------------------------------------------------
+        //                          ---- VERTEX SHADER ----
+        //---------------------------------------------------------------------------
 
+        //mat4 viewProj[0];
+        Matrix4 tmp = mPreparedPass.viewProjMatrix[0].transpose();
+        for( size_t i=0; i<16; ++i )
+            *passBufferPtr++ = (float)tmp[0][i];
+
+        //mat4 viewProj[1] (identityProj);
+        tmp = mPreparedPass.viewProjMatrix[1].transpose();
+        for( size_t i=0; i<16; ++i )
+            *passBufferPtr++ = (float)tmp[0][i];
+
+        if( casterPass )
+        {
             //vec2 depthRange;
             Real fNear, fFar;
             shadowNode->getMinMaxDepthRange( camera, fNear, fFar );
@@ -539,11 +615,14 @@ namespace Ogre
             *passBufferPtr++ = fNear;
             *passBufferPtr++ = 1.0f / depthRange;
             passBufferPtr += 2;
-
-            assert( (size_t)(passBufferPtr - startupPtr) * 4u == mapSize );
-
-            passBuffer->unmap( UO_KEEP_PERSISTENT );
         }
+
+        passBufferPtr = mListener->preparePassBuffer( shadowNode, casterPass, dualParaboloid,
+                                                      sceneManager, passBufferPtr );
+
+        assert( (size_t)(passBufferPtr - startupPtr) * 4u == mapSize );
+
+        passBuffer->unmap( UO_KEEP_PERSISTENT );
 
         //mTexBuffers must hold at least one buffer to prevent out of bound exceptions.
         if( mTexBuffers.empty() )
@@ -605,15 +684,12 @@ namespace Ogre
             mLastTextureHash = 0;
             mLastBoundPool = 0;
 
-            if( casterPass )
-            {
-                //layout(binding = 0) uniform PassBuffer {} pass
-                ConstBufferPacked *passBuffer = mPassBuffers[mCurrentPassBuffer-1];
-                *commandBuffer->addCommand<CbShaderBuffer>() = CbShaderBuffer( VertexShader,
-                                                                               0, passBuffer, 0,
-                                                                               passBuffer->
-                                                                               getTotalSizeBytes() );
-            }
+            //layout(binding = 0) uniform PassBuffer {} pass
+            ConstBufferPacked *passBuffer = mPassBuffers[mCurrentPassBuffer-1];
+            *commandBuffer->addCommand<CbShaderBuffer>() = CbShaderBuffer( VertexShader,
+                                                                           0, passBuffer, 0,
+                                                                           passBuffer->
+                                                                           getTotalSizeBytes() );
 
             //layout(binding = 2) uniform InstanceBuffer {} instance
             if( mCurrentConstBuffer < mConstBuffers.size() &&
@@ -627,9 +703,13 @@ namespace Ogre
             }
 
             rebindTexBuffer( commandBuffer );
+
+            mListener->hlmsTypeChanged( casterPass, commandBuffer, datablock );
         }
 
-        if( mLastBoundPool != datablock->getAssignedPool() )
+        //Don't bind the material buffer on caster passes (important to keep
+        //MDI & auto-instancing running on shadow map passes)
+        if( mLastBoundPool != datablock->getAssignedPool() && !casterPass )
         {
             //layout(binding = 1) uniform MaterialBuf {} materialArray
             const ConstBufferPool::BufferPool *newPool = datablock->getAssignedPool();
@@ -683,6 +763,7 @@ namespace Ogre
         *currentMappedConstBuffer = datablock->getAssignedSlot();
         *reinterpret_cast<float * RESTRICT_ALIAS>( currentMappedConstBuffer+1 ) = datablock->
                                                                                     mShadowConstantBias;
+        *(currentMappedConstBuffer+2) = useIdentityProjection;
         currentMappedConstBuffer += 4;
 
         //mat4 worldViewProj

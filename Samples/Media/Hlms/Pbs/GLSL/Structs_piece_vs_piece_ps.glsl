@@ -49,7 +49,7 @@ layout(binding = 0) uniform PassBuffer
 	vec4 f3dData;
 	vec4 f3dGridHWW[@value( hlms_forward3d )];
 @end
-
+	@insertpiece( custom_passBuffer )
 } pass;
 @end
 
@@ -116,5 +116,6 @@ layout(binding = 2) uniform InstanceBuffer
 		@foreach( hlms_num_shadow_maps, n )
 			vec4 posL@n;@end
 	@end
-	@property( hlms_shadowcaster || hlms_pssm_splits )	float depth;@end
+	@property( (hlms_shadowcaster && !hlms_shadow_uses_depth_texture) || hlms_pssm_splits )	float depth;@end
+	@insertpiece( custom_VStoPS )
 @end

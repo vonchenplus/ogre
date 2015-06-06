@@ -147,6 +147,7 @@ namespace Ogre
     //---------------------------------------------------------------------
     void D3D11Texture::freeInternalResourcesImpl()
     {
+        mSurfaceList.clear();        
         SAFE_RELEASE(mpTex);
         SAFE_RELEASE(mpShaderResourceView);
         SAFE_RELEASE(mp1DTex);
@@ -472,8 +473,6 @@ namespace Ogre
 
         // determine total number of mipmaps including main one (d3d11 convention)
         UINT numMips = (mNumRequestedMipmaps == MIP_UNLIMITED || (1U << mNumRequestedMipmaps) > std::max(mSrcWidth, mSrcHeight)) ? 0 : mNumRequestedMipmaps + 1;
-        if(isBinaryCompressedFormat && numMips > 1)
-            numMips = std::max(1U, numMips - 2);
 
         D3D11_TEXTURE2D_DESC desc;
         desc.Width          = static_cast<UINT>(mSrcWidth);

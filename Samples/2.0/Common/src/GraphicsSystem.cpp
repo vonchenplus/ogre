@@ -416,22 +416,47 @@ std::string macBundlePath()
         else if( *(dataFolder.end() - 1) != '/' )
             dataFolder += "/";
 
+        Ogre::RenderSystem *renderSystem = mRoot->getRenderSystem();
+
         Ogre::String shaderSyntax = "GLSL";
-        if( mRoot->getRenderSystem()->getName() == "Direct3D11 Rendering Subsystem" )
+        if( renderSystem->getName() == "Direct3D11 Rendering Subsystem" )
             shaderSyntax = "HLSL";
+
+        Ogre::Archive *archiveLibrary = Ogre::ArchiveManager::getSingletonPtr()->load(
+                        dataFolder + "Hlms/Common/" + shaderSyntax,
+                        "FileSystem", true );
+
+        Ogre::ArchiveVec library;
+        library.push_back( archiveLibrary );
 
         Ogre::Archive *archiveUnlit = Ogre::ArchiveManager::getSingletonPtr()->load(
                         dataFolder + "Hlms/Unlit/" + shaderSyntax,
                         "FileSystem", true );
 
-        Ogre::HlmsUnlit *hlmsUnlit = OGRE_NEW Ogre::HlmsUnlit( archiveUnlit );
+        Ogre::HlmsUnlit *hlmsUnlit = OGRE_NEW Ogre::HlmsUnlit( archiveUnlit, &library );
         Ogre::Root::getSingleton().getHlmsManager()->registerHlms( hlmsUnlit );
 
         Ogre::Archive *archivePbs = Ogre::ArchiveManager::getSingletonPtr()->load(
                         dataFolder + "Hlms/Pbs/" + shaderSyntax,
                         "FileSystem", true );
-        Ogre::HlmsPbs *hlmsPbs = OGRE_NEW Ogre::HlmsPbs( archivePbs );
+        Ogre::HlmsPbs *hlmsPbs = OGRE_NEW Ogre::HlmsPbs( archivePbs, &library );
         Ogre::Root::getSingleton().getHlmsManager()->registerHlms( hlmsPbs );
+
+        if( renderSystem->getName() == "Direct3D11 Rendering Subsystem" )
+        {
+            //Set lower limits 512kb instead of the default 4MB per Hlms in D3D 11.0
+            //and below to avoid saturating AMD's discard limit (8MB) or
+            //saturate the PCIE bus in some low end machines.
+            bool supportsNoOverwriteOnTextureBuffers;
+            renderSystem->getCustomAttribute( "MapNoOverwriteOnDynamicBufferSRV",
+                                              &supportsNoOverwriteOnTextureBuffers );
+
+            if( !supportsNoOverwriteOnTextureBuffers )
+            {
+                hlmsPbs->setTextureBufferDefaultSize( 512 * 1024 );
+                hlmsUnlit->setTextureBufferDefaultSize( 512 * 1024 );
+            }
+        }
     }
     //-----------------------------------------------------------------------------------
     void GraphicsSystem::loadResources(void)

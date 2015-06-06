@@ -122,7 +122,7 @@ namespace Ogre
 
     typedef FastArray<PbsBakedTexture> PbsBakedTextureArray;
 
-    /** Contains information needed by PBS (Physically Based Shading) for OpenGL ES 2.0
+    /** Contains information needed by PBS (Physically Based Shading) for OpenGL 3+ & D3D11+
     */
     class _OgreHlmsPbsExport HlmsPbsDatablock : public HlmsDatablock, public ConstBufferPoolUser
     {
@@ -159,7 +159,6 @@ namespace Ogre
 
         void scheduleConstBufferUpdate(void);
         virtual void uploadToConstBuffer( char *dstPtr );
-        void bakeVariableParameters(void);
 
         /// Sets the appropiate mTexIndices[textureType], and returns the texture pointer
         TexturePtr setTexture( const String &name, PbsTextureTypes textureType );
@@ -355,19 +354,19 @@ namespace Ogre
             affect the cache's hash)
         @remarks
             This parameter only affects the diffuse detail map. Not the normal map.
-        @param detailMap
+        @param detailMapIdx
             Value in the range [0; 4)
         @param blendMode
             Blend mode
         */
-        void setDetailMapBlendMode( uint8 detailMap, PbsBlendModes blendMode );
+        void setDetailMapBlendMode( uint8 detailMapIdx, PbsBlendModes blendMode );
 
         /** Sets the normal mapping weight. The range doesn't necessarily have to be in [0; 1]
         @remarks
             An exact value of 1 will generate a shader without the weighting math, while any
             other value will generate another shader that uses this weight (i.e. will
             cause a flushRenderables)
-        @param detailNormalMap
+        @param detailNormalMapIdx
             Value in the range [0; 4)
         @param weight
             The weight for the normal map.
@@ -377,10 +376,10 @@ namespace Ogre
             A value outside the [0; 1] range extrapolates.
             Default value is 1.
         */
-        void setDetailNormalWeight( uint8 detailNormalMap, Real weight );
+        void setDetailNormalWeight( uint8 detailNormalMapIdx, Real weight );
 
         /// Returns the detail normal maps' weight
-        Real getDetailNormalWeight( uint8 detailNormalMap ) const;
+        Real getDetailNormalWeight( uint8 detailNormalMapIdx ) const;
 
         /// @See setDetailNormalWeight. This is the same, but for the main normal map.
         void setNormalMapWeight( Real weight );

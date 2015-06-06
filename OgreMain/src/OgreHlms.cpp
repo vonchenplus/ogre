@@ -44,6 +44,10 @@ THE SOFTWARE.
 #include "OgreForward3D.h"
 //#include "OgreMovableObject.h"
 //#include "OgreRenderable.h"
+#include "OgreViewport.h"
+#include "OgreRenderTarget.h"
+
+#include "OgreHlmsListener.h"
 
 namespace Ogre
 {
@@ -57,6 +61,10 @@ namespace Ogre
     const IdString HlmsBaseProp::Tangent            = IdString( "hlms_tangent" );
 
     const IdString HlmsBaseProp::Colour             = IdString( "hlms_colour" );
+
+    const IdString HlmsBaseProp::IdentityWorld      = IdString( "hlms_identity_world" );
+    const IdString HlmsBaseProp::IdentityViewProj   = IdString( "hlms_identity_viewproj" );
+    const IdString HlmsBaseProp::IdentityViewProjDynamic= IdString( "hlms_identity_viewproj_dynamic" );
 
     const IdString HlmsBaseProp::UvCount            = IdString( "hlms_uv_count" );
     const IdString HlmsBaseProp::UvCount0           = IdString( "hlms_uv_count0" );
@@ -81,6 +89,7 @@ namespace Ogre
     const IdString HlmsBaseProp::NumShadowMaps      = IdString( "hlms_num_shadow_maps" );
     const IdString HlmsBaseProp::PssmSplits         = IdString( "hlms_pssm_splits" );
     const IdString HlmsBaseProp::ShadowCaster       = IdString( "hlms_shadowcaster" );
+    const IdString HlmsBaseProp::ShadowUsesDepthTexture= IdString( "hlms_shadow_uses_depth_texture" );
     const IdString HlmsBaseProp::Forward3D          = IdString( "hlms_forward3d" );
     const IdString HlmsBaseProp::Forward3DDebug     = IdString( "hlms_forward3d_debug" );
     const IdString HlmsBaseProp::VPos               = IdString( "hlms_vpos" );
@@ -91,6 +100,7 @@ namespace Ogre
     const IdString HlmsBaseProp::GL3Plus        = IdString( "GL3+" );
     const IdString HlmsBaseProp::HighQuality    = IdString( "hlms_high_quality" );
     const IdString HlmsBaseProp::TexGather      = IdString( "hlms_tex_gather" );
+    const IdString HlmsBaseProp::DisableStage   = IdString( "hlms_disable_stage" );
 
     const IdString HlmsBasePieces::AlphaTestCmpFunc = IdString( "alpha_test_cmp_func" );
 
@@ -132,11 +142,15 @@ namespace Ogre
         },
     };
 
-    Hlms::Hlms( HlmsTypes type, IdString typeName, Archive *dataFolder ) :
+    HlmsListener c_defaultListener;
+
+    Hlms::Hlms( HlmsTypes type, IdString typeName, Archive *dataFolder,
+                ArchiveVec *libraryFolders ) :
         mDataFolder( dataFolder ),
         mHlmsManager( 0 ),
         mLightGatheringMode( LightGatherForward ),
         mNumLightsLimit( 8 ),
+        mListener( &c_defaultListener ),
         mRenderSystem( 0 ),
         mShaderProfile( "unset!" ),
         mShaderFileExt( "unset!" ),
@@ -147,6 +161,21 @@ namespace Ogre
         mTypeName( typeName )
     {
         memset( mShaderTargets, 0, sizeof(mShaderTargets) );
+
+        if( libraryFolders )
+        {
+            ArchiveVec::const_iterator itor = libraryFolders->begin();
+            ArchiveVec::const_iterator end  = libraryFolders->end();
+
+            while( itor != end )
+            {
+                Library library;
+                library.dataFolder = *itor;
+                mLibrary.push_back( library );
+                ++itor;
+            }
+        }
+
         enumeratePieceFiles();
     }
     //-----------------------------------------------------------------------------------
@@ -216,7 +245,21 @@ namespace Ogre
                          "Hlms::Hlms" );
         }
 
-        StringVectorPtr stringVectorPtr = mDataFolder->list( false, false );
+        enumeratePieceFiles( mDataFolder, mPieceFiles );
+
+        LibraryVec::iterator itor = mLibrary.begin();
+        LibraryVec::iterator end  = mLibrary.end();
+
+        while( itor != end )
+        {
+            enumeratePieceFiles( itor->dataFolder, itor->pieceFiles );
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void Hlms::enumeratePieceFiles( Archive *dataFolder, StringVector *pieceFiles )
+    {
+        StringVectorPtr stringVectorPtr = dataFolder->list( false, false );
 
         StringVector stringVectorLowerCase( *stringVectorPtr );
 
@@ -238,8 +281,11 @@ namespace Ogre
 
             while( itor != end )
             {
-                if( itLowerCase->find( PieceFilePatterns[i] ) != String::npos )
-                    mPieceFiles[i].push_back( *itor );
+                if( itLowerCase->find( PieceFilePatterns[i] ) != String::npos ||
+                    itLowerCase->find( "piece_all" ) != String::npos )
+                {
+                    pieceFiles[i].push_back( *itor );
+                }
 
                 ++itLowerCase;
                 ++itor;
@@ -258,13 +304,25 @@ namespace Ogre
             *it = p;
     }
     //-----------------------------------------------------------------------------------
-    int32 Hlms::getProperty(IdString key, int32 defaultVal ) const
+    int32 Hlms::getProperty( IdString key, int32 defaultVal ) const
     {
         HlmsProperty p( key, 0 );
         HlmsPropertyVec::const_iterator it = std::lower_bound( mSetProperties.begin(),
                                                                mSetProperties.end(),
                                                                p, OrderPropertyByIdString );
         if( it != mSetProperties.end() && it->keyName == p.keyName )
+            defaultVal = it->value;
+
+        return defaultVal;
+    }
+    //-----------------------------------------------------------------------------------
+    int32 Hlms::getProperty( const HlmsPropertyVec &properties, IdString key, int32 defaultVal )
+    {
+        HlmsProperty p( key, 0 );
+        HlmsPropertyVec::const_iterator it = std::lower_bound( properties.begin(),
+                                                               properties.end(),
+                                                               p, OrderPropertyByIdString );
+        if( it != properties.end() && it->keyName == p.keyName )
             defaultVal = it->value;
 
         return defaultVal;
@@ -321,7 +379,7 @@ namespace Ogre
             outSubString.setEnd( it - outSubString.getOriginalBuffer().begin() - (sizeof( "end" ) - 1) );
         else
         {
-            syntaxError = false;
+            syntaxError = true;
             printf( "Syntax Error at line %lu: start block (e.g. @foreach; @property) "
                     "without matching @end\n", calculateLineCount( outSubString ) );
         }
@@ -1212,9 +1270,37 @@ namespace Ogre
         mHighQuality = highQuality;
     }
     //-----------------------------------------------------------------------------------
-    void Hlms::reloadFrom( Archive *newDataFolder )
+    void Hlms::reloadFrom( Archive *newDataFolder, ArchiveVec *libraryFolders )
     {
         clearShaderCache();
+
+        if( libraryFolders )
+        {
+            mLibrary.clear();
+
+            ArchiveVec::const_iterator itor = libraryFolders->begin();
+            ArchiveVec::const_iterator end  = libraryFolders->end();
+
+            while( itor != end )
+            {
+                Library library;
+                library.dataFolder = *itor;
+                mLibrary.push_back( library );
+                ++itor;
+            }
+        }
+        else
+        {
+            LibraryVec::iterator itor = mLibrary.begin();
+            LibraryVec::iterator end  = mLibrary.end();
+
+            while( itor != end )
+            {
+                for( size_t i=0; i<NumShaderTypes; ++i )
+                    itor->pieceFiles[i].clear();
+                ++itor;
+            }
+        }
 
         for( size_t i=0; i<NumShaderTypes; ++i )
             mPieceFiles[i].clear();
@@ -1380,6 +1466,30 @@ namespace Ogre
         mShaderCache.clear();
     }
     //-----------------------------------------------------------------------------------
+    void Hlms::processPieces( Archive *archive, const StringVector &pieceFiles )
+    {
+        StringVector::const_iterator itor = pieceFiles.begin();
+        StringVector::const_iterator end  = pieceFiles.end();
+
+        while( itor != end )
+        {
+            DataStreamPtr inFile = archive->open( *itor );
+
+            String inString;
+            String outString;
+
+            inString.resize( inFile->size() );
+            inFile->read( &inString[0], inFile->size() );
+
+            this->parseMath( inString, outString );
+            this->parseForEach( outString, inString );
+            this->parseProperties( inString, outString );
+            this->collectPieces( outString, inString );
+            this->parseCounter( inString, outString );
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
     const HlmsCache* Hlms::createShaderCacheEntry( uint32 renderableHash, const HlmsCache &passCache,
                                                    uint32 finalHash,
                                                    const QueuedRenderable &queuedRenderable )
@@ -1412,36 +1522,28 @@ namespace Ogre
             //Collect pieces
             mPieces = renderableCache.pieces[i];
 
-            if( mShaderProfile == "glsl" ) //TODO: String comparision
-                setProperty( HlmsBaseProp::GL3Plus, 330 );
-
-            setProperty( HlmsBaseProp::HighQuality, mHighQuality );
-
-            StringVector::const_iterator itor = mPieceFiles[i].begin();
-            StringVector::const_iterator end  = mPieceFiles[i].end();
-
-            while( itor != end )
-            {
-                DataStreamPtr inFile = mDataFolder->open( *itor );
-
-                String inString;
-                String outString;
-
-                inString.resize( inFile->size() );
-                inFile->read( &inString[0], inFile->size() );
-
-                this->parseMath( inString, outString );
-                this->parseForEach( outString, inString );
-                this->parseProperties( inString, outString );
-                this->collectPieces( outString, inString );
-                this->parseCounter( inString, outString );
-                ++itor;
-            }
-
-            //Generate the shader file.
             const String filename = ShaderFiles[i] + mShaderFileExt;
             if( mDataFolder->exists( filename ) )
             {
+                if( mShaderProfile == "glsl" ) //TODO: String comparision
+                    setProperty( HlmsBaseProp::GL3Plus, 330 );
+
+                setProperty( HlmsBaseProp::HighQuality, mHighQuality );
+
+                //Library piece files first
+                LibraryVec::const_iterator itor = mLibrary.begin();
+                LibraryVec::const_iterator end  = mLibrary.end();
+
+                while( itor != end )
+                {
+                    processPieces( itor->dataFolder, itor->pieceFiles[i] );
+                    ++itor;
+                }
+
+                //Main piece files
+                processPieces( mDataFolder, mPieceFiles[i] );
+
+                //Generate the shader file.
                 DataStreamPtr inFile = mDataFolder->open( filename );
 
                 String inString;
@@ -1472,39 +1574,49 @@ namespace Ogre
                                                            ShaderFiles[i] );
                 }
 
+                String debugFilenameOutput;
+
                 if( mDebugOutput )
                 {
-                    std::ofstream outFile( (mOutputPath + "./" +
-                                           StringConverter::toString( finalHash ) +
-                                           ShaderFiles[i] + mShaderFileExt).c_str(),
+                    debugFilenameOutput = mOutputPath + "./" +
+                                            StringConverter::toString( finalHash ) +
+                                            ShaderFiles[i] + mShaderFileExt;
+                    std::ofstream outFile( debugFilenameOutput.c_str(),
                                            std::ios::out | std::ios::binary );
                     outFile.write( &outString[0], outString.size() );
                 }
 
-                HighLevelGpuProgramManager *gpuProgramManager =
-                                                        HighLevelGpuProgramManager::getSingletonPtr();
-
-                HighLevelGpuProgramPtr gp = gpuProgramManager->createProgram(
-                                    StringConverter::toString( finalHash ) + ShaderFiles[i],
-                                    ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME,
-                                    mShaderProfile, static_cast<GpuProgramType>(i) );
-                gp->setSource( outString );
-
-                if( mShaderTargets[i] )
+                //Don't create and compile if template requested not to
+                if( !getProperty( HlmsBaseProp::DisableStage ) )
                 {
-                    //D3D-specific
-                    gp->setParameter( "target", *mShaderTargets[i] );
-                    gp->setParameter( "entry_point", "main" );
+                    HighLevelGpuProgramManager *gpuProgramManager =
+                            HighLevelGpuProgramManager::getSingletonPtr();
+
+                    HighLevelGpuProgramPtr gp = gpuProgramManager->createProgram(
+                                StringConverter::toString( finalHash ) + ShaderFiles[i],
+                                ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME,
+                                mShaderProfile, static_cast<GpuProgramType>(i) );
+                    gp->setSource( outString, debugFilenameOutput );
+
+                    if( mShaderTargets[i] )
+                    {
+                        //D3D-specific
+                        gp->setParameter( "target", *mShaderTargets[i] );
+                        gp->setParameter( "entry_point", "main" );
+                    }
+
+                    gp->setSkeletalAnimationIncluded( getProperty( HlmsBaseProp::Skeleton ) != 0 );
+                    gp->setMorphAnimationIncluded( false );
+                    gp->setPoseAnimationIncluded( getProperty( HlmsBaseProp::Pose ) );
+                    gp->setVertexTextureFetchRequired( false );
+
+                    gp->load();
+
+                    shaders[i] = gp;
                 }
 
-                gp->setSkeletalAnimationIncluded( getProperty( HlmsBaseProp::Skeleton ) != 0 );
-                gp->setMorphAnimationIncluded( false );
-                gp->setPoseAnimationIncluded( getProperty( HlmsBaseProp::Pose ) );
-                gp->setVertexTextureFetchRequired( false );
-
-                gp->load();
-
-                shaders[i] = gp;
+                //Reset the disable flag.
+                setProperty( HlmsBaseProp::DisableStage, 0 );
             }
         }
 
@@ -1619,6 +1731,14 @@ namespace Ogre
 
         setProperty( HlmsBaseProp::AlphaTest, datablock->getAlphaTest() != CMPF_ALWAYS_PASS );
 
+        if( renderable->getUseIdentityWorldMatrix() )
+            setProperty( HlmsBaseProp::IdentityWorld, 1 );
+
+        if( renderable->getUseIdentityViewProjMatrixIsDynamic() )
+            setProperty( HlmsBaseProp::IdentityViewProjDynamic, 1 );
+        else if( renderable->getUseIdentityProjection() )
+            setProperty( HlmsBaseProp::IdentityViewProj, 1 );
+
         PiecesMap pieces[NumShaderTypes];
         if( datablock->getAlphaTest() != CMPF_ALWAYS_PASS )
         {
@@ -1668,6 +1788,40 @@ namespace Ogre
                 if( numPssmSplits )
                     numShadowMaps += numPssmSplits - 1;
                 setProperty( HlmsBaseProp::NumShadowMaps, numShadowMaps );
+
+                int usesDepthTextures = -1;
+
+                const CompositorChannelVec &shadowTextures = shadowNode->getLocalTextures();
+                for( size_t i=0; i<numShadowMaps; ++i )
+                {
+                    bool missmatch = false;
+
+                    if( PixelUtil::isDepth( shadowTextures[i].textures[0]->getFormat() ) )
+                    {
+                        missmatch = usesDepthTextures == 0;
+                        usesDepthTextures = 1;
+                    }
+                    else
+                    {
+                        missmatch = usesDepthTextures == 1;
+                        usesDepthTextures = 0;
+                    }
+
+                    if( missmatch )
+                    {
+                        OGRE_EXCEPT( Exception::ERR_NOT_IMPLEMENTED,
+                                     "Mixing depth textures with non-depth textures for "
+                                     "shadow mapping is not supported. Either all of "
+                                     "them are depth textures, or none of them are.\n"
+                                     "Shadow Node: '" + shadowNode->getName().getFriendlyText() + "'",
+                                     "Hlms::preparePassHash" );
+                    }
+                }
+
+                if( usesDepthTextures == -1 )
+                    usesDepthTextures = 0;
+
+                setProperty( HlmsBaseProp::ShadowUsesDepthTexture, usesDepthTextures );
             }
 
             Forward3D *forward3D = sceneManager->getForward3D();
@@ -1775,7 +1929,13 @@ namespace Ogre
             setProperty( HlmsBaseProp::LightsDirNonCaster,0 );
             setProperty( HlmsBaseProp::LightsPoint,       0 );
             setProperty( HlmsBaseProp::LightsSpot,        0 );
+
+            RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
+            setProperty( HlmsBaseProp::ShadowUsesDepthTexture,
+                         renderTarget->getForceDisableColourWrites() ? 1 : 0 );
         }
+
+        mListener->preparePassHash( shadowNode, casterPass, dualParaboloid, sceneManager, this );
 
         assert( mPassCache.size() < 32768 );
         HlmsPropertyVecVec::iterator it = std::find( mPassCache.begin(), mPassCache.end(),
@@ -1802,8 +1962,7 @@ namespace Ogre
         uint32 hash[2];
         hash[0] = casterPass ? queuedRenderable.renderable->getHlmsCasterHash() :
                                queuedRenderable.renderable->getHlmsHash();
-        hash[1] = passCache.hash &
-                        (queuedRenderable.movableObject->getCastShadows() ? 0xffffffff : 0xffffffe1 );
+        hash[1] = passCache.hash;
 
         //MurmurHash3_x86_32( hash, sizeof( hash ), IdString::Seed, &finalHash );
 
@@ -1831,6 +1990,14 @@ namespace Ogre
     {
         mDebugOutput	= enableDebugOutput;
         mOutputPath		= path;
+    }
+    //-----------------------------------------------------------------------------------
+    void Hlms::setListener( HlmsListener *listener )
+    {
+        if( !listener )
+            mListener = &c_defaultListener;
+        else
+            mListener = listener;
     }
     //-----------------------------------------------------------------------------------
     void Hlms::_notifyShadowMappingBackFaceSetting(void)

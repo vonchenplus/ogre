@@ -107,13 +107,24 @@ namespace Ogre
         HlmsPropertyVec mSetProperties;
         PiecesMap       mPieces;
 
+        struct Library
+        {
+            Archive         *dataFolder;
+            StringVector    pieceFiles[NumShaderTypes];
+        };
+
+        typedef vector<Library>::type LibraryVec;
+        LibraryVec      mLibrary;
         Archive         *mDataFolder;
-        StringVector    mPieceFiles[5];
+        StringVector    mPieceFiles[NumShaderTypes];
         HlmsManager     *mHlmsManager;
 
         LightGatheringMode  mLightGatheringMode;
         uint16              mNumLightsLimit;
 
+        /// Listener for adding extensions. @see setListener.
+        /// Pointer is [b]never[/b] null.
+        HlmsListener    *mListener;
         RenderSystem    *mRenderSystem;
 
         HlmsDatablockMap mDatablocks;
@@ -145,6 +156,7 @@ namespace Ogre
             Case insensitive.
         */
         void enumeratePieceFiles(void);
+        static void enumeratePieceFiles( Archive *dataFolder, StringVector *pieceFiles );
 
         void setProperty( IdString key, int32 value );
         int32 getProperty( IdString key, int32 defaultVal=0 ) const;
@@ -227,6 +239,8 @@ namespace Ogre
         const HlmsCache* getShaderCache( uint32 hash ) const;
         void clearShaderCache(void);
 
+        void processPieces( Archive *archive, const StringVector &pieceFiles );
+
         /** Creates a shader based on input parameters. Caller is responsible for ensuring
             this shader hasn't already been created.
             Shader template files will be processed and then compiled.
@@ -270,7 +284,13 @@ namespace Ogre
                                        SceneManager *sceneManager );
 
     public:
-        Hlms( HlmsTypes type, IdString typeName, Archive *dataFolder );
+        /**
+        @param libraryFolders
+            Path to folders to be processed first for collecting pieces. Will be processed in order.
+            Pointer can be null.
+        */
+        Hlms( HlmsTypes type, IdString typeName, Archive *dataFolder,
+              ArchiveVec *libraryFolders );
         virtual ~Hlms();
 
         HlmsTypes getType(void) const                       { return mType; }
@@ -305,8 +325,13 @@ namespace Ogre
         @par
             Existing datablock materials won't be reloaded from files, so their properties
             won't change (i.e. changed from blue to red), but the shaders will.
+        @param libraryFolders
+            When null pointer, the library folders paths won't be changed at all
+            (but still will be reloaded).
+            When non-null pointer, the library folders will be overwriten.
+            Pass an empty container if you want to stop using libraries.
         */
-        virtual void reloadFrom( Archive *newDataFolder );
+        virtual void reloadFrom( Archive *newDataFolder, ArchiveVec *libraryFolders=0 );
 
         Archive* getDataFolder(void)                        { return mDataFolder; }
 
@@ -474,8 +499,25 @@ namespace Ogre
         */
         void setDebugOutputPath( bool enableDebugOutput, const String &path = BLANKSTRING );
 
+        /** Sets a listener to extend an existing Hlms implementation's with custom code,
+            without having to rewrite it or modify the source code directly.
+        @remarks
+            Other alternatives for extending an existing implementation is to derive
+            from the class and override particular virtual functions.
+            For performance reasons, listeners are never called on a per-object basis.
+            Consult the section "Customizing an existing implementation" from the
+            manual in the Docs/2.0 folder.
+        @param listener
+            Listener pointer. Use null to disable.
+        */
+        void setListener( HlmsListener *listener );
+
         /// For debugging stuff. I.e. the Command line uses it for testing manually set properties
         void _setProperty( IdString key, int32 value )      { setProperty( key, value ); }
+
+        /// Utility helper, mostly useful to HlmsListener implementations.
+        static int32 getProperty( const HlmsPropertyVec &properties,
+                                  IdString key, int32 defaultVal=0 );
 
         /// Internal use. @see HlmsManager::setShadowMappingUseBackFaces
         void _notifyShadowMappingBackFaceSetting(void);
@@ -498,6 +540,11 @@ namespace Ogre
         static const IdString Tangent;
 
         static const IdString Colour;
+
+        static const IdString IdentityWorld;
+        static const IdString IdentityViewProj;
+        /// When this is set, the value of IdentityViewProj is meaningless.
+        static const IdString IdentityViewProjDynamic;
 
         static const IdString UvCount;
         static const IdString UvCount0;
@@ -522,6 +569,7 @@ namespace Ogre
         static const IdString NumShadowMaps;
         static const IdString PssmSplits;
         static const IdString ShadowCaster;
+        static const IdString ShadowUsesDepthTexture;
         static const IdString Forward3D;
         static const IdString Forward3DDebug;
         static const IdString VPos;
@@ -532,6 +580,7 @@ namespace Ogre
         static const IdString GL3Plus;
         static const IdString HighQuality;
         static const IdString TexGather;
+        static const IdString DisableStage;
 
         static const IdString *UvCountPtrs[8];
     };

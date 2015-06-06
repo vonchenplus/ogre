@@ -473,6 +473,18 @@ namespace v1 {
             _unmapstaticbuffer();
 
         _genMipmaps();
+
+        //NVIDIA driver can let the staging buffers accumulate and skyrocket the
+        //memory consumption until the process runs out of memory and crashes
+        //(if it has a lot of textures to load).
+        //Worst part this only repros in some machines, not driver specific.
+        //Flushing here fixes it.
+        if( mUsage == HBU_STATIC )
+        {
+            D3D11RenderSystem *renderSystem = static_cast<D3D11RenderSystem*>(
+                                                Root::getSingleton().getRenderSystem() );
+            renderSystem->_clearStateAndFlushCommandBuffer();
+        }
     }
     //-----------------------------------------------------------------------------  
     D3D11_BOX D3D11HardwarePixelBuffer::OgreImageBoxToDx11Box(const Image::Box &inBox) const
@@ -645,73 +657,32 @@ namespace v1 {
 
         if (mUsage & HBU_DYNAMIC)
         {
-            size_t sizeinbytes;
-            if (PixelUtil::isCompressed(converted.format))
-            {
-				if(converted.rowPitch  % 4 > 0)
-				{
-					converted.rowPitch  += 4 - converted.rowPitch  % 4;
-				}
-				
-                // D3D wants the width of one row of cells in bytes
-                if (converted.format == PF_DXT1)
-                {
-                    // 64 bits (8 bytes) per 4x4 block
-                    sizeinbytes = std::max<size_t>(1, converted.getWidth() / 4) * std::max<size_t>(1, converted.getHeight() / 4) * 8;
-                }
-                else
-                {
-                    // 128 bits (16 bytes) per 4x4 block
-                    sizeinbytes = std::max<size_t>(1, converted.getWidth() / 4) * std::max<size_t>(1, converted.getHeight() / 4) * 16;
-                }
-            }
-            else
-            {
-                sizeinbytes = converted.getHeight() * converted.getWidth() * PixelUtil::getNumElemBytes(converted.format);
-            }
-            
-            const Ogre::PixelBox &locked = lock(dstBox, HBL_DISCARD);
+            const Ogre::PixelBox &locked = lock( dstBox, HBL_DISCARD );
 
-            int srcRowPitch = converted.rowPitch * PixelUtil::getNumElemBytes(converted.format);
-            int destRowPitch = locked.rowPitch;
+            int srcRowPitch = converted.rowPitchAlwaysBytes();
+            int destRowPitch = locked.rowPitchAlwaysBytes();
 
-            byte *src = (byte*)converted.data;
+            byte *src = (byte*)converted.data + converted.front * converted.slicePitchAlwaysBytes();
             byte *dst = (byte*)locked.data;
 
-            for (unsigned int row = 0 ; row < converted.getHeight() ; row ++)
+            for( size_t z=0; z<converted.getDepth(); ++z )
             {
-                memcpy((void*)dst, (void*)src, srcRowPitch);
-                src += srcRowPitch;
-                dst += destRowPitch;
+                for (unsigned int row = 0 ; row < converted.getHeight() ; row ++)
+                {
+                    memcpy((void*)dst, (void*)src, srcRowPitch);
+                    src += srcRowPitch;
+                    dst += destRowPitch;
+                }
+
+                src += converted.getSliceSkipAlwaysBytes();
+                dst += locked.getSliceSkipAlwaysBytes();
             }
+
             unlock();
         }
         else
         {
-            size_t rowWidth;
-            if (PixelUtil::isCompressed(converted.format))
-            {
-				if(converted.rowPitch  % 4 > 0)
-				{
-					converted.rowPitch  += 4 - converted.rowPitch  % 4;
-				}
-				
-                // D3D wants the width of one row of cells in bytes
-                if (converted.format == PF_DXT1)
-                {
-                    // 64 bits (8 bytes) per 4x4 block
-                    rowWidth = (converted.rowPitch / 4) * 8;
-                }
-                else
-                {
-                    // 128 bits (16 bytes) per 4x4 block
-                    rowWidth = (converted.rowPitch / 4) * 16;
-                }
-            }
-            else
-            {
-                rowWidth = converted.rowPitch * PixelUtil::getNumElemBytes(converted.format);
-            }
+            size_t rowWidth = converted.rowPitchAlwaysBytes();
 
             switch(mParentTexture->getTextureType()) {
             case TEX_TYPE_1D:
@@ -776,26 +747,7 @@ namespace v1 {
             case TEX_TYPE_3D:
                 {
                     // copied from dx9
-                    size_t sliceWidth;
-                    if (PixelUtil::isCompressed(converted.format))
-                    {
-                        // D3D wants the width of one slice of cells in bytes
-                        if (converted.format == PF_DXT1)
-                        {
-                            // 64 bits (8 bytes) per 4x4 block
-                            sliceWidth = (converted.slicePitch / 16) * 8;
-                        }
-                        else
-                        {
-                            // 128 bits (16 bytes) per 4x4 block
-                            sliceWidth = (converted.slicePitch / 16) * 16;
-                        }
-
-                    }
-                    else
-                    {
-                        sliceWidth = converted.slicePitch * PixelUtil::getNumElemBytes(converted.format);
-                    }
+                    size_t sliceWidth = converted.slicePitchAlwaysBytes();
  
                     mDevice.GetImmediateContext()->UpdateSubresource( 
                         mParentTexture->GetTex3D(), 
