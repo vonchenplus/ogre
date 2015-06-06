@@ -283,7 +283,7 @@ namespace v1 {
         return mDefaultHeight;
     }
     //-----------------------------------------------------------------------
-    void BillboardSet::_sortBillboards( Camera* cam)
+    void BillboardSet::_sortBillboards(void)
     {
         switch (_getSortMode())
         {
@@ -328,7 +328,12 @@ namespace v1 {
         }
     }
     //-----------------------------------------------------------------------
-    void BillboardSet::_notifyCurrentCamera( Camera* cam )
+    bool BillboardSet::getUseIdentityWorldMatrix(void) const
+    {
+        return mWorldSpace;
+    }
+    //-----------------------------------------------------------------------
+    void BillboardSet::_notifyCurrentCamera( const Camera* cam )
     {
         // Calculate camera orientation and position
         mCamQ = cam->getDerivedOrientation();
@@ -562,14 +567,14 @@ namespace v1 {
     //-----------------------------------------------------------------------
     void BillboardSet::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
     {
-        _notifyCurrentCamera( camera );
+        _notifyCurrentCamera( lodCamera );
 
         // If we're driving this from our own data, update geometry if need to.
         if (!mExternalData && (mAutoUpdate || mBillboardDataChanged || !mBuffersCreated))
         {
             if (mSortingEnabled)
             {
-                _sortBillboards(camera);
+                _sortBillboards();
             }
 
             beginBillboards(mActiveBillboards.size());
@@ -578,7 +583,7 @@ namespace v1 {
                 it != mActiveBillboards.end();
                 ++it )
             {
-                injectBillboard(*(*it), camera);
+                injectBillboard(*(*it), lodCamera);
             }
             endBillboards();
 
@@ -680,6 +685,10 @@ namespace v1 {
     //-----------------------------------------------------------------------
     void BillboardSet::createExtraVertexBuffer( size_t vertexSize )
     {
+        size_t vertexCount = mPoolSize;
+        if( !mPointRendering )
+            vertexCount = mPoolSize * 4;
+
         if( mAutoUpdate )
         {
             const size_t dynamicBufferMultiplier = mVaoManager->getDynamicBufferMultiplier();
@@ -692,7 +701,7 @@ namespace v1 {
                 mMainBuffers[i].push_back(
                             HardwareBufferManager::getSingleton().createVertexBuffer(
                                 vertexSize,
-                                mVertexData->vertexCount * dynamicBufferMultiplier,
+                                vertexCount * dynamicBufferMultiplier,
                                 HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE) );
             }
         }
@@ -705,7 +714,7 @@ namespace v1 {
 
             mMainBuffers[0].push_back(
                         HardwareBufferManager::getSingleton().createVertexBuffer(
-                            vertexSize, mVertexData->vertexCount,
+                            vertexSize, vertexCount,
                             HardwareBuffer::HBU_STATIC_WRITE_ONLY) );
         }
     }
@@ -866,6 +875,7 @@ namespace v1 {
         }
 
         mMainBuf.setNull();
+        mMainBuffers.clear();
 
         mBuffersCreated = false;
     }

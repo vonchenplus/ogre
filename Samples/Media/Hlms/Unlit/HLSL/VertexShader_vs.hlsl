@@ -1,20 +1,13 @@
 @insertpiece( SetCrossPlatformSettings )
 
-float4x4 UNPACK_MAT4( Buffer<float4> matrixBuf, uint pixelIdx )
-{
-	float4 row1 = matrixBuf.Load( int((pixelIdx) << 2u) );
-	float4 row2 = matrixBuf.Load( int(((pixelIdx) << 2u) + 1u) );
-	float4 row3 = matrixBuf.Load( int(((pixelIdx) << 2u) + 2u) );
-	float4 row4 = matrixBuf.Load( int(((pixelIdx) << 2u) + 3u) );
-
-	return float4x4( row1, row2, row3, row4 );
-}
+@insertpiece( Common_Matrix_DeclUnpackMatrix4x4 )
 
 // START UNIFORM DECLARATION
 @insertpiece( PassDecl )
 @insertpiece( InstanceDecl )
 Buffer<float4> worldMatBuf : register(t0);
 @property( texture_matrix )Buffer<float4> animationMatrixBuf : register(t1);@end
+@insertpiece( custom_vs_uniformDeclaration )
 // END UNIFORM DECLARATION
 
 struct VS_INPUT
@@ -24,6 +17,7 @@ struct VS_INPUT
 @foreach( hlms_uv_count, n )
 	float@value( hlms_uv_count@n ) uv@n : TEXCOORD@n;@end
 	uint drawId : DRAWID;
+	@insertpiece( custom_vs_attributes )
 };
 
 struct PS_INPUT
@@ -32,22 +26,34 @@ struct PS_INPUT
 	float4 gl_Position : SV_Position;
 };
 
+@property( !hlms_identity_world )
+	@piece( worldViewProj )worldViewProj@end
+@end @property( hlms_identity_world )
+	@property( !hlms_identity_viewproj_dynamic )
+		@piece( worldViewProj )passBuf.viewProj[@value(hlms_identity_viewproj)]@end
+	@end @property( hlms_identity_viewproj_dynamic )
+		@piece( worldViewProj )passBuf.viewProj[materialIdx[input.drawId].z]@end
+	@end
+@end
+
 PS_INPUT main( VS_INPUT input )
 {
 	PS_INPUT outVs;
+	@insertpiece( custom_vs_preExecution )
 
-	//uint drawId = 1;
-	float4x4 worldViewProj;
-	worldViewProj = UNPACK_MAT4( worldMatBuf, input.drawId );
+	@property( !hlms_identity_world )
+		float4x4 worldViewProj;
+		worldViewProj = UNPACK_MAT4( worldMatBuf, input.drawId );
+	@end
 
 @property( !hlms_dual_paraboloid_mapping )
-	outVs.gl_Position = mul( worldViewProj, input.vertex );
+	outVs.gl_Position = mul( @insertpiece( worldViewProj ), input.vertex );
 @end
 
 @property( hlms_dual_paraboloid_mapping )
 	//Dual Paraboloid Mapping
 	outVs.gl_Position.w		= 1.0f;
-	outVs.gl_Position.xyz	= mul( worldViewProj, input.vertex ).xyz;
+	outVs.gl_Position.xyz	= mul( @insertpiece( worldViewProj ), input.vertex ).xyz;
 	float L = length( outVs.gl_Position.xyz );
 	outVs.gl_Position.z		+= 1.0f;
 	outVs.gl_Position.xy	/= outVs.gl_Position.z;
@@ -79,6 +85,8 @@ PS_INPUT main( VS_INPUT input )
 	//see http://www.yosoygames.com.ar/wp/2014/01/linear-depth-buffer-my-ass/
 	outVs.gl_Position.z = outVs.gl_Position.z * (outVs.gl_Position.w * passBuf.depthRange.y);
 @end
+
+	@insertpiece( custom_vs_posExecution )
 
 	return outVs;
 }

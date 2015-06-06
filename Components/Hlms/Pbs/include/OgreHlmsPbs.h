@@ -47,8 +47,8 @@ namespace Ogre
 
     class HlmsPbsDatablock;
 
-    /** Physically based shading implementation specfically designed for OpenGL ES 2.0 and other
-        RenderSystems which do not support uniform buffers.
+    /** Physically based shading implementation specfically designed for
+        OpenGL 3+, D3D11 and other RenderSystems which support uniform buffers.
     */
     class _OgreHlmsPbsExport HlmsPbs : public HlmsBufferManager, public ConstBufferPool
     {
@@ -83,7 +83,9 @@ namespace Ogre
 
         PassData                mPreparedPass;
         ConstBufferPackedVec    mPassBuffers;
-        HlmsSamplerblock const  *mShadowmapSamplerblock;
+        HlmsSamplerblock const  *mShadowmapSamplerblock;    /// GL3+ only when not using depth textures
+        HlmsSamplerblock const  *mShadowmapCmpSamplerblock; /// For depth textures & D3D11
+        HlmsSamplerblock const  *mCurrentShadowmapSamplerblock;
 
         uint32                  mCurrentPassBuffer;     /// Resets every to zero every new frame.
 
@@ -121,7 +123,7 @@ namespace Ogre
                                            CommandBuffer *commandBuffer, bool isV1 );
 
     public:
-        HlmsPbs( Archive *dataFolder );
+        HlmsPbs( Archive *dataFolder, ArchiveVec *libraryFolders );
         ~HlmsPbs();
 
         virtual void _changeRenderSystem( RenderSystem *newRs );

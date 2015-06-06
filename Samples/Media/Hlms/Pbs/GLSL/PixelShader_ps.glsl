@@ -1,8 +1,6 @@
 @property( !false )
-@property( GL430 )#version 430 core
-@end @property( !GL430 )
-#version 330 core
-#extension GL_ARB_shading_language_420pack: require
+@insertpiece( SetCrossPlatformSettings )
+@property( !GL430 )
 @property( hlms_tex_gather )#extension GL_ARB_texture_gather: require@end
 @end
 
@@ -24,11 +22,12 @@ in vec4 gl_FragCoord;
 @insertpiece( MaterialDecl )
 @insertpiece( InstanceDecl )
 @end
+@insertpiece( custom_ps_uniformDeclaration )
+// END UNIFORM DECLARATION
 in block
 {
 @insertpiece( VStoPS_block )
 } inPs;
-// END UNIFORM DECLARATION
 
 @property( !hlms_shadowcaster )
 
@@ -70,7 +69,6 @@ uniform @insertpiece( SAMPLER2DSHADOW ) texShadowMap[@value(hlms_num_shadow_maps
 
 float getShadow( @insertpiece( SAMPLER2DSHADOW ) shadowMap, vec4 psPosLN, vec4 invShadowMapSize )
 {
-@property( !hlms_shadow_uses_depth_texture )
 	float fDepth = psPosLN.z;
 	vec2 uv = psPosLN.xy / psPosLN.w;
 
@@ -111,6 +109,7 @@ float getShadow( @insertpiece( SAMPLER2DSHADOW ) shadowMap, vec4 psPosLN, vec4 i
 	@foreach( pcf_iterations, n )
 		@property( pcf_3x3 || pcf_4x4 )uv += offsets[@n] * invShadowMapSize.xy;@end
 
+		@property( !hlms_shadow_uses_depth_texture )
 		// 2x2 PCF
 		//The 0.00196 is a magic number that prevents floating point
 		//precision problems ("1000" becomes "999.999" causing fW to
@@ -139,9 +138,12 @@ float getShadow( @insertpiece( SAMPLER2DSHADOW ) shadowMap, vec4 psPosLN, vec4 i
 			row[0] += mix( c.w, c.z, fW.x );
 			row[1] += mix( c.x, c.y, fW.x );
 		@end
+		@end @property( hlms_shadow_uses_depth_texture )
+			retVal += texture( shadowMap, vec3( uv, fDepth ) ).r;
+		@end
 	@end
 
-	@property( pcf_3x3 || pcf_4x4 )
+	@property( (pcf_3x3 || pcf_4x4) && !hlms_shadow_uses_depth_texture )
 		//NxN PCF: It's much faster to leave the final mix out of the loop (when N > 2).
 		retVal = mix( row[0], row[1], fW.y );
 	@end
@@ -153,9 +155,6 @@ float getShadow( @insertpiece( SAMPLER2DSHADOW ) shadowMap, vec4 psPosLN, vec4 i
 	@end
 
 	return retVal;
-@end
-@property( hlms_shadow_uses_depth_texture )
-	return texture( shadowMap, psPosLN.xyz, 0 ).x;@end
 }
 @end
 
@@ -199,7 +198,7 @@ vec3 qmul( vec4 q, vec3 v )
 	@property( normal_weight_tex )#define normalMapWeight material.F0.w@end
 	@foreach( 4, n )
 		@property( normal_weight_detail@n )
-			@piece( detail@n_nm_weight_mul ) * material.normalWeights.@insertpiece( detail_swizzle@n )]@end
+			@piece( detail@n_nm_weight_mul ) * material.normalWeights.@insertpiece( detail_swizzle@n )@end
 		@end
 	@end
 @end
@@ -212,6 +211,7 @@ vec3 qmul( vec4 q, vec3 v )
 
 void main()
 {
+    @insertpiece( custom_ps_preExecution )
 @property( hlms_normal || hlms_qtangent )
         uint materialId	= uint(instance.worldMaterialIdx[inPs.drawId].x) & 0x1FFu;
 	material = materialArray.m[materialId];
@@ -229,6 +229,8 @@ void main()
 @property( detail_map_nm2 )	detailNormMapIdx2	= material.indices4_7.y >> 16u;@end
 @property( detail_map_nm3 )	detailNormMapIdx3	= material.indices4_7.z & 0x0000FFFFu;@end
 @property( envprobe_map )	envMapIdx			= material.indices4_7.z >> 16u;@end
+
+	@insertpiece( custom_ps_posMaterialLoad )
 
 @property( detail_maps_diffuse || detail_maps_normal )
 	@property( detail_weight_map )
@@ -272,7 +274,7 @@ void main()
         fShadow = getShadow( texShadowMap[@value(CurrentShadowMap)], inPs.posL0, pass.shadowRcv[@counter(CurrentShadowMap)].invShadowMapSize );
 @foreach( hlms_pssm_splits, n, 1 )	else if( inPs.depth <= pass.pssmSplitPoints@value(CurrentShadowMap) )
         fShadow = getShadow( texShadowMap[@value(CurrentShadowMap)], inPs.posL@n, pass.shadowRcv[@counter(CurrentShadowMap)].invShadowMapSize );
-@end @end @property( !hlms_pssm_splits && hlms_num_shadow_maps )
+@end @end @property( !hlms_pssm_splits && hlms_num_shadow_maps && hlms_lights_directional )
     float fShadow = getShadow( texShadowMap[@value(CurrentShadowMap)], inPs.posL0, pass.shadowRcv[@counter(CurrentShadowMap)].invShadowMapSize );
 @end
 
@@ -295,6 +297,8 @@ void main()
 
 @foreach( detail_maps_diffuse, n )
 	@insertpiece( blend_mode_idx@n ) @end
+
+@property( diffuse_map || detail_maps_diffuse )	diffuseCol.xyz *= material.kD.xyz;@end
 
 @property( normal_map_tex )
 	@piece( detail_nm_op_sum )+=@end
@@ -323,6 +327,10 @@ void main()
 	float NdotV		= clamp( dot( nNormal, viewDir ), 0.0, 1.0 );@end
 
 	vec3 finalColour = vec3(0);
+
+	@insertpiece( custom_ps_preLights )
+
+@property( !custom_disable_directional_lights )
 @property( hlms_lights_directional )
 	finalColour += BRDF( pass.lights[0].position, viewDir, NdotV, pass.lights[0].diffuse, pass.lights[0].specular );
 @property( hlms_num_shadow_maps )	finalColour *= fShadow;	//1st directional light's shadow@end
@@ -331,6 +339,7 @@ void main()
 	finalColour += BRDF( pass.lights[@n].position, viewDir, NdotV, pass.lights[@n].diffuse, pass.lights[@n].specular )@insertpiece( DarkenWithShadow );@end
 @foreach( hlms_lights_directional_non_caster, n, hlms_lights_directional )
 	finalColour += BRDF( pass.lights[@n].position, viewDir, NdotV, pass.lights[@n].diffuse, pass.lights[@n].specular );@end
+@end
 
 @property( hlms_lights_point || hlms_lights_spot )	vec3 lightDir;
 	float fDistance;
@@ -396,15 +405,24 @@ void main()
 @end @property( !hlms_normal && !hlms_qtangent )
 	outColour = vec4( 1.0, 1.0, 1.0, 1.0 );
 @end
+
+	@insertpiece( custom_ps_posExecution )
 }
 @end
 @property( hlms_shadowcaster )
+	@property( hlms_shadow_uses_depth_texture )
+		@set( hlms_disable_stage, 1 )
+	@end
 void main()
 {
+	@insertpiece( custom_ps_preExecution )
+
 @property( GL3+ )
 	outColour = inPs.depth;@end
 @property( !GL3+ )
 	gl_FragColor.x = inPs.depth;@end
+
+	@insertpiece( custom_ps_posExecution )
 }
 @end
 @end

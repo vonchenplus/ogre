@@ -67,6 +67,42 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
+    size_t PixelBox::rowPitchAlwaysBytes() const
+    {
+        if( PixelUtil::isCompressed( format ) )
+        {
+            return rowPitch;
+        }
+        else
+        {
+            return rowPitch * PixelUtil::getNumElemBytes( format );
+        }
+    }
+    //-----------------------------------------------------------------------
+    size_t PixelBox::slicePitchAlwaysBytes(void) const
+    {
+        if( PixelUtil::isCompressed( format ) )
+        {
+            return slicePitch;
+        }
+        else
+        {
+            return slicePitch * PixelUtil::getNumElemBytes( format );
+        }
+    }
+    //-----------------------------------------------------------------------
+    size_t PixelBox::getSliceSkipAlwaysBytes() const
+    {
+        if( PixelUtil::isCompressed( format ) )
+        {
+            return getSliceSkip();
+        }
+        else
+        {
+            return getSliceSkip() * PixelUtil::getNumElemBytes( format );
+        }
+    }
+    //-----------------------------------------------------------------------
     bool PixelBox::isConsecutive() const
     {
         if( PixelUtil::isCompressed( format ) )
@@ -594,7 +630,7 @@ namespace Ogre {
                 ((float*)dest)[2] = b;
                 ((float*)dest)[3] = a;
                 break;
-            case PF_DEPTH:
+            case PF_DEPTH_DEPRECATED:
             case PF_FLOAT16_R:
                 ((uint16*)dest)[0] = Bitwise::floatToHalf(r);
                 break;
@@ -732,7 +768,7 @@ namespace Ogre {
                 *b = ((const float*)src)[2];
                 *a = ((const float*)src)[3];
                 break;
-            case PF_DEPTH:
+            case PF_DEPTH_DEPRECATED:
             case PF_FLOAT16_R:
                 *r = *g = *b = Bitwise::halfToFloat(((const uint16*)src)[0]);
                 *a = 1.0f;
@@ -1033,7 +1069,7 @@ namespace Ogre {
         assert(src.getWidth() == dst.getWidth() &&
                src.getHeight() == dst.getHeight() &&
                src.getDepth() == dst.getDepth() &&
-               (dst.format == PF_R8G8_SNORM || dst.format == PF_BYTE_LA)  );
+               (dst.format == PF_R8G8_SNORM || dst.format == PF_RG8 || dst.format == PF_BYTE_LA)  );
 
         const PixelFormatDescription &srcDesc = getDescriptionFor( src.format );
 
@@ -1069,7 +1105,7 @@ namespace Ogre {
 
         uint8 shiftOffset = 0x7F;
 
-        if( dst.format == PF_BYTE_LA )
+        if( dst.format == PF_BYTE_LA || dst.format == PF_RG8 )
             shiftOffset = 0x00;
 
         uint8 r, g, b, a;
