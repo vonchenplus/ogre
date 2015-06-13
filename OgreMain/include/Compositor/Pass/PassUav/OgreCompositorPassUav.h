@@ -26,20 +26,21 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#ifndef __CompositorPassScene_H__
-#define __CompositorPassScene_H__
+#ifndef __CompositorPassUav_H__
+#define __CompositorPassUav_H__
 
 #include "OgreHeaderPrefix.h"
 
 #include "Compositor/Pass/OgreCompositorPass.h"
-#include "Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h"
+#include "Compositor/OgreCompositorCommon.h"
 
 namespace Ogre
 {
-    class RenderTarget;
-    class Camera;
-    class CompositorShadowNode;
-    class CompositorWorkspace;
+    namespace v1
+    {
+        class Rectangle2D;
+    }
+    class CompositorPassUavDef;
 
     /** \addtogroup Core
     *  @{
@@ -49,53 +50,26 @@ namespace Ogre
     */
 
     /** Implementation of CompositorPass
-        This implementation will perform main rendering, selecting several parameters
-        (like viewport's visibility mask, first and last render queue to render) it
-        will render the main scene. into the specified RenderTarget
+        This implementation will set UAVs.
     @author
         Matias N. Goldberg
     @version
         1.0
     */
-    class _OgreExport CompositorPassScene : public CompositorPass
+    class _OgreExport CompositorPassUav : public CompositorPass
     {
-        CompositorPassSceneDef const *mDefinition;
+        CompositorPassUavDef const *mDefinition;
     protected:
-        CompositorShadowNode    *mShadowNode;
-        Camera                  *mCamera;
-        Camera                  *mLodCamera;
-        bool                    mUpdateShadowNode;
 
     public:
-        /** Constructor
-        @param definition
-        @param defaultCamera
-            Used when the definition's camera name is empty
-        @param workspace
-            Workspace that ultimately owns us
-        @param target
-            The RenderTarget we're supposed to draw to. Can be RenderWindow, RenderTexture, MRT, etc
-        */
-        CompositorPassScene( const CompositorPassSceneDef *definition, Camera *defaultCamera,
-                                const CompositorChannel &target, CompositorNode *parentNode );
-        ~CompositorPassScene();
+        CompositorPassUav( const CompositorPassUavDef *definition, CompositorNode *parentNode,
+                           const CompositorChannel &target );
 
         virtual void execute( const Camera *lodCamera );
 
         virtual void _placeBarriersAndEmulateUavExecution( BoundUav boundUavs[64],
                                                            ResourceAccessMap &uavsAccess,
                                                            ResourceLayoutMap &resourcesLayout );
-
-        CompositorShadowNode* getShadowNode() const             { return mShadowNode; }
-        Camera* getCamera() const                               { return mCamera; }
-        void _setCustomCamera( Camera *camera )                 { mCamera = camera; }
-        void _setUpdateShadowNode( bool update )                { mUpdateShadowNode = update; }
-
-        bool getUpdateShadowNode(void) const                    { return mUpdateShadowNode; }
-
-        virtual void notifyCleared(void);
-
-        const CompositorPassSceneDef* getDefinition() const     { return mDefinition; }
     };
 
     /** @} */

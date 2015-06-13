@@ -1234,6 +1234,10 @@ namespace Ogre
         mIds["render_scene"]    = ID_RENDER_SCENE;
         mIds["render_quad"]     = ID_RENDER_QUAD;
         mIds["depth_copy"]      = ID_DEPTH_COPY;
+        mIds["uav_queue"]       = ID_UAV_QUEUE;
+        mIds["read"]            = ID_READ;
+        mIds["write"]           = ID_WRITE;
+        mIds["mipmap"]          = ID_MIPMAP;
 
         mIds["viewport"]        = ID_VIEWPORT;
         mIds["num_initial"]     = ID_NUM_INITIAL;
@@ -1284,6 +1288,11 @@ namespace Ogre
         mIds["depth_fail_op"]   = ID_DEPTH_FAIL_OP;
         mIds["pass_op"]         = ID_PASS_OP;
         mIds["two_sided"]       = ID_TWO_SIDED;
+
+        mIds["uav"]             = ID_UAV;
+        mIds["uav_external"]    = ID_UAV_EXTERNAL;
+        mIds["starting_slot"]   = ID_STARTING_SLOT;
+        mIds["keep_previous_uavs"]= ID_KEEP_PREVIOUS_UAV;
 
         mIds["compositor_node_shadow"]  = ID_SHADOW_NODE;
         mIds["num_splits"]              = ID_NUM_SPLITS;

@@ -83,6 +83,7 @@ namespace Ogre
                 Math::Abs( vp->getScissorTop() - scTop )     < EPSILON &&
                 Math::Abs( vp->getScissorWidth() - scWidth ) < EPSILON &&
                 Math::Abs( vp->getScissorHeight() - scHeight )<EPSILON &&
+                vp->getColourWrite() == mDefinition->mColourWrite &&
                 vp->getOverlaysEnabled() == mDefinition->mIncludeOverlays )
             {
                 mViewport = vp;
@@ -93,8 +94,11 @@ namespace Ogre
         {
             mViewport = mTarget->addViewport( left, top, width, height );
             mViewport->setScissors( scLeft, scTop, scWidth, scHeight );
+            mViewport->setColourWrite( mDefinition->mColourWrite );
             mViewport->setOverlaysEnabled( mDefinition->mIncludeOverlays );
         }
+
+        populateTextureDependenciesFromExposedTextures();
     }
     //-----------------------------------------------------------------------------------
     CompositorPass::CompositorPass( const CompositorPassDef *definition, CompositorNode *parentNode,
@@ -111,6 +115,20 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     CompositorPass::~CompositorPass()
     {
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPass::populateTextureDependenciesFromExposedTextures(void)
+    {
+        IdStringVec::const_iterator itor = mDefinition->mExposedTextures.begin();
+        IdStringVec::const_iterator end  = mDefinition->mExposedTextures.end();
+
+        while( itor != end )
+        {
+            const CompositorChannel *channel = mParentNode->_getDefinedTexture( *itor );
+            mTextureDependencies.push_back( CompositorTexture( *itor, &channel->textures ) );
+
+            ++itor;
+        }
     }
     //-----------------------------------------------------------------------------------
     RenderTarget* CompositorPass::calculateRenderTarget( size_t rtIndex,
@@ -152,6 +170,165 @@ namespace Ogre
         }
 
         return retVal;
+    }
+    inline uint32 transitionWriteBarrierBits( ResourceLayout::Layout oldLayout )
+    {
+        uint32 retVal = 0;
+        switch( oldLayout )
+        {
+        case ResourceLayout::RenderTarget:
+            retVal = WriteBarrier::RenderTarget;
+            break;
+        case ResourceLayout::RenderDepth:
+            retVal = WriteBarrier::DepthStencil;
+            break;
+        case ResourceLayout::Uav:
+            retVal = WriteBarrier::Uav;
+            break;
+        }
+
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPass::addResourceTransition( ResourceLayoutMap::iterator currentLayout,
+                                                ResourceLayout::Layout newLayout,
+                                                uint32 readBarrierBits )
+    {
+        ResourceTransition transition;
+        //transition.resource = ; TODO
+        transition.oldLayout = currentLayout->second;
+        transition.newLayout = newLayout;
+        transition.writeBarrierBits = transitionWriteBarrierBits( transition.oldLayout );
+        transition.readBarrierBits  = readBarrierBits;
+
+        mResourceTransitions.push_back( transition );
+
+        currentLayout->second = transition.newLayout;
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPass::_placeBarriersAndEmulateUavExecution(
+                                            BoundUav boundUavs[64], ResourceAccessMap &uavsAccess,
+                                            ResourceLayoutMap &resourcesLayout )
+    {
+        {
+            //mResourceTransitions will be non-empty if we call _placeBarriersAndEmulateUavExecution
+            //for a second time (i.e. 2nd pass to check frame-to-frame dependencies). We need
+            //to tell what is shielded. On the first time, it should be empty.
+            ResourceTransitionVec::const_iterator itor = mResourceTransitions.begin();
+            ResourceTransitionVec::const_iterator end  = mResourceTransitions.end();
+
+            while( itor != end )
+            {
+                if( itor->newLayout == ResourceLayout::Uav &&
+                        itor->writeBarrierBits & WriteBarrier::Uav &&
+                        itor->readBarrierBits & ReadBarrier::Uav )
+                {
+                    RenderTarget *renderTarget = 0;
+                    resourcesLayout[renderTarget] = ResourceLayout::Uav;
+                    //Set to undefined so that following passes
+                    //can see it's safe / shielded by a barrier
+                    uavsAccess[renderTarget] = ResourceAccess::Undefined;
+                }
+                ++itor;
+            }
+        }
+
+        {
+            //Check <anything> -> RT
+            ResourceLayoutMap::iterator currentLayout = resourcesLayout.find( mTarget );
+            if( currentLayout->second != ResourceLayout::RenderTarget )
+            {
+                addResourceTransition( currentLayout,
+                                       ResourceLayout::RenderTarget,
+                                       ReadBarrier::RenderTarget );
+            }
+        }
+
+        {
+            //Check <anything> -> Texture
+            CompositorTextureVec::const_iterator itDep = mTextureDependencies.begin();
+            CompositorTextureVec::const_iterator enDep = mTextureDependencies.end();
+
+            while( itDep != enDep )
+            {
+                TexturePtr texture = itDep->textures->front();
+                RenderTarget *renderTarget = texture->getBuffer()->getRenderTarget();
+
+                ResourceLayoutMap::iterator currentLayout = resourcesLayout.find( renderTarget );
+
+                if( currentLayout->second != ResourceLayout::Texture )
+                {
+                    //TODO: Account for depth textures.
+                    addResourceTransition( currentLayout,
+                                           ResourceLayout::Texture,
+                                           ReadBarrier::Texture );
+                }
+
+                ++itDep;
+            }
+        }
+
+        //Check <anything> -> UAV; including UAV -> UAV
+        //Except for RaR (Read after Read) and some WaW (Write after Write),
+        //Uavs are always hazardous, an UAV->UAV 'transition' is just a memory barrier.
+        CompositorPassDef::UavDependencyVec::const_iterator itor = mDefinition->mUavDependencies.begin();
+        CompositorPassDef::UavDependencyVec::const_iterator end  = mDefinition->mUavDependencies.end();
+
+        while( itor != end )
+        {
+            RenderTarget *uavRt = boundUavs[itor->uavSlot].renderTarget;
+
+            if( !uavRt )
+            {
+                OGRE_EXCEPT( Exception::ERR_INVALID_STATE,
+                             "No UAV is bound at slot " + StringConverter::toString( itor->uavSlot ) +
+                             " but it is marked as used by node " +
+                             mParentNode->getName().getFriendlyText() + "; pass #" +
+                             StringConverter::toString( mParentNode->getPassNumber( this ) ),
+                             "CompositorPass::emulateUavExecution" );
+            }
+
+            if( !(itor->access & boundUavs[itor->uavSlot].boundAccess) )
+            {
+                OGRE_EXCEPT( Exception::ERR_INVALID_STATE,
+                             "Node " + mParentNode->getName().getFriendlyText() + "; pass #" +
+                             StringConverter::toString( mParentNode->getPassNumber( this ) ) +
+                             " marked " + ResourceAccess::toString( itor->access ) +
+                             " access to UAV at slot " +
+                             StringConverter::toString( itor->uavSlot ) + " but this UAV is bound for " +
+                             ResourceAccess::toString( boundUavs[itor->uavSlot].boundAccess ) +
+                             " access.", "CompositorPass::emulateUavExecution" );
+            }
+
+            ResourceAccessMap::iterator itResAccess = uavsAccess.find( uavRt );
+
+            if( itResAccess == uavsAccess.end() )
+            {
+                //First time accessing the UAV. If we need a barrier,
+                //we will see it in the second pass.
+                uavsAccess[uavRt] = ResourceAccess::Undefined;
+                itResAccess = uavsAccess.find( uavRt );
+            }
+
+            ResourceLayoutMap::iterator currentLayout = resourcesLayout.find( uavRt );
+
+            if( currentLayout->second != ResourceLayout::Uav ||
+                !( (itor->access == ResourceAccess::Read &&
+                    itResAccess->second == ResourceAccess::Read) ||
+                   (itor->access == ResourceAccess::Write &&
+                    itResAccess->second == ResourceAccess::Write &&
+                    itor->allowWriteAfterWrite) ||
+                   itResAccess->second == ResourceAccess::Undefined ) )
+            {
+                //Not RaR (or not WaW when they're explicitly allowed). Insert the barrier.
+                //We also may need the barrier if the resource wasn't an UAV.
+                addResourceTransition( currentLayout, ResourceLayout::Uav, ReadBarrier::Uav );
+            }
+
+            itResAccess->second = itor->access;
+
+            ++itor;
+        }
     }
     //-----------------------------------------------------------------------------------
     void CompositorPass::notifyRecreated( const CompositorChannel &oldChannel,

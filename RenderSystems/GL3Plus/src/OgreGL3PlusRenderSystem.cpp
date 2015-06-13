@@ -68,6 +68,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreRoot.h"
 #include "OgreConfig.h"
 #include "OgreViewport.h"
+#include "OgreGL3PlusPixelFormat.h"
 
 #if OGRE_DEBUG_MODE
 static void APIENTRY GLDebugCallback(GLenum source,
@@ -147,7 +148,8 @@ namespace Ogre {
           mHardwareBufferManager(0),
           mRTTManager(0),
           mActiveTextureUnit(0),
-          mNullColourFramebuffer( 0 )
+          mNullColourFramebuffer( 0 ),
+          mMaxModifiedUavPlusOne( 0 )
     {
         size_t i;
 
@@ -361,6 +363,12 @@ namespace Ogre {
         //if( mGLSupport->checkExtension("GL_ARB_texture_gather") || mHasGL40 )
         if( mHasGL43 )
             rsc->setCapability(RSC_TEXTURE_GATHER);
+
+        if( mHasGL43 || (mGLSupport->checkExtension("GL_ARB_shader_image_load_store") &&
+                         mGLSupport->checkExtension("GL_ARB_shader_storage_buffer_object")) )
+        {
+            rsc->setCapability(RSC_UAV);
+        }
 
         rsc->setCapability(RSC_FBO);
         rsc->setCapability(RSC_HWRENDER_TO_TEXTURE);
@@ -1086,6 +1094,121 @@ namespace Ogre {
         mTextureCoordIndex[stage] = index;
     }
 
+    void GL3PlusRenderSystem::setUavStartingSlot( uint32 startingSlot )
+    {
+        if( startingSlot != mUavStartingSlot )
+        {
+            for( uint32 i=0; i<64; ++i )
+            {
+                if( !mUavs[i].texture.isNull() )
+                    mUavs[i].dirty = true;
+            }
+        }
+
+        RenderSystem::setUavStartingSlot( startingSlot );
+    }
+
+    void GL3PlusRenderSystem::queueBindUAV( uint32 slot, TexturePtr texture,
+                                            ResourceAccess::ResourceAccess access,
+                                            int32 mipmapLevel, int32 textureArrayIndex,
+                                            PixelFormat pixelFormat )
+    {
+        assert( slot < 64 );
+
+        // TODO
+        // * add memory barrier
+        // * compositor script access (can have multiple instances for a single texture_unit)
+        //     shader_access <binding point> [<access>] [<mipmap level>] [<texture array layer>] [<format>]
+        //     shader_access 2 read_write 0 0 PF_UINT32_R
+
+        if( mUavs[slot].texture.isNull() && texture.isNull() )
+            return;
+
+        mUavs[slot].dirty       = true;
+        mUavs[slot].texture     = texture;
+
+        if( !texture.isNull() )
+        {
+            if( !(texture->getUsage() & TU_UAV) )
+            {
+                OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS,
+                             "Texture " + texture->getName() +
+                             " must have been created with TU_UAV to be bound as UAV",
+                             "GL3PlusRenderSystem::queueBindUAV" );
+            }
+
+            bool isFsaa;
+
+            if( pixelFormat == PF_UNKNOWN )
+                pixelFormat = texture->getFormat();
+
+            mUavs[slot].textureName = static_cast<GL3PlusTexture*>( texture.get() )->getGLID( isFsaa );
+            mUavs[slot].mipmap      = mipmapLevel;
+            mUavs[slot].isArrayTexture = texture->getTextureType() == TEX_TYPE_2D_ARRAY ? GL_TRUE :
+                                                                                          GL_FALSE;
+            mUavs[slot].arrayIndex  = textureArrayIndex;
+            mUavs[slot].format      = GL3PlusPixelUtil::getClosestGLImageInternalFormat( pixelFormat );
+
+            switch( access )
+            {
+            case ResourceAccess::Read:
+                mUavs[slot].access = GL_READ_ONLY;
+                break;
+            case ResourceAccess::Write:
+                mUavs[slot].access = GL_WRITE_ONLY;
+                break;
+            case ResourceAccess::ReadWrite:
+                mUavs[slot].access = GL_READ_WRITE;
+                break;
+            default:
+                OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, "Invalid ResourceAccess parameter '" +
+                             StringConverter::toString( access ) + "'",
+                             "GL3PlusRenderSystem::queueBindUAV" );
+                break;
+            }
+        }
+
+        mMaxModifiedUavPlusOne = std::max( mMaxModifiedUavPlusOne, static_cast<uint8>( slot + 1 ) );
+    }
+
+    void GL3PlusRenderSystem::clearUAVs(void)
+    {
+        for( size_t i=0; i<64; ++i )
+        {
+            if( !mUavs[i].texture.isNull() )
+            {
+                mUavs[i].dirty = true;
+                mUavs[i].texture.setNull();
+                mMaxModifiedUavPlusOne = i + 1;
+            }
+        }
+    }
+
+    void GL3PlusRenderSystem::flushUAVs(void)
+    {
+        for( uint32 i=0; i<mMaxModifiedUavPlusOne; ++i )
+        {
+            if( mUavs[i].dirty )
+            {
+                if( !mUavs[i].texture.isNull() )
+                {
+                    OCGE( glBindImageTexture( mUavStartingSlot + i, mUavs[i].textureName,
+                                              mUavs[i].mipmap, mUavs[i].isArrayTexture,
+                                              mUavs[i].arrayIndex, mUavs[i].access,
+                                              mUavs[i].format) );
+                }
+                else
+                {
+                    glBindImageTexture( 0, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32UI );
+                }
+
+                mUavs[i].dirty = false;
+            }
+        }
+
+        mMaxModifiedUavPlusOne = 0;
+    }
+
     GLint GL3PlusRenderSystem::getTextureAddressingMode(TextureAddressingMode tam) const
     {
         switch (tam)
@@ -1280,6 +1403,10 @@ namespace Ogre {
             OGRE_CHECK_GL_ERROR(glScissor(x, y, w, h));
 
             vp->_clearUpdatedFlag();
+        }
+        else if( mMaxModifiedUavPlusOne )
+        {
+            flushUAVs();
         }
     }
 
@@ -2943,6 +3070,8 @@ namespace Ogre {
                 OGRE_CHECK_GL_ERROR(glDisable(GL_FRAMEBUFFER_SRGB));
             }
         }
+
+        flushUAVs();
     }
 
     GLint GL3PlusRenderSystem::convertCompareFunction(CompareFunction func) const
