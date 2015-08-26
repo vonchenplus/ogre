@@ -34,6 +34,9 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+
+#	define PBS_MAX_LIGHT_COUNT 10
+
 	/** \addtogroup Component
 	*  @{
 	*/
@@ -41,7 +44,7 @@ namespace Ogre
 	*  @{
 	*/
 	class _OgreHlmsExport PbsMaterial : public HlmsMaterialBase
-    {
+	{
 	public:
 		enum BlendFunction
 		{
@@ -70,8 +73,11 @@ namespace Ogre
 		class TextureAddressing
 		{
 		public:
-			Ogre::TextureUnitState::TextureAddressingMode u = Ogre::TextureUnitState::TAM_WRAP;
-			Ogre::TextureUnitState::TextureAddressingMode v = Ogre::TextureUnitState::TAM_WRAP;
+			TextureAddressing() : u(TextureUnitState::TAM_WRAP), v(TextureUnitState::TAM_WRAP)
+			{}
+
+			TextureUnitState::TextureAddressingMode u;
+			TextureUnitState::TextureAddressingMode v;
 			bool operator ==(TextureAddressing& b){ return u == b.u && v == b.v; }
 		};
 
@@ -80,14 +86,14 @@ namespace Ogre
 		{
 			ST_ENV_MAP = 0,
 			ST_MAIN_ALBEDO,
-			ST_MAIN_NORMAL,
-			ST_MAIN_F0R,
+			ST_MAIN_NORMALR,
+			ST_MAIN_F0,
 			ST_D1_ALBEDO,
-			ST_D1_NORMAL,
-			ST_D1_F0R,
+			ST_D1_NORMALR,
+			ST_D1_F0,
 			ST_D2_ALBEDO,
-			ST_D2_NORMAL,
-			ST_D2_F0R,
+			ST_D2_NORMALR,
+			ST_D2_F0,
 			ST_COUNT
 		};
 
@@ -103,31 +109,37 @@ namespace Ogre
 		class SamplerContainer
 		{
 		public:
-			Ogre::String name;
-			Ogre::TextureType textureType;
-			Ogre::TexturePtr tex;
-			Ogre::TextureUnitState* textureUnitState = NULL;
+			SamplerContainer() :textureUnitState(NULL), status(SS_NOT_ACTIVE), hasIntensity(false), intensity(0),
+				hasMipmapCount(false), mipmapCount(0), hasBlendFunc(false), blendFunc(BF_ALPHA),
+				hasBlendFactor1(false), blendFactor1(0), hasBlendFactor2(false), blendFactor2(0),
+				needsGammaCorrection(false)
+			{}
 
-			SamplerStatus status = SS_NOT_ACTIVE;
+			String name;
+			TextureType textureType;
+			TexturePtr tex;
+			TextureUnitState* textureUnitState;
 
-			bool hasIntensity = false;
-			float intensity = 0;
+			SamplerStatus status;
 
-			bool hasMipmapCount = false;
-			float mipmapCount = 0;
+			bool hasIntensity;
+			float intensity;
 
-			bool hasBlendFunc = false;
-			BlendFunction blendFunc = BF_ALPHA;
-			bool hasBlendFactor1 = false;
-			float blendFactor1 = 0;
-			bool hasBlendFactor2 = false;
-			float blendFactor2 = 0;
+			bool hasMipmapCount;
+			float mipmapCount;
+
+			bool hasBlendFunc;
+			BlendFunction blendFunc;
+			bool hasBlendFactor1;
+			float blendFactor1;
+			bool hasBlendFactor2;
+			float blendFactor2;
 
 			TextureAddressing textureAddressing;
 
-			bool needsGammaCorrection = false;
+			bool needsGammaCorrection;
 
-			void init(Ogre::String n, bool hasBlendFu = false, bool hasBlendFc1 = false, bool hasBlendFc2 = false, bool needsGammaCorrect = false, bool hasIntens = false, bool hasMipmapC = false, Ogre::TextureType texType = Ogre::TEX_TYPE_2D)
+			void init(String n, bool hasBlendFu = false, bool hasBlendFc1 = false, bool hasBlendFc2 = false, bool needsGammaCorrect = false, bool hasIntens = false, bool hasMipmapC = false, TextureType texType = TEX_TYPE_2D)
 			{
 				name = n;
 				hasBlendFunc = hasBlendFu;
@@ -140,67 +152,81 @@ namespace Ogre
 			}
 		};
 
-    public:
+	public:
 		PbsMaterial();
+
 		PbsMaterial(const PbsMaterial &obj);
 		virtual ~PbsMaterial();
 
-		void setEnvironmapTexture(Ogre::TexturePtr tex, float intensityFactor = 1.0f);
+		void setEnvironmentMap(TexturePtr tex, float intensityFactor = 1.0f);
 
-		Ogre::ColourValue getAlbedo(){ return mAlbedo; }
-		void setAlbedo(Ogre::ColourValue val){ mAlbedo = val; }
+		ColourValue getAlbedo(){ return mAlbedo; }
+		void setAlbedo(ColourValue val){ mAlbedo = val; }
 
-		Ogre::ColourValue getF0(){ return mF0; }
-		void setF0(Ogre::ColourValue val){ mF0 = val; }
+		ColourValue getF0(){ return mF0; }
+		void setF0(ColourValue val){ mF0 = val; }
 
-		Ogre::Real getRothness(){ return mRothness; }
-		void setRothness(Ogre::Real val){ mRothness = val; }
+		Real getRoughness(){ return mRoughness; }
+		void setRoughness(Real val){ mRoughness = val; }
 
-		void setAlbedoTexture(MapSlot mapSlot, Ogre::TexturePtr tex, TextureAddressing textureAddressing = TextureAddressing(), BlendFunction blendFunc = BF_ALPHA, float blendFactor = 0);
-		void setNormalTexture(MapSlot mapSlot, Ogre::TexturePtr tex, TextureAddressing textureAddressing = TextureAddressing(), float blendFactor = 0);
-		void setF0RTexture(MapSlot mapSlot, Ogre::TexturePtr tex, TextureAddressing textureAddressing = TextureAddressing(), BlendFunction blendFunc = BF_ALPHA, float f0BlendFactor = 0, float rBlendFactor = 0);
-		void setOffsetAndScale(MapSlot mapSlot, Ogre::Vector2 offset, Ogre::Vector2 scale);
-		void setUvSetIndex(MapSlot mapSlot, Ogre::uint index);
+		Real getLightRoughnessOffset(){ return mLightRoughnessOffset; }
+		void setLightRoughnessOffset(Real val){ mLightRoughnessOffset = val; }
 
-		void updatePropertyMap(Ogre::Camera* camera, const Ogre::LightList* pLightList);
-		void updateUniforms(Ogre::Camera* camera, Ogre::Pass* pass, const Ogre::AutoParamDataSource* source, const Ogre::LightList* pLightList, bool shaderHasChanged);
-		void updateTexturUnits(Ogre::TextureUnitState* textureUnitState, Ogre::GpuProgramParametersSharedPtr fragmentParams, SamplerContainer& s);
+		void setAlbedoTexture(MapSlot mapSlot, TexturePtr tex, TextureAddressing textureAddressing = TextureAddressing(), BlendFunction blendFunc = BF_ALPHA, float blendFactor = 0);
+		void setNormalrTexture(MapSlot mapSlot, TexturePtr tex, TextureAddressing textureAddressing = TextureAddressing(), float normalBlendFactor = 0, float rBlendFactor = 0);
+		void setF0Texture(MapSlot mapSlot, TexturePtr tex, TextureAddressing textureAddressing = TextureAddressing(), BlendFunction blendFunc = BF_ALPHA, float blendFactor = 0);
+		void setOffsetAndScale(MapSlot mapSlot, Vector2 offset, Vector2 scale);
+		void setUvSetIndex(MapSlot mapSlot, uint index);
+
+		// this is called once per frame
+		void updatePropertyMap(Camera* camera, const LightList* pLightList);
+
+		// this is called once per frame if the shader has changed. (it is guaranteed that there are not texture units in the pass)
+		void createTexturUnits(Pass* pass);
+
+		// this is called for every renderable before it is renderd with the given pass
+		void updateUniforms(const Pass* pass, const AutoParamDataSource* source, const LightList* pLightList);
+
+		void updateTexturUnits(TextureUnitState* textureUnitState, GpuProgramParametersSharedPtr fragmentParams, SamplerContainer& s, int index);
 
 	protected:
 
-		Ogre::ColourValue mAlbedo;
-		Ogre::ColourValue mF0;
-		Ogre::Real mRothness;
+		bool mCanHardwareGamma;
 
-		Ogre::Vector2 mMainOffset = Ogre::Vector2::ZERO;
-		Ogre::Vector2 mMainScale = Ogre::Vector2::UNIT_SCALE;
-		Ogre::uint mMainUvSetIndex = 0;
+		ColourValue mAlbedo;
+		ColourValue mF0;
+		Real mRoughness;
+		Real mLightRoughnessOffset;
 
-		Ogre::Vector2 mD1Offset = Ogre::Vector2::ZERO;
-		Ogre::Vector2 mD1Scale = Ogre::Vector2::UNIT_SCALE;
-		Ogre::uint mD1UvSetIndex = 0;
+		Vector2 mMainOffset;
+		Vector2 mMainScale;
+		uint mMainUvSetIndex;
 
-		Ogre::Vector2 mD2Offset = Ogre::Vector2::ZERO;
-		Ogre::Vector2 mD2Scale = Ogre::Vector2::UNIT_SCALE;
-		Ogre::uint mD2UvSetIndex = 0;
+		Vector2 mD1Offset;
+		Vector2 mD1Scale;
+		uint mD1UvSetIndex;
 
-		Ogre::uint32 mDirectionalLightCount;
-		Ogre::uint32 mPointLightCount;
-		Ogre::uint32 mSpotLightCount;
+		Vector2 mD2Offset;
+		Vector2 mD2Scale;
+		uint mD2UvSetIndex;
+
+		uint32 mDirectionalLightCount;
+		uint32 mPointLightCount;
+		uint32 mSpotLightCount;
 
 		SamplerContainer _samplers[ST_COUNT];
-		bool _hasSamplerListChanged = false;
-		bool _hasSamplerChanged = false;
+		bool _hasSamplerListChanged;
+		bool _hasSamplerChanged;
 
-		static const Ogre::uint32 maxLightCount = 10;
+		static const uint32 maxLightCount;
 
-		float mLightPositions_es[maxLightCount * 3];
-		float mLightDirections_es[maxLightCount * 3];
-		float mLightColors[maxLightCount * 3];
-		float mLightParameters[maxLightCount * 3];
+		float mLightPositions_es[PBS_MAX_LIGHT_COUNT * 3];
+		float mLightDirections_es[PBS_MAX_LIGHT_COUNT * 3];
+		float mLightColors[PBS_MAX_LIGHT_COUNT * 3];
+		float mLightParameters[PBS_MAX_LIGHT_COUNT * 3];
 
-		void setTexture(SamplerType samplerType, Ogre::TexturePtr tex, TextureAddressing uTextureAddr,
+		void setTexture(SamplerType samplerType, TexturePtr tex, TextureAddressing uTextureAddr,
 			float blendFactor1 = 0, float blendFactor2 = 0, BlendFunction blendFunc = BF_ALPHA, float intensityFactor = 1.0);
-    };
+	};
 }
 

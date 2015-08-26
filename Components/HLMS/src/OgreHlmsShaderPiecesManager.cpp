@@ -32,7 +32,8 @@ THE SOFTWARE.
 namespace Ogre
 {
 	//-----------------------------------------------------------------------------------
-	ShaderPiecesManager::ShaderPiecesManager(const Ogre::String& piecesFolder)
+	ShaderPiecesManager::ShaderPiecesManager(const String& pieseFilesResorceGroup)
+		: mResorceGroup(pieseFilesResorceGroup)
 	{
 
 	}
@@ -44,55 +45,89 @@ namespace Ogre
 	//-----------------------------------------------------------------------------------
 	void ShaderPiecesManager::enumeratePieceFiles(void)
 	{
-		// TODO
-		/*
-		auto stringVectorPtr = mDataFolder->list(false, false);
-
-		Ogre::StringVector stringVectorLowerCase(*stringVectorPtr);
-
+		// remove all pieces
+		for (size_t i = 0; i < mNumShaderTypes; i++)
 		{
-			Ogre::StringVector::iterator itor = stringVectorLowerCase.begin();
-			Ogre::StringVector::iterator end = stringVectorLowerCase.end();
-			while (itor != end)
-			{
-				std::transform(itor->begin(), itor->end(), itor->begin(), ::tolower);
-				++itor;
-			}
+			mPieceFileNames[i].clear();
+			mLoadedPieces[i].clear();
 		}
 
-		auto size = sizeof(FilePatterns) / sizeof(*FilePatterns);
-		for (size_t i = 0; i < size; ++i)
+		ResourceGroupManager& rgm = ResourceGroupManager::getSingleton();
+
+		for (size_t i = 0; i < mNumShaderTypes; ++i)
 		{
-			auto itLowerCase = stringVectorLowerCase.begin();
-			auto itor = stringVectorPtr->begin();
-			auto end = stringVectorPtr->end();
+			StringVecMap& pieceFileNames = mPieceFileNames[i];
 
-			while (itor != end)
+			FileInfoListPtr list = rgm.findResourceFileInfo(mResorceGroup, "*_piece" + FilePatterns[i] + ".*");
+			FileInfoList::iterator it = list->begin();
+			FileInfoList::iterator end = list->end();
+
+			for (; it != end; it++)
 			{
-				if (itLowerCase->find(FilePatterns[i]) != Ogre::String::npos)
-					mPieceFiles.push_back(*itor);
+				String name, ext;
+				StringUtil::splitBaseFilename(it->filename, name, ext);
 
-				++itLowerCase;
-				++itor;
+				StringVectorPtr namesVec;
+				StringVecMap::iterator pieceFileNamesIt = pieceFileNames.find(ext);
+				if (pieceFileNamesIt == pieceFileNames.end())
+				{
+					namesVec = StringVectorPtr(OGRE_NEW_T(StringVector, MEMCATEGORY_GENERAL)(), SPFM_DELETE_T);
+					pieceFileNames[ext] = namesVec;
+				}
+				else
+				{
+					namesVec = pieceFileNames[ext];
+				}
+
+				namesVec->push_back(it->filename);
 			}
 		}
-
-		auto langIt = mPieceFiles.find(languarge);
-		if (langIt != mPieceFiles.end())
-		{
-			return (*langIt).second[shaderType];
-		}*/
 	}
 	//-----------------------------------------------------------------------------------
-	Ogre::StringVector& ShaderPiecesManager::getPieces(Ogre::String languarge, Ogre::GpuProgramType shaderType)
+	StringVectorPtr ShaderPiecesManager::getPieces(const String& language, GpuProgramType shaderType, bool reload)
 	{
-		auto langIt = mPieceFiles.find(languarge);
-		if (langIt != mPieceFiles.end())
+		String languageTemplateExtension = language + "t";
+
+		ResourceGroupManager& rgm = ResourceGroupManager::getSingleton();
+
+		StringVecMap& loadedPieces = mLoadedPieces[(int)shaderType];
+		StringVecMap& pieceFileNames = mPieceFileNames[(int)shaderType];
+
+		if (reload)
 		{
-			return (*langIt).second[shaderType];
+			StringVecMap::iterator it = loadedPieces.find(languageTemplateExtension);
+			if (it == loadedPieces.end())
+				loadedPieces.erase(it);
+		}
+		
+		StringVecMap::iterator loadedFilesIt = loadedPieces.find(languageTemplateExtension);
+		if (loadedFilesIt == loadedPieces.end())
+		{
+			// the piece files for the given shader type and languarge are not loaded yet.
+			StringVecMap::iterator pieceFileNamesIt = pieceFileNames.find(languageTemplateExtension);
+			if (pieceFileNamesIt != pieceFileNames.end())
+			{
+				StringVectorPtr pieces = StringVectorPtr(OGRE_NEW_T(StringVector, MEMCATEGORY_GENERAL)(), SPFM_DELETE_T);
+
+				StringVector::iterator it = pieceFileNamesIt->second->begin();
+				StringVector::iterator end = pieceFileNamesIt->second->end();
+
+				for (; it != end; it++)
+				{
+					pieces->push_back(rgm.openResource(*it, mResorceGroup, false)->getAsString());
+				}
+
+				loadedPieces[languageTemplateExtension] = pieces;
+
+				return pieces;
+			}
+		}
+		else
+		{
+			return loadedFilesIt->second;
 		}
 
-		return mDefaultStringVector;
+		return StringVectorPtr();
 	}
 	//-----------------------------------------------------------------------------------
 }
