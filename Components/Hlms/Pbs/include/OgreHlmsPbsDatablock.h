@@ -127,6 +127,22 @@ namespace Ogre
     class _OgreHlmsPbsExport HlmsPbsDatablock : public HlmsDatablock, public ConstBufferPoolUser
     {
         friend class HlmsPbs;
+    public:
+        enum TransparencyModes
+        {
+            /// No alpha blending. Default.
+            None,
+
+            /// Realistic transparency that preserves lighting reflections
+            /// (particularly specular on the edges). Great for glass, transparent
+            /// plastic, most stuff. Note that at transparency = 0 the object may
+            /// not be fully invisible.
+            Transparent,
+
+            /// Good 'ol regular alpha blending. Ideal for just fading out an
+            /// object until it completely disappears.
+            Fade
+        };
     protected:
         /// [0] = Regular one.
         /// [1] = Used during shadow mapping
@@ -134,17 +150,21 @@ namespace Ogre
         uint8   mUvSource[NUM_PBSM_SOURCES];
         uint8   mBlendModes[4];
         uint8   mFresnelTypeSizeBytes;              //4 if mFresnel is float, 12 if it is vec3
+        bool    mUseAlphaFromTextures;
+		bool	mMetallicWorkflow;
+        TransparencyModes mTransparencyMode;
 
         float   mkDr, mkDg, mkDb;                   //kD
         float   _padding0;
         float   mkSr, mkSg, mkSb;                   //kS
         float   mRoughness;
         float   mFresnelR, mFresnelG, mFresnelB;    //F0
-        float   mNormalMapWeight;
+        float   mTransparencyValue;
         float   mDetailNormalWeight[4];
         float   mDetailWeight[4];
         Vector4 mDetailsOffsetScale[8];
         uint16  mTexIndices[NUM_PBSM_TEXTURE_TYPES];
+        float   mNormalMapWeight;
 
         PbsBakedTextureArray mBakedTextures;
         /// The way to read this variable is i.e. get diffuse texture,
@@ -267,6 +287,37 @@ namespace Ogre
         /// Sets the roughness
         void setRoughness( float roughness );
         float getRoughness(void) const;
+
+        /** Sets whether to use a specular workflow, or a metallic workflow.
+        @remarks
+            The texture types PBSM_SPECULAR & PBSM_METALLIC map to the same value.
+        @par
+            When in metal workflow, the texture is used as a metallic texture,
+            and is expected to be a monochrome texture. Global specularity's strength
+            can still be affected via setSpecular. The fresnel settings should not
+            be used (metalness is stored where fresnel used to).
+        @par
+            When in specular workflow, the texture is used as a specular texture,
+            and is expected to be either coloured or monochrome.
+            setMetalness should not be called in this mode.
+        @par
+            If "bEnableMetallic" was different from the current setting, it will call
+            @see HlmsDatablock::flushRenderables. If the another shader must be created,
+            it could cause a stall.
+        @param bEnableMetallic
+        */
+        void setMetallicWorkflow( bool bEnableMetallic );
+        bool getMetallicWorkflow(void) const;
+
+        /** Sets the metalness in a metallic workflow.
+        @remarks
+            Overrides any fresnel value.
+            Should be in Metallic mode. @see setMetallicWorkflow;
+        @param metalness
+            Value in range [0; 1]
+        */
+        void setMetallness( float metalness );
+        float getMetallness(void) const;
 
         /** Calculates fresnel (F0 in most books) based on the IOR.
             The formula used is ( (1 - idx) / 1 + idx )²
@@ -433,6 +484,28 @@ namespace Ogre
             compared against the value 1.0
         */
         virtual void setAlphaTestThreshold( float threshold );
+
+        /** Makes the material transparent, and sets the amount of transparency
+        @param transparency
+            Value in range [0; 1] where 0 = full transparency and 1 = fully opaque.
+        @param mode
+            @see TransparencyModes
+        @param useAlphaFromTextures
+            When false, the alpha channel of the diffuse maps and detail maps will be
+            ignored. It's a GPU performance optimization.
+        @param changeBlendblock
+            When true, the routine prepares the ideal blendblock to use according to the
+            selected mode.
+            When false, the user is expected to change the blendblock manually before
+            calling this function to prevent false warnings. Useful for advanced experiments
+            or artistic license.
+        */
+        void setTransparency( float transparency, TransparencyModes mode = Transparent,
+                              bool useAlphaFromTextures = true, bool changeBlendblock = true );
+
+        float getTransparency(void) const                           { return mTransparencyValue; }
+        TransparencyModes getTransparencyMode(void) const           { return mTransparencyMode; }
+        bool getUseAlphaFromTextures(void) const                    { return mUseAlphaFromTextures; }
 
         /// Changes the BRDF in use. Calling this function may trigger an
         /// HlmsDatablock::flushRenderables

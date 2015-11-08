@@ -1,9 +1,11 @@
 
 // START UNIFORM DECLARATION
-@property( !hlms_shadowcaster )
-@insertpiece( PassDecl )
-@insertpiece( MaterialDecl )
-@insertpiece( InstanceDecl )
+@property( !hlms_shadowcaster || alpha_test )
+	@property( !hlms_shadowcaster )
+		@insertpiece( PassDecl )
+	@end
+	@insertpiece( MaterialDecl )
+	@insertpiece( InstanceDecl )
 @end
 @insertpiece( custom_ps_uniformDeclaration )
 // END UNIFORM DECLARATION
@@ -101,11 +103,12 @@ float3 qmul( float4 q, float3 v )
 	//Normal texture must be in LA format!
 	tsNormal.xy = textureMaps[@value( normal_map_tex_idx )].Sample( samplerStates[@value( normal_map_tex_idx )], uv ).xw * 2.0 - 1.0;
 @end
-	tsNormal.z	= sqrt( 1.0 - tsNormal.x * tsNormal.x - tsNormal.y * tsNormal.y );
+	tsNormal.z	= sqrt( 1.0 - max( 0, tsNormal.x * tsNormal.x - tsNormal.y * tsNormal.y ) );
 
 	return tsNormal;
 }
 @end
+@property( normal_weight_tex )#define normalMapWeight asfloat( material.indices4_7.w )@end
 @property( detail_maps_normal )float3 getTSDetailNormal( SamplerState samplerState, Texture2D normalMap, float3 uv )
 {
 	float3 tsNormal;
@@ -116,12 +119,10 @@ float3 qmul( float4 q, float3 v )
 	//Normal texture must be in LA format!
 	tsNormal.xy = normalMap.Sample( samplerState, uv ).xw * 2.0 - 1.0;
 @end
-	tsNormal.z	= sqrt( 1.0 - tsNormal.x * tsNormal.x - tsNormal.y * tsNormal.y );
+	tsNormal.z	= sqrt( 1.0 - max( 0, tsNormal.x * tsNormal.x - tsNormal.y * tsNormal.y ) );
 
 	return tsNormal;
 }
-
-	@property( normal_weight_tex )#define normalMapWeight material.F0.w@end
 	@foreach( 4, n )
 		@property( normal_weight_detail@n )
 			@piece( detail@n_nm_weight_mul ) * material.normalWeights.@insertpiece( detail_swizzle@n )@end
@@ -133,6 +134,7 @@ float3 qmul( float4 q, float3 v )
 @insertpiece( DeclareBRDF )
 @end
 
+@property( hlms_num_shadow_maps )@piece( DarkenWithShadowFirstLight )* fShadow@end @end
 @property( hlms_num_shadow_maps )@piece( DarkenWithShadow ) * getShadow( texShadowMap[@value(CurrentShadowMap)], inPs.posL@value(CurrentShadowMap), passBuf.shadowRcv[@counter(CurrentShadowMap)].invShadowMapSize )@end @end
 
 float4 main( PS_INPUT inPs
@@ -155,13 +157,14 @@ float4 main( PS_INPUT inPs
 @property( envprobe_map )	uint envMapIdx;@end
 
 @property( diffuse_map || detail_maps_diffuse )float4 diffuseCol;@end
-@property( specular_map )float3 specularCol;@end
+@property( specular_map && !metallic_workflow )float3 specularCol;@end
+@property( metallic_workflow )float3 F0;@end
 @property( roughness_map )float ROUGHNESS;@end
 	
 @property( hlms_normal || hlms_qtangent )	float3 nNormal;@end
 	
 @property( hlms_normal || hlms_qtangent )
-        uint materialId	= worldMaterialIdx[inPs.drawId].x & 0x1FFu;
+	uint materialId	= worldMaterialIdx[inPs.drawId].x & 0x1FFu;
 	material = materialArray[materialId];
 @property( diffuse_map )	diffuseIdx			= material.indices0_3.x & 0x0000FFFFu;@end
 @property( normal_map_tex )	normalIdx			= material.indices0_3.x >> 16u;@end
@@ -181,6 +184,7 @@ float4 main( PS_INPUT inPs
 	@insertpiece( custom_ps_posMaterialLoad )
 
 @property( detail_maps_diffuse || detail_maps_normal )
+	//Prepare weight map for the detail maps.
 	@property( detail_weight_map )
 		float4 detailWeights = @insertpiece( SamplerDetailWeightMap );
 		@property( detail_weights )detailWeights *= material.cDetailWeights;@end
@@ -190,6 +194,7 @@ float4 main( PS_INPUT inPs
 	@end
 @end
 
+	/// Sample detail maps and weight them against the weight map in the next foreach loop.
 @foreach( detail_maps_diffuse, n )@property( detail_map@n )
 	float4 detailCol@n	= textureMaps[@value(detail_map@n_idx)].Sample( samplerStates[@value(detail_map@n_idx)], float3( inPs.uv@value(uv_detail@n).xy@insertpiece( offsetDetailD@n ), detailMapIdx@n ) );
 	@property( !hw_gamma_read )//Gamma to linear space
@@ -198,13 +203,41 @@ float4 main( PS_INPUT inPs
 	detailCol@n.w = detailWeights.@insertpiece(detail_swizzle@n);@end
 @end
 
-@property( alpha_test && !diffuse_map && detail_maps_diffuse )
-	if( material.kD.w @insertpiece( alpha_test_cmp_func ) detailCol0.a )
-		discard;@end
+@insertpiece( SampleDiffuseMap )
+
+	/// 'insertpiece( SampleDiffuseMap )' must've written to diffuseCol. However if there are no
+	/// diffuse maps, we must initialize it to some value. If there are no diffuse or detail maps,
+	/// we must not access diffuseCol at all, but rather use material.kD directly (see piece( kD ) ).
+	@property( !diffuse_map && detail_maps_diffuse )diffuseCol = float4( 0.0, 0.0, 0.0, 0.0 );@end
+
+	/// Blend the detail diffuse maps with the main diffuse.
+@foreach( detail_maps_diffuse, n )
+	@insertpiece( blend_mode_idx@n ) @add( t, 1 ) @end
+
+	/// Apply the material's diffuse over the textures
+@property( diffuse_map || detail_maps_diffuse )
+	@property( !transparent_mode )
+		diffuseCol.xyz *= material.kD.xyz;
+	@end @property( transparent_mode )
+		diffuseCol.xyz *= material.kD.xyz * diffuseCol.w * diffuseCol.w;
+	@end
+@end
+
+@property( alpha_test )
+	@property( diffuse_map || detail_maps_diffuse )
+	if( material.kD.w @insertpiece( alpha_test_cmp_func ) diffuseCol.a )
+		discard;
+	@end @property( !diffuse_map && !detail_maps_diffuse )
+	if( material.kD.w @insertpiece( alpha_test_cmp_func ) 1.0 )
+		discard;
+	@end
+@end
 
 @property( !normal_map )
+	// Geometric normal
 	nNormal = normalize( inPs.normal );
 @end @property( normal_map )
+	//Normal mapping.
 	float3 geomNormal = normalize( inPs.normal );
 	float3 vTangent = normalize( inPs.tangent );
 
@@ -213,7 +246,10 @@ float4 main( PS_INPUT inPs
 	float3x3 TBN		= float3x3( vTangent, vBinormal, geomNormal );
 
 	@property( normal_map_tex )nNormal = getTSNormal( float3( inPs.uv@value(uv_normal).xy, normalIdx ) );@end
-	@property( normal_weight_tex )nNormal = lerp( float3( 0.0, 0.0, 1.0 ), nNormal, normalMapWeight );@end
+	@property( normal_weight_tex )
+		// Apply the weight to the main normal map
+		nNormal = lerp( float3( 0.0, 0.0, 1.0 ), nNormal, normalMapWeight );
+	@end
 @end
 
 @property( hlms_pssm_splits )
@@ -226,28 +262,11 @@ float4 main( PS_INPUT inPs
     float fShadow = getShadow( texShadowMap[@value(CurrentShadowMap)], inPs.posL0, passBuf.shadowRcv[@counter(CurrentShadowMap)].invShadowMapSize );
 @end
 
-@insertpiece( SampleDiffuseMap )
-
-@property( alpha_test )
-	@property( diffuse_map )
-	if( material.kD.w @insertpiece( alpha_test_cmp_func ) diffuseCol.a )
-		discard;
-	@end @property( !diffuse_map && !detail_maps_diffuse )
-	if( material.kD.w @insertpiece( alpha_test_cmp_func ) 1.0 )
-		discard;
-	@end
-@end
-
 @insertpiece( SampleSpecularMap )
 @insertpiece( SampleRoughnessMap )
 
-	@property( !diffuse_map && detail_maps_diffuse )diffuseCol = float4( 0.0, 0.0, 0.0, 0.0 );@end
-
-@foreach( detail_maps_diffuse, n )
-	@insertpiece( blend_mode_idx@n ) @end
-
-@property( diffuse_map || detail_maps_diffuse )	diffuseCol.xyz *= material.kD.xyz;@end
-
+	/// If there is no normal map, the first iteration must
+	/// initialize nNormal instead of try to merge with it.
 @property( normal_map_tex )
 	@piece( detail_nm_op_sum )+=@end
 	@piece( detail_nm_op_mul )*=@end
@@ -256,6 +275,7 @@ float4 main( PS_INPUT inPs
 	@piece( detail_nm_op_mul )=@end
 @end
 
+	/// Blend the detail normal maps with the main normal.
 @foreach( second_valid_detail_map_nm, n, first_valid_detail_map_nm )
 	float3 vDetail = @insertpiece( SampleDetailMapNm@n );
 	nNormal.xy	@insertpiece( detail_nm_op_sum ) vDetail.xy;
@@ -274,14 +294,17 @@ float4 main( PS_INPUT inPs
 	float3 viewDir	= normalize( -inPs.pos );
 	float NdotV		= saturate( dot( nNormal, viewDir ) );@end
 
+@property( !ambient_fixed )
 	float3 finalColour = float3(0, 0, 0);
+@end @property( ambient_fixed )
+	float3 finalColour = passBuf.ambientUpperHemi.xyz * @insertpiece( kD ).xyz;
+@end
 
 	@insertpiece( custom_ps_preLights )
 
 @property( !custom_disable_directional_lights )
 @property( hlms_lights_directional )
-	finalColour += BRDF( passBuf.lights[0].position, viewDir, NdotV, passBuf.lights[0].diffuse, passBuf.lights[0].specular, material, nNormal @insertpiece( brdfExtraParams ) );
-@property( hlms_num_shadow_maps )	finalColour *= fShadow;	//1st directional light's shadow@end
+	finalColour += BRDF( passBuf.lights[0].position, viewDir, NdotV, passBuf.lights[0].diffuse, passBuf.lights[0].specular, material, nNormal @insertpiece( brdfExtraParams ) ) @insertpiece( DarkenWithShadowFirstLight );
 @end
 @foreach( hlms_lights_directional, n, 1 )
 	finalColour += BRDF( passBuf.lights[@n].position, viewDir, NdotV, passBuf.lights[@n].diffuse, passBuf.lights[@n].specular, material, nNormal @insertpiece( brdfExtraParams ) )@insertpiece( DarkenWithShadow );@end
@@ -333,13 +356,30 @@ float4 main( PS_INPUT inPs
 
 @insertpiece( forward3dLighting )
 
-@property( envprobe_map )
+@property( envprobe_map || ambient_hemisphere )
 	float3 reflDir = 2.0 * dot( viewDir, nNormal ) * nNormal - viewDir;
-	float3 envColourS = texEnvProbeMap.SampleLevel( samplerStates[@value(num_textures)], mul( reflDir, passBuf.invViewMatCubemap ), ROUGHNESS * 12.0 ).xyz;
-	float3 envColourD = texEnvProbeMap.SampleLevel( samplerStates[@value(num_textures)], mul( reflDir, passBuf.invViewMatCubemap ), 11.0 ).xyz;
-	@property( !hw_gamma_read )//Gamma to linear space
-	envColourS = envColourS * envColourS;
-	envColourD = envColourD * envColourD;@end
+	
+	@property( envprobe_map )
+		float3 envColourS = texEnvProbeMap.SampleLevel( samplerStates[@value(num_textures)], mul( reflDir, passBuf.invViewMatCubemap ), ROUGHNESS * 12.0 ).xyz @insertpiece( ApplyEnvMapScale );
+		float3 envColourD = texEnvProbeMap.SampleLevel( samplerStates[@value(num_textures)], mul( nNormal, passBuf.invViewMatCubemap ), 11.0 ).xyz @insertpiece( ApplyEnvMapScale );
+		@property( !hw_gamma_read )	//Gamma to linear space
+			envColourS = envColourS * envColourS;
+			envColourD = envColourD * envColourD;
+		@end
+	@end
+	@property( ambient_hemisphere )
+		float ambientWD = dot( passBuf.ambientHemisphereDir.xyz, nNormal ) * 0.5 + 0.5;
+		float ambientWS = dot( passBuf.ambientHemisphereDir.xyz, reflDir ) * 0.5 + 0.5;
+
+		@property( envprobe_map )
+			envColourS	+= lerp( passBuf.ambientLowerHemi.xyz, passBuf.ambientUpperHemi.xyz, ambientWD );
+			envColourD	+= lerp( passBuf.ambientLowerHemi.xyz, passBuf.ambientUpperHemi.xyz, ambientWS );
+		@end @property( !envprobe_map )
+			float3 envColourS = lerp( passBuf.ambientLowerHemi.xyz, passBuf.ambientUpperHemi.xyz, ambientWD );
+			float3 envColourD = lerp( passBuf.ambientLowerHemi.xyz, passBuf.ambientUpperHemi.xyz, ambientWS );
+		@end
+	@end
+
 	@insertpiece( BRDF_EnvMap )
 @end
 
@@ -349,7 +389,16 @@ float4 main( PS_INPUT inPs
 @end @property( hw_gamma_write )
 	outColour.xyz	= finalColour;
 @end
-	outColour.w		= 1.0;
+
+@property( hlms_alphablend )
+	@property( use_texture_alpha )
+		outColour.w		= material.F0.w * diffuseCol.w;
+	@end @property( !use_texture_alpha )
+		outColour.w		= material.F0.w;
+	@end
+@end @property( !hlms_alphablend )
+	outColour.w		= 1.0;@end
+	
 @end @property( !hlms_normal && !hlms_qtangent )
 	outColour = float4( 1.0, 1.0, 1.0, 1.0 );
 @end
@@ -360,13 +409,83 @@ float4 main( PS_INPUT inPs
 }
 @end
 @property( hlms_shadowcaster )
-	@property( hlms_shadow_uses_depth_texture )
+	@property( hlms_shadow_uses_depth_texture && !alpha_test )
 		@set( hlms_disable_stage, 1 )
 	@end
+
+@property( num_textures )Texture2DArray textureMaps[@value( num_textures )] : register(t@value(textureRegStart));@end
+@property( numSamplerStates )SamplerState samplerStates[@value(numSamplerStates)] : register(s@value(samplerStateStart));@end
+	
+@property( !hlms_shadow_uses_depth_texture )
 float main( PS_INPUT inPs ) : SV_Target0
+@end @property( hlms_shadow_uses_depth_texture )
+void main( PS_INPUT inPs )
+@end
 {
 	@insertpiece( custom_ps_preExecution )
+	
+@property( alpha_test )
+	Material material;
+@property( diffuse_map )	uint diffuseIdx;@end
+@property( detail_weight_map )	uint weightMapIdx;@end
+@foreach( 4, n )
+	@property( detail_map@n )uint detailMapIdx@n;@end @end
+
+@property( diffuse_map || detail_maps_diffuse )float diffuseCol;@end
+	
+	uint materialId	= worldMaterialIdx[inPs.drawId].x & 0x1FFu;
+	material = materialArray[materialId];
+@property( diffuse_map )	diffuseIdx			= material.indices0_3.x & 0x0000FFFFu;@end
+@property( detail_weight_map )	weightMapIdx		= material.indices0_3.z & 0x0000FFFFu;@end
+@property( detail_map0 )	detailMapIdx0		= material.indices0_3.z >> 16u;@end
+@property( detail_map1 )	detailMapIdx1		= material.indices0_3.w & 0x0000FFFFu;@end
+@property( detail_map2 )	detailMapIdx2		= material.indices0_3.w >> 16u;@end
+@property( detail_map3 )	detailMapIdx3		= material.indices4_7.x & 0x0000FFFFu;@end
+
+@property( detail_maps_diffuse || detail_maps_normal )
+	//Prepare weight map for the detail maps.
+	@property( detail_weight_map )
+		float4 detailWeights = @insertpiece( SamplerDetailWeightMap );
+		@property( detail_weights )detailWeights *= material.cDetailWeights;@end
+	@end @property( !detail_weight_map )
+		@property( detail_weights )float4 detailWeights = material.cDetailWeights;@end
+		@property( !detail_weights )float4 detailWeights = float4( 1.0, 1.0, 1.0, 1.0 );@end
+	@end
+@end
+
+	/// Sample detail maps and weight them against the weight map in the next foreach loop.
+@foreach( detail_maps_diffuse, n )@property( detail_map@n )
+	float detailCol@n	= textureMaps[@value(detail_map@n_idx)].Sample( samplerStates[@value(detail_map@n_idx)], float3( inPs.uv@value(uv_detail@n).xy@insertpiece( offsetDetailD@n ), detailMapIdx@n ) ).w;
+	detailCol@n = detailWeights.@insertpiece(detail_swizzle@n) * detailCol@n;@end
+@end
+
+@insertpiece( SampleDiffuseMap )
+
+	/// 'insertpiece( SampleDiffuseMap )' must've written to diffuseCol. However if there are no
+	/// diffuse maps, we must initialize it to some value. If there are no diffuse or detail maps,
+	/// we must not access diffuseCol at all, but rather use material.kD directly (see piece( kD ) ).
+	@property( !diffuse_map && detail_maps_diffuse )diffuseCol = 0.0;@end
+
+	/// Blend the detail diffuse maps with the main diffuse.
+@foreach( detail_maps_diffuse, n )
+	@insertpiece( blend_mode_idx@n ) @add( t, 1 ) @end
+
+	/// Apply the material's diffuse over the textures
+@property( TODO_REFACTOR_ACCOUNT_MATERIAL_ALPHA )	diffuseCol.xyz *= material.kD.xyz;@end
+
+	@property( diffuse_map || detail_maps_diffuse )
+	if( material.kD.w @insertpiece( alpha_test_cmp_func ) diffuseCol )
+		discard;
+	@end @property( !diffuse_map && !detail_maps_diffuse )
+	if( material.kD.w @insertpiece( alpha_test_cmp_func ) 1.0 )
+		discard;
+	@end
+@end /// !alpha_test
+
 	@insertpiece( custom_ps_posExecution )
+
+@property( !hlms_shadow_uses_depth_texture )
 	return inPs.depth;
+@end
 }
 @end

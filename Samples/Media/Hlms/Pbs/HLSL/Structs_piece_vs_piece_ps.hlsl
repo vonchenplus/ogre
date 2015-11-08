@@ -37,6 +37,14 @@ cbuffer PassBuffer : register(b0)
 	//Pixel shader
 	float3x3 invViewMatCubemap;
 	float padding; //Compatibility with GLSL.
+	
+@property( ambient_hemisphere || ambient_fixed || envmap_scale )
+	float4 ambientUpperHemi;
+@end
+@property( ambient_hemisphere )
+	float4 ambientLowerHemi;
+	float4 ambientHemisphereDir;
+@end
 @property( hlms_pssm_splits )@foreach( hlms_pssm_splits, n )
 	float pssmSplitPoints@n;@end @end
 	@property( hlms_lights_spot )Light lights[@value(hlms_lights_spot)];@end
@@ -71,7 +79,7 @@ struct Material
 	float4 kD; //kD.w is alpha_test_threshold
 	float4 kS; //kS.w is roughness
 	//Fresnel coefficient, may be per colour component (float3) or scalar (float)
-	//F0.w is mNormalMapWeight
+	//F0.w is transparency
 	float4 F0;
 	float4 normalWeights;
 	float4 cDetailWeights;
@@ -79,6 +87,7 @@ struct Material
 	float4 detailOffsetScaleN[4];
 
 	uint4 indices0_3;
+	//asfloat( indices4_7.w ) contains mNormalMapWeight.
 	uint4 indices4_7;
 };
 
@@ -123,7 +132,20 @@ cbuffer InstanceBuffer : register(b2)
 
 		@foreach( hlms_num_shadow_maps, n )
 			float4 posL@n	: TEXCOORD@counter(texcoord);@end
+			
+		@property( hlms_pssm_splits )float depth	: TEXCOORD@counter(texcoord);@end
 	@end
-	@property( (hlms_shadowcaster && !hlms_shadow_uses_depth_texture) || hlms_pssm_splits )		float depth	: TEXCOORD@counter(texcoord);@end
+	
+	@property( hlms_shadowcaster )
+		@property( alpha_test )
+			nointerpolation uint drawId	: TEXCOORD@counter(texcoord);
+			@foreach( hlms_uv_count, n )
+				float@value( hlms_uv_count@n ) uv@n	: TEXCOORD@counter(texcoord);@end
+		@end
+		@property( !hlms_shadow_uses_depth_texture )
+			float depth	: TEXCOORD@counter(texcoord);
+		@end
+	@end
+
 	@insertpiece( custom_VStoPS )
 @end

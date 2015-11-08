@@ -45,7 +45,7 @@ namespace Ogre
         "GrainMerge", "Difference"
     };
 
-    const size_t HlmsPbsDatablock::MaterialSizeInGpu          = 52 * 4 + NUM_PBSM_TEXTURE_TYPES * 2;
+    const size_t HlmsPbsDatablock::MaterialSizeInGpu          = 52 * 4 + NUM_PBSM_TEXTURE_TYPES * 2 + 4;
     const size_t HlmsPbsDatablock::MaterialSizeInGpuAligned   = alignToNextMultiple(
                                                                     HlmsPbsDatablock::MaterialSizeInGpu,
                                                                     4 * 4 );
@@ -57,11 +57,15 @@ namespace Ogre
                                         const HlmsParamVec &params ) :
         HlmsDatablock( name, creator, macroblock, blendblock, params ),
         mFresnelTypeSizeBytes( 4 ),
+        mUseAlphaFromTextures( true ),
+        mMetallicWorkflow( false ),
+        mTransparencyMode( None ),
         mkDr( 0.318309886f ), mkDg( 0.318309886f ), mkDb( 0.318309886f ), //Max Diffuse = 1 / PI
-        _padding0( 0 ),
+        _padding0( 1 ),
         mkSr( 1 ), mkSg( 1 ), mkSb( 1 ),
         mRoughness( 1.0f ),
         mFresnelR( 0.818f ), mFresnelG( 0.818f ), mFresnelB( 0.818f ),
+        mTransparencyValue( 1.0f ),
         mNormalMapWeight( 1.0f ),
         mBrdf( PbsBrdf::Default )
     {
@@ -318,7 +322,37 @@ namespace Ogre
     void HlmsPbsDatablock::uploadToConstBuffer( char *dstPtr )
     {
         _padding0 = mAlphaTestThreshold;
+        float oldFresnelR = mFresnelR;
+        float oldFresnelG = mFresnelG;
+        float oldFresnelB = mFresnelB;
+
+        float oldkDr = mkDr;
+        float oldkDg = mkDg;
+        float oldkDb = mkDb;
+
+        if( mTransparencyMode == Transparent )
+        {
+            //Precompute the transparency CPU-side.
+            if( !mMetallicWorkflow )
+            {
+                mFresnelR *= mTransparencyValue;
+                mFresnelG *= mTransparencyValue;
+                mFresnelB *= mTransparencyValue;
+            }
+            mkDr *= mTransparencyValue * mTransparencyValue;
+            mkDg *= mTransparencyValue * mTransparencyValue;
+            mkDb *= mTransparencyValue * mTransparencyValue;
+        }
+
         memcpy( dstPtr, &mkDr, MaterialSizeInGpu );
+
+        mkDr = oldkDr;
+        mkDg = oldkDg;
+        mkDb = oldkDb;
+
+        mFresnelR = oldFresnelR;
+        mFresnelG = oldFresnelG;
+        mFresnelB = oldFresnelB;
     }
     //-----------------------------------------------------------------------------------
     void HlmsPbsDatablock::decompileBakedTextures( PbsBakedTexture outTextures[NUM_PBSM_TEXTURE_TYPES] )
@@ -454,9 +488,36 @@ namespace Ogre
         return mRoughness;
     }
     //-----------------------------------------------------------------------------------
+    void HlmsPbsDatablock::setMetallicWorkflow( bool bEnableMetallic )
+    {
+        if( mMetallicWorkflow != bEnableMetallic )
+        {
+            mMetallicWorkflow = bEnableMetallic;
+            flushRenderables();
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    bool HlmsPbsDatablock::getMetallicWorkflow(void) const
+    {
+        return mMetallicWorkflow;
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsPbsDatablock::setMetallness( float metalness )
+    {
+        assert( mMetallicWorkflow );
+        mFresnelR = metalness;
+        scheduleConstBufferUpdate();
+    }
+    //-----------------------------------------------------------------------------------
+    float HlmsPbsDatablock::getMetallness(void) const
+    {
+        return mFresnelR;
+    }
+    //-----------------------------------------------------------------------------------
     void HlmsPbsDatablock::setIndexOfRefraction( const Vector3 &refractionIdx,
                                                        bool separateFresnel )
     {
+        assert( !mMetallicWorkflow );
         Vector3 fresnel = (1.0f - refractionIdx) / (1.0f + refractionIdx);
         fresnel = fresnel * fresnel;
         setFresnel( fresnel, separateFresnel );
@@ -464,6 +525,7 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void HlmsPbsDatablock::setFresnel( const Vector3 &fresnel, bool separateFresnel )
     {
+        assert( !mMetallicWorkflow );
         uint8 fresnelBytes = 4;
         mFresnelR = fresnel.x;
 
@@ -701,6 +763,66 @@ namespace Ogre
     {
         HlmsDatablock::setAlphaTestThreshold( threshold );
         scheduleConstBufferUpdate();
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsPbsDatablock::setTransparency( float transparency, TransparencyModes mode,
+                                            bool useAlphaFromTextures, bool changeBlendblock )
+    {
+        bool mustFlush = false;
+
+        mTransparencyValue      = transparency;
+
+        if( mUseAlphaFromTextures != useAlphaFromTextures || mTransparencyMode != mode )
+        {
+            mUseAlphaFromTextures = useAlphaFromTextures;
+            mTransparencyMode = mode;
+            mustFlush = true;
+        }
+
+        if( changeBlendblock )
+        {
+            HlmsBlendblock newBlendblock;
+
+            if( mTransparencyMode == None )
+            {
+                newBlendblock.mSourceBlendFactor    = SBF_ONE;
+                newBlendblock.mDestBlendFactor      = SBF_ZERO;
+            }
+            else if( mTransparencyMode == Transparent )
+            {
+                newBlendblock.mSourceBlendFactor    = SBF_ONE;
+                newBlendblock.mDestBlendFactor      = SBF_ONE_MINUS_SOURCE_ALPHA;
+            }
+            else if( mTransparencyMode == Fade )
+            {
+                newBlendblock.mSourceBlendFactor    = SBF_SOURCE_ALPHA;
+                newBlendblock.mDestBlendFactor      = SBF_ONE_MINUS_SOURCE_ALPHA;
+            }
+
+            if( newBlendblock != *mBlendblock[0] )
+                setBlendblock( newBlendblock );
+        }
+        else
+        {
+            if( mTransparencyMode == None && mBlendblock[0]->mIsTransparent )
+            {
+                LogManager::getSingleton().logMessage(
+                            "WARNING: PBS Datablock '" + *getFullName() +
+                            "' disabling transparency but forcing a blendblock to"
+                            " keep using alpha blending. Performance will be affected." );
+            }
+            else if( mTransparencyMode != None && !mBlendblock[0]->mIsTransparent )
+            {
+                LogManager::getSingleton().logMessage(
+                            "WARNING: PBS Datablock '" + *getFullName() +
+                            "' enabling transparency but forcing a blendblock to avoid"
+                            " alpha blending. Results may not look as expected." );
+            }
+        }
+
+        scheduleConstBufferUpdate();
+        if( mustFlush )
+            flushRenderables();
     }
     //-----------------------------------------------------------------------------------
     void HlmsPbsDatablock::setBrdf( PbsBrdf::PbsBrdf brdf )

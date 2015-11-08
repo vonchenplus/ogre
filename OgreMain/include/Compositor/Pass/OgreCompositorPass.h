@@ -111,8 +111,6 @@ namespace Ogre
     public:
         CompositorPass( const CompositorPassDef *definition, const CompositorChannel &target,
                         CompositorNode *parentNode );
-        CompositorPass( const CompositorPassDef *definition, CompositorNode *parentNode,
-                        bool specialPass );
         virtual ~CompositorPass();
 
         virtual void execute( const Camera *lodCameraconst ) = 0;
@@ -154,6 +152,8 @@ namespace Ogre
 
         /// @See CompositorNode::_notifyCleared
         virtual void notifyCleared(void);
+
+        void resetNumPassesLeft(void);
 
         CompositorPassType getType() const  { return mDefinition->getType(); }
 

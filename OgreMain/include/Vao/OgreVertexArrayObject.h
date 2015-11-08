@@ -37,6 +37,11 @@ namespace Ogre
 {
     typedef vector<VertexBufferPacked*>::type VertexBufferPackedVec;
 
+    /// When cloning Vaos, some vertex buffers are used multiple times for LOD'ing
+    /// purposes (only the IndexBuffer changes). This maps an old VertexBuffer
+    /// to a new VertexBuffer to know when to reuse an existing one while cloning.
+    typedef map<VertexBufferPacked*, VertexBufferPacked*>::type SharedVertexBufferMap;
+
     /** Vertex array objects (Vaos) are immutable objects that describe a
         combination of vertex buffers and index buffer with a given operation
         type. Once created, they can't be modified. You have to destroy them
@@ -104,6 +109,93 @@ namespace Ogre
             Parameters are always in elements (indices or vertices)
         */
         void setPrimitiveRange( uint32 primStart, uint32 primCount );
+
+        /** Returns the entire VertexElement2 descriptor in the vertex buffers.
+        @param semantic
+            Semantic to look for.
+        @param outIndex
+            The index to mVertexBuffers[index] if it's found.
+            Otherwise the value is left untouched.
+        @param outIndex
+            The offset in bytes to retrieve the element in the vertex data.
+            If the semantic isn't found, the value is left untouched.
+        @return
+            Null if not found. The returned pointer might be invalidated by future calls
+            (e.g. something happens to the vertex buffer or the Vao) although this is
+            strange since in general these objects are immutable once they've been
+            constructed.
+        */
+        const VertexElement2* findBySemantic( VertexElementSemantic semantic, size_t &outIndex,
+                                              size_t &outOffset ) const;
+
+        /// Gets the combined vertex declaration of all the vertex buffers. Note that we
+        /// iterate through all of them and allocate the vector. You should cache
+        /// the result rather than calling this function frequently.
+        VertexElement2VecVec getVertexDeclaration(void) const;
+
+        /** Clones the vertex & index buffers and creates a new VertexArrayObject.
+            The only exception is when one of the vertex buffers is already in sharedBuffers,
+            in which case the buffer in sharedBuffers.find(vertexBuffer)->second will be
+            used without cloning (useful for cloning LODs).
+        @param vaoManager
+            The VaoManager needed to create the structures
+        @param sharedBuffers [in/out]
+            Maps old vertex buffers to new vertex buffers so that we can reuse them.
+            Optional. Use a null pointer to disable this feature.
+        @return
+            New cloned Vao.
+        */
+        VertexArrayObject* clone( VaoManager *vaoManager, SharedVertexBufferMap *sharedBuffers ) const;
+
+        struct ReadRequests
+        {
+            VertexElementSemantic semantic;
+            VertexElementType type;
+            AsyncTicketPtr asyncTicket;
+            /// Data is already offseted. To get the vertex location, perform (data - offset);
+            char const *data;
+            size_t offset;
+            VertexBufferPacked const *vertexBuffer;
+
+            ReadRequests( VertexElementSemantic _semantic ) :
+                semantic( _semantic ), type(VET_FLOAT1), data( 0 ), offset( 0 ), vertexBuffer( 0 ) {}
+        };
+
+        typedef FastArray<ReadRequests> ReadRequestsArray;
+
+        /** Utility to get multiple pointers & read specific elements of the vertex,
+            even if they're in separate buffers.
+            When two elements share the same buffer, only one ticket is created.
+
+            Example usage:
+                VertexArrayObject::ReadRequestsArray requests;
+                requests.push_back( VertexArrayObject::ReadRequests( VES_POSITION ) );
+                requests.push_back( VertexArrayObject::ReadRequests( VES_NORMALS ) );
+                vao->readRequests( requests );
+                vao->mapAsyncTickets( requests );
+
+                for( size_t i=0; i<numVertices; ++i )
+                {
+                    float const *position = reinterpret_cast<const float*>( requests[0].data );
+                    float const *normals  = reinterpret_cast<const float*>( requests[1].data );
+
+                    requests[0].data += requests[0].vertexBuffer->getBytesPerElement();
+                    requests[1].data += requests[1].vertexBuffer->getBytesPerElement();
+                }
+
+                vao->unmapAsyncTickets( requests );
+        @remarks
+            Throws if an element couldn't be found.
+        @param requests [in/out]
+            Array filled with the semantic.
+        */
+        void readRequests( ReadRequestsArray &requests );
+
+        /// Maps the buffers requested via @see readRequests
+        static void mapAsyncTickets( ReadRequestsArray &tickets );
+
+        /// Unmaps the buffers mapped via @see mapAsyncTickets
+        static void unmapAsyncTickets( ReadRequestsArray &tickets );
     };
 }
 

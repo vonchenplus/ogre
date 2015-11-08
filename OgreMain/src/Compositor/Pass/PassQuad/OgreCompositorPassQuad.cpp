@@ -197,14 +197,28 @@ namespace Ogre
             const Vector3 *corners = mCamera->getWorldSpaceCorners();
             mFsRect->setNormals( corners[5], corners[6], corners[4], corners[7] );
         }
-        else if( mDefinition->mFrustumCorners == CompositorPassQuadDef::CAMERA_DIRECTION )
+        else if( mDefinition->mFrustumCorners == CompositorPassQuadDef::WORLD_SPACE_CORNERS_CENTERED ||
+                 mDefinition->mFrustumCorners == CompositorPassQuadDef::CAMERA_DIRECTION )
         {
             const Vector3 *corners = mCamera->getWorldSpaceCorners();
             const Vector3 &cameraPos = mCamera->getDerivedPosition();
-            mFsRect->setNormals( (corners[5] - cameraPos).normalisedCopy(),
-                                 (corners[6] - cameraPos).normalisedCopy(),
-                                 (corners[4] - cameraPos).normalisedCopy(),
-                                 (corners[7] - cameraPos).normalisedCopy() );
+
+            Vector3 cameraDirs[4];
+            cameraDirs[0] = corners[5] - cameraPos;
+            cameraDirs[1] = corners[6] - cameraPos;
+            cameraDirs[2] = corners[4] - cameraPos;
+            cameraDirs[3] = corners[7] - cameraPos;
+
+            if( mDefinition->mFrustumCorners == CompositorPassQuadDef::CAMERA_DIRECTION )
+            {
+                Real invFarPlane = 1.0f / mCamera->getFarClipDistance();
+                cameraDirs[0] /= invFarPlane;
+                cameraDirs[1] /= invFarPlane;
+                cameraDirs[2] /= invFarPlane;
+                cameraDirs[3] /= invFarPlane;
+            }
+
+            mFsRect->setNormals( cameraDirs[0], cameraDirs[1], cameraDirs[2], cameraDirs[3] );
         }
 
         executeResourceTransitions();
@@ -216,6 +230,8 @@ namespace Ogre
         CompositorWorkspaceListener *listener = mParentNode->getWorkspace()->getListener();
         if( listener )
             listener->passPreExecute( this );
+
+        mTarget->setFsaaResolveDirty();
 
         //sceneManager->_injectRenderWithPass( mPass, mFsRect, mCamera, false, false );
         if( !mMaterial.isNull() )

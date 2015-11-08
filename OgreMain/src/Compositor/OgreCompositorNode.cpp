@@ -32,6 +32,8 @@ THE SOFTWARE.
 #include "Compositor/OgreCompositorNodeDef.h"
 #include "Compositor/Pass/OgreCompositorPass.h"
 #include "Compositor/Pass/PassClear/OgreCompositorPassClear.h"
+#include "Compositor/Pass/PassDepthCopy/OgreCompositorPassDepthCopy.h"
+#include "Compositor/Pass/PassDepthCopy/OgreCompositorPassDepthCopyDef.h"
 #include "Compositor/Pass/PassQuad/OgreCompositorPassQuad.h"
 #include "Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h"
 #include "Compositor/Pass/PassScene/OgreCompositorPassScene.h"
@@ -263,6 +265,25 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void CompositorNode::connectTo( size_t outChannelA, CompositorNode *nodeB, size_t inChannelB )
     {
+        if( inChannelB >= nodeB->mInTextures.size() )
+        {
+            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, "There is no input channel #" +
+                         StringConverter::toString( inChannelB ) + " for node " +
+                         nodeB->mDefinition->mNameStr + " when trying to connect it "
+                         "from " + this->mDefinition->mNameStr + " channel #" +
+                         StringConverter::toString( outChannelA ),
+                         "CompositorNode::connectTo" );
+        }
+        if( outChannelA >= this->mOutTextures.size() )
+        {
+            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, "There is no output channel #" +
+                         StringConverter::toString( outChannelA ) + " for node " +
+                         this->mDefinition->mNameStr + " when trying to connect it "
+                         "to " + nodeB->mDefinition->mNameStr + " channel #" +
+                         StringConverter::toString( inChannelB ),
+                         "CompositorNode::connectTo" );
+        }
+
         //Nodes must be connected in the right order (and after routeOutputs was called)
         //to avoid passing null pointers (which is probably not what we wanted)
         assert( this->mOutTextures[outChannelA].isValid() &&
@@ -281,6 +302,13 @@ namespace Ogre
     void CompositorNode::connectFinalRT( RenderTarget *rt, CompositorChannel::TextureVec &textures,
                                             size_t inChannelA )
     {
+        if( inChannelA >= mInTextures.size() )
+        {
+            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, "There is no input channel #" +
+                         StringConverter::toString( inChannelA ) + " for node " +
+                         mDefinition->mNameStr, "CompositorNode::connectFinalRT" );
+        }
+
         if( !mInTextures[inChannelA].target )
             ++mNumConnectedInputs;
         mInTextures[inChannelA].target      = rt;
@@ -408,6 +436,11 @@ namespace Ogre
                                             static_cast<CompositorPassStencilDef*>(*itPass),
                                             *channel, this, mRenderSystem );
                     break;
+                case PASS_DEPTHCOPY:
+                    newPass = OGRE_NEW CompositorPassDepthCopy(
+                                            static_cast<CompositorPassDepthCopyDef*>(*itPass),
+                                            *channel, this );
+                    break;
                 case PASS_UAV:
                     newPass = OGRE_NEW CompositorPassUav(
                                             static_cast<CompositorPassUavDef*>(*itPass),
@@ -533,6 +566,18 @@ namespace Ogre
         TextureDefinitionBase::recreateResizableTextures( mDefinition->mLocalTextureDefs, mLocalTextures,
                                                             finalTarget, mRenderSystem, mConnectedNodes,
                                                             &mPasses );
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorNode::resetAllNumPassesLeft(void)
+    {
+        CompositorPassVec::const_iterator itor = mPasses.begin();
+        CompositorPassVec::const_iterator end  = mPasses.end();
+
+        while( itor != end )
+        {
+            (*itor)->resetNumPassesLeft();
+            ++itor;
+        }
     }
     //-----------------------------------------------------------------------------------
     size_t CompositorNode::getPassNumber( CompositorPass *pass ) const

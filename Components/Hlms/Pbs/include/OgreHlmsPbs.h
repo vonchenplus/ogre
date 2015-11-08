@@ -68,6 +68,24 @@ namespace Ogre
             NumShadowFilter
         };
 
+        enum AmbientLightMode
+        {
+            /// Use fixed-colour ambient lighting when upper hemisphere = lower hemisphere,
+            /// use hemisphere lighting when they don't match.
+            /// Disables ambient lighting if the colours are black.
+            AmbientAuto,
+
+            /// Force fixed-colour ambient light. Only uses the upper hemisphere paramter.
+            AmbientFixed,
+
+            /// Force hemisphere ambient light. Useful if you plan on adjusting the colours
+            /// dynamically very often and this might cause swapping shaders.
+            AmbientHemisphere,
+
+            /// Disable ambient lighting.
+            AmbientNone
+        };
+
     protected:
         typedef vector<ConstBufferPacked*>::type ConstBufferPackedVec;
         typedef vector<HlmsDatablock*>::type HlmsDatablockVec;
@@ -97,6 +115,7 @@ namespace Ogre
         uint32 mLastTextureHash;
 
         ShadowFilter mShadowFilter;
+        AmbientLightMode mAmbientLightMode;
 
         virtual const HlmsCache* createShaderCacheEntry( uint32 renderableHash,
                                                          const HlmsCache &passCache,
@@ -114,6 +133,8 @@ namespace Ogre
 
         virtual void calculateHashForPreCreate( Renderable *renderable, PiecesMap *inOutPieces );
         virtual void calculateHashForPreCaster( Renderable *renderable, PiecesMap *inOutPieces );
+
+        static bool requiredPropertyByAlphaTest( IdString propertyName );
 
         virtual void destroyAllBuffers(void);
 
@@ -149,6 +170,9 @@ namespace Ogre
 
         void setShadowSettings( ShadowFilter filter );
         ShadowFilter getShadowFilter(void) const            { return mShadowFilter; }
+
+        void setAmbientLightMode( AmbientLightMode mode );
+        AmbientLightMode getAmbientLightMode(void) const    { return mAmbientLightMode; }
     };
 
     struct _OgreHlmsPbsExport PbsProperty
@@ -177,6 +201,9 @@ namespace Ogre
         static const IdString NormalMap;
 
         static const IdString FresnelScalar;
+        static const IdString UseTextureAlpha;
+        static const IdString TransparentMode;
+        static const IdString MetallicWorkflow;
 
         static const IdString NormalWeight;
         static const IdString NormalWeightTex;
@@ -223,6 +250,10 @@ namespace Ogre
         static const IdString Pcf3x3;
         static const IdString Pcf4x4;
         static const IdString PcfIterations;
+
+        static const IdString EnvMapScale;
+        static const IdString AmbientFixed;
+        static const IdString AmbientHemisphere;
 
         static const IdString BrdfDefault;
         static const IdString BrdfCookTorrance;

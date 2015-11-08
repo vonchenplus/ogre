@@ -33,6 +33,15 @@ layout(binding = 0) uniform PassBuffer
 
 	//Pixel shader
 	mat3 invViewMatCubemap;
+
+@property( ambient_hemisphere || ambient_fixed || envmap_scale )
+	vec4 ambientUpperHemi;
+@end
+@property( ambient_hemisphere )
+	vec4 ambientLowerHemi;
+	vec4 ambientHemisphereDir;
+@end
+
 @property( hlms_pssm_splits )@foreach( hlms_pssm_splits, n )
 	float pssmSplitPoints@n;@end @end
 	@property( hlms_lights_spot )Light lights[@value(hlms_lights_spot)];@end
@@ -66,7 +75,7 @@ struct Material
 	vec4 kD; //kD.w is alpha_test_threshold
 	vec4 kS; //kS.w is roughness
 	//Fresnel coefficient, may be per colour component (vec3) or scalar (float)
-	//F0.w is mNormalMapWeight
+	//F0.w is transparency
 	vec4 F0;
 	vec4 normalWeights;
 	vec4 cDetailWeights;
@@ -74,6 +83,7 @@ struct Material
 	vec4 detailOffsetScaleN[4];
 
 	uvec4 indices0_3;
+	//uintBitsToFloat( indices4_7.w ) contains mNormalMapWeight.
 	uvec4 indices4_7;
 };
 
@@ -115,7 +125,17 @@ layout(binding = 2) uniform InstanceBuffer
 
 		@foreach( hlms_num_shadow_maps, n )
 			vec4 posL@n;@end
+		@property( hlms_pssm_splits )float depth;@end
 	@end
-	@property( (hlms_shadowcaster && !hlms_shadow_uses_depth_texture) || hlms_pssm_splits )	float depth;@end
+	@property( hlms_shadowcaster )
+		@property( alpha_test )
+			flat uint drawId;
+			@foreach( hlms_uv_count, n )
+				vec@value( hlms_uv_count@n ) uv@n;@end
+		@end
+		@property( !hlms_shadow_uses_depth_texture )
+			float depth;
+		@end
+	@end
 	@insertpiece( custom_VStoPS )
 @end

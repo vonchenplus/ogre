@@ -156,7 +156,8 @@ namespace Ogre
             Case insensitive.
         */
         void enumeratePieceFiles(void);
-        static void enumeratePieceFiles( Archive *dataFolder, StringVector *pieceFiles );
+        /// Populates pieceFiles, returns true if found at least one piece file.
+        static bool enumeratePieceFiles( Archive *dataFolder, StringVector *pieceFiles );
 
         void setProperty( IdString key, int32 value );
         int32 getProperty( IdString key, int32 defaultVal=0 ) const;
@@ -512,6 +513,12 @@ namespace Ogre
         */
         void setListener( HlmsListener *listener );
 
+        /** Returns the current listener. @see setListener();
+        @remarks
+            If the default listener is being used (that does nothing) then null is returned.
+        */
+        HlmsListener* getListener(void) const;
+
         /// For debugging stuff. I.e. the Command line uses it for testing manually set properties
         void _setProperty( IdString key, int32 value )      { setProperty( key, value ); }
 
@@ -576,6 +583,7 @@ namespace Ogre
 
         //Change per material (hash can be cached on the renderable)
         static const IdString AlphaTest;
+        static const IdString AlphaBlend;
 
         static const IdString GL3Plus;
         static const IdString HighQuality;
