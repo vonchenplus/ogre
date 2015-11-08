@@ -243,13 +243,15 @@ namespace Ogre
         if( isV1 )
         {
             v1::RenderOperation op;
-            pRend->getRenderOperation( op ); //TODO
+            //v2 objects cache the alpha testing information. v1 is evaluated in realtime.
+            pRend->getRenderOperation( op,
+                                       casterPass & (datablock->getAlphaTest() == CMPF_ALWAYS_PASS) );
             meshHash = op.meshIndex;
         }
         else
         {
             uint8 meshLod = pMovableObject->getCurrentMeshLod();
-            const VertexArrayObjectArray &vaos = pRend->getVaos();
+            const VertexArrayObjectArray &vaos = pRend->getVaos( casterPass );
 
             VertexArrayObject *vao = vaos[meshLod];
             meshHash = vao->getRenderQueueId();
@@ -467,11 +469,12 @@ namespace Ogre
         while( itor != end )
         {
             const QueuedRenderable &queuedRenderable = *itor;
-            v1::RenderOperation op;
-            queuedRenderable.renderable->getRenderOperation( op );
             /*uint32 hlmsHash = casterPass ? queuedRenderable.renderable->getHlmsCasterHash() :
                                            queuedRenderable.renderable->getHlmsHash();*/
             const HlmsDatablock *datablock = queuedRenderable.renderable->getDatablock();
+            v1::RenderOperation op;
+            queuedRenderable.renderable->getRenderOperation(
+                        op, casterPass & (datablock->getAlphaTest() == CMPF_ALWAYS_PASS) );
 
             if( lastMacroblock != datablock->mMacroblock[casterPass] )
             {
@@ -551,7 +554,7 @@ namespace Ogre
         {
             const QueuedRenderable &queuedRenderable = *itor;
             uint8 meshLod = queuedRenderable.movableObject->getCurrentMeshLod();
-            const VertexArrayObjectArray &vaos = queuedRenderable.renderable->getVaos();
+            const VertexArrayObjectArray &vaos = queuedRenderable.renderable->getVaos( casterPass );
 
             VertexArrayObject *vao = vaos[meshLod];
             const HlmsDatablock *datablock = queuedRenderable.renderable->getDatablock();
@@ -703,10 +706,11 @@ namespace Ogre
         {
             const QueuedRenderable &queuedRenderable = *itor;
 
-            v1::RenderOperation renderOp;
-            queuedRenderable.renderable->getRenderOperation( renderOp );
-
             const HlmsDatablock *datablock = queuedRenderable.renderable->getDatablock();
+
+            v1::RenderOperation renderOp;
+            queuedRenderable.renderable->getRenderOperation(
+                        renderOp, casterPass & (datablock->getAlphaTest() == CMPF_ALWAYS_PASS) );
 
             if( lastMacroblock != datablock->mMacroblock[casterPass] )
             {
@@ -838,7 +842,8 @@ namespace Ogre
 
         const QueuedRenderable queuedRenderable( 0, pRend, pMovableObject );
         v1::RenderOperation op;
-        queuedRenderable.renderable->getRenderOperation( op );
+        queuedRenderable.renderable->getRenderOperation(
+                    op, casterPass & (datablock->getAlphaTest() == CMPF_ALWAYS_PASS) );
         /*uint32 hlmsHash = casterPass ? queuedRenderable.renderable->getHlmsCasterHash() :
                                        queuedRenderable.renderable->getHlmsHash();*/
 

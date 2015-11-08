@@ -74,8 +74,10 @@ namespace Ogre
         SkeletonAnimation( const SkeletonAnimationDef *definition, const FastArray<size_t> *slotStarts,
                             SkeletonInstance *owner );
 
-        /// Call this function before using the animation!
-        void initialize(void);
+        /// Internal function that initializes a lot of structures that can't be done in the
+        /// constructor due to how SkeletonInstance is created/pushed in a vector.
+        /// If you're not an Ogre dev, don't call this directly.
+        void _initialize(void);
 
         /** Plays the animation forward (or backwards if negative)
         @param time
@@ -88,6 +90,18 @@ namespace Ogre
             Frames to advance, in frames
         */
         void addFrame( Real frames );
+
+        /** Sets the animation to a particular time.
+        @param time
+            Time to set to, in seconds
+        */
+        void setTime( Real time )                                   { setFrame( time * mFrameRate ); }
+
+        /** Sets the animation to a particular frame.
+        @param frames
+            Frame to set to, in frames
+        */
+        void setFrame( Real frame );
 
         /// Gets the current animation time, in seconds. Prefer using getCurrentFrame
         Real getCurrentTime(void) const                      { return mCurrentFrame / mFrameRate; }

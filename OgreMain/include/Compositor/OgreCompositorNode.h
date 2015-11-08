@@ -277,6 +277,9 @@ namespace Ogre
         */
         virtual void finalTargetResized( const RenderTarget *finalTarget );
 
+        /// @copydoc CompositorWorkspace::resetAllNumPassesLeft
+        void resetAllNumPassesLeft(void);
+
         /// @copydoc CompositorPassDef::getPassNumber
         size_t getPassNumber( CompositorPass *pass ) const;
 

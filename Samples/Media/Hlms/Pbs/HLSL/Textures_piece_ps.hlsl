@@ -14,29 +14,56 @@
 	@add( textureRegStart, 2 )
 	@add( envMapReg, 2 )
 	@add( textureRegShadowMapStart, 2 )
+	@add( samplerStateStart, 2 )
 @end
 
 @property( diffuse_map )
-	@piece( SampleDiffuseMap )	diffuseCol = textureMaps[@value( diffuse_map_idx )].Sample( samplerStates[@value(diffuse_map_idx)], float3( inPs.uv@value(uv_diffuse).xy, diffuseIdx ) );
+	@property( !hlms_shadowcaster )
+		@piece( SampleDiffuseMap )	diffuseCol = textureMaps[@value( diffuse_map_idx )].Sample( samplerStates[@value(diffuse_map_idx)], float3( inPs.uv@value(uv_diffuse).xy, diffuseIdx ) );
 @property( !hw_gamma_read )	diffuseCol = diffuseCol * diffuseCol;@end @end
+	@end @property( hlms_shadowcaster )
+		@piece( SampleDiffuseMap )	diffuseCol = textureMaps[@value( diffuse_map_idx )].Sample( samplerStates[@value(diffuse_map_idx)], float3( inPs.uv@value(uv_diffuse).xy, diffuseIdx ) ).w;@end
+	@end
 @end
 
 @property( diffuse_map || detail_maps_diffuse )
-    @piece( diffuseExtraParamDef ), float3 diffuseCol@end
-    @piece( diffuseExtraParam ), diffuseCol.xyz@end
+	@property( !transparent_mode )
+		@piece( diffuseExtraParamDef ), float4 diffuseCol@end
+		@piece( diffuseExtraParam ), diffuseCol.xyzw@end
+	@end @property( transparent_mode )
+		@piece( diffuseExtraParamDef ), float3 diffuseCol@end
+		@piece( diffuseExtraParam ), diffuseCol.xyz@end
+	@end
     //diffuseCol is multiplied against material.kD in PixelShader_ps as it is influenced by the detail maps.
     @piece( kD )diffuseCol@end
 @end @property( !diffuse_map && !detail_maps_diffuse )
     @piece( kD )material.kD@end
 @end
 
-@property( specular_map )
-	@piece( SampleSpecularMap )	specularCol = textureMaps[@value( specular_map_idx )].Sample( samplerStates[@value(specular_map_idx)], float3(inPs.uv@value(uv_specular).xy, specularIdx) ).xyz * material.kS.xyz;@end
-	@piece( specularExtraParamDef ), float3 specularCol@end
-	@piece( specularExtraParam ), specularCol.xyz@end
-	@piece( kS )specularCol@end
-@end @property( !specular_map )
+@property( !metallic_workflow )
+	@property( specular_map )
+		@piece( SampleSpecularMap )	specularCol = textureMaps[@value( specular_map_idx )].Sample( samplerStates[@value(specular_map_idx)], float3(inPs.uv@value(uv_specular).xy, specularIdx) ).xyz * material.kS.xyz;@end
+		@piece( specularExtraParamDef ), float3 specularCol@end
+		@piece( specularExtraParam ), specularCol.xyz@end
+		@piece( kS )specularCol@end
+	@end @property( !specular_map )
+		@piece( kS )material.kS.xyz@end
+	@end
+@end @property( metallic_workflow )
+@piece( SampleSpecularMap )
+	@property( specular_map )
+		float metalness = textureMaps[@value( specular_map_idx )].Sample( samplerStates[@value(specular_map_idx)], float3(inPs.uv@value(uv_specular).xy, specularIdx) ).x * material.F0.x;
+		F0 = lerp( float( 0.03f ).xxx, @insertpiece( kD ).xyz * 3.14159f, metalness );
+	@end @property( !specular_map )
+		F0 = lerp( float( 0.03f ).xxx, @insertpiece( kD ).xyz * 3.14159f, material.F0.x );
+	@end
+	@property( hlms_alphablend )F0 *= material.F0.w;@end
+	@property( transparent_mode )F0 *= diffuseCol.w;@end
+@end /// SampleSpecularMap
+
 	@piece( kS )material.kS.xyz@end
+	@piece( metallicExtraParamDef ), float3 F0@end
+	@piece( metallicExtraParam ), F0@end
 @end
 
 @property( roughness_map )
@@ -46,8 +73,8 @@
 	@piece( roughnessExtraParam ), ROUGHNESS@end
 @end
 
-@piece( brdfExtraParamDefs )@insertpiece( diffuseExtraParamDef )@insertpiece( specularExtraParamDef )@insertpiece( roughnessExtraParamDef )@end
-@piece( brdfExtraParams )@insertpiece( diffuseExtraParam )@insertpiece( specularExtraParam )@insertpiece( roughnessExtraParam )@end
+@piece( brdfExtraParamDefs )@insertpiece( diffuseExtraParamDef )@insertpiece( specularExtraParamDef )@insertpiece( roughnessExtraParamDef )@insertpiece( metallicExtraParamDef )@end
+@piece( brdfExtraParams )@insertpiece( diffuseExtraParam )@insertpiece( specularExtraParam )@insertpiece( roughnessExtraParam )@insertpiece( metallicExtraParam )@end
 
 @foreach( detail_maps_normal, n )
 	@piece( SampleDetailMapNm@n )getTSDetailNormal( samplerStates[@value(detail_map_nm@n_idx)], textureMaps[@value(detail_map_nm@n_idx)], float3( inPs.uv@value(uv_detail_nm@n).xy@insertpiece( offsetDetailN@n ), detailNormMapIdx@n ) ) * detailWeights.@insertpiece(detail_swizzle@n) @insertpiece( detail@n_nm_weight_mul )@end
@@ -69,3 +96,7 @@
 	@sub( detail_map@n_idx, detail_map@n, 1 )@end
 @foreach( 4, n )
 	@sub( detail_map_nm@n_idx, detail_map_nm@n, 1 )@end
+
+@property( envmap_scale )
+	@piece( ApplyEnvMapScale )* passBuf.ambientUpperHemi.w@end
+@end

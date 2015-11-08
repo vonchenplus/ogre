@@ -95,10 +95,15 @@ namespace Ogre
             if( mHlmsDatablock )
                 mHlmsDatablock->_unlinkRenderable( this );
 
+            if( !datablock || datablock->getCreator()->getType() != HLMS_LOW_LEVEL )
+                mMaterial.setNull();
+
             mHlmsDatablock = datablock;
             try
             {
-                mHlmsDatablock->getCreator()->calculateHashFor( this, mHlmsHash, mHlmsCasterHash );
+                uint32 hash, casterHash;
+                mHlmsDatablock->getCreator()->calculateHashFor( this, hash, casterHash );
+                this->_setHlmsHashes( hash, casterHash );
             }
             catch( Exception &e )
             {
@@ -121,7 +126,10 @@ namespace Ogre
                     //HLMS as the one the user wanted us to apply
                     mHlmsDatablock = mHlmsDatablock->getCreator()->getDefaultDatablock();
                 }
-                mHlmsDatablock->getCreator()->calculateHashFor( this, mHlmsHash, mHlmsCasterHash );
+
+                uint32 hash, casterHash;
+                mHlmsDatablock->getCreator()->calculateHashFor( this, hash, casterHash );
+                this->_setHlmsHashes( hash, casterHash );
             }
 
             mHlmsDatablock->_linkRenderable( this );
@@ -132,6 +140,11 @@ namespace Ogre
     {
         mHlmsHash       = hash;
         mHlmsCasterHash = casterHash;
+
+        assert( (mHlmsDatablock->getAlphaTest() == CMPF_ALWAYS_PASS ||
+                mVaoPerLod[0].empty() || mVaoPerLod[0][0] == mVaoPerLod[1][0])
+                && "v2 objects must overload _setHlmsHashes to disable special "
+                "shadow mapping buffers on objects with alpha testing materials" );
     }
     //-----------------------------------------------------------------------------------
     void Renderable::setMaterialName( const String& name, const String& groupName )

@@ -77,6 +77,9 @@ namespace Ogre
     const IdString PbsProperty::NormalMap         = IdString( "normal_map" );
 
     const IdString PbsProperty::FresnelScalar     = IdString( "fresnel_scalar" );
+    const IdString PbsProperty::UseTextureAlpha   = IdString( "use_texture_alpha" );
+    const IdString PbsProperty::TransparentMode   = IdString( "transparent_mode" );
+    const IdString PbsProperty::MetallicWorkflow  = IdString( "metallic_workflow" );
 
     const IdString PbsProperty::NormalWeight          = IdString( "normal_weight" );
     const IdString PbsProperty::NormalWeightTex       = IdString( "normal_weight_tex" );
@@ -121,6 +124,10 @@ namespace Ogre
     const IdString PbsProperty::Pcf3x3            = IdString( "pcf_3x3" );
     const IdString PbsProperty::Pcf4x4            = IdString( "pcf_4x4" );
     const IdString PbsProperty::PcfIterations     = IdString( "pcf_iterations" );
+
+    const IdString PbsProperty::EnvMapScale       = IdString( "envmap_scale" );
+    const IdString PbsProperty::AmbientFixed      = IdString( "ambient_fixed" );
+    const IdString PbsProperty::AmbientHemisphere = IdString( "ambient_hemisphere" );
 
     const IdString PbsProperty::BrdfDefault       = IdString( "BRDF_Default" );
     const IdString PbsProperty::BrdfCookTorrance  = IdString( "BRDF_CookTorrance" );
@@ -204,7 +211,8 @@ namespace Ogre
         mCurrentPassBuffer( 0 ),
         mLastBoundPool( 0 ),
         mLastTextureHash( 0 ),
-        mShadowFilter( PCF_3x3 )
+        mShadowFilter( PCF_3x3 ),
+        mAmbientLightMode( AmbientAuto )
     {
         //Override defaults
         mLightGatheringMode = LightGatherForwardPlus;
@@ -408,7 +416,9 @@ namespace Ogre
         assert( dynamic_cast<HlmsPbsDatablock*>( renderable->getDatablock() ) );
         HlmsPbsDatablock *datablock = static_cast<HlmsPbsDatablock*>(
                                                         renderable->getDatablock() );
-        setProperty( PbsProperty::FresnelScalar, datablock->hasSeparateFresnel() );
+        setProperty( PbsProperty::FresnelScalar, datablock->hasSeparateFresnel() ||
+                                                 datablock->getMetallicWorkflow() );
+        setProperty( PbsProperty::MetallicWorkflow, datablock->getMetallicWorkflow() );
 
         uint32 brdf = datablock->getBrdf();
         if( (brdf & PbsBrdf::BRDF_MASK) == PbsBrdf::Default )
@@ -498,6 +508,18 @@ namespace Ogre
                          "datablock without normal maps.", "HlmsPbs::calculateHashForPreCreate" );
         }
 
+        if( datablock->mUseAlphaFromTextures && datablock->mBlendblock[0]->mIsTransparent &&
+            (getProperty( PbsProperty::DiffuseMap ) || getProperty( PbsProperty::DetailMapsDiffuse )) )
+        {
+            setProperty( PbsProperty::UseTextureAlpha, 1 );
+
+            //When we don't use the alpha in the texture, transparency still works but
+            //only at material level (i.e. what datablock->mTransparency says). The
+            //alpha from the texture will be ignored.
+            if( datablock->mTransparencyMode == HlmsPbsDatablock::Transparent )
+                setProperty( PbsProperty::TransparentMode, 1 );
+        }
+
         String slotsPerPoolStr = StringConverter::toString( mSlotsPerPool );
         inOutPieces[VertexShader][PbsProperty::MaterialsPerBuffer] = slotsPerPoolStr;
         inOutPieces[PixelShader][PbsProperty::MaterialsPerBuffer] = slotsPerPoolStr;
@@ -505,8 +527,8 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void HlmsPbs::calculateHashForPreCaster( Renderable *renderable, PiecesMap *inOutPieces )
     {
-        //HlmsPbsDatablock *datablock = static_cast<HlmsPbsDatablock*>(
-        //                                              renderable->getDatablock() );
+        HlmsPbsDatablock *datablock = static_cast<HlmsPbsDatablock*>( renderable->getDatablock() );
+        const bool hasAlphaTest = datablock->getAlphaTest() != CMPF_ALWAYS_PASS;
 
         HlmsPropertyVec::iterator itor = mSetProperties.begin();
         HlmsPropertyVec::iterator end  = mSetProperties.end();
@@ -523,7 +545,9 @@ namespace Ogre
                      itor->keyName != HlmsBaseProp::Skeleton &&
                      itor->keyName != HlmsBaseProp::BonesPerVertex &&
                      itor->keyName != HlmsBaseProp::DualParaboloidMapping &&
-                     itor->keyName != HlmsBaseProp::AlphaTest )
+                     itor->keyName != HlmsBaseProp::AlphaTest &&
+                     itor->keyName != HlmsBaseProp::AlphaBlend &&
+                     (!hasAlphaTest || !requiredPropertyByAlphaTest( itor->keyName )) )
             {
                 itor = mSetProperties.erase( itor );
                 end  = mSetProperties.end();
@@ -534,9 +558,67 @@ namespace Ogre
             }
         }
 
+        if( hasAlphaTest )
+        {
+            //Keep GLSL happy by not declaring more textures than we'll actually need.
+            uint8 numTextures = 0;
+            for( int i=0; i<4; ++i )
+            {
+                if( datablock->mTexToBakedTextureIdx[PBSM_DETAIL0+i] < datablock->mBakedTextures.size() )
+                {
+                    numTextures = std::max<uint8>(
+                                numTextures, datablock->mTexToBakedTextureIdx[PBSM_DETAIL0+i] + 1 );
+                }
+            }
+
+            if( datablock->mTexToBakedTextureIdx[PBSM_DIFFUSE] < datablock->mBakedTextures.size() )
+            {
+                numTextures = std::max<uint8>(
+                            numTextures, datablock->mTexToBakedTextureIdx[PBSM_DIFFUSE] + 1 );
+            }
+
+            setProperty( PbsProperty::NumTextures, numTextures );
+
+            //Set the blending mode as a piece again
+            for( size_t i=0; i<4; ++i )
+            {
+                uint8 blendMode = datablock->mBlendModes[i];
+                if( !datablock->getTexture( PBSM_DETAIL0 + i ).isNull() )
+                {
+                    inOutPieces[PixelShader][*PbsProperty::BlendModes[i]] =
+                                                    "@insertpiece( " + c_pbsBlendModes[blendMode] + ")";
+                }
+            }
+        }
+
         String slotsPerPoolStr = StringConverter::toString( mSlotsPerPool );
         inOutPieces[VertexShader][PbsProperty::MaterialsPerBuffer] = slotsPerPoolStr;
         inOutPieces[PixelShader][PbsProperty::MaterialsPerBuffer] = slotsPerPoolStr;
+    }
+    //-----------------------------------------------------------------------------------
+    bool HlmsPbs::requiredPropertyByAlphaTest( IdString keyName )
+    {
+        bool retVal =
+                keyName == PbsProperty::NumTextures ||
+                keyName == PbsProperty::DiffuseMap ||
+                keyName == PbsProperty::DetailWeightMap ||
+                keyName == PbsProperty::DetailMap0 || keyName == PbsProperty::DetailMap1 ||
+                keyName == PbsProperty::DetailMap2 || keyName == PbsProperty::DetailMap3 ||
+                keyName == PbsProperty::DetailWeights ||
+                keyName == PbsProperty::DetailOffsetsD0 || keyName == PbsProperty::DetailOffsetsD1 ||
+                keyName == PbsProperty::DetailOffsetsD2 || keyName == PbsProperty::DetailOffsetsD3 ||
+                keyName == PbsProperty::UvDetailWeight ||
+                keyName == PbsProperty::UvDetail0 || keyName == PbsProperty::UvDetail1 ||
+                keyName == PbsProperty::UvDetail2 || keyName == PbsProperty::UvDetail3 ||
+                keyName == PbsProperty::BlendModeIndex0 || keyName == PbsProperty::BlendModeIndex1 ||
+                keyName == PbsProperty::BlendModeIndex2 || keyName == PbsProperty::BlendModeIndex3 ||
+                keyName == PbsProperty::DetailMapsDiffuse ||
+                keyName == HlmsBaseProp::UvCount;
+
+        for( int i=0; i<8 && !retVal; ++i )
+            retVal |= keyName == *HlmsBaseProp::UvCountPtrs[i];
+
+        return retVal;
     }
     //-----------------------------------------------------------------------------------
     HlmsCache HlmsPbs::preparePassHash( const CompositorShadowNode *shadowNode, bool casterPass,
@@ -568,6 +650,40 @@ namespace Ogre
             {
                 setProperty( PbsProperty::PcfIterations, 1 );
             }
+        }
+
+        AmbientLightMode ambientMode = mAmbientLightMode;
+        ColourValue upperHemisphere = sceneManager->getAmbientLightUpperHemisphere();
+        ColourValue lowerHemisphere = sceneManager->getAmbientLightLowerHemisphere();
+
+        const float envMapScale = upperHemisphere.a;
+        //Ignore alpha channel
+        upperHemisphere.a = lowerHemisphere.a = 1.0;
+
+        if( !casterPass )
+        {
+            if( mAmbientLightMode == AmbientAuto )
+            {
+                if( upperHemisphere == lowerHemisphere )
+                {
+                    if( upperHemisphere == ColourValue::Black )
+                        ambientMode = AmbientNone;
+                    else
+                        ambientMode = AmbientFixed;
+                }
+                else
+                {
+                    ambientMode = AmbientHemisphere;
+                }
+            }
+
+            if( ambientMode == AmbientFixed )
+                setProperty( PbsProperty::AmbientFixed, 1 );
+            if( ambientMode == AmbientHemisphere )
+                setProperty( PbsProperty::AmbientHemisphere, 1 );
+
+            if( envMapScale != 1.0f )
+                setProperty( PbsProperty::EnvMapScale, 1 );
         }
 
         HlmsCache retVal = Hlms::preparePassHashBase( shadowNode, casterPass,
@@ -623,6 +739,16 @@ namespace Ogre
             //              vec4 shadowRcv[numShadowMaps].invShadowMapSize +
             //mat3 invViewMatCubemap (upgraded to three vec4)
             mapSize += ( 16 + (16 + 2 + 2 + 4) * numShadowMaps + 4 * 3 ) * 4;
+
+            //vec3 ambientUpperHemi + float envMapScale
+            if( ambientMode == AmbientFixed || ambientMode == AmbientHemisphere || envMapScale != 1.0f )
+                mapSize += 4 * 4;
+
+            //vec3 ambientLowerHemi + padding + vec3 ambientHemisphereDir + padding
+            if( ambientMode == AmbientHemisphere )
+                mapSize += 8 * 4;
+
+            //float pssmSplitPoints N times.
             mapSize += numPssmSplits * 4;
             mapSize = alignToNextMultiple( mapSize, 16 );
 
@@ -737,6 +863,31 @@ namespace Ogre
                 //Alignment: each row/column is one vec4, despite being 3x3
                 if( !( (i+1) % 3 ) )
                     ++passBufferPtr;
+            }
+
+            //vec3 ambientUpperHemi + padding
+            if( ambientMode == AmbientFixed || ambientMode == AmbientHemisphere || envMapScale != 1.0f )
+            {
+                *passBufferPtr++ = static_cast<float>( upperHemisphere.r );
+                *passBufferPtr++ = static_cast<float>( upperHemisphere.g );
+                *passBufferPtr++ = static_cast<float>( upperHemisphere.b );
+                *passBufferPtr++ = envMapScale;
+            }
+
+            //vec3 ambientLowerHemi + padding + vec3 ambientHemisphereDir + padding
+            if( ambientMode == AmbientHemisphere )
+            {
+                *passBufferPtr++ = static_cast<float>( lowerHemisphere.r );
+                *passBufferPtr++ = static_cast<float>( lowerHemisphere.g );
+                *passBufferPtr++ = static_cast<float>( lowerHemisphere.b );
+                *passBufferPtr++ = 1.0f;
+
+                Vector3 hemisphereDir = viewMatrix3 * sceneManager->getAmbientLightHemisphereDir();
+                hemisphereDir.normalise();
+                *passBufferPtr++ = static_cast<float>( hemisphereDir.x );
+                *passBufferPtr++ = static_cast<float>( hemisphereDir.y );
+                *passBufferPtr++ = static_cast<float>( hemisphereDir.z );
+                *passBufferPtr++ = 1.0f;
             }
 
             //float pssmSplitPoints
@@ -1019,7 +1170,8 @@ namespace Ogre
 
         //Don't bind the material buffer on caster passes (important to keep
         //MDI & auto-instancing running on shadow map passes)
-        if( mLastBoundPool != datablock->getAssignedPool() && !casterPass )
+        if( mLastBoundPool != datablock->getAssignedPool() &&
+            (!casterPass || datablock->getAlphaTest() != CMPF_ALWAYS_PASS) )
         {
             //layout(binding = 1) uniform MaterialBuf {} materialArray
             const ConstBufferPool::BufferPool *newPool = datablock->getAssignedPool();
@@ -1193,7 +1345,7 @@ namespace Ogre
         //                          ---- PIXEL SHADER ----
         //---------------------------------------------------------------------------
 
-        if( !casterPass )
+        if( !casterPass || datablock->getAlphaTest() != CMPF_ALWAYS_PASS )
         {
             if( datablock->mTextureHash != mLastTextureHash )
             {
@@ -1253,6 +1405,11 @@ namespace Ogre
     void HlmsPbs::setShadowSettings( ShadowFilter filter )
     {
         mShadowFilter = filter;
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsPbs::setAmbientLightMode( AmbientLightMode mode )
+    {
+        mAmbientLightMode = mode;
     }
     //-----------------------------------------------------------------------------------
     HlmsDatablock* HlmsPbs::createDatablockImpl( IdString datablockName,

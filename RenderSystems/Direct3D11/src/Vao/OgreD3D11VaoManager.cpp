@@ -96,6 +96,7 @@ namespace Ogre
         for( uint32 i=0; i<4096; ++i )
             drawIdPtr[i] = i;
         mDrawId = createVertexBuffer( vertexElements, 4096, BT_IMMUTABLE, drawIdPtr, true );
+        createDelayedImmutableBuffers(); //Ensure mDrawId gets allocated before we continue
     }
     //-----------------------------------------------------------------------------------
     D3D11VaoManager::~D3D11VaoManager()
@@ -156,7 +157,8 @@ namespace Ogre
 
         while( itor != end )
         {
-            (*itor)->Release();
+            if( *itor )
+                (*itor)->Release();
             ++itor;
         }
     }
@@ -301,10 +303,11 @@ namespace Ogre
     void D3D11VaoManager::deallocateVbo( size_t vboIdx, size_t bufferOffset, size_t sizeBytes,
                                          BufferType bufferType, InternalBufferType internalType )
     {
-        assert( bufferType <= BT_DYNAMIC_DEFAULT );
-
-        if( bufferType >= BT_DYNAMIC_DEFAULT )
+        if (bufferType >= BT_DYNAMIC_DEFAULT)
+        {
+            bufferType = BT_DYNAMIC_DEFAULT; //Persitent mapping not supported in D3D11.
             sizeBytes *= mDynamicBufferMultiplier;
+        }
 
         Vbo &vbo = mVbos[internalType][bufferType][vboIdx];
         StrideChangerVec::iterator itStride = std::lower_bound( vbo.strideChangers.begin(),
@@ -612,7 +615,10 @@ namespace Ogre
             }
         }
 
-        reorganizeImmutableVaos();
+        //We've populated the Vertex & Index buffers with their GPU/API pointers. Now we need
+        //to update the Vaos' internal structures that cache these GPU/API pointers.
+        if( totalBytes )
+            reorganizeImmutableVaos();
 
         for( size_t i=0; i<NumInternalBufferTypes; ++i )
             mDelayedBuffers[i].clear();
@@ -675,12 +681,7 @@ namespace Ogre
 
                 const uint32 renderQueueId = generateRenderQueueId( itor->vaoName, uniqueVaoId );
 
-                *d3dVao = D3D11VertexArrayObject( itor->vaoName,
-                                                  renderQueueId,
-                                                  d3dVao->getVertexBuffers(),
-                                                  d3dVao->getIndexBuffer(),
-                                                  d3dVao->getOperationType(),
-                                                  itor->sharedData );
+                d3dVao->_updateImmutableResource( itor->vaoName, renderQueueId, itor->sharedData );
             }
 
             ++itor;
@@ -1090,6 +1091,8 @@ namespace Ogre
             itor = mVaos.begin() + mVaos.size() - 1;
         }
 
+        ++itor->refCount;
+
         return itor;
     }
     //-----------------------------------------------------------------------------------
@@ -1192,12 +1195,24 @@ namespace Ogre
             while( itor != end && !hasImmutableDelayedBuffer )
             {
                 if( (*itor)->getBufferType() == BT_IMMUTABLE )
-                    hasImmutableDelayedBuffer = true;
+                {
+                    D3D11BufferInterface *bufferInterface = static_cast<D3D11BufferInterface*>(
+                                                                    (*itor)->getBufferInterface() );
+
+                    if( bufferInterface->_getInitialData() != 0 )
+                        hasImmutableDelayedBuffer = true;
+                }
                 ++itor;
             }
 
             if( indexBuffer && indexBuffer->getBufferType() == BT_IMMUTABLE )
-                hasImmutableDelayedBuffer = true;
+            {
+                D3D11BufferInterface *bufferInterface = static_cast<D3D11BufferInterface*>(
+                                                                indexBuffer->getBufferInterface() );
+
+                if( bufferInterface->_getInitialData() != 0 )
+                    hasImmutableDelayedBuffer = true;
+            }
 
             if( hasImmutableDelayedBuffer )
             {
@@ -1224,8 +1239,6 @@ namespace Ogre
                                                                           indexBuffer,
                                                                           opType,
                                                                           itor->sharedData );
-
-        ++itor->refCount;
 
         return retVal;
     }

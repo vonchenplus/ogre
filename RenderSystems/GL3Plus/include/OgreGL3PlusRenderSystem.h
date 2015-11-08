@@ -148,6 +148,8 @@ namespace Ogre {
         // check if GL 4.3 is supported
         bool mHasGL43;
 
+        bool mHasArbInvalidateSubdata;
+
         // local data members of _render that were moved here to improve performance
         // (save allocations)
         vector<GLuint>::type mRenderAttribsBound;
@@ -253,10 +255,6 @@ namespace Ogre {
             RenderSystem
         */
         void shutdown(void);
-        /** See
-            RenderSystem
-        */
-        void setAmbientLight(float r, float g, float b) { };   // Not supported
 
         /// @copydoc RenderSystem::_createRenderWindow
         RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height,
@@ -487,9 +485,10 @@ namespace Ogre {
         virtual void _render( const v1::CbDrawCallIndexed *cmd );
         virtual void _render( const v1::CbDrawCallStrip *cmd );
 
-        void clearFrameBuffer(unsigned int buffers,
-                              const ColourValue& colour = ColourValue::Black,
-                              Real depth = 1.0f, unsigned short stencil = 0);
+        virtual void clearFrameBuffer( unsigned int buffers,
+                                       const ColourValue& colour = ColourValue::Black,
+                                       Real depth = 1.0f, unsigned short stencil = 0 );
+        virtual void discardFrameBuffer( unsigned int buffers );
         HardwareOcclusionQuery* createHardwareOcclusionQuery(void);
         Real getHorizontalTexelOffset(void) { return 0.0; }               // No offset in GL
         Real getVerticalTexelOffset(void) { return 0.0; }                 // No offset in GL

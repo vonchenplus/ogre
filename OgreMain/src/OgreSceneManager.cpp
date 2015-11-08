@@ -95,7 +95,6 @@ mStaticEntitiesDirty( true ),
 mName(name),
 mRenderQueue( 0 ),
 mForward3DImpl( 0 ),
-mAmbientLight(ColourValue::Black),
 mCameraInProgress(0),
 mCurrentViewport(0),
 mCurrentShadowNode(0),
@@ -155,6 +154,8 @@ mGpuParamsDirty((uint16)GPV_ALL)
 
     for( size_t i=0; i<NUM_SCENE_MEMORY_MANAGER_TYPES; ++i )
         mSceneRoot[i] = 0;
+
+    setAmbientLight( ColourValue::Black, ColourValue::Black, Vector3::UNIT_Y, 1.0f );
 
     mNodeMemoryManager[SCENE_STATIC]._setTwin( SCENE_STATIC, &mNodeMemoryManager[SCENE_DYNAMIC] );
     mNodeMemoryManager[SCENE_DYNAMIC]._setTwin( SCENE_DYNAMIC, &mNodeMemoryManager[SCENE_STATIC] );
@@ -1195,9 +1196,7 @@ void SceneManager::_renderPhase02(Camera* camera, const Camera *lodCamera, Viewp
         mAutoParamDataSource->setShadowDirLightExtrusionDistance(mShadowDirLightExtrudeDist);
 
         // Tell params about current ambient light
-        mAutoParamDataSource->setAmbientLightColour(mAmbientLight);
-        // Tell rendersystem
-        mDestRenderSystem->setAmbientLight(mAmbientLight.r, mAmbientLight.g, mAmbientLight.b);
+        mAutoParamDataSource->setAmbientLightColour( mAmbientLight, mAmbientLightHemisphereDir );
 
         // Set camera window clipping planes (if any)
         if (mDestRenderSystem->getCapabilities()->hasCapability(RSC_USER_CLIP_PLANES))
@@ -2551,6 +2550,7 @@ void SceneManager::buildLightList()
 
     if( mForward3DImpl )
         return; //Don't do this on non-forward passes.
+    return;
 
     mRequestType = BUILD_LIGHT_LIST02;
 #if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
@@ -3057,7 +3057,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 // Finalise GPU parameter bindings
                 updateGpuProgramParameters(pass);
 
-                rend->getRenderOperation(ro);
+                rend->getRenderOperation(ro, false);
 
                 if (rend->preRender(this, mDestRenderSystem))
                     mDestRenderSystem->_render(ro);
@@ -3127,7 +3127,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                     // Finalise GPU parameter bindings
                     updateGpuProgramParameters(pass);
 
-                    rend->getRenderOperation(ro);
+                    rend->getRenderOperation(ro, false);
 
                     if (rend->preRender(this, mDestRenderSystem))
                         mDestRenderSystem->_render(ro);
@@ -3149,7 +3149,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
         mDestRenderSystem->setCurrentPassIterationCount(1);
         if (rend->preRender(this, mDestRenderSystem))
         {
-            rend->getRenderOperation(ro);
+            rend->getRenderOperation(ro, false);
             try
             {
                 mDestRenderSystem->_render(ro);
@@ -3171,14 +3171,16 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
     OgreProfileEndGPUEvent("Material: " + pass->getParent()->getParent()->getName());
 }
 //-----------------------------------------------------------------------
-void SceneManager::setAmbientLight(const ColourValue& colour)
+void SceneManager::setAmbientLight( const ColourValue &upperHemisphere,
+                                    const ColourValue &lowerHemisphere,
+                                    const Vector3 &hemisphereDir,
+                                    Real envmapScale )
 {
-    mAmbientLight = colour;
-}
-//-----------------------------------------------------------------------
-const ColourValue& SceneManager::getAmbientLight(void) const
-{
-    return mAmbientLight;
+    mAmbientLight[0] = upperHemisphere;
+    mAmbientLight[1] = lowerHemisphere;
+    mAmbientLightHemisphereDir = hemisphereDir;
+    mAmbientLightHemisphereDir.normalise();
+    mAmbientLight[0].a = envmapScale;
 }
 //-----------------------------------------------------------------------
 ViewPoint SceneManager::getSuggestedViewpoint(bool random)
@@ -4425,9 +4427,7 @@ void SceneManager::_resumeRendering(SceneManager::RenderContext* context)
     mAutoParamDataSource->setShadowDirLightExtrusionDistance(mShadowDirLightExtrudeDist);
 
     // Tell params about current ambient light
-    mAutoParamDataSource->setAmbientLightColour(mAmbientLight);
-    // Tell rendersystem
-    mDestRenderSystem->setAmbientLight(mAmbientLight.r, mAmbientLight.g, mAmbientLight.b);
+    mAutoParamDataSource->setAmbientLightColour(mAmbientLight, mAmbientLightHemisphereDir);
 
     // Set camera window clipping planes (if any)
     if (mDestRenderSystem->getCapabilities()->hasCapability(RSC_USER_CLIP_PLANES))

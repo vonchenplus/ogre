@@ -188,6 +188,9 @@ namespace Ogre
         */
         void mapOutputChannel( size_t outChannel, IdString textureName );
 
+        /// @copydoc TextureDefinitionBase::removeTexture
+        virtual void removeTexture( IdString name );
+
         /** Returns the pass # of the given pass definition in this node.
             This operation is O(N). Useful for debug output.
         @param passDef

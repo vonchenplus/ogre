@@ -30,6 +30,10 @@ THE SOFTWARE.
 #include "Vao/OgreVertexArrayObject.h"
 #include "Vao/OgreIndexBufferPacked.h"
 
+//Needed by VertexArrayObject::clone
+#include "Vao/OgreAsyncTicket.h"
+#include "Vao/OgreVaoManager.h"
+
 namespace Ogre
 {
     typedef vector<VertexBufferPacked*>::type VertexBufferPackedVec;
@@ -91,5 +95,217 @@ namespace Ogre
 
         mPrimStart = primStart;
         mPrimCount = primCount;
+    }
+    //-----------------------------------------------------------------------------------
+    const VertexElement2* VertexArrayObject::findBySemantic( VertexElementSemantic semantic,
+                                                             size_t &outIndex, size_t &outOffset ) const
+    {
+        const VertexElement2 *retVal = 0;
+
+        VertexBufferPackedVec::const_iterator itBuffers = mVertexBuffers.begin();
+        VertexBufferPackedVec::const_iterator enBuffers = mVertexBuffers.end();
+
+        while( itBuffers != enBuffers && !retVal )
+        {
+            size_t accumOffset = 0;
+            const VertexElement2Vec &elements =  (*itBuffers)->getVertexElements();
+
+            VertexElement2Vec::const_iterator itElements = elements.begin();
+            VertexElement2Vec::const_iterator enElements = elements.end();
+
+            while( itElements != enElements && itElements->mSemantic != semantic )
+            {
+                accumOffset += v1::VertexElement::getTypeSize( itElements->mType );
+                ++itElements;
+            }
+
+            if( itElements != enElements && itElements->mSemantic == semantic )
+            {
+                outIndex = itBuffers - mVertexBuffers.begin();
+                outOffset = accumOffset;
+                retVal = &(*itElements);
+            }
+
+            ++itBuffers;
+        }
+
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    VertexElement2VecVec VertexArrayObject::getVertexDeclaration(void) const
+    {
+        VertexElement2VecVec retVal;
+        retVal.reserve( mVertexBuffers.size() );
+        VertexBufferPackedVec::const_iterator itBuffers = mVertexBuffers.begin();
+        VertexBufferPackedVec::const_iterator enBuffers = mVertexBuffers.end();
+
+        while( itBuffers != enBuffers )
+        {
+            retVal.push_back( (*itBuffers)->getVertexElements() );
+            ++itBuffers;
+        }
+
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    VertexArrayObject* VertexArrayObject::clone( VaoManager *vaoManager,
+                                                 SharedVertexBufferMap *sharedBuffers ) const
+    {
+        VertexBufferPackedVec newVertexBuffers;
+        newVertexBuffers.reserve( mVertexBuffers.size() );
+
+        VertexBufferPackedVec::const_iterator itBuffers = mVertexBuffers.begin();
+        VertexBufferPackedVec::const_iterator enBuffers = mVertexBuffers.end();
+
+        while( itBuffers != enBuffers )
+        {
+            if( sharedBuffers )
+            {
+                SharedVertexBufferMap::const_iterator itShared = sharedBuffers->find( *itBuffers );
+                if( itShared != sharedBuffers->end() )
+                {
+                    //This buffer is shared. Reuse the one we created in a previous call.
+                    newVertexBuffers.push_back( itShared->second );
+                    ++itBuffers;
+                    continue;
+                }
+            }
+
+            AsyncTicketPtr asyncTicket = (*itBuffers)->readRequest( 0, (*itBuffers)->getNumElements() );
+
+            void *dstData = OGRE_MALLOC_SIMD( (*itBuffers)->getTotalSizeBytes(), MEMCATEGORY_GEOMETRY );
+            FreeOnDestructor dataPtrContainer( dstData );
+
+            const void *srcData = asyncTicket->map();
+            memcpy( dstData, srcData, (*itBuffers)->getTotalSizeBytes() );
+            asyncTicket->unmap();
+
+            const bool keepAsShadow = (*itBuffers)->getShadowCopy() != 0;
+            VertexBufferPacked *newVertexBuffer = vaoManager->createVertexBuffer(
+                                                    (*itBuffers)->getVertexElements(),
+                                                    (*itBuffers)->getNumElements(),
+                                                    (*itBuffers)->getBufferType(),
+                                                    dstData, keepAsShadow );
+
+            if( keepAsShadow ) //Don't free the pointer ourselves
+                dataPtrContainer.ptr = 0;
+
+            newVertexBuffers.push_back( newVertexBuffer );
+
+            if( sharedBuffers )
+                (*sharedBuffers)[*itBuffers] = newVertexBuffer;
+
+            ++itBuffers;
+        }
+
+        IndexBufferPacked *newIndexBuffer = 0;
+        if( mIndexBuffer )
+        {
+            AsyncTicketPtr asyncTicket = mIndexBuffer->readRequest( 0, mIndexBuffer->getNumElements() );
+
+            void *dstData = OGRE_MALLOC_SIMD( mIndexBuffer->getTotalSizeBytes(), MEMCATEGORY_GEOMETRY );
+            FreeOnDestructor dataPtrContainer( dstData );
+
+            const void *srcData = asyncTicket->map();
+            memcpy( dstData, srcData, (*itBuffers)->getTotalSizeBytes() );
+            asyncTicket->unmap();
+
+            const bool keepAsShadow = mIndexBuffer->getShadowCopy() != 0;
+            newIndexBuffer = vaoManager->createIndexBuffer( mIndexBuffer->getIndexType(),
+                                                            mIndexBuffer->getNumElements(),
+                                                            mIndexBuffer->getBufferType(),
+                                                            dstData, keepAsShadow );
+
+            if( keepAsShadow ) //Don't free the pointer ourselves
+                dataPtrContainer.ptr = 0;
+        }
+
+        VertexArrayObject *retVal = vaoManager->createVertexArrayObject( newVertexBuffers,
+                                                                         newIndexBuffer,
+                                                                         mOperationType );
+        retVal->mPrimStart = mPrimStart;
+        retVal->mPrimCount = mPrimCount;
+
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void VertexArrayObject::readRequests( ReadRequestsArray &requests )
+    {
+        set<VertexBufferPacked*>::type seenBuffers;
+
+        ReadRequestsArray::iterator itor = requests.begin();
+        ReadRequestsArray::iterator end  = requests.end();
+
+        while( itor != end )
+        {
+            size_t bufferIdx, offset;
+            const VertexElement2 *vElement = findBySemantic( itor->semantic, bufferIdx, offset );
+            if( !vElement )
+            {
+                OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Cannot find semantic in VertexArrayObject",
+                             "VertexArrayObject::readRequests" );
+            }
+
+            VertexBufferPacked *vertexBuffer = mVertexBuffers[bufferIdx];
+
+            itor->type = vElement->mType;
+            itor->offset = offset;
+            itor->vertexBuffer = vertexBuffer;
+
+            if( seenBuffers.find( vertexBuffer ) == seenBuffers.end() )
+            {
+                itor->asyncTicket = vertexBuffer->readRequest( 0, vertexBuffer->getNumElements() );
+                seenBuffers.insert( vertexBuffer );
+            }
+
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void VertexArrayObject::mapAsyncTickets( ReadRequestsArray &tickets )
+    {
+        map<VertexBufferPacked const *, size_t>::type seenBuffers;
+
+        ReadRequestsArray::iterator itor = tickets.begin();
+        ReadRequestsArray::iterator end  = tickets.end();
+
+        while( itor != end )
+        {
+            if( !itor->asyncTicket.isNull() )
+            {
+                itor->data = reinterpret_cast<const char*>( itor->asyncTicket->map() );
+                itor->data += itor->offset;
+                seenBuffers[itor->vertexBuffer] = itor - tickets.begin();
+            }
+            else
+            {
+                map<VertexBufferPacked const *, size_t>::type::const_iterator it = seenBuffers.find(
+                                                                                itor->vertexBuffer );
+                assert( it != seenBuffers.end() &&
+                        "These tickets are invalid or already been unmapped" );
+
+                itor->data = tickets[it->second].data - tickets[it->second].offset + itor->offset;
+            }
+
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void VertexArrayObject::unmapAsyncTickets( ReadRequestsArray &tickets )
+    {
+        ReadRequestsArray::iterator itor = tickets.begin();
+        ReadRequestsArray::iterator end  = tickets.end();
+
+        while( itor != end )
+        {
+            itor->data = 0;
+            if( !itor->asyncTicket.isNull() )
+            {
+                itor->asyncTicket->unmap();
+                itor->asyncTicket.setNull();
+            }
+
+            ++itor;
+        }
     }
 }

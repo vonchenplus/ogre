@@ -96,6 +96,7 @@ namespace Ogre
 
     //Change per material (hash can be cached on the renderable)
     const IdString HlmsBaseProp::AlphaTest      = IdString( "alpha_test" );
+    const IdString HlmsBaseProp::AlphaBlend     = IdString( "hlms_alphablend" );
 
     const IdString HlmsBaseProp::GL3Plus        = IdString( "GL3+" );
     const IdString HlmsBaseProp::HighQuality    = IdString( "hlms_high_quality" );
@@ -252,13 +253,23 @@ namespace Ogre
 
         while( itor != end )
         {
-            enumeratePieceFiles( itor->dataFolder, itor->pieceFiles );
+            bool foundPieceFiles = enumeratePieceFiles( itor->dataFolder, itor->pieceFiles );
+
+            if( !foundPieceFiles )
+            {
+                LogManager::getSingleton().logMessage(
+                            "HLMS Library path '" + itor->dataFolder->getName() +
+                            "' has no piece files. Are you sure you provided "
+                            "the right path with read access?" );
+            }
+
             ++itor;
         }
     }
     //-----------------------------------------------------------------------------------
-    void Hlms::enumeratePieceFiles( Archive *dataFolder, StringVector *pieceFiles )
+    bool Hlms::enumeratePieceFiles( Archive *dataFolder, StringVector *pieceFiles )
     {
+        bool retVal = false;
         StringVectorPtr stringVectorPtr = dataFolder->list( false, false );
 
         StringVector stringVectorLowerCase( *stringVectorPtr );
@@ -284,6 +295,7 @@ namespace Ogre
                 if( itLowerCase->find( PieceFilePatterns[i] ) != String::npos ||
                     itLowerCase->find( "piece_all" ) != String::npos )
                 {
+                    retVal = true;
                     pieceFiles[i].push_back( *itor );
                 }
 
@@ -291,6 +303,8 @@ namespace Ogre
                 ++itor;
             }
         }
+
+        return retVal;
     }
     //-----------------------------------------------------------------------------------
     void Hlms::setProperty( IdString key, int32 value )
@@ -1629,7 +1643,9 @@ namespace Ogre
     uint16 Hlms::calculateHashForV1( Renderable *renderable )
     {
         v1::RenderOperation op;
-        renderable->getRenderOperation( op );
+        //The Hlms uses the pass scene data to know whether this is a caster pass.
+        //We want to know all the details, so request for the non-caster RenderOp.
+        renderable->getRenderOperation( op, false );
         v1::VertexDeclaration *vertexDecl = op.vertexData->vertexDeclaration;
         const v1::VertexDeclaration::VertexElementList &elementList = vertexDecl->getElements();
         v1::VertexDeclaration::VertexElementList::const_iterator itor = elementList.begin();
@@ -1650,7 +1666,7 @@ namespace Ogre
     uint16 Hlms::calculateHashForV2( Renderable *renderable )
     {
         //TODO: Account LOD
-        VertexArrayObject *vao = renderable->getVaos()[0];
+        VertexArrayObject *vao = renderable->getVaos( false )[0];
         const VertexBufferPackedVec &vertexBuffers = vao->getVertexBuffers();
 
         uint numTexCoords = 0;
@@ -1720,7 +1736,7 @@ namespace Ogre
         setProperty( HlmsBaseProp::Skeleton, renderable->hasSkeletonAnimation() );
 
         uint16 numTexCoords = 0;
-        if( renderable->getVaos().empty() )
+        if( renderable->getVaos( false ).empty() )
             numTexCoords = calculateHashForV1( renderable );
         else
             numTexCoords = calculateHashForV2( renderable );
@@ -1730,6 +1746,7 @@ namespace Ogre
         HlmsDatablock *datablock = renderable->getDatablock();
 
         setProperty( HlmsBaseProp::AlphaTest, datablock->getAlphaTest() != CMPF_ALWAYS_PASS );
+        setProperty( HlmsBaseProp::AlphaBlend, datablock->getBlendblock(false)->mIsTransparent );
 
         if( renderable->getUseIdentityWorldMatrix() )
             setProperty( HlmsBaseProp::IdentityWorld, 1 );
@@ -1752,11 +1769,13 @@ namespace Ogre
         //For shadow casters, turn normals off. UVs & diffuse also off unless there's alpha testing.
         setProperty( HlmsBaseProp::Normal, 0 );
         setProperty( HlmsBaseProp::QTangent, 0 );
+        setProperty( HlmsBaseProp::AlphaBlend, datablock->getBlendblock(true)->mIsTransparent );
+        PiecesMap piecesCaster[NumShaderTypes];
         if( datablock->getAlphaTest() != CMPF_ALWAYS_PASS )
         {
-            setProperty( HlmsBaseProp::UvCount, 0 );
+            piecesCaster[PixelShader][HlmsBasePieces::AlphaTestCmpFunc] =
+                    pieces[PixelShader][HlmsBasePieces::AlphaTestCmpFunc];
         }
-        PiecesMap piecesCaster[NumShaderTypes];
         calculateHashForPreCaster( renderable, piecesCaster );
         uint32 renderableCasterHash = this->addRenderableCache( mSetProperties, piecesCaster );
 
@@ -1998,6 +2017,11 @@ namespace Ogre
             mListener = &c_defaultListener;
         else
             mListener = listener;
+    }
+    //-----------------------------------------------------------------------------------
+    HlmsListener* Hlms::getListener(void) const
+    {
+        return mListener == &c_defaultListener ? 0 : mListener;
     }
     //-----------------------------------------------------------------------------------
     void Hlms::_notifyShadowMappingBackFaceSetting(void)

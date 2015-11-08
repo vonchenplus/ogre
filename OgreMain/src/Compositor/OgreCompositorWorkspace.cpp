@@ -442,6 +442,18 @@ namespace Ogre
         connectAllNodes();
     }
     //-----------------------------------------------------------------------------------
+    void CompositorWorkspace::resetAllNumPassesLeft(void)
+    {
+        CompositorNodeVec::const_iterator itor = mNodeSequence.begin();
+        CompositorNodeVec::const_iterator end  = mNodeSequence.end();
+
+        while( itor != end )
+        {
+            (*itor)->resetAllNumPassesLeft();
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
     Camera* CompositorWorkspace::findCamera( IdString cameraName ) const 
     {
         return mSceneManager->findCamera( cameraName );
@@ -489,7 +501,7 @@ namespace Ogre
     void CompositorWorkspace::_update(void)
     {
         if( mListener )
-            mListener->workspacePreUpdate();
+            mListener->workspacePreUpdate( this );
 
         //We need to do this so that D3D9 (and D3D11?) knows which device
         //is active now, so that our calls go to the right device.

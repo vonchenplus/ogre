@@ -55,7 +55,7 @@ namespace Ogre
 #endif
     }
     //-----------------------------------------------------------------------------------
-    void SkeletonAnimation::initialize(void)
+    void SkeletonAnimation::_initialize(void)
     {
         const FastArray<size_t> &slotStarts = *mSlotStarts;
 
@@ -95,6 +95,24 @@ namespace Ogre
     void SkeletonAnimation::addFrame( Real frames )
     {
         mCurrentFrame += frames;
+        Real maxFrame = mDefinition->mNumFrames;
+
+        if( !mLoop )
+        {
+            mCurrentFrame = Ogre::max( mCurrentFrame, 0 );
+            mCurrentFrame = Ogre::min( mCurrentFrame, maxFrame );
+        }
+        else
+        {
+            mCurrentFrame = fmod( mCurrentFrame, maxFrame );
+            if( mCurrentFrame < 0 )
+                mCurrentFrame = maxFrame - mCurrentFrame;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void SkeletonAnimation::setFrame( Real frames )
+    {
+        mCurrentFrame = frames;
         Real maxFrame = mDefinition->mNumFrames;
 
         if( !mLoop )

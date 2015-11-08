@@ -210,6 +210,19 @@ namespace v1
     {
     }
     //-----------------------------------------------------------------------------------
+    void D3D11DepthTextureTarget::setDepthBufferPool( uint16 poolId )
+    {
+        const uint16 oldPoolId = mDepthBufferPoolId;
+
+        RenderTexture::setDepthBufferPool( poolId );
+
+        if( oldPoolId != poolId )
+        {
+            RenderSystem *renderSystem = Root::getSingleton().getRenderSystem();
+            renderSystem->setDepthBufferFor( this, true );
+        }
+    }
+    //-----------------------------------------------------------------------------------
     bool D3D11DepthTextureTarget::attachDepthBuffer( DepthBuffer *depthBuffer, bool exactFormatMatch )
     {
         bool retVal = RenderTexture::attachDepthBuffer( depthBuffer, exactFormatMatch );
@@ -224,7 +237,7 @@ namespace v1
         return retVal;
     }
     //-----------------------------------------------------------------------------------
-    void D3D11DepthTextureTarget::detachDepthBuffer()
+    void D3D11DepthTextureTarget::detachDepthBuffer(void)
     {
         RenderTexture::detachDepthBuffer();
         mUltimateTextureOwner->_setD3DShaderResourceView( 0 );

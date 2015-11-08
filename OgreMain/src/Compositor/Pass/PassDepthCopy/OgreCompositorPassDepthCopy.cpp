@@ -62,8 +62,9 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     //-----------------------------------------------------------------------------------
     CompositorPassDepthCopy::CompositorPassDepthCopy( const CompositorPassDepthCopyDef *definition,
+                                                      const CompositorChannel &target,
                                                       CompositorNode *parentNode ) :
-                CompositorPass( definition, parentNode, true ),
+                CompositorPass( definition, target, parentNode ),
                 mDefinition( definition ),
                 mCopyFailed( false )
     {
@@ -101,7 +102,7 @@ namespace Ogre
         DepthBuffer *dstDepthBuffer = dstChannel->target->getDepthBuffer();
         if( !mCopyFailed )
         {
-            mCopyFailed = srcDepthBuffer->copyTo( dstDepthBuffer );
+            mCopyFailed = !srcDepthBuffer->copyTo( dstDepthBuffer );
         }
 
         if( mCopyFailed && srcDepthBuffer != dstDepthBuffer &&

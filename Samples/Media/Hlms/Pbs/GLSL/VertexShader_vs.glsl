@@ -1,4 +1,3 @@
-@property( !false )
 @insertpiece( SetCrossPlatformSettings )
 
 out gl_PerVertex
@@ -32,7 +31,7 @@ in uint drawId;
 
 @insertpiece( custom_vs_attributes )
 
-@property( !hlms_shadowcaster || !hlms_shadow_uses_depth_texture )
+@property( !hlms_shadowcaster || !hlms_shadow_uses_depth_texture || alpha_test )
 out block
 {
 @insertpiece( VStoPS_block )
@@ -166,8 +165,6 @@ void main()
 
 	@insertpiece( SkeletonTransform )
 	@insertpiece( VertexTransform )
-@foreach( hlms_uv_count, n )
-	outVs.uv@n = uv@n;@end
 
 @property( !hlms_shadowcaster )
 	@insertpiece( ShadowReceive )
@@ -177,7 +174,6 @@ void main()
 
 @property( hlms_pssm_splits )	outVs.depth = gl_Position.z;@end
 
-    outVs.drawId = drawId;
 @end @property( hlms_shadowcaster )
     float shadowConstantBias = uintBitsToFloat( instance.worldMaterialIdx[drawId].y );
 
@@ -193,39 +189,12 @@ void main()
 	gl_Position.z = (gl_Position.z + shadowConstantBias * pass.depthRange.y) * pass.depthRange.y * gl_Position.w;
 @end
 
+	/// hlms_uv_count will be 0 on shadow caster passes w/out alpha test
+@foreach( hlms_uv_count, n )
+	outVs.uv@n = uv@n;@end
+
+@property( !hlms_shadowcaster || alpha_test )
+	outVs.drawId = drawId;@end
+
 	@insertpiece( custom_vs_posExecution )
 }
-@end
-@property( false )
-#version 430 core
-#extension GL_ARB_shading_language_420pack: require
-
-layout(std140) uniform;
-
-@insertpiece( Common_Matrix_DeclUnpackMatrix4x4 )
-@insertpiece( Common_Matrix_DeclUnpackMatrix4x3 )
-
-in vec4 vertex;
-in uint drawId;
-uniform samplerBuffer worldMatBuf;
-
-void main()
-{
-	mat4 worldViewProj;
-	/*{
-                vec4 row0 = texelFetch( worldMatBuf, int(drawId * 2u) );
-                vec4 row1 = texelFetch( worldMatBuf, int(drawId * 2u + 1u) );
-                vec4 row2 = texelFetch( worldMatBuf, int(drawId * 2u + 2u) );
-                vec4 row3 = texelFetch( worldMatBuf, int(drawId * 2u + 3u) );
-
-		worldViewProj = mat4(
-					row0.x, row1.x, row2.x, row3.x,
-					row0.y, row1.y, row2.y, row3.y,
-					row0.z, row1.z, row2.z, row3.z,
-					row0.w, row1.w, row2.w, row3.w );
-	}*/
-        worldViewProj = UNPACK_MAT4( worldMatBuf, drawId << 1u );
-
-	gl_Position = worldViewProj * vertex;
-}
-@end
