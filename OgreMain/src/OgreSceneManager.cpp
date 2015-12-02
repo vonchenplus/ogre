@@ -136,7 +136,6 @@ mShadowTextureCustomCasterPass(0),
 mVisibilityMask(0xFFFFFFFF & VisibilityFlags::RESERVED_VISIBILITY_FLAGS),
 mFindVisibleObjects(true),
 mNumWorkerThreads( numWorkerThreads ),
-mExitWorkerThreads( false ),
 mUpdateBoundsRequest( 0 ),
 mInstancingThreadedCullingMethod( threadedCullingMethod ),
 mUserTask( 0 ),
@@ -368,15 +367,6 @@ void SceneManager::destroyCamera(Camera *cam)
 
     checkMovableObjectIntegrity( mCameras, cam );
 
-    // Find in list
-    CameraList::iterator itor = mCameras.begin() + cam->mGlobalIndex;
-
-    IdString camName( cam->getName() );
-
-    itor = efficientVectorRemove( mCameras, itor );
-    OGRE_DELETE cam;
-    cam = 0;
-
     {
         FrustumVec::iterator it = std::find( mVisibleCameras.begin(), mVisibleCameras.end(), cam );
         if( it != mVisibleCameras.end() )
@@ -386,6 +376,14 @@ void SceneManager::destroyCamera(Camera *cam)
         if( it != mCubeMapCameras.end() )
             efficientVectorRemove( mCubeMapCameras, it );
     }
+
+    IdString camName( cam->getName() );
+
+    // Find in list
+    CameraList::iterator itor = mCameras.begin() + cam->mGlobalIndex;
+    itor = efficientVectorRemove( mCameras, itor );
+    OGRE_DELETE cam;
+    cam = 0;
 
     //The node that was at the end got swapped and has now a different index
     if( itor != mCameras.end() )
@@ -2346,21 +2344,22 @@ void SceneManager::buildLightList()
         mGlobalLightList.lights.appendPOD( mGlobalLightListPerThread[i].begin(),
                                            mGlobalLightListPerThread[i].end() );
 
+        size_t numCollectedLights = mGlobalLightListPerThread[i].size();
+
         size_t srcOffset = mBuildLightListRequestPerThread[i].startLightIdx;
 
         if( dstOffset != srcOffset )
         {
             //Make it contiguous
-            size_t numCollectedLights = mGlobalLightListPerThread[i].size();
             memmove( mGlobalLightList.visibilityMask + dstOffset,
                      mGlobalLightList.visibilityMask + srcOffset,
                      sizeof( uint32 ) * numCollectedLights );
             memmove( mGlobalLightList.boundingSphere + dstOffset,
                      mGlobalLightList.boundingSphere + srcOffset,
                      sizeof( Sphere ) * numCollectedLights );
-
-            dstOffset += numCollectedLights;
         }
+
+        dstOffset += numCollectedLights;
     }
 
     //Now fire the threads again, to build the per-MovableObject lists
@@ -5448,9 +5447,9 @@ void SceneManager::startWorkerThreads()
 //---------------------------------------------------------------------
 void SceneManager::stopWorkerThreads()
 {
-    mExitWorkerThreads = true;
-    mWorkerThreadsBarrier->sync(); // Wake up worker threads so they stop
-    Threads::WaitForThreads( mWorkerThreads );
+    mRequestType = STOP_THREADS;
+    mWorkerThreadsBarrier->sync(); //Fire threads
+    mWorkerThreadsBarrier->sync(); //Wait them to complete
 
     delete mWorkerThreadsBarrier;
     mWorkerThreadsBarrier = 0;
@@ -5458,46 +5457,47 @@ void SceneManager::stopWorkerThreads()
 //---------------------------------------------------------------------
 unsigned long SceneManager::_updateWorkerThread( ThreadHandle *threadHandle )
 {
+    bool exitThread = false;
     size_t threadIdx = threadHandle->getThreadIdx();
-    while( !mExitWorkerThreads )
+    while( !exitThread )
     {
         mWorkerThreadsBarrier->sync();
-        if( !mExitWorkerThreads )
+        switch( mRequestType )
         {
-            switch( mRequestType )
-            {
-            case CULL_FRUSTUM:
-                cullFrustum( mCurrentCullFrustumRequest, threadIdx );
-                break;
-            case UPDATE_ALL_ANIMATIONS:
-                updateAllAnimationsThread( threadIdx );
-                break;
-            case UPDATE_ALL_TRANSFORMS:
-                updateAllTransformsThread( mUpdateTransformRequest, threadIdx );
-                break;
-            case UPDATE_ALL_BOUNDS:
-                updateAllBoundsThread( *mUpdateBoundsRequest, threadIdx );
-                break;
-            case UPDATE_ALL_LODS:
-                updateAllLodsThread( mUpdateLodRequest, threadIdx );
-                break;
-            case UPDATE_INSTANCE_MANAGERS:
-                updateInstanceManagersThread( threadIdx );
-                break;
-            case BUILD_LIGHT_LIST01:
-                buildLightListThread01( mBuildLightListRequestPerThread[threadIdx], threadIdx );
-                break;
-            case BUILD_LIGHT_LIST02:
-                buildLightListThread02( threadIdx );
-                break;
-            case USER_UNIFORM_SCALABLE_TASK:
-                mUserTask->execute( threadIdx, mNumWorkerThreads );
-                break;
-            default:
-                break;
-            }
-            mWorkerThreadsBarrier->sync();
+        case CULL_FRUSTUM:
+            cullFrustum( mCurrentCullFrustumRequest, threadIdx );
+            break;
+        case UPDATE_ALL_ANIMATIONS:
+            updateAllAnimationsThread( threadIdx );
+            break;
+        case UPDATE_ALL_TRANSFORMS:
+            updateAllTransformsThread( mUpdateTransformRequest, threadIdx );
+            break;
+        case UPDATE_ALL_BOUNDS:
+            updateAllBoundsThread( *mUpdateBoundsRequest, threadIdx );
+            break;
+        case UPDATE_ALL_LODS:
+            updateAllLodsThread( mUpdateLodRequest, threadIdx );
+            break;
+        case UPDATE_INSTANCE_MANAGERS:
+            updateInstanceManagersThread( threadIdx );
+            break;
+        case BUILD_LIGHT_LIST01:
+            buildLightListThread01( mBuildLightListRequestPerThread[threadIdx], threadIdx );
+            break;
+        case BUILD_LIGHT_LIST02:
+            buildLightListThread02( threadIdx );
+            break;
+        case USER_UNIFORM_SCALABLE_TASK:
+            mUserTask->execute( threadIdx, mNumWorkerThreads );
+            break;
+        case STOP_THREADS:
+            exitThread = true;
+            break;
+        default:
+            break;
         }
+        mWorkerThreadsBarrier->sync();
     }
 
     return 0;

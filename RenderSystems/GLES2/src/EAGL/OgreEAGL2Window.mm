@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreGLES2RenderSystem.h"
 #include "OgreGLES2PixelFormat.h"
 #include "OgrePixelBox.h"
+#include "OgreViewport.h"
 #include <iomanip>
 
 #import <UIKit/UIWindow.h>
@@ -388,6 +389,8 @@ namespace Ogre {
 
     void EAGL2Window::swapBuffers()
     {
+        RenderWindow::swapBuffers();
+
         if (mClosed)
         {
             return;
