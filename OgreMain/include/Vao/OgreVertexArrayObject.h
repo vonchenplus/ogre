@@ -73,27 +73,36 @@ namespace Ogre
         /// This ID may be shared by many VertexArrayObject instances.
         uint32 mRenderQueueId;
 
+        /// Used to generate the PSO (@see HlmsPso). RenderSystem-specific quirks:
+        ///     In OpenGL mInputLayoutId is always 0. mVaoName changes when either the
+        ///     layout or the internal vertex/index buffer changes
+        ///
+        ///     In the rest of the systems same vertex layouts share the same ID,
+        ///     mVaoName changes when the vertex/index buffer needs to change.
+        uint8 mInputLayoutId;
+
         uint32                  mPrimStart;
         uint32                  mPrimCount;
         VertexBufferPackedVec   mVertexBuffers;
         IndexBufferPacked       *mIndexBuffer;
 
         /// The type of operation to perform
-        v1::RenderOperation::OperationType mOperationType;
+        OperationType mOperationType;
 
     public:
-        VertexArrayObject( uint32 vaoName, uint32 renderQueueId,
+        VertexArrayObject( uint32 vaoName, uint32 renderQueueId, uint8 inputLayoutId,
                            const VertexBufferPackedVec &vertexBuffers,
                            IndexBufferPacked *indexBuffer,
-                           v1::RenderOperation::OperationType operationType );
+                           OperationType operationType );
 
         uint32 getRenderQueueId(void) const                             { return mRenderQueueId; }
         uint32 getVaoName(void) const                                   { return mVaoName; }
+        uint8 getInputLayoutId(void) const                              { return mInputLayoutId; }
 
         const VertexBufferPackedVec& getVertexBuffers(void) const       { return mVertexBuffers; }
         IndexBufferPacked* getIndexBuffer(void) const                   { return mIndexBuffer; }
 
-        v1::RenderOperation::OperationType getOperationType(void) const { return mOperationType; }
+        OperationType getOperationType(void) const { return mOperationType; }
 
         /** Limits the range of triangle primitives that is rendered.
             For VAOs with index buffers, this controls the index start & count,
@@ -132,6 +141,8 @@ namespace Ogre
         /// iterate through all of them and allocate the vector. You should cache
         /// the result rather than calling this function frequently.
         VertexElement2VecVec getVertexDeclaration(void) const;
+
+        static VertexElement2VecVec getVertexDeclaration( const VertexBufferPackedVec &vertexBuffers );
 
         /** Clones the vertex & index buffers and creates a new VertexArrayObject.
             The only exception is when one of the vertex buffers is already in sharedBuffers,
