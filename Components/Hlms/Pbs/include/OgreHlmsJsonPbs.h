@@ -49,7 +49,7 @@ namespace Ogre
         HlmsManager *mHlmsManager;
 
         static HlmsPbsDatablock::Workflows parseWorkflow( const char *value );
-        static PbsBrdf::PbsBrdf HlmsJsonPbs::parseBrdf(const char *value);
+        static PbsBrdf::PbsBrdf parseBrdf( const char *value );
         static HlmsPbsDatablock::TransparencyModes parseTransparencyMode( const char *value );
         static PbsBlendModes parseBlendMode( const char *value );
         static void parseFresnelMode( const char *value, bool &outIsColoured, bool &outUseIOR );
@@ -62,11 +62,36 @@ namespace Ogre
                           PbsTextureTypes textureType, HlmsPbsDatablock *datablock,
                           PackedTexture textures[NUM_PBSM_TEXTURE_TYPES] );
 
+        static void toQuotedStr( HlmsPbsDatablock::Workflows value, String &outString );
+        static void toQuotedStr( HlmsPbsDatablock::TransparencyModes value, String &outString );
+
+        void saveFresnel( const HlmsPbsDatablock *datablock, String &outString );
+        void saveTexture( const char *blockName,
+                          PbsTextureTypes textureType,
+                          const HlmsPbsDatablock *datablock, String &outString,
+                          bool writeTexture=true );
+        void saveTexture( float value, const char *blockName,
+                          PbsTextureTypes textureType,
+                          const HlmsPbsDatablock *datablock, String &outString,
+                          bool writeTexture=true );
+        void saveTexture( const Vector3 &value, const char *blockName,
+                          PbsTextureTypes textureType,
+                          const HlmsPbsDatablock *datablock, String &outString,
+                          bool writeTexture=true );
+
+        void saveTexture( const Vector3 &value, const char *blockName, PbsTextureTypes textureType,
+                          bool writeValue, bool scalarValue, bool isFresnel, bool writeTexture,
+                          const HlmsPbsDatablock *datablock, String &outString );
+
     public:
         HlmsJsonPbs( HlmsManager *hlmsManager );
 
         void loadMaterial( const rapidjson::Value &json, const HlmsJson::NamedBlocks &blocks,
                            HlmsDatablock *datablock );
+        void saveMaterial( const HlmsDatablock *datablock, String &outString );
+
+        static void collectSamplerblocks( const HlmsDatablock *datablock,
+                                          set<const HlmsSamplerblock*>::type &outSamplerblocks );
     };
 
     /** @} */

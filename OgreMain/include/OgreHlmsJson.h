@@ -72,6 +72,7 @@ namespace Ogre
     protected:
         HlmsManager *mHlmsManager;
 
+    public:
         static FilterOptions parseFilterOptions( const char *value );
         static TextureAddressingMode parseTextureAddressingMode( const char *value );
         static CompareFunction parseCompareFunction( const char *value );
@@ -80,19 +81,73 @@ namespace Ogre
         static SceneBlendFactor parseBlendFactor( const char *value );
         static SceneBlendOperation parseBlendOperation( const char *value );
 
+    protected:
         static void loadSampler( const rapidjson::Value &samplers, HlmsSamplerblock &samplerblock );
-        static void loadMacroblock( const rapidjson::Value &macroblocksJson, HlmsMacroblock &macroblock );
-        static void loadBlendblock( const rapidjson::Value &blendblocksJson, HlmsBlendblock &blendblock );
+        static void loadMacroblock( const rapidjson::Value &macroblocksJson,
+                                    HlmsMacroblock &macroblock );
+        static void loadBlendblock( const rapidjson::Value &blendblocksJson,
+                                    HlmsBlendblock &blendblock );
         static void loadDatablockCommon( const rapidjson::Value &json, const NamedBlocks &blocks,
                                          HlmsDatablock *datablock );
 
         void loadDatablocks( const rapidjson::Value &json, const NamedBlocks &blocks, Hlms *hlms );
 
     public:
+        static void toQuotedStr( FilterOptions value, String &outString );
+        static void toQuotedStr( TextureAddressingMode value, String &outString );
+        static void toQuotedStr( CompareFunction value, String &outString );
+        static void toQuotedStr( CullingMode value, String &outString );
+        static void toQuotedStr( PolygonMode value, String &outString );
+        static void toQuotedStr( SceneBlendFactor value, String &outString );
+        static void toQuotedStr( SceneBlendOperation value, String &outString );
+        static void toStr( const ColourValue &value, String &outString );
+        static void toStr( const Vector2 &value, String &outString );
+        static void toStr( const Vector3 &value, String &outString );
+
+        String getName( const HlmsMacroblock *macroblock ) const;
+        String getName( const HlmsBlendblock *blendblock ) const;
+        static String getName( const HlmsSamplerblock *samplerblock );
+
+    protected:
+        bool hasCustomShadowMacroblock( const HlmsDatablock *datablock ) const;
+
+        void saveSamplerblock( const HlmsSamplerblock *samplerblock, String &outString );
+        void saveMacroblock( const HlmsMacroblock *macroblock, String &outString );
+        void saveBlendblock( const HlmsBlendblock *blendblock, String &outString );
+        void saveDatablock( const String &fullName, const HlmsDatablock *datablock, String &outString );
+
+    public:
         HlmsJson( HlmsManager *hlmsManager );
         ~HlmsJson();
 
+        /** Loads all Hlms datablocks from a JSON formatted string.
+        @remarks
+            Will throw ERR_INVALIDPARAMS if JSON is invalid.
+        @param filename
+            Name of the file. It's only used for providing additional
+            info on the log about where it is failing.
+        @param jsonString
+            Null-terminated C string (UTF8) containing
+            valid JSON with the Hlms definitions.
+        */
         void loadMaterials( const String &filename, const char *jsonString );
+
+        /** Saves all the Datablocks defined in the given
+            Hlms into a JSON formatted string.
+        @param hlms
+            Hlms from whose materials to save.
+        @param outString [out]
+            String with valid JSON output. String is appended to existing contents.
+        */
+        void saveMaterials( const Hlms *hlms, String &outString );
+
+        /** Saves a single datablock to a string
+        @param datablock
+            Material to save.
+        @param outString [out]
+            String with valid JSON output. String is appended to existing contents.
+        */
+        void saveMaterial( const HlmsDatablock *datablock, String &outString );
     };
     /** @} */
     /** @} */
