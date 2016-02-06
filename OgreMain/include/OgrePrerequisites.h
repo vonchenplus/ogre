@@ -207,6 +207,7 @@ namespace Ogre {
     class HlmsLowLevelDatablock;
     struct HlmsMacroblock;
     class HlmsManager;
+    struct HlmsPso;
     struct HlmsSamplerblock;
     class HlmsTextureManager;
     struct HlmsTexturePack;
@@ -331,6 +332,7 @@ namespace Ogre {
     class VertexAnimationTrack;
     struct VertexArrayObject;
     class VertexBufferPacked;
+    class WireAabb;
     class WireBoundingBox;
     class WorkQueue;
     class CompositorManager2;
