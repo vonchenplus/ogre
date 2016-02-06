@@ -118,10 +118,8 @@ namespace Ogre
         virtual void _endFrame(void);
         virtual void _setViewport(Viewport *vp);
 
-        virtual void _setHlmsMacroblock( const HlmsMacroblock *macroblock );
-        virtual void _setHlmsBlendblock( const HlmsBlendblock *blendblock );
         virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *Samplerblock );
-        virtual void _setProgramsFromHlms( const HlmsCache *hlmsCache );
+        virtual void _setPipelineStateObject( const HlmsPso *pso );
 
         virtual VertexElementType getColourVertexElementType(void) const;
         virtual void _convertProjectionMatrix(const Matrix4& matrix,
@@ -135,10 +133,7 @@ namespace Ogre
             Matrix4& dest, bool forGpuProgram = false) {}
         virtual void _applyObliqueDepthProjection(Matrix4& matrix, const Plane& plane,
             bool forGpuProgram) {}
-        virtual void setStencilCheckEnabled(bool enabled) {}
 
-        virtual void setVertexDeclaration(v1::VertexDeclaration* decl);
-        virtual void setVertexBufferBinding(v1::VertexBufferBinding* binding);
         virtual void _setVertexArrayObject( const VertexArrayObject *vao );
 
         virtual void _render( const CbDrawCallIndexed *cmd );
