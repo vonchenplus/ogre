@@ -1286,6 +1286,10 @@ namespace Ogre
         mIds["comp_func"]       = ID_COMP_FUNC;
         mIds["ref_value"]       = ID_REF_VALUE;
         mIds["mask"]            = ID_MASK;
+        mIds["read_mask"]       = ID_READ_MASK;
+        mIds["both"]            = ID_BOTH;
+        mIds["front"]           = ID_FRONT;
+        mIds["back"]            = ID_BACK;
         mIds["fail_op"]         = ID_FAIL_OP;
         mIds["keep"]            = ID_KEEP;
         mIds["increment"]       = ID_INCREMENT;
@@ -1295,7 +1299,6 @@ namespace Ogre
         mIds["invert"]          = ID_INVERT;
         mIds["depth_fail_op"]   = ID_DEPTH_FAIL_OP;
         mIds["pass_op"]         = ID_PASS_OP;
-        mIds["two_sided"]       = ID_TWO_SIDED;
 
         mIds["uav"]             = ID_UAV;
         mIds["uav_external"]    = ID_UAV_EXTERNAL;
