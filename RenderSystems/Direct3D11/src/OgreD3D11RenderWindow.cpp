@@ -561,6 +561,10 @@ namespace Ogre
         rsys->fireDeviceEvent(&mDevice,"RenderWindowBeforeResize",this);
 
         _destroySizeDependedD3DResources();
+        
+        // Call flush before resize buffers to ensure destruction of resources.
+        // not doing so may result in 'Out of memory' exception.
+        mDevice.GetImmediateContext()->Flush();
 
         // width and height can be zero to autodetect size, therefore do not rely on them
         HRESULT hr = mpSwapChain->ResizeBuffers(mSwapChainDesc.BufferCount, width, height, _getSwapChainFormat(), 0);
@@ -572,7 +576,7 @@ namespace Ogre
             return;
         }
         else if(FAILED(hr))
-            OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr, "Error resizing surfaces", "D3D11RenderWindowSwapChainBased::_resizeSwapChainBuffers");
+            OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr, "Unable to resize swap chain", "D3D11RenderWindowSwapChainBased::_resizeSwapChainBuffers");
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
         mpSwapChain->GetDesc(&mSwapChainDesc);
@@ -989,7 +993,14 @@ namespace Ogre
     //---------------------------------------------------------------------
     bool D3D11RenderWindowHwnd::isVisible() const
     {
-        return (mHWnd && !IsIconic(mHWnd));
+        HWND currentWindowHandle = mHWnd;
+        bool visible;
+        while ((visible = (IsIconic(currentWindowHandle) == false)) &&
+            (GetWindowLong(currentWindowHandle, GWL_STYLE) & WS_CHILD) != 0)
+        {
+            currentWindowHandle = GetParent(currentWindowHandle);
+        } 
+        return visible;
     }
     //---------------------------------------------------------------------
     void D3D11RenderWindowHwnd::setHidden(bool hidden)
