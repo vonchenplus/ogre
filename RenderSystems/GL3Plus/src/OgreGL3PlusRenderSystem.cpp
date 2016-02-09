@@ -113,6 +113,7 @@ namespace Ogre {
 
     GL3PlusRenderSystem::GL3PlusRenderSystem()
         : mDepthWrite(true),
+          mScissorsEnabled(false),
           mStencilWriteMask(0xFFFFFFFF),
           mShaderManager(0),
           mGLSLShaderFactory(0),
@@ -159,6 +160,7 @@ namespace Ogre {
         mCurrentComputeShader = 0;
         mPolygonMode = GL_FILL;
         mEnableFixedPipeline = false;
+        mLargestSupportedAnisotropy = 1;
     }
 
     GL3PlusRenderSystem::~GL3PlusRenderSystem()
@@ -887,37 +889,14 @@ namespace Ogre {
             // val[2] = quadratic * correction;
             // val[3] = 1;
 
-            if (mCurrentCapabilities->hasCapability(RSC_VERTEX_PROGRAM))
-            {
-                if (mHasGL32)
-                {
-                    OGRE_CHECK_GL_ERROR(glEnable(GL_PROGRAM_POINT_SIZE));
-                }
-                else
-                {
-                    OGRE_CHECK_GL_ERROR(glEnable(GL_VERTEX_PROGRAM_POINT_SIZE));
-                }
-            }
+            OGRE_CHECK_GL_ERROR(glEnable(GL_PROGRAM_POINT_SIZE));
         }
         else
         {
-            if (mCurrentCapabilities->hasCapability(RSC_VERTEX_PROGRAM))
-            {
-                if (mHasGL32)
-                {
-                    OGRE_CHECK_GL_ERROR(glDisable(GL_PROGRAM_POINT_SIZE));
-                }
-                else
-                {
-                    OGRE_CHECK_GL_ERROR(glDisable(GL_VERTEX_PROGRAM_POINT_SIZE));
-                }
-            }
+            OGRE_CHECK_GL_ERROR(glDisable(GL_PROGRAM_POINT_SIZE));
         }
 
-        //FIXME Points do not seem affected by setting this.
-        // OGRE_CHECK_GL_ERROR(glPointSize(size));
-        OGRE_CHECK_GL_ERROR(glPointSize(30.0));
-
+        OGRE_CHECK_GL_ERROR(glPointSize(size));
         //OGRE_CHECK_GL_ERROR(glPointParameterf(GL_POINT_FADE_THRESHOLD_SIZE, 64.0));
     }
 
@@ -1035,13 +1014,10 @@ namespace Ogre {
 
     void GL3PlusRenderSystem::_setTextureMipmapBias(size_t stage, float bias)
     {
-        if (mCurrentCapabilities->hasCapability(RSC_MIPMAP_LOD_BIAS))
+        if (activateGLTextureUnit(stage))
         {
-            if (activateGLTextureUnit(stage))
-            {
-                OGRE_CHECK_GL_ERROR(glTexParameterf(mTextureTypes[stage], GL_TEXTURE_LOD_BIAS, bias));
-                activateGLTextureUnit(0);
-            }
+            OGRE_CHECK_GL_ERROR(glTexParameterf(mTextureTypes[stage], GL_TEXTURE_LOD_BIAS, bias));
+            activateGLTextureUnit(0);
         }
     }
 
@@ -1186,7 +1162,7 @@ namespace Ogre {
             a2c = alphaToCoverage;
         }
 
-        if (a2c != lasta2c && getCapabilities()->hasCapability(RSC_ALPHA_TO_COVERAGE))
+        if (a2c != lasta2c)
         {
             if (a2c)
             {
@@ -1248,12 +1224,14 @@ namespace Ogre {
                         "Cannot begin frame - no viewport selected.",
                         "GL3PlusRenderSystem::_beginFrame");
 
+        mScissorsEnabled = true;
         OGRE_CHECK_GL_ERROR(glEnable(GL_SCISSOR_TEST));
     }
 
     void GL3PlusRenderSystem::_endFrame(void)
     {
         // Deactivate the viewport clipping.
+        mScissorsEnabled = false;
         OGRE_CHECK_GL_ERROR(glDisable(GL_SCISSOR_TEST));
 
         OGRE_CHECK_GL_ERROR(glDisable(GL_DEPTH_CLAMP));
@@ -1383,10 +1361,6 @@ namespace Ogre {
         mColourWrite[1] = blue;
         mColourWrite[2] = green;
         mColourWrite[3] = alpha;
-    }
-
-    void GL3PlusRenderSystem::_setFog(FogMode mode, const ColourValue& colour, Real density, Real start, Real end)
-    {
     }
 
     void GL3PlusRenderSystem::_convertProjectionMatrix(const Matrix4& matrix,
@@ -1729,12 +1703,7 @@ namespace Ogre {
         if (!activateGLTextureUnit(unit))
             return;
 
-        GLfloat largest_supported_anisotropy = 0;
-        OGRE_CHECK_GL_ERROR(glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &largest_supported_anisotropy));
-
-        if (maxAnisotropy > largest_supported_anisotropy)
-            maxAnisotropy = largest_supported_anisotropy ?
-                static_cast<uint>(largest_supported_anisotropy) : 1;
+        maxAnisotropy = std::min<uint>(mLargestSupportedAnisotropy, maxAnisotropy);
         if (_getCurrentAnisotropy(unit) != maxAnisotropy)
             OGRE_CHECK_GL_ERROR(glTexParameterf(mTextureTypes[unit], GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy));
 
@@ -1768,7 +1737,7 @@ namespace Ogre {
 
         // Bind VAO (set of per-vertex attributes: position, normal, etc.).
         bool updateVAO = true;
-        if (Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
+        if (mCurrentCapabilities->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
         {
             GLSLSeparableProgram* separableProgram =
                 GLSLSeparableProgramManager::getSingleton().getCurrentSeparableProgram();
@@ -2022,7 +1991,7 @@ namespace Ogre {
         // Unbind VAO (if updated).
         if (updateVAO)
         {
-            if (Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
+            if (mCurrentCapabilities->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
             {
                 GLSLSeparableProgram* separableProgram =
                     GLSLSeparableProgramManager::getSingleton().getCurrentSeparableProgram();
@@ -2054,6 +2023,7 @@ namespace Ogre {
                                              size_t top, size_t right,
                                              size_t bottom)
     {
+        mScissorsEnabled = enabled;
         // If request texture flipping, use "upper-left", otherwise use "lower-left"
         bool flipping = mActiveRenderTarget->requiresTextureFlipping();
         //  GL measures from the bottom, not the top
@@ -2133,8 +2103,7 @@ namespace Ogre {
 
         // Should be enable scissor test due the clear region is
         // relied on scissor box bounds.
-        GLboolean scissorTestEnabled = glIsEnabled(GL_SCISSOR_TEST);
-        if (!scissorTestEnabled)
+        if (!mScissorsEnabled)
         {
             OGRE_CHECK_GL_ERROR(glEnable(GL_SCISSOR_TEST));
         }
@@ -2161,7 +2130,7 @@ namespace Ogre {
         }
 
         // Restore scissor test
-        if (!scissorTestEnabled)
+        if (!mScissorsEnabled)
         {
             OGRE_CHECK_GL_ERROR(glDisable(GL_SCISSOR_TEST));
         }
@@ -2272,6 +2241,11 @@ namespace Ogre {
         {
             OGRE_CHECK_GL_ERROR(glEnable(GL_MULTISAMPLE));
             LogManager::getSingleton().logMessage("Using FSAA.");
+        }
+
+     	if (mGLSupport->checkExtension("GL_EXT_texture_filter_anisotropic"))
+        {
+            OGRE_CHECK_GL_ERROR(glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mLargestSupportedAnisotropy));
         }
 
         if (mGLSupport->checkExtension("GL_ARB_seamless_cube_map") || mHasGL32)
@@ -2817,7 +2791,7 @@ namespace Ogre {
             GLuint attrib = 0;
             unsigned short elemIndex = elem.getIndex();
 
-            if (Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
+            if (mCurrentCapabilities->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
             {
                 GLSLSeparableProgram* separableProgram =
                     GLSLSeparableProgramManager::getSingleton().getCurrentSeparableProgram();
