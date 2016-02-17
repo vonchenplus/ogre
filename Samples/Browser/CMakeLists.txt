@@ -206,7 +206,12 @@ if(ANDROID)
 		add_static_libs("${OGRE_BINARY_DIR}/lib" "Sample_FacialAnimation" "Sample_Grass" "Sample_ParticleFX" "Sample_SkyBox" "Sample_SkyPlane" "Sample_SkyDome" "Sample_Smoke")
 		add_static_libs("${OGRE_BINARY_DIR}/lib" "Sample_CameraTrack"  "Sample_Character" "Sample_Compositor" "Sample_Lighting" "Sample_BezierPatch" "Sample_DynTex")
     endif()
-    
+
+    if(OGRE_BUILD_TESTS)
+        set(OGRE_ANDROID_CFLAGS -DSAMPLES_INCLUDE_PLAYPEN)
+        set(OGRE_ANDROID_INCLUDES ${OGRE_SOURCE_DIR}/Tests/VisualTests/PlayPen/include)
+        add_static_libs("${OGRE_BINARY_DIR}/lib" PlayPenTests)
+    endif()
 
     configure_file("${OGRE_TEMPLATES_DIR}/Android_resources.cfg.in" "${NDKOUT}/assets/resources.cfg" @ONLY)
     configure_file("${OGRE_TEMPLATES_DIR}/samples.cfg.in" "${NDKOUT}/assets/samples.cfg" @ONLY)
@@ -224,7 +229,7 @@ if(ANDROID)
 	file(COPY "${CMAKE_SOURCE_DIR}/SDK/Android/drawable-xhdpi" DESTINATION "${NDKOUT}/res")
     
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp "int x = 0;")
-    ADD_LIBRARY(SampleBrowserDummy MODULE ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
+    ogre_add_library_to_folder(Samples SampleBrowserDummy MODULE ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
     target_link_libraries(SampleBrowserDummy ${SAMPLE_LIBRARIES})
     add_dependencies(SampleBrowserDummy ${OGRE_SAMPLES_LIST})
     

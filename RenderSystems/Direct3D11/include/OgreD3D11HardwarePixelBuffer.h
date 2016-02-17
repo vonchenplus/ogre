@@ -49,15 +49,13 @@ namespace Ogre {
         D3D11Device & mDevice;
 
         D3D11Texture * mParentTexture;
-        size_t mSubresourceIndex;
+        const UINT mFace;
+        const UINT mMipLevel;
 
         // if the usage is static - alloc at lock then use device UpdateSubresource when unlock and free memory
-        int8 * mDataForStaticUsageLock; 
-
-        size_t mFace;
+        vector<int8>::type mDataForStaticUsageLock; 
 
         Image::Box mLockBox;
-        PixelBox mCurrentLock;
         LockOptions mCurrentLockOptions;
 
         D3D11_BOX OgreImageBoxToDx11Box(const Image::Box &inBox) const;
@@ -68,17 +66,17 @@ namespace Ogre {
 
         void createStagingBuffer();
         bool mUsingStagingBuffer;
-        ID3D11Resource *mStagingBuffer;
+        ComPtr<ID3D11Resource> mStagingBuffer;
         
         void _map(ID3D11Resource *res, D3D11_MAP flags, PixelBox & box);
-        void *_mapstagingbuffer(D3D11_MAP flags);
-        void *_mapstaticbuffer(PixelBox lock);
+        void _mapstagingbuffer(D3D11_MAP flags, PixelBox &box);
+
         void _unmap(ID3D11Resource *res);
         void _unmapstagingbuffer(bool copyback = true);
         void _unmapstaticbuffer();
     public:
-        D3D11HardwarePixelBuffer(D3D11Texture * parentTexture, D3D11Device & device, size_t subresourceIndex,
-            size_t width, size_t height, size_t depth, size_t face, PixelFormat format, HardwareBuffer::Usage usage);
+        D3D11HardwarePixelBuffer(D3D11Texture * parentTexture, D3D11Device & device, UINT mipLevel,
+            size_t width, size_t height, size_t depth, UINT face, PixelFormat format, HardwareBuffer::Usage usage);
 
         /// @copydoc HardwarePixelBuffer::blit
         void blit(const HardwarePixelBufferSharedPtr &src, const Image::Box &srcBox, const Image::Box &dstBox);
@@ -108,8 +106,10 @@ namespace Ogre {
         }
 
         D3D11Texture * getParentTexture() const;
-        size_t getSubresourceIndex() const;
-        size_t getFace() const;
+
+        UINT getFace() const;
+        UINT getSubresourceIndex(size_t box_front) const;
+        D3D11_BOX getSubresourceBox(const Image::Box &box) const;
     };
 };
 #endif

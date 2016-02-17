@@ -243,12 +243,23 @@ namespace Ogre
     {
         // The main issue - pitches D3D11 are in bytes, but Ogre stores them in elements, therefore conversion is required
         size_t elemSize = PixelUtil::getNumElemBytes(box.format);
-        assert(0 == mapping.RowPitch % elemSize);
-        assert(0 == mapping.DepthPitch % elemSize);
-
+        if(elemSize != 0)
+        {
+            assert(0 == mapping.RowPitch % elemSize);
+            assert(0 == mapping.DepthPitch % elemSize);
+            box.rowPitch = mapping.RowPitch / elemSize;
+            box.slicePitch = mapping.DepthPitch / elemSize;
+        }
+        else if(PixelUtil::isCompressed(box.format))
+        {
+            box.rowPitch = box.getWidth();
+            box.slicePitch = box.getWidth() * box.getHeight();
+        }
+        else
+        {
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Invalid pixel format", "setPixelBoxMapping");
+        }
         box.data = mapping.pData;
-        box.rowPitch = mapping.RowPitch / elemSize;
-        box.slicePitch = mapping.DepthPitch / elemSize;
     }
     //---------------------------------------------------------------------
     PixelBox D3D11Mappings::getPixelBoxWithMapping(size_t width, size_t height, size_t depth, PixelFormat pixelFormat, const D3D11_MAPPED_SUBRESOURCE& mapping)
@@ -271,6 +282,8 @@ namespace Ogre
         case VET_COLOUR_ABGR:
         case VET_COLOUR_ARGB:
             return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+        // Float32
         case VET_FLOAT1:
             return DXGI_FORMAT_R32_FLOAT;
         case VET_FLOAT2:
@@ -279,10 +292,43 @@ namespace Ogre
             return DXGI_FORMAT_R32G32B32_FLOAT;
         case VET_FLOAT4:
             return DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+        // Signed short
+        case VET_SHORT1:
+            return DXGI_FORMAT_R16_SINT;
         case VET_SHORT2:
             return DXGI_FORMAT_R16G16_SINT;
         case VET_SHORT4:
             return DXGI_FORMAT_R16G16B16A16_SINT;
+
+        // Unsigned short
+        case VET_USHORT1:
+            return DXGI_FORMAT_R16_UINT;
+        case VET_USHORT2:
+            return DXGI_FORMAT_R16G16_UINT;
+        case VET_USHORT4:
+            return DXGI_FORMAT_R16G16B16A16_UINT;
+
+        // Signed int
+        case VET_INT1:
+            return DXGI_FORMAT_R32_SINT;
+        case VET_INT2:
+            return DXGI_FORMAT_R32G32_SINT;
+        case VET_INT3:
+            return DXGI_FORMAT_R32G32B32_SINT;
+        case VET_INT4:
+            return DXGI_FORMAT_R32G32B32A32_SINT;
+
+        // Unsigned int
+        case VET_UINT1:
+            return DXGI_FORMAT_R32_UINT;
+        case VET_UINT2:
+            return DXGI_FORMAT_R32G32_UINT;
+        case VET_UINT3:
+            return DXGI_FORMAT_R32G32B32_UINT;
+        case VET_UINT4:
+            return DXGI_FORMAT_R32G32B32A32_UINT;
+
         case VET_UBYTE4:
             return DXGI_FORMAT_R8G8B8A8_UINT;
         }
@@ -373,7 +419,7 @@ namespace Ogre
         case DXGI_FORMAT_R16G16B16A16_SNORM:        return PF_UNKNOWN;
         case DXGI_FORMAT_R16G16B16A16_SINT:         return PF_UNKNOWN;
         case DXGI_FORMAT_R32G32_TYPELESS:           return PF_UNKNOWN;
-        case DXGI_FORMAT_R32G32_FLOAT:              return PF_UNKNOWN;
+        case DXGI_FORMAT_R32G32_FLOAT:              return PF_FLOAT32_GR;
         case DXGI_FORMAT_R32G32_UINT:               return PF_UNKNOWN;
         case DXGI_FORMAT_R32G32_SINT:               return PF_UNKNOWN;
         case DXGI_FORMAT_R32G8X24_TYPELESS:         return PF_UNKNOWN;
@@ -497,7 +543,7 @@ namespace Ogre
         case PF_R8G8B8:         return DXGI_FORMAT_UNKNOWN;
         case PF_A8R8G8B8:       return DXGI_FORMAT_B8G8R8A8_UNORM;
         case PF_A8B8G8R8:       return DXGI_FORMAT_R8G8B8A8_UNORM;
-        case PF_X8R8G8B8:       return DXGI_FORMAT_UNKNOWN;
+        case PF_X8R8G8B8:       return DXGI_FORMAT_B8G8R8X8_UNORM;
         case PF_X8B8G8R8:       return DXGI_FORMAT_UNKNOWN;
         case PF_A2B10G10R10:    return DXGI_FORMAT_R10G10B10A2_TYPELESS;
         case PF_A2R10G10B10:    return DXGI_FORMAT_UNKNOWN;
@@ -520,6 +566,7 @@ namespace Ogre
         case PF_BC7_UNORM:      return DXGI_FORMAT_BC7_UNORM;
         case PF_BC7_UNORM_SRGB: return DXGI_FORMAT_BC7_UNORM_SRGB;
         case PF_R16G16_SINT:    return DXGI_FORMAT_R16G16_SINT;
+        case PF_FLOAT32_GR:     return DXGI_FORMAT_R32G32_FLOAT;         
         case PF_UNKNOWN:
         default:                return DXGI_FORMAT_UNKNOWN;
         }

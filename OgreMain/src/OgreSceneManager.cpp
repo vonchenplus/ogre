@@ -1597,6 +1597,47 @@ void SceneManager::_setDestinationRenderSystem(RenderSystem* sys)
     }
 }
 //-----------------------------------------------------------------------
+void SceneManager::_releaseManualHardwareResources()
+{
+    // release stencil shadows index buffer
+    mShadowIndexBuffer.setNull();
+
+    // release hardware resources inside all movable objects
+    OGRE_LOCK_MUTEX(mMovableObjectCollectionMapMutex);
+    for(MovableObjectCollectionMap::iterator ci = mMovableObjectCollectionMap.begin(),
+        ci_end = mMovableObjectCollectionMap.end(); ci != ci_end; ++ci)
+    {
+        MovableObjectCollection* coll = ci->second;
+        OGRE_LOCK_MUTEX(coll->mutex);
+        for(MovableObjectMap::iterator i = coll->map.begin(), i_end = coll->map.end(); i != i_end; ++i)
+            i->second->_releaseManualHardwareResources();
+    }
+}
+//-----------------------------------------------------------------------
+void SceneManager::_restoreManualHardwareResources()
+{
+    // restore stencil shadows index buffer
+    if(isShadowTechniqueStencilBased())
+    {
+        mShadowIndexBuffer = HardwareBufferManager::getSingleton().
+            createIndexBuffer(HardwareIndexBuffer::IT_16BIT,
+                mShadowIndexBufferSize,
+                HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE,
+                false);
+    }
+
+    // restore hardware resources inside all movable objects
+    OGRE_LOCK_MUTEX(mMovableObjectCollectionMapMutex);
+    for(MovableObjectCollectionMap::iterator ci = mMovableObjectCollectionMap.begin(),
+        ci_end = mMovableObjectCollectionMap.end(); ci != ci_end; ++ci)
+    {
+        MovableObjectCollection* coll = ci->second;
+        OGRE_LOCK_MUTEX(coll->mutex);
+        for(MovableObjectMap::iterator i = coll->map.begin(), i_end = coll->map.end(); i != i_end; ++i)
+            i->second->_restoreManualHardwareResources();
+    }
+}
+//-----------------------------------------------------------------------
 void SceneManager::prepareWorldGeometry(const String& filename)
 {
     // This default implementation cannot handle world geometry
@@ -3137,10 +3178,8 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                                       const LightList* manualLightList)
 {
     unsigned short numMatrices;
-    RenderOperation ro;
 
     OgreProfileBeginGPUEvent("Material: " + pass->getParent()->getParent()->getName());
-    ro.srcRenderable = rend;
 
     GpuProgram* vprog = pass->hasVertexProgram() ? pass->getVertexProgram().get() : 0;
 
@@ -3491,14 +3530,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 }
                 depthInc += pass->getPassIterationCount();
 
-                // Finalise GPU parameter bindings
-                updateGpuProgramParameters(pass);
-
-                rend->getRenderOperation(ro);
-
-                if (rend->preRender(this, mDestRenderSystem))
-                    mDestRenderSystem->_render(ro);
-                rend->postRender(this, mDestRenderSystem);
+               _issueRenderOp(rend, pass);
 
                 if (scissored == CLIPPED_SOME)
                     resetScissor();
@@ -3556,17 +3588,10 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
                 // don't bother rendering if clipped / scissored entirely
                 if (scissored != CLIPPED_ALL && clipped != CLIPPED_ALL)
                 {
-                    // issue the render op      
+                        
                     // nfz: set up multipass rendering
                     mDestRenderSystem->setCurrentPassIterationCount(pass->getPassIterationCount());
-                    // Finalise GPU parameter bindings
-                    updateGpuProgramParameters(pass);
-
-                    rend->getRenderOperation(ro);
-
-                    if (rend->preRender(this, mDestRenderSystem))
-                        mDestRenderSystem->_render(ro);
-                    rend->postRender(this, mDestRenderSystem);
+                    _issueRenderOp(rend, pass);
                 }
                 if (scissored == CLIPPED_SOME)
                     resetScissor();
@@ -3582,23 +3607,7 @@ void SceneManager::renderSingleObject(Renderable* rend, const Pass* pass,
         fireRenderSingleObject(rend, pass, mAutoParamDataSource, NULL, mSuppressRenderStateChanges);
         // Just render
         mDestRenderSystem->setCurrentPassIterationCount(1);
-        if (rend->preRender(this, mDestRenderSystem))
-        {
-            rend->getRenderOperation(ro);
-            try
-            {
-                mDestRenderSystem->_render(ro);
-            }
-            catch (RenderingAPIException& e)
-            {
-                OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
-                            "Exception when rendering material: " + pass->getParent()->getParent()->getName() +
-                            "\nOriginal Exception description: " + e.getFullDescription() + "\n" ,
-                            "SceneManager::renderSingleObject");
-                
-            }
-        }
-        rend->postRender(this, mDestRenderSystem);
+        _issueRenderOp(rend, NULL);
     }
     
     // Reset view / projection changes if any
@@ -3867,6 +3876,7 @@ void SceneManager::manualRender(RenderOperation* rend,
     // Do we need to update GPU program parameters?
     if (pass->isProgrammable())
     {
+        mAutoParamDataSource->setCurrentRenderable(0);
         if (vp)
         {
             mAutoParamDataSource->setCurrentViewport(vp);
@@ -4075,7 +4085,8 @@ void SceneManager::removeRenderObjectListener(RenderObjectListener* delListener)
 }
 void SceneManager::addListener(Listener* newListener)
 {
-    mListeners.push_back(newListener);
+    if (std::find(mListeners.begin(), mListeners.end(), newListener) == mListeners.end())
+        mListeners.push_back(newListener);
 }
 //---------------------------------------------------------------------
 void SceneManager::removeListener(Listener* delListener)
@@ -5335,7 +5346,7 @@ void SceneManager::buildScissor(const Light* light, const Camera* cam, RealRect&
 {
     // Project the sphere onto the camera
     Sphere sphere(light->getDerivedPosition(), light->getAttenuationRange());
-    cam->projectSphere(sphere, &(rect.left), &(rect.top), &(rect.right), &(rect.bottom));
+    cam->Frustum::projectSphere(sphere, &(rect.left), &(rect.top), &(rect.right), &(rect.bottom));
 }
 //---------------------------------------------------------------------
 void SceneManager::resetScissor()
@@ -5346,7 +5357,12 @@ void SceneManager::resetScissor()
     mDestRenderSystem->setScissorTest(false);
 }
 //---------------------------------------------------------------------
-void SceneManager::checkCachedLightClippingInfo()
+void SceneManager::invalidatePerFrameScissorRectCache()
+{
+	checkCachedLightClippingInfo(true);
+}
+//---------------------------------------------------------------------
+void SceneManager::checkCachedLightClippingInfo(bool forceScissorRectsInvalidation)
 {
     unsigned long frame = Root::getSingleton().getNextFrameNumber();
     if (frame != mLightClippingInfoMapFrameNumber)
@@ -5354,6 +5370,11 @@ void SceneManager::checkCachedLightClippingInfo()
         // reset cached clip information
         mLightClippingInfoMap.clear();
         mLightClippingInfoMapFrameNumber = frame;
+    }
+    else if(forceScissorRectsInvalidation)
+    {
+        for(LightClippingInfoMap::iterator ci = mLightClippingInfoMap.begin(), ci_end = mLightClippingInfoMap.end(); ci != ci_end; ++ci)
+            ci->second.scissorValid = false;
     }
 }
 //---------------------------------------------------------------------
@@ -5582,6 +5603,10 @@ void SceneManager::renderShadowVolumesToStencil(const Light* light,
     else
     {
         mDestRenderSystem->unbindGpuProgram(GPT_VERTEX_PROGRAM);
+    }
+    if (mDestRenderSystem->getCapabilities()->hasCapability(RSC_GEOMETRY_PROGRAM))
+    {
+        mDestRenderSystem->unbindGpuProgram(GPT_GEOMETRY_PROGRAM);
     }
 
     // Turn off colour writing and depth writing
@@ -7336,6 +7361,24 @@ void SceneManager::updateGpuProgramParameters(const Pass* pass)
 
 }
 //---------------------------------------------------------------------
+void SceneManager::_issueRenderOp(Renderable* rend, const Pass* pass)
+{
+    if(rend->preRender(this, mDestRenderSystem))
+    {
+        // Finalise GPU parameter bindings
+        if(pass)
+            updateGpuProgramParameters(pass);
+        
+        RenderOperation ro;
+        ro.srcRenderable = rend;
+
+        rend->getRenderOperation(ro);
+
+        mDestRenderSystem->_render(ro);
+    }
+
+    rend->postRender(this, mDestRenderSystem);
+}
 //---------------------------------------------------------------------
 VisibleObjectsBoundsInfo::VisibleObjectsBoundsInfo()
 {
