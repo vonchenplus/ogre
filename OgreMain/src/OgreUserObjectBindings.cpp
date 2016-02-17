@@ -31,11 +31,20 @@ THE SOFTWARE.
 namespace Ogre {
 
     Any UserObjectBindings::msEmptyAny;
-    
+
     //--------------------------------------------------------------------------
-    UserObjectBindings::UserObjectBindings()
+    UserObjectBindings::UserObjectBindings() :
+        mAttributes(NULL)
     {
-        mAttributes = NULL;
+
+    }
+
+    //--------------------------------------------------------------------------
+    UserObjectBindings::UserObjectBindings(const UserObjectBindings& other) :
+        mAttributes(NULL)
+    {
+        if (other.mAttributes != NULL)
+            mAttributes = OGRE_NEW UserObjectBindings::Attributes(*other.mAttributes);
     }
 
     //--------------------------------------------------------------------------
@@ -50,7 +59,7 @@ namespace Ogre {
         // Allocate attributes on demand.
         if (mAttributes == NULL)
             mAttributes = OGRE_NEW UserObjectBindings::Attributes;
-        
+
         mAttributes->mKeylessAny = anything;
     }
 
@@ -73,10 +82,10 @@ namespace Ogre {
 
         // Case map doesn't exists.
         if (mAttributes->mUserObjectsMap == NULL)
-            mAttributes->mUserObjectsMap = new UserObjectsMap;
+            mAttributes->mUserObjectsMap = OGRE_NEW_T(UserObjectsMap, MEMCATEGORY_GENERAL) ();
 
         (*mAttributes->mUserObjectsMap)[key] = anything;
-    }   
+    }
 
     //-----------------------------------------------------------------------
     const Any& UserObjectBindings::getUserAny(const String& key) const
@@ -96,7 +105,7 @@ namespace Ogre {
         {
             return it->second;
         }
-        
+
         return msEmptyAny;
     }
 
@@ -120,7 +129,7 @@ namespace Ogre {
     void UserObjectBindings::clear() const
     {
         if (mAttributes != NULL)
-        {           
+        {
             OGRE_DELETE mAttributes;
             mAttributes = NULL;
         }
