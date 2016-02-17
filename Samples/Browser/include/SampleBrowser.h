@@ -84,7 +84,6 @@
 #   include "Dot3Bump.h"
 #   include "Fresnel.h"
 #   include "Water.h"
-#   include "AtomicCounters.h"
 #   include "BezierPatch.h"
 #   include "CameraTrack.h"
 #   include "CharacterSample.h"
@@ -109,10 +108,8 @@
 #   include "TextureFX.h"
 #   include "Transparency.h"
 #   if SAMPLES_INCLUDE_PLAYPEN
-#    include "PlayPen.h"
 #    include "PlayPenTestPlugin.h"
-    PlayPenPlugin* playPenPlugin = 0;
-    PlaypenTestPlugin* playPenTestPlugin = 0;
+    static PlaypenTestPlugin* playPenTestPlugin = 0;
 #   endif
 #   ifdef INCLUDE_RTSHADER_SYSTEM
 #       include "OgreRTShaderSystem.h"
@@ -124,6 +121,7 @@ typedef std::map<String, OgreBites::SdkSample *> PluginMap;
 // Remove the comment below in order to make the RTSS use valid path for writing down the generated shaders.
 // If cache path is not set - all shaders are generated to system memory.
 //#define _RTSS_WRITE_SHADERS_TO_DISK
+#include "ShaderGeneratorTechniqueResolverListener.h"
 #endif // INCLUDE_RTSHADER_SYSTEM   
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
@@ -145,98 +143,8 @@ namespace OgreBites
                    @end
 #endif
 
-                   namespace OgreBites
+namespace OgreBites
 {
-#ifdef INCLUDE_RTSHADER_SYSTEM
-
-    /** This class demonstrates basic usage of the RTShader system.
-        It sub class the material manager listener class and when a target scheme callback
-        is invoked with the shader generator scheme it tries to create an equivalent shader
-        based technique based on the default technique of the given material.
-    */
-    class ShaderGeneratorTechniqueResolverListener : public Ogre::MaterialManager::Listener
-    {
-    public:
-
-        ShaderGeneratorTechniqueResolverListener(Ogre::RTShader::ShaderGenerator* pShaderGenerator)
-        {
-            mShaderGenerator = pShaderGenerator;
-        }
-
-        /** This is the hook point where shader based technique will be created.
-            It will be called whenever the material manager won't find appropriate technique
-            that satisfy the target scheme name. If the scheme name is out target RT Shader System
-            scheme name we will try to create shader generated technique for it.
-        */
-        virtual Ogre::Technique* handleSchemeNotFound(unsigned short schemeIndex,
-                                                      const Ogre::String& schemeName, Ogre::Material* originalMaterial, unsigned short lodIndex,
-                                                      const Ogre::Renderable* rend)
-        {
-            if (schemeName != Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
-            {
-                return NULL;
-            }
-            // Case this is the default shader generator scheme.
-
-            // Create shader generated technique for this material.
-            bool techniqueCreated = mShaderGenerator->createShaderBasedTechnique(
-                originalMaterial->getName(),
-                Ogre::MaterialManager::DEFAULT_SCHEME_NAME,
-                schemeName);
-
-            if (!techniqueCreated)
-            {
-                return NULL;
-            }
-            // Case technique registration succeeded.
-
-            // Force creating the shaders for the generated technique.
-            mShaderGenerator->validateMaterial(schemeName, originalMaterial->getName());
-
-            // Grab the generated technique.
-            Ogre::Material::TechniqueIterator itTech = originalMaterial->getTechniqueIterator();
-
-            while (itTech.hasMoreElements())
-            {
-                Ogre::Technique* curTech = itTech.getNext();
-
-                if (curTech->getSchemeName() == schemeName)
-                {
-                    return curTech;
-                }
-            }
-
-            return NULL;
-        }
-
-	virtual bool afterIlluminationPassesCreated(Ogre::Technique* tech)
-	{
-		if(tech->getSchemeName() == Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
-		{
-			Ogre::Material* mat = tech->getParent();
-			mShaderGenerator->validateMaterialIlluminationPasses(tech->getSchemeName(), mat->getName(), mat->getGroup());
-			return true;
-		}
-		return false;
-	}
-
-	virtual bool beforeIlluminationPassesCleared(Ogre::Technique* tech)
-	{
-		if(tech->getSchemeName() == Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME)
-		{
-			Ogre::Material* mat = tech->getParent();
-			mShaderGenerator->invalidateMaterialIlluminationPasses(tech->getSchemeName(), mat->getName(), mat->getGroup());
-			return true;
-		}
-		return false;
-	}
-
-    protected:
-        Ogre::RTShader::ShaderGenerator*        mShaderGenerator;                       // The shader generator instance.
-    };
-#endif // INCLUDE_RTSHADER_SYSTEM
-
-
     /*=============================================================================
       | The OGRE Sample Browser. Features a menu accessible from all samples,
       | dynamic configuration, resource reloading, node labeling, and more.
@@ -397,7 +305,7 @@ namespace OgreBites
 #endif
                     SampleContext::runSample(s);
                 }
-                catch (Ogre::Exception e)   // if failed to start, show error and fall back to menu
+                catch (Ogre::Exception& e)   // if failed to start, show error and fall back to menu
                 {
                     destroyDummyScene();
 
@@ -1152,7 +1060,7 @@ namespace OgreBites
 
             Sample* startupSample = loadSamples();
 
-            Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
+            // Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
 
             // adds context as listener to process context-level (above the sample level) events
             mRoot->addFrameListener(this);
@@ -1280,46 +1188,11 @@ namespace OgreBites
 #ifdef INCLUDE_RTSHADER_SYSTEM
             // Initialize shader generator.
             // Must be before resource loading in order to allow parsing extended material attributes.
-            bool success = initialiseRTShaderSystem(sm);
-            if (!success)
+            if (!initialiseRTShaderSystem(sm))
             {
                 OGRE_EXCEPT(Ogre::Exception::ERR_FILE_NOT_FOUND,
                             "Shader Generator Initialization failed - Core shader libs path not found",
                             "SampleBrowser::createDummyScene");
-            }
-            if(mRoot->getRenderSystem()->getCapabilities()->hasCapability(Ogre::RSC_FIXED_FUNCTION) == false)
-            {
-                // creates shaders for base material BaseWhite using the RTSS
-                Ogre::MaterialPtr baseWhite = Ogre::MaterialManager::getSingleton().getByName("BaseWhite", Ogre::ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
-                mShaderGenerator->createShaderBasedTechnique(
-                    "BaseWhite",
-                    Ogre::MaterialManager::DEFAULT_SCHEME_NAME,
-                    Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
-                mShaderGenerator->validateMaterial(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME,
-                                                   "BaseWhite");
-                if(baseWhite->getNumTechniques() > 1)
-                {
-                    baseWhite->getTechnique(0)->getPass(0)->setVertexProgram(
-                        baseWhite->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
-                    baseWhite->getTechnique(0)->getPass(0)->setFragmentProgram(
-                        baseWhite->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
-                }
-
-                // creates shaders for base material BaseWhiteNoLighting using the RTSS
-                mShaderGenerator->createShaderBasedTechnique(
-                    "BaseWhiteNoLighting",
-                    Ogre::MaterialManager::DEFAULT_SCHEME_NAME,
-                    Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME);
-                mShaderGenerator->validateMaterial(Ogre::RTShader::ShaderGenerator::DEFAULT_SCHEME_NAME,
-                                                   "BaseWhiteNoLighting");
-                Ogre::MaterialPtr baseWhiteNoLighting = Ogre::MaterialManager::getSingleton().getByName("BaseWhiteNoLighting", Ogre::ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME);
-                if(baseWhiteNoLighting->getNumTechniques() > 1)
-                {
-                    baseWhiteNoLighting->getTechnique(0)->getPass(0)->setVertexProgram(
-                        baseWhiteNoLighting->getTechnique(1)->getPass(0)->getVertexProgram()->getName());
-                    baseWhiteNoLighting->getTechnique(0)->getPass(0)->setFragmentProgram(
-                        baseWhiteNoLighting->getTechnique(1)->getPass(0)->getFragmentProgram()->getName());
-                }
             }
 #endif // INCLUDE_RTSHADER_SYSTEM
         }
@@ -1395,30 +1268,9 @@ namespace OgreBites
 
 #ifdef SAMPLES_INCLUDE_PLAYPEN
 #  ifdef OGRE_STATIC_LIB
-            playPenPlugin = OGRE_NEW PlayPenPlugin();
-            mRoot->installPlugin(playPenPlugin);
-            SampleSet newSamples = playPenPlugin->getSamples();
-            for (SampleSet::iterator j = newSamples.begin(); j != newSamples.end(); j++)
-            {
-                Ogre::NameValuePairList& info = (*j)->getInfo();   // acquire custom sample info
-                Ogre::NameValuePairList::iterator k;
-
-                // give sample default title and category if none found
-                k= info.find("Title");
-                if (k == info.end() || k->second.empty()) info["Title"] = "Untitled";
-                k = info.find("Category");
-                if (k == info.end() || k->second.empty()) info["Category"] = "Unsorted";
-                k = info.find("Thumbnail");
-                if (k == info.end() || k->second.empty()) info["Thumbnail"] = "thumb_error.png";
-                mSampleCategories.insert(info["Category"]);   // add sample category
-                if (info["Title"] == startupSampleTitle) startupSample = *j;   // we found the startup sample
-                sampleList.push_back(info["Title"]);
-                mPluginNameMap[info["Title"]] = (OgreBites::SdkSample *)(*j);
-            }
-
             playPenTestPlugin = OGRE_NEW PlaypenTestPlugin();
             mRoot->installPlugin(playPenTestPlugin);
-            newSamples = playPenTestPlugin->getSamples();
+            SampleSet newSamples = playPenTestPlugin->getSamples();
             for (SampleSet::iterator j = newSamples.begin(); j != newSamples.end(); j++)
             {
                 Ogre::NameValuePairList& info = (*j)->getInfo();   // acquire custom sample info
@@ -1440,7 +1292,6 @@ namespace OgreBites
 #    if OGRE_DEBUG_MODE && !(OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS)
             sampleList.push_back("PlayPen_d");
 #    else
-            sampleList.push_back("PlayPen");
             sampleList.push_back("PlayPenTests");
 #    endif
 #  endif
@@ -1551,8 +1402,6 @@ namespace OgreBites
                     mRoot->uninstallPlugin(pluginList[i]);
             }
 #  ifdef SAMPLES_INCLUDE_PLAYPEN
-            mRoot->uninstallPlugin(playPenPlugin);
-            delete playPenPlugin;
             mRoot->uninstallPlugin(playPenTestPlugin);
             delete playPenTestPlugin;
 #  endif

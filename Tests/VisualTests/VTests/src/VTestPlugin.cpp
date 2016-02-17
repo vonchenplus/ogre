@@ -39,12 +39,12 @@ VTestPlugin::VTestPlugin()
     :SamplePlugin("VTestPlugin")
 {
     // add the playpen tests
-    addSample(new TextureBlitTest());
-//    addSample(new CubeMappingTest()); // no bg on Win
-//    addSample(new ParticleTest());
-    // addSample(new StencilShadowTest()); // crashes on Windows; should show ogre head, barrel, taurus
-//    addSample(new TextureEffectsTest());
-//    addSample(new TransparencyTest());
+    // addSample(new TextureBlitTest()); SEGFAULT reading depth texture
+    addSample(new CubeMappingTest());
+    addSample(new ParticleTest());
+    addSample(new StencilShadowTest());
+    addSample(new TextureEffectsTest());
+    addSample(new TransparencyTest());
 }
 //---------------------------------------------------------------------
 

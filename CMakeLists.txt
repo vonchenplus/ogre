@@ -14,7 +14,7 @@
 # and provide build configuration options.
 ######################################################################
 
-cmake_minimum_required(VERSION 2.6.2)
+cmake_minimum_required(VERSION 2.8.0)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS TRUE)
 cmake_policy(SET CMP0003 NEW)
 
@@ -98,7 +98,7 @@ else ()
   set(OGRE_PLATFORM_X64 FALSE)
 endif ()
 
-if (NOT APPLE)
+if (NOT APPLE AND NOT ANDROID)
   # Create debug libraries with _d postfix
   set(CMAKE_DEBUG_POSTFIX "_d")
 endif ()
@@ -123,6 +123,7 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OGRE_WARNING_FLAGS}")
 endif ()
 if (MSVC)
+  add_definitions(-D_MT -D_USRDLL)
   if (CMAKE_BUILD_TOOL STREQUAL "nmake")
     # set variable to state that we are using nmake makefiles
 	set(NMAKE TRUE)
@@ -136,6 +137,14 @@ if (MSVC)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
   endif ()
+
+  if (OGRE_PROJECT_FOLDERS)  
+    # Turn on the ability to create folders to organize projects (.vcproj)
+    # It creates "CMakePredefinedTargets" folder by default and adds CMake
+    # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+  endif()
+
   if (OGRE_UNITY_BUILD)
     # object files can get large with Unity builds
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
@@ -173,32 +182,22 @@ if (MINGW)
 endif ()
 
 if ((CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX) AND NOT MINGW)
-  # Test for GCC visibility
-  include(CheckCXXCompilerFlag)
-  check_cxx_compiler_flag(-fvisibility=hidden OGRE_GCC_VISIBILITY)
-  if (OGRE_GCC_VISIBILITY)
-    # determine gcc version
-    execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
-      OUTPUT_VARIABLE OGRE_GCC_VERSION)
-    message(STATUS "Detected g++ ${OGRE_GCC_VERSION}")
-    message(STATUS "Enabling GCC visibility flags")
-    set(OGRE_GCC_VISIBILITY_FLAGS "-DOGRE_GCC_VISIBILITY -fvisibility=hidden")
+  include(GenerateExportHeader)
+  add_compiler_export_flags(OGRE_GCC_VISIBILITY_FLAGS)
+
+  if (OGRE_GCC_VISIBILITY_FLAGS)
+    set(OGRE_GCC_VISIBILITY_FLAGS "-DOGRE_GCC_VISIBILITY ${OGRE_GCC_VISIBILITY_FLAGS}")
     set(XCODE_ATTRIBUTE_GCC_SYMBOLS_PRIVATE_EXTERN "YES")
 
-    # check if we can safely add -fvisibility-inlines-hidden
-    string(TOLOWER "${CMAKE_BUILD_TYPE}" OGRE_BUILD_TYPE)
-    if (OGRE_BUILD_TYPE STREQUAL "debug" AND OGRE_GCC_VERSION VERSION_LESS "4.2")
-      message(STATUS "Skipping -fvisibility-inlines-hidden due to possible bug in g++ < 4.2")
-    else ()
-      if (APPLE AND NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
+    if(APPLE AND NOT OGRE_BUILD_PLATFORM_APPLE_IOS)
+      if(OGRE_GCC_VISIBILITY_FLAGS MATCHES -fvisibility-inlines-hidden)
         message(STATUS "Skipping -fvisibility-inlines-hidden due to linker issues")
         set(XCODE_ATTRIBUTE_GCC_INLINES_ARE_PRIVATE_EXTERN[arch=x86_64] "YES")
       else()
-        set(OGRE_GCC_VISIBILITY_FLAGS "${OGRE_GCC_VISIBILITY_FLAGS} -fvisibility-inlines-hidden")
         set(XCODE_ATTRIBUTE_GCC_INLINES_ARE_PRIVATE_EXTERN "YES")
       endif()
     endif ()
-  endif (OGRE_GCC_VISIBILITY)
+  endif (OGRE_GCC_VISIBILITY_FLAGS)
 
   # Fix x64 issues on Linux
   if(OGRE_PLATFORM_X64 AND NOT APPLE)
@@ -301,7 +300,6 @@ elseif (ANDROID)
 
   set(OGRE_BUILD_PLUGIN_PCZ FALSE CACHE BOOL "Disable pcz on Android" FORCE)
   set(OGRE_BUILD_PLUGIN_BSP FALSE CACHE BOOL "Disable bsp scenemanager on Android" FORCE)
-  set(OGRE_BUILD_TESTS FALSE CACHE BOOL "Disable tests on Android" FORCE)
   set(OGRE_BUILD_TOOLS FALSE CACHE BOOL "Disable tools on Android" FORCE)
   set(OGRE_STATIC TRUE CACHE BOOL "Forcing static build for Android" FORCE)
   string (REPLACE "-msse" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -386,7 +384,7 @@ endif()
 cmake_dependent_option(OGRE_STATIC "Static build" FALSE "" TRUE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_D3D9 "Build Direct3D9 RenderSystem" TRUE "WIN32;DirectX9_FOUND;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_D3D11 "Build Direct3D11 RenderSystem [EXPERIMENTAL]" TRUE "WIN32;DirectX11_FOUND OR WINDOWS_STORE OR WINDOWS_PHONE" FALSE)
-cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GL3PLUS "Build OpenGL 3+ RenderSystem [EXPERIMENTAL]" FALSE "OPENGL_FOUND; NOT OGRE_BUILD_RENDERSYSTEM_GLES; NOT OGRE_BUILD_RENDERSYSTEM_GLES2;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" FALSE)
+cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GL3PLUS "Build OpenGL 3+ RenderSystem [EXPERIMENTAL]" FALSE "OPENGL_FOUND;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GL "Build OpenGL RenderSystem" TRUE "OPENGL_FOUND;NOT OGRE_BUILD_PLATFORM_APPLE_IOS;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GLES "Build OpenGL ES 1.x RenderSystem" FALSE "OPENGLES_FOUND;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" FALSE)
 cmake_dependent_option(OGRE_BUILD_RENDERSYSTEM_GLES2 "Build OpenGL ES 2.x RenderSystem" FALSE "OPENGLES2_FOUND;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" FALSE)
@@ -399,10 +397,10 @@ cmake_dependent_option(OGRE_BUILD_COMPONENT_PAGING "Build Paging component" TRUE
 cmake_dependent_option(OGRE_BUILD_COMPONENT_MESHLODGENERATOR "Build MeshLodGenerator component" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_TERRAIN "Build Terrain component" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_VOLUME "Build Volume component" TRUE "" FALSE)
-cmake_dependent_option(OGRE_BUILD_COMPONENT_PROPERTY "Build Property component" TRUE "Boost_FOUND" FALSE)
+cmake_dependent_option(OGRE_BUILD_COMPONENT_PROPERTY "Build Property component" TRUE "" FALSE)
 cmake_dependent_option(OGRE_BUILD_PLUGIN_CG "Build Cg plugin" TRUE "Cg_FOUND;NOT OGRE_BUILD_PLATFORM_APPLE_IOS;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" FALSE)
 cmake_dependent_option(OGRE_BUILD_COMPONENT_OVERLAY "Build Overlay component" TRUE "FREETYPE_FOUND" FALSE)
-option(OGRE_BUILD_COMPONENT_HLMS "Build HLMS component" FALSE)
+option(OGRE_BUILD_COMPONENT_HLMS "Build HLMS component" TRUE)
 option(OGRE_BUILD_COMPONENT_RTSHADERSYSTEM "Build RTShader System component" TRUE)
 cmake_dependent_option(OGRE_BUILD_RTSHADERSYSTEM_CORE_SHADERS "Build RTShader System FFP core shaders" TRUE "OGRE_BUILD_COMPONENT_RTSHADERSYSTEM" FALSE)
 cmake_dependent_option(OGRE_BUILD_RTSHADERSYSTEM_EXT_SHADERS "Build RTShader System extensions shaders" TRUE "OGRE_BUILD_COMPONENT_RTSHADERSYSTEM" FALSE)
@@ -418,7 +416,7 @@ if (WINDOWS_STORE OR WINDOWS_PHONE)
 # WinRT can only use the standard allocator
 set(OGRE_CONFIG_ALLOCATOR 1 CACHE STRING "Forcing Standard Allocator for WinRT" FORCE)
 else ()
-set(OGRE_CONFIG_ALLOCATOR 4 CACHE STRING
+set(OGRE_CONFIG_ALLOCATOR 1 CACHE STRING
 "Specify the memory allocator to use. Possible values:
   1 - Standard allocator
   2 - nedmalloc
@@ -433,8 +431,8 @@ option(OGRE_CONFIG_MEMTRACK_DEBUG "Enable Ogre's memory tracker in debug mode" F
 option(OGRE_CONFIG_MEMTRACK_RELEASE "Enable Ogre's memory tracker in release mode" FALSE)
 # determine threading options
 include(PrepareThreadingOptions)
-cmake_dependent_option(OGRE_CONFIG_ENABLE_FREEIMAGE "Build FreeImage codec. If you disable this option, you need to provide your own image handling codecs." TRUE "FreeImage_FOUND" FALSE)
-option(OGRE_CONFIG_ENABLE_STBI "Enable STBI image codec." FALSE)
+cmake_dependent_option(OGRE_CONFIG_ENABLE_FREEIMAGE "Build FreeImage codec." TRUE "FreeImage_FOUND" FALSE)
+cmake_dependent_option(OGRE_CONFIG_ENABLE_STBI "Enable STBI image codec." TRUE "NOT OGRE_CONFIG_ENABLE_FREEIMAGE" FALSE)
 option(OGRE_CONFIG_ENABLE_MESHLOD "Enable Mesh Lod." TRUE)
 option(OGRE_CONFIG_ENABLE_DDS "Build DDS codec." TRUE)
 option(OGRE_CONFIG_ENABLE_PVRTC "Build PVRTC codec." FALSE)
@@ -465,6 +463,12 @@ if (WIN32)
 		configure_file(${OGRE_TEMPLATES_DIR}/OGRE.props.in ${OGRE_BINARY_DIR}/OGRE.props)
 		install(FILES ${OGRE_BINARY_DIR}/OGRE.props DESTINATION "${CMAKE_INSTALL_PREFIX}")
 	endif ()
+endif ()
+
+# For Visual studio enable project folders by default.
+# Hide option from other compilers.
+if (MSVC)
+	option(OGRE_PROJECT_FOLDERS "Organize project into project folders." TRUE)
 endif ()
 
 # Unity build options
@@ -580,4 +584,3 @@ include(Packaging)
 
 # Show feature summary
 include(FeatureSummary)
-

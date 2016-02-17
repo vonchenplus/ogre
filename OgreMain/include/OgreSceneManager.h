@@ -975,7 +975,7 @@ namespace Ogre {
         virtual ClipResult buildAndSetLightClip(const LightList& ll);
         virtual void buildLightClip(const Light* l, PlaneList& planes);
         virtual void resetLightClip();
-        virtual void checkCachedLightClippingInfo();
+        virtual void checkCachedLightClippingInfo(bool forceScissorRectsInvalidation = false);
 
         /// The active renderable visitor class - subclasses could override this
         SceneMgrQueuedRenderableVisitor* mActiveQueuedRenderableVisitor;
@@ -1147,6 +1147,12 @@ namespace Ogre {
         /** Retrieve a scissor rectangle for a given light and camera. 
         */
         virtual const RealRect& getLightScissorRect(Light* l, const Camera* cam);
+
+        /** Scissor rects are cached during frame, and this cache should be explicitly invalidated
+            if several renders are done during one frame using different projections matrices,
+            for example for tiled, stereo or multiview orthographic projection rendering.
+        */
+        virtual void invalidatePerFrameScissorRectCache();
 
         /** Removes the named light from the scene and destroys it.
             @remarks
@@ -1822,6 +1828,9 @@ namespace Ogre {
         */
         virtual void _findVisibleObjects(Camera* cam, VisibleObjectsBoundsInfo* visibleBounds, bool onlyShadowCasters);
 
+          /** Internal method for issuing the render operation.*/
+        virtual void _issueRenderOp(Renderable* rend, const Pass* pass);
+        
         /** Internal method for applying animations to scene nodes.
         @remarks
             Uses the internally stored AnimationState objects to apply animation to SceneNodes.
@@ -1863,6 +1872,24 @@ namespace Ogre {
                 sys Pointer to the RenderSystem subclass to be used as a render target.
         */
         virtual void _setDestinationRenderSystem(RenderSystem* sys);
+
+        /** Notifies the scene manager that hardware resources were lost
+            @remarks
+                Called automatically by RenderSystem if hardware resources
+                were lost and can not be restored using some internal mechanism.
+                Among affected resources are manual meshes without loaders, 
+                manual textures without loaders, ManualObjects, etc.
+        */
+        virtual void _releaseManualHardwareResources();
+
+        /** Notifies the scene manager that hardware resources should be restored
+            @remarks
+                Called automatically by RenderSystem if hardware resources
+                were lost and can not be restored using some internal mechanism.
+                Among affected resources are manual meshes without loaders, 
+                manual textures without loaders, ManualObjects, etc.
+        */
+        virtual void _restoreManualHardwareResources();
 
         /** Enables / disables a 'sky plane' i.e. a plane at constant
             distance from the camera representing the sky.

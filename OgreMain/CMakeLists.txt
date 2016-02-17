@@ -30,17 +30,17 @@ list(REMOVE_ITEM HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreFreeImage
     "${CMAKE_CURRENT_SOURCE_DIR}/include/OgrePVRTCCodec.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreETCCodec.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreZip.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreAPKZipArchive.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/OgreSTBICodec.h"
 )
 
 # Remove optional source files
 list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreFreeImageCodec.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreConfigDialogNoOp.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreDDSCodec.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgrePVRTCCodec.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreETCCodec.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreZip.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreAPKZipArchive.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/OgrePOSIXTimer.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreSearchOps.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreSTBICodec.cpp"
 )
@@ -65,29 +65,32 @@ if (OGRE_BUILD_PLATFORM_NACL)
   include_directories("include/NaCl")
   file(GLOB PLATFORM_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/NaCl/*.h")
   file(GLOB PLATFORM_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/NaCl/*.cpp"
-    src/OgreSearchOps.cpp)
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/OgrePOSIXTimer.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreConfigDialogNoOp.cpp")
 
   set(PLATFORM_LIBS nosys)
   set(PLATFORM_HEADER_INSTALL "NaCl")
 elseif (EMSCRIPTEN)
+  list(REMOVE_ITEM HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/OgrePOSIXTimerImp.h")
+
   include_directories(include/Emscripten)
 
   file(GLOB PLATFORM_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/Emscripten/*.h)
-  file(GLOB PLATFORM_SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/Emscripten/*.cpp src/OgreSearchOps.cpp)
+  file(GLOB PLATFORM_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/Emscripten/*.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreConfigDialogNoOp.cpp")
 
   set(PLATFORM_HEADER_INSTALL "Emscripten")
 elseif (WIN32)
+  list(REMOVE_ITEM HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/OgrePOSIXTimerImp.h")
+
   if (WINDOWS_STORE OR WINDOWS_PHONE)
     include_directories("include/WIN32")
     set(PLATFORM_HEADERS
-      include/WIN32/OgreConfigDialogImpWinRT.h
-      include/WIN32/OgreErrorDialogImpWinRT.h
       include/WIN32/OgreTimerImp.h
     )
     set(PLATFORM_SOURCE_FILES
       src/WIN32/OgreOptimisedUtilDirectXMath.cpp
-      src/WIN32/OgreConfigDialogWinRT.cpp
-      src/WIN32/OgreErrorDialogWinRT.cpp
+      src/OgreConfigDialogNoOp.cpp
       src/WIN32/OgreFileSystemLayer.cpp
       src/WIN32/OgreTimer.cpp
     )  
@@ -101,6 +104,8 @@ elseif (WIN32)
       include/WIN32/OgreTimerImp.h
       include/WIN32/OgreMinGWSupport.h
     )
+    
+    list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreErrorDialogNoOp.cpp")
     set(PLATFORM_SOURCE_FILES
       src/WIN32/OgreOptimisedUtilDirectXMath.cpp
       src/WIN32/OgreConfigDialog.cpp
@@ -140,7 +145,8 @@ elseif (APPLE)
     file(GLOB PLATFORM_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/iOS/*.h")
     file(GLOB PLATFORM_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/iOS/*.cpp"
       "${CMAKE_CURRENT_SOURCE_DIR}/src/iOS/*.mm"
-      src/OgreSearchOps.cpp)
+      "${CMAKE_CURRENT_SOURCE_DIR}/src/OgrePOSIXTimer.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreConfigDialogNoOp.cpp")
 
     set(PLATFORM_LIBS "")
     set(PLATFORM_HEADER_INSTALL "iOS")
@@ -148,9 +154,11 @@ elseif (APPLE)
     include_directories("include/OSX")
     
     file(GLOB PLATFORM_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/OSX/*.h")
+    
+    list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreErrorDialogNoOp.cpp")
     file(GLOB PLATFORM_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/OSX/*.cpp"
       "${CMAKE_CURRENT_SOURCE_DIR}/src/OSX/*.mm"
-      src/OgreSearchOps.cpp
+      "${CMAKE_CURRENT_SOURCE_DIR}/src/OgrePOSIXTimer.cpp"
       include/OSX/ogrelogo.png
     )
 
@@ -168,16 +176,16 @@ elseif(ANDROID)
 
   file(GLOB PLATFORM_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/Android/*.h")
   file(GLOB PLATFORM_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/Android/*.cpp"
-      src/OgreSearchOps.cpp)
+      "${CMAKE_CURRENT_SOURCE_DIR}/src/OgrePOSIXTimer.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreConfigDialogNoOp.cpp")
 
   set(PLATFORM_HEADER_INSTALL "Android")
 elseif (UNIX)
   include_directories(include/GLX ${X11_INCLUDE_DIR})
 
-  file(GLOB PLATFORM_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/GLX/*.h"
-      "${CMAKE_CURRENT_SOURCE_DIR}/src/GLX/GLX_backdrop.h")
+  file(GLOB PLATFORM_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/GLX/*.h")
   file(GLOB PLATFORM_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/GLX/*.cpp"
-      src/OgreSearchOps.cpp)
+      "${CMAKE_CURRENT_SOURCE_DIR}/src/OgrePOSIXTimer.cpp")
 
   set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xt_LIB} ${XAW_LIBRARY} pthread)
   set(PLATFORM_HEADER_INSTALL "GLX")
@@ -187,6 +195,10 @@ elseif (UNIX)
   if (DL_LIBRARY)
     list(APPEND PLATFORM_LIBS dl)
   endif ()
+endif()
+
+if(NOT WIN32)
+    list(APPEND PLATFORM_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/OgreSearchOps.cpp")
 endif()
 
 # Configure threading files
@@ -233,8 +245,11 @@ endif ()
 list(APPEND HEADER_FILES ${THREAD_HEADER_FILES})
 
 # Add needed definitions and nedmalloc include dir
-add_definitions(-DOGRE_NONCLIENT_BUILD -DFREEIMAGE_LIB -D_MT -D_USRDLL)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/nedmalloc)
+add_definitions(-DOGRE_NONCLIENT_BUILD)
+
+if(NOT OGRE_CONFIG_ALLOCATOR EQUAL 1)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/nedmalloc)
+endif()
 
 set(LIBRARIES ${PLATFORM_LIBS})
 
@@ -243,6 +258,7 @@ if (OGRE_CONFIG_THREADS)
 endif ()
 
 if (OGRE_CONFIG_ENABLE_FREEIMAGE)
+  add_definitions(-DFREEIMAGE_LIB)
   list(APPEND HEADER_FILES include/OgreFreeImageCodec.h)
   list(APPEND SOURCE_FILES src/OgreFreeImageCodec.cpp)
   list(APPEND LIBRARIES    "${FreeImage_LIBRARIES}")
