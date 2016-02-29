@@ -1358,8 +1358,8 @@ namespace Ogre {
 
         // record this
         mColourWrite[0] = red;
-        mColourWrite[1] = blue;
-        mColourWrite[2] = green;
+        mColourWrite[1] = green;
+        mColourWrite[2] = blue;
         mColourWrite[3] = alpha;
     }
 
@@ -1778,7 +1778,7 @@ namespace Ogre {
         for (elemIter = decl.begin(); elemIter != elemEnd; ++elemIter)
         {
             const VertexElement & elem = *elemIter;
-            size_t source = elem.getSource();
+            uint16 source = elem.getSource();
 
             if (!op.vertexData->vertexBufferBinding->isBufferBound(source))
                 continue; // Skip unbound elements.

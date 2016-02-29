@@ -4,7 +4,7 @@ This source file is a part of OGRE
 
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2014 Torus Knot Software Ltd
+Copyright (c) 2000-2016 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -376,11 +376,11 @@ namespace Ogre
                 FT_Pos y_bearing = ( mTtfMaxBearingY >> 6 ) - ( face->glyph->metrics.horiBearingY >> 6 );
                 FT_Pos x_bearing = face->glyph->metrics.horiBearingX >> 6;
 
-                for(int j = 0; j < face->glyph->bitmap.rows; j++ )
+                for(unsigned int j = 0; j < face->glyph->bitmap.rows; j++ )
                 {
                     size_t row = j + m + y_bearing;
                     uchar* pDest = &imageData[(row * data_width) + (l + x_bearing) * pixel_bytes];
-                    for(int k = 0; k < face->glyph->bitmap.width; k++ )
+                    for(unsigned int k = 0; k < face->glyph->bitmap.width; k++ )
                     {
                         if (mAntialiasColour)
                         {

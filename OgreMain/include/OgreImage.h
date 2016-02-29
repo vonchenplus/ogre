@@ -4,7 +4,7 @@ This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2014 Torus Knot Software Ltd
+Copyright (c) 2000-2016 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -229,7 +229,7 @@ namespace Ogre {
             DataStreamPtr& stream, 
             uint32 width, uint32 height, uint32 depth,
             PixelFormat format,
-            size_t numFaces = 1, size_t numMipMaps = 0);
+            size_t numFaces = 1, uint8 numMipMaps = 0);
         /** Loads raw data from a stream. The pixel format has to be specified. 
             @remarks This function is deprecated; one should really use the
                 Image::loadRawData(stream, width, height, depth, format, ...) to be compatible

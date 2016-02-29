@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org/
 
-Copyright (c) 2000-2014 Torus Knot Software Ltd
+Copyright (c) 2000-2016 Torus Knot Software Ltd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -272,7 +272,7 @@ namespace Ogre {
         DataStreamPtr& stream, 
         uint32 uWidth, uint32 uHeight, uint32 uDepth,
         PixelFormat eFormat,
-        size_t numFaces, size_t numMipMaps)
+        size_t numFaces, uint8 numMipMaps)
     {
 
         size_t size = calculateSize(numMipMaps, numFaces, uWidth, uHeight, uDepth, eFormat);
@@ -690,8 +690,8 @@ namespace Ogre {
     
     void Image::setColourAt(ColourValue const &cv, size_t x, size_t y, size_t z)
     {
-        unsigned char pixelSize = PixelUtil::getNumElemBytes(getFormat());
-        PixelUtil::packColour(cv, getFormat(), &((unsigned char *)getData())[pixelSize * (z * getWidth() * getHeight() + y * getWidth() + x)]);
+        size_t pixelSize = PixelUtil::getNumElemBytes(getFormat());
+        PixelUtil::packColour(cv, getFormat(), &(getData())[pixelSize * (z * getWidth() * getHeight() + y * getWidth() + x)]);
     }
 
     //-----------------------------------------------------------------------------    
