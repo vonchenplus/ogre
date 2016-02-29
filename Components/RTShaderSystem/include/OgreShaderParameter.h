@@ -4,7 +4,7 @@ This source file is part of OGRE
 (Object-oriented Graphics Rendering Engine)
 For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2014 Torus Knot Software Ltd
+Copyright (c) 2000-2016 Torus Knot Software Ltd
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -67,8 +67,7 @@ public:
         /// Binormal (Y axis if normal is Z)
         SPS_BINORMAL = 8,
         /// Tangent (X axis if normal is Z)
-        SPS_TANGENT = 9,
-		SPS_TEXTURE_ARRAY = 10
+        SPS_TANGENT = 9
     };
 
     // Shader parameter content.
@@ -293,7 +292,6 @@ public:
         SPC_TEXTURE_COORDINATE5,
         SPC_TEXTURE_COORDINATE6,
         SPC_TEXTURE_COORDINATE7,
-		SPC_TEXTURE_ARRAY,
 		
         /// Reserved custom content range to be used by user custom shader extensions.
         SPC_CUSTOM_CONTENT_BEGIN    = 1000,

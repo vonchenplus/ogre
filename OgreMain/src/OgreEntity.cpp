@@ -4,7 +4,7 @@
   (Object-oriented Graphics Rendering Engine)
   For the latest info, see http://www.ogre3d.org
 
-Copyright (c) 2000-2014 Torus Knot Software Ltd
+Copyright (c) 2000-2016 Torus Knot Software Ltd
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -533,7 +533,7 @@ namespace Ogre {
                 bbox.setNull();
                 Real maxScale = Real(0);
                 bool boneHasVerts[ OGRE_MAX_NUM_BONES ];
-                size_t numBones = mSkeletonInstance->getNumBones();
+                uint16 numBones = mSkeletonInstance->getNumBones();
                 for (size_t iBone = 0; iBone < numBones; ++iBone)
                 {
                     boneHasVerts[ iBone ] = false;
@@ -546,7 +546,7 @@ namespace Ogre {
                     boneHasVerts[ iBone ] = true;
                 }
                 // for each submesh,
-                for (size_t iSubMesh = 0; iSubMesh < mMesh->getNumSubMeshes(); ++iSubMesh)
+                for (uint16 iSubMesh = 0; iSubMesh < mMesh->getNumSubMeshes(); ++iSubMesh)
                 {
                     SubMesh* submesh = mMesh->getSubMesh( iSubMesh );
                     // if the submesh has own vertices,
@@ -561,7 +561,7 @@ namespace Ogre {
                     }
                 }
                 // for each bone that has vertices weighted to it,
-                for (size_t iBone = 0; iBone < numBones; ++iBone)
+                for (uint16 iBone = 0; iBone < numBones; ++iBone)
                 {
                     if ( boneHasVerts[ iBone ] )
                     {
