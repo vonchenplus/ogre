@@ -40,8 +40,10 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+    template<> v1::MeshManager* Singleton<v1::MeshManager>::msSingleton = 0;
+namespace v1
+{
     //-----------------------------------------------------------------------
-    template<> MeshManager* Singleton<MeshManager>::msSingleton = 0;
     MeshManager* MeshManager::getSingletonPtr(void)
     {
         return msSingleton;
@@ -279,14 +281,14 @@ namespace Ogre
 
         // Allocate memory for faces
         // Num faces, width*height*2 (2 tris per square), index count is * 3 on top
-        sm->indexData->indexCount = (meshWidth-1) * (meshHeight-1) * 2 * iterations * 3;
-        sm->indexData->indexBuffer = HardwareBufferManager::getSingleton().
+        sm->indexData[VpNormal]->indexCount = (meshWidth-1) * (meshHeight-1) * 2 * iterations * 3;
+        sm->indexData[VpNormal]->indexBuffer = HardwareBufferManager::getSingleton().
             createIndexBuffer(HardwareIndexBuffer::IT_16BIT,
-            sm->indexData->indexCount, indexBufferUsage, indexShadowBuffer);
+            sm->indexData[VpNormal]->indexCount, indexBufferUsage, indexShadowBuffer);
 
         unsigned short v1, v2, v3;
         //bool firstTri = true;
-        HardwareIndexBufferSharedPtr ibuf = sm->indexData->indexBuffer;
+        HardwareIndexBufferSharedPtr ibuf = sm->indexData[VpNormal]->indexBuffer;
         // Lock the whole buffer
         unsigned short* pIndexes = static_cast<unsigned short*>(
             ibuf->lock(HardwareBuffer::HBL_DISCARD) );
@@ -380,7 +382,7 @@ namespace Ogre
         msh->load();
     }
     //-------------------------------------------------------------------------
-    void MeshManager::setListener(Ogre::MeshSerializerListener *listener)
+    void MeshManager::setListener(MeshSerializerListener *listener)
     {
         mListener = listener;
     }
@@ -426,6 +428,9 @@ namespace Ogre
                     "Unknown build parameters for " + res->getName(),
                     "MeshManager::loadResource");
             }
+
+            if( !msh->hasValidShadowMappingBuffers() )
+                msh->prepareForShadowMapping( false );
         }
     }
 
@@ -440,8 +445,8 @@ namespace Ogre
 
         // Set up vertex data
         // Use a single shared buffer
-        pMesh->sharedVertexData = OGRE_NEW VertexData();
-        VertexData* vertexData = pMesh->sharedVertexData;
+        pSub->vertexData[VpNormal] = OGRE_NEW VertexData();
+        VertexData* vertexData = pSub->vertexData[VpNormal];
         // Set up Vertex Declaration
         VertexDeclaration* vertexDecl = vertexData->vertexDeclaration;
         size_t currOffset = 0;
@@ -572,7 +577,7 @@ namespace Ogre
         // Unlock
         vbuf->unlock();
         // Generate face list
-        pSub->useSharedVertices = true;
+        pSub->useSharedVertices = false;
         tesselate2DMesh(pSub, params.xsegments + 1, params.ysegments + 1, false, 
             params.indexBufferUsage, params.indexShadowBuffer);
 
@@ -589,12 +594,13 @@ namespace Ogre
         SubMesh *pSub = pMesh->createSubMesh();
 
         // Set options
-        pMesh->sharedVertexData = OGRE_NEW VertexData();
-        pMesh->sharedVertexData->vertexStart = 0;
-        VertexBufferBinding* bind = pMesh->sharedVertexData->vertexBufferBinding;
-        VertexDeclaration* decl = pMesh->sharedVertexData->vertexDeclaration;
+        pSub->vertexData[VpNormal] = OGRE_NEW VertexData();
+        VertexData* vertexData = pSub->vertexData[VpNormal];
+        vertexData->vertexStart = 0;
+        VertexBufferBinding* bind = vertexData->vertexBufferBinding;
+        VertexDeclaration* decl = vertexData->vertexDeclaration;
 
-        pMesh->sharedVertexData->vertexCount = (params.xsegments + 1) * (params.ysegments + 1);
+        vertexData->vertexCount = (params.xsegments + 1) * (params.ysegments + 1);
 
         size_t offset = 0;
         decl->addElement(0, offset, VET_FLOAT3, VES_POSITION);
@@ -616,7 +622,7 @@ namespace Ogre
         HardwareVertexBufferSharedPtr vbuf = 
             HardwareBufferManager::getSingleton().createVertexBuffer(
             offset, 
-            pMesh->sharedVertexData->vertexCount, 
+            vertexData->vertexCount,
             params.vertexBufferUsage, 
             params.vertexShadowBuffer);
         bind->setBinding(0, vbuf);
@@ -729,6 +735,7 @@ namespace Ogre
         vbuf->unlock();
 
         // Generate face list
+        pSub->useSharedVertices = false;
         tesselate2DMesh(pSub, params.xsegments + 1, params.ysegments + 1, 
             false, params.indexBufferUsage, params.indexShadowBuffer);
 
@@ -750,8 +757,8 @@ namespace Ogre
 
         // Set up vertex data
         // Use a single shared buffer
-        pMesh->sharedVertexData = OGRE_NEW VertexData();
-        VertexData* vertexData = pMesh->sharedVertexData;
+        pSub->vertexData[VpNormal] = OGRE_NEW VertexData();
+        VertexData* vertexData = pSub->vertexData[VpNormal];
         // Set up Vertex Declaration
         VertexDeclaration* vertexDecl = vertexData->vertexDeclaration;
         size_t currOffset = 0;
@@ -912,7 +919,7 @@ namespace Ogre
         // Unlock
         vbuf->unlock();
         // Generate face list
-        pSub->useSharedVertices = true;
+        pSub->useSharedVertices = false;
         tesselate2DMesh(pSub, params.xsegments + 1, params.ySegmentsToKeep + 1, false, 
             params.indexBufferUsage, params.indexShadowBuffer);
 
@@ -972,6 +979,139 @@ namespace Ogre
         mBoundsPaddingFactor = paddingFactor;
     }
     //-----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
+    // Helper functions to unshare the vertices
+    //-----------------------------------------------------------------------
+    typedef map<uint32, uint32>::type IndicesMap;
+
+    template< typename TIndexType >
+    IndicesMap getUsedIndices(IndexData* idxData)
+    {
+        TIndexType *data = (TIndexType*)idxData->indexBuffer->lock(idxData->indexStart * sizeof(TIndexType),
+            idxData->indexCount * sizeof(TIndexType), HardwareBuffer::HBL_READ_ONLY);
+
+        IndicesMap indicesMap;
+        for (size_t i = 0; i < idxData->indexCount; i++)
+        {
+            TIndexType index = data[i];
+            if (indicesMap.find(index) == indicesMap.end())
+            {
+                uint32 val = (uint32)(indicesMap.size());
+                indicesMap[index] = val;
+            }
+        }
+
+        idxData->indexBuffer->unlock();
+        return indicesMap;
+    }
+    //-----------------------------------------------------------------------
+    template< typename TIndexType >
+    void copyIndexBuffer(IndexData* idxData, IndicesMap& indicesMap)
+    {
+        TIndexType *data = (TIndexType*)idxData->indexBuffer->lock(idxData->indexStart * sizeof(TIndexType),
+            idxData->indexCount * sizeof(TIndexType), HardwareBuffer::HBL_NORMAL);
+
+        for (uint32 i = 0; i < idxData->indexCount; i++)
+        {
+            data[i] = (TIndexType)indicesMap[data[i]];
+        }
+
+        idxData->indexBuffer->unlock();
+    }
+    //-----------------------------------------------------------------------
+    void MeshManager::unshareVertices( Mesh *mesh )
+    {
+        // Retrieve data to copy bone assignments
+        const Mesh::VertexBoneAssignmentList& boneAssignments = mesh->getBoneAssignments();
+
+        // Access shared vertices
+        VertexData* sharedVertexData = mesh->sharedVertexData[VpNormal];
+
+        for (size_t subMeshIdx = 0; subMeshIdx < mesh->getNumSubMeshes(); subMeshIdx++)
+        {
+            SubMesh *subMesh = mesh->getSubMesh(subMeshIdx);
+
+            IndexData *indexData = subMesh->indexData[VpNormal];
+            HardwareIndexBuffer::IndexType idxType = indexData->indexBuffer->getType();
+            IndicesMap indicesMap = (idxType == HardwareIndexBuffer::IT_16BIT) ? getUsedIndices<uint16>(indexData) :
+                                                                                 getUsedIndices<uint32>(indexData);
+
+
+            VertexData *newVertexData = new VertexData();
+            newVertexData->vertexCount = indicesMap.size();
+            HardwareBufferManager::getSingleton().
+                    destroyVertexDeclaration( newVertexData->vertexDeclaration );
+            newVertexData->vertexDeclaration = sharedVertexData->vertexDeclaration->clone();
+
+            for (size_t bufIdx = 0; bufIdx < sharedVertexData->vertexBufferBinding->getBufferCount(); bufIdx++)
+            {
+                HardwareVertexBufferSharedPtr sharedVertexBuffer = sharedVertexData->vertexBufferBinding->getBuffer(bufIdx);
+                size_t vertexSize = sharedVertexBuffer->getVertexSize();
+
+                HardwareVertexBufferSharedPtr newVertexBuffer = HardwareBufferManager::getSingleton().createVertexBuffer
+                    (vertexSize, newVertexData->vertexCount, sharedVertexBuffer->getUsage(), sharedVertexBuffer->hasShadowBuffer());
+
+                uint8 *oldLock = (uint8*)sharedVertexBuffer->lock(0, sharedVertexData->vertexCount * vertexSize, HardwareBuffer::HBL_READ_ONLY);
+                uint8 *newLock = (uint8*)newVertexBuffer->lock(0, newVertexData->vertexCount * vertexSize, HardwareBuffer::HBL_NORMAL);
+
+                IndicesMap::iterator indIt = indicesMap.begin();
+                IndicesMap::iterator endIndIt = indicesMap.end();
+                for (; indIt != endIndIt; ++indIt)
+                {
+                    memcpy(newLock + vertexSize * indIt->second, oldLock + vertexSize * indIt->first, vertexSize);
+                }
+
+                sharedVertexBuffer->unlock();
+                newVertexBuffer->unlock();
+
+                newVertexData->vertexBufferBinding->setBinding(bufIdx, newVertexBuffer);
+            }
+
+            if (idxType == HardwareIndexBuffer::IT_16BIT)
+            {
+                copyIndexBuffer<uint16>(indexData, indicesMap);
+            }
+            else
+            {
+                copyIndexBuffer<uint32>(indexData, indicesMap);
+            }
+
+            // Store new attributes
+            subMesh->useSharedVertices = false;
+            subMesh->vertexData[VpNormal] = newVertexData;
+
+            // Transfer bone assignments to the submesh
+            Mesh::VertexBoneAssignmentList::const_iterator itor = boneAssignments.begin();
+            Mesh::VertexBoneAssignmentList::const_iterator end  = boneAssignments.end();
+            IndicesMap::const_iterator enVertIdx = indicesMap.end();
+            while( itor != end )
+            {
+                VertexBoneAssignment boneAssignment = (*itor).second;
+                IndicesMap::const_iterator itVertIdx = indicesMap.find( boneAssignment.vertexIndex );
+
+                if( itVertIdx != enVertIdx )
+                {
+                    boneAssignment.vertexIndex = itVertIdx->second;
+                    subMesh->addBoneAssignment(boneAssignment);
+                }
+
+                ++itor;
+            }
+        }
+
+        // Release shared vertex data
+        if( mesh->sharedVertexData[VpNormal] == mesh->sharedVertexData[VpShadow] )
+            mesh->sharedVertexData[VpShadow] = 0;
+
+        delete mesh->sharedVertexData[VpNormal];
+        delete mesh->sharedVertexData[VpShadow];
+        mesh->sharedVertexData[VpNormal] = 0;
+        mesh->sharedVertexData[VpShadow] = 0;
+        mesh->clearBoneAssignments();
+
+        mesh->prepareForShadowMapping( false );
+    }
+    //-----------------------------------------------------------------------
     Resource* MeshManager::createImpl(const String& name, ResourceHandle handle, 
         const String& group, bool isManual, ManualResourceLoader* loader, 
         const NameValuePairList* createParams)
@@ -980,5 +1120,5 @@ namespace Ogre
         return OGRE_NEW Mesh(this, name, handle, group, isManual, loader);
     }
     //-----------------------------------------------------------------------
-
+}
 }

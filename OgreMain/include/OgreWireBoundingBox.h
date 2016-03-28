@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "OgreSimpleRenderable.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -62,7 +63,7 @@ namespace Ogre {
 
     public:
             
-        WireBoundingBox( IdType id, ObjectMemoryManager *objectMemoryManager );
+        WireBoundingBox( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
         ~WireBoundingBox();
 
         /** Builds the wireframe line list.
@@ -76,7 +77,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
-
+}
 }// namespace
 
 #endif

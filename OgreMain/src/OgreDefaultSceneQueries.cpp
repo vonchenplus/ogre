@@ -206,10 +206,10 @@ namespace Ogre {
                 //move the objects between that call and this query.
                 //Ignore out of date Aabbs from objects that have been
                 //explicitly disabled or fail the query mask.
-                assert( (objData.mVisibilityFlags[objData.mIndex] & VisibilityFlags::LAYER_VISIBILITY) &&
-                        (objData.mQueryFlags[objData.mIndex] & mQueryMask) &&
-                        !objData.mOwner[j]->isCachedAabbOutOfDate() &&
-                        "Perform the queries after MovableObject::updateAllBounds has been called!" );
+                assert((!(objData.mVisibilityFlags[objData.mIndex] & VisibilityFlags::LAYER_VISIBILITY) ||
+                        !(objData.mQueryFlags[objData.mIndex] & mQueryMask) ||
+                        !objData.mOwner[j]->isCachedAabbOutOfDate()) &&
+                        "Perform the queries after MovableObject::updateAllBounds has been called!");
 #endif
             }
 
@@ -290,8 +290,9 @@ namespace Ogre {
                 ArrayMaskR mask = Mathlib::CompareGreaterEqual( t, ARRAY_REAL_ZERO );
                 ArrayVector3 hitPoint = rayOrigin + rayDir * t;
 
-                //Fix accuracy issues for very thin aabbs
-                hitPoint.mChunkBase[j] = vMin.mChunkBase[j];
+                //Fix accuracy issues (this value will lay exactly in the extend,
+				//but often is slightly beyond it, causing the test to fail)
+                hitPoint.mChunkBase[j] = objData.mWorldAabb->mCenter.mChunkBase[j];
 
                 //hitMaskR |= t >= 0 && mWorldAabb->contains( hitPoint );
                 //distance = t >= 0 ? min( distance, t ) : t;
@@ -309,8 +310,9 @@ namespace Ogre {
                 ArrayMaskR mask = Mathlib::CompareGreaterEqual( t, ARRAY_REAL_ZERO );
                 ArrayVector3 hitPoint = rayOrigin + rayDir * t;
 
-                //Fix accuracy issues for very thin aabbs
-                hitPoint.mChunkBase[j] = vMax.mChunkBase[j];
+                //Fix accuracy issues (this value will lay exactly in the extend,
+				//but often is slightly beyond it, causing the test to fail)
+                hitPoint.mChunkBase[j] = objData.mWorldAabb->mCenter.mChunkBase[j];
 
                 //hitMaskR |= t >= 0 && mWorldAabb->contains( hitPoint );
                 //distance = t >= 0 ? min( distance, t ) : t;
@@ -347,10 +349,10 @@ namespace Ogre {
                 //move the objects between that call and this query.
                 //Ignore out of date Aabbs from objects that have been
                 //explicitly disabled or fail the query mask.
-                assert( (objData.mVisibilityFlags[objData.mIndex] & VisibilityFlags::LAYER_VISIBILITY) &&
-                        (objData.mQueryFlags[objData.mIndex] & mQueryMask) &&
-                        !objData.mOwner[j]->isCachedAabbOutOfDate() &&
-                        "Perform the queries after MovableObject::updateAllBounds has been called!" );
+                assert((!(objData.mVisibilityFlags[objData.mIndex] & VisibilityFlags::LAYER_VISIBILITY) ||
+                        !(objData.mQueryFlags[objData.mIndex] & mQueryMask) ||
+                        !objData.mOwner[j]->isCachedAabbOutOfDate()) &&
+                        "Perform the queries after MovableObject::updateAllBounds has been called!");
 #endif
             }
 
@@ -440,10 +442,10 @@ namespace Ogre {
                 //move the objects between that call and this query.
                 //Ignore out of date Aabbs from objects that have been
                 //explicitly disabled or fail the query mask.
-                assert( (objData.mVisibilityFlags[objData.mIndex] & VisibilityFlags::LAYER_VISIBILITY) &&
-                        (objData.mQueryFlags[objData.mIndex] & mQueryMask) &&
-                        !objData.mOwner[j]->isCachedAabbOutOfDate() &&
-                        "Perform the queries after MovableObject::updateAllBounds has been called!" );
+                assert((!(objData.mVisibilityFlags[objData.mIndex] & VisibilityFlags::LAYER_VISIBILITY) ||
+                        !(objData.mQueryFlags[objData.mIndex] & mQueryMask) ||
+                        !objData.mOwner[j]->isCachedAabbOutOfDate()) &&
+                        "Perform the queries after MovableObject::updateAllBounds has been called!");
 #endif
             }
 

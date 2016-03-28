@@ -34,9 +34,11 @@ THE SOFTWARE.
 #include "OgreVertexBoneAssignment.h"
 #include "OgreAnimationTrack.h"
 #include "OgreResourceGroupManager.h"
+#include "Vao/OgreVertexArrayObject.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -67,24 +69,29 @@ namespace Ogre {
         SubMesh();
         ~SubMesh();
 
-
         /// Indicates if this submesh shares vertex data with other meshes or whether it has it's own vertices.
         bool useSharedVertices;
+
+        uint32 renderOpMeshIndex;
 
         /// The render operation type used to render this submesh
         RenderOperation::OperationType operationType;
 
         /** Dedicated vertex data (only valid if useSharedVertices = false).
+            [0] is for the regular pass, [1] is for the caster. Note that
+            vertexData[0] = vertexData[1] is possible, but if one
+            submesh has vertexData[0] = vertexData[1], then all submeshes in the mesh
+            must have vertexData[0] = vertexData[1] as well for the sake of simplicity.
             @remarks
                 This data is completely owned by this submesh.
             @par
                 The use of shared or non-shared buffers is determined when
                 model data is converted to the OGRE .mesh format.
         */
-        VertexData *vertexData;
+        VertexData *vertexData[NumVertexPass];
 
         /// Face index data
-        IndexData *indexData;
+        IndexData *indexData[NumVertexPass];
 
         /** Dedicated index map for translate blend index to bone index (only valid if useSharedVertices = false).
             @remarks
@@ -109,7 +116,7 @@ namespace Ogre {
         IndexMap blendIndexToBoneIndexMap;
 
         typedef vector<IndexData*>::type LODFaceList;
-        LODFaceList mLodFaceList;
+        LODFaceList mLodFaceList[NumVertexPass];
 
         /** A list of extreme points on the submesh (optional).
             @remarks
@@ -149,7 +156,7 @@ namespace Ogre {
             @param
                 lodIndex The index of the LOD to use. 
         */
-        void _getRenderOperation(RenderOperation& rend, ushort lodIndex = 0);
+        void _getRenderOperation(RenderOperation& rend, ushort lodIndex, bool casterPass);
 
         /** Assigns a vertex to a bone with a given weight, for skeletal animation. 
         @remarks    
@@ -261,6 +268,17 @@ namespace Ogre {
          */
         SubMesh * clone(const String& newName, Mesh *parentMesh = 0);
 
+        /// Imports a v2 SubMesh @See Mesh::importV2.
+        void importFromV2( Ogre::SubMesh *subMesh );
+
+        void arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents );
+
+        void dearrangeToInefficient(void);
+
+    protected:
+        /// @See v1::Mesh::arrangeEfficient
+        void arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents, size_t vaoPassIdx );
+
     protected:
 
         /// Name of the material this SubMesh uses.
@@ -289,11 +307,31 @@ namespace Ogre {
         /// Internal method for removing LOD data
         void removeLodLevels(void);
 
+        static void removeLodLevel( LODFaceList &lodList );
 
+        /** Rearranges the buffers to be efficiently rendered in Ogre 2.0 with Hlms
+        @remarks
+            vertexData->vertexDeclaration is modified and vertexData->vertexBufferBinding
+            is destroyed. Caller must reallocate the vertex buffer filled with the returned
+            pointer
+        @param halfPos
+            @See Mesh::arrangeEfficientFor
+        @param halfTexCoords
+            @See Mesh::arrangeEfficientFor
+        @param outVertexElements [out]
+            Description of the buffer in the new Vao system. Matches the same as
+            vertexData->vertexDeclaration, provided as out param as convenience.
+            Can be null.
+        @return
+            Buffer pointer with reorganized data.
+            Caller MUST free the pointer with OGRE_FREE_SIMD( MEMCATEGORY_GEOMETRY ).
+        */
+        char* arrangeEfficient( bool halfPos, bool halfTexCoords, VertexElement2Vec *outVertexElements );
     };
     /** @} */
     /** @} */
 
+}
 } // namespace
 
 #include "OgreHeaderSuffix.h"

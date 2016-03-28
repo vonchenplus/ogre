@@ -21,6 +21,8 @@ endif()
 
 set(INST_FILES
   Packages/FindOIS.cmake
+  Packages/FindRapidjson.cmake
+  Packages/FindSDL2.cmake
   Packages/FindOGRE.cmake
   Utils/FindPkgMacros.cmake
   Utils/MacroLogFeature.cmake

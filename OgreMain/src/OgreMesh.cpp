@@ -46,11 +46,17 @@ THE SOFTWARE.
 #include "OgreTangentSpaceCalc.h"
 #include "OgreLodStrategyManager.h"
 #include "OgrePixelCountLodStrategy.h"
+#include "OgreVertexShadowMapHelper.h"
 
 #include "Animation/OgreSkeletonDef.h"
 #include "Animation/OgreSkeletonManager.h"
 
+#include "OgreMesh2.h"
+
 namespace Ogre {
+namespace v1 {
+    bool Mesh::msOptimizeForShadowMapping = false;
+
     //-----------------------------------------------------------------------
     Mesh::Mesh(ResourceManager* creator, const String& name, ResourceHandle handle,
         const String& group, bool isManual, ManualResourceLoader* loader)
@@ -71,9 +77,10 @@ namespace Ogre {
         mSharedVertexDataAnimationType(VAT_NONE),
         mSharedVertexDataAnimationIncludesNormals(false),
         mAnimationTypesDirty(true),
-        mPosesIncludeNormals(false),
-        sharedVertexData(0)
+        mPosesIncludeNormals(false)
     {
+        memset( sharedVertexData, 0, sizeof(sharedVertexData) );
+
         // Init first (manual) lod
         MeshLodUsage lod;
         lod.userValue = 0; // User value not used for base LOD level
@@ -287,11 +294,16 @@ namespace Ogre {
         {
             OGRE_DELETE *i;
         }
-        if (sharedVertexData)
+
+        if( sharedVertexData[VpNormal] == sharedVertexData[VpShadow] )
+            sharedVertexData[VpShadow] = 0;
+
+        for( size_t i=0; i<NumVertexPass; ++i )
         {
-            OGRE_DELETE sharedVertexData;
-            sharedVertexData = NULL;
+            OGRE_DELETE sharedVertexData[i];
+            sharedVertexData[i] = 0;
         }
+
         // Clear SubMesh lists
         mSubMeshList.clear();
         mSubMeshNameMap.clear();
@@ -312,7 +324,77 @@ namespace Ogre {
         // Removes reference to skeleton
         setSkeletonName(BLANKSTRING);
     }
+    //-----------------------------------------------------------------------
+    void Mesh::importV2( Ogre::Mesh *mesh )
+    {
+        if( mLoadingState.get() != LOADSTATE_UNLOADED )
+        {
+            OGRE_EXCEPT( Exception::ERR_INVALID_STATE,
+                         "To import a v2 mesh, the v1 mesh must be in unloaded state!",
+                         "v1::Mesh::importV2" );
+        }
 
+        mAABB.setMinimum( mesh->getAabb().getMinimum() );
+        mAABB.setMaximum( mesh->getAabb().getMaximum() );
+        mBoundRadius = mesh->getBoundingSphereRadius();
+        mBoneBoundingRadius = mBoundRadius;
+
+        for( size_t i=0; i<mesh->getNumSubMeshes(); ++i )
+        {
+            SubMesh *subMesh = createSubMesh();
+            subMesh->importFromV2( mesh->getSubMesh( i ) );
+        }
+
+        mSubMeshNameMap = mesh->getSubMeshNameMap();
+
+        mLodValues = *mesh->_getLodValueArray();
+
+        mIsManual = true;
+
+        if( !mesh->hasIndependentShadowMappingVaos() )
+            prepareForShadowMapping( true );
+
+        setSkeletonName( mesh->getSkeletonName() );
+    }
+    //-----------------------------------------------------------------------
+    void Mesh::arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents )
+    {
+        if( sharedVertexData[VpNormal] )
+        {
+            LogManager::getSingleton().logMessage( "WARNING: Mesh '" + this->getName() +
+                                                   "' has shared vertices. They're being "
+                                                   "'unshared' in Mesh::arrangeEfficient" );
+            v1::MeshManager::unshareVertices( this );
+        }
+
+        SubMeshList::const_iterator itor = mSubMeshList.begin();
+        SubMeshList::const_iterator end  = mSubMeshList.end();
+
+        while( itor != end )
+        {
+            (*itor)->arrangeEfficient( halfPos, halfTexCoords, qTangents );
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------
+    void Mesh::dearrangeToInefficient(void)
+    {
+        if( sharedVertexData[VpNormal] )
+        {
+            OGRE_EXCEPT( Exception::ERR_INVALID_CALL,
+                         "Meshes with shared vertex buffers can't be dearranged.",
+                         "v1::Mesh::dearrangeToInefficient" );
+        }
+
+        SubMeshList::const_iterator itor = mSubMeshList.begin();
+        SubMeshList::const_iterator end  = mSubMeshList.end();
+
+        while( itor != end )
+        {
+            (*itor)->dearrangeToInefficient();
+            ++itor;
+        }
+    }
     //-----------------------------------------------------------------------
     MeshPtr Mesh::clone(const String& newName, const String& newGroup)
     {
@@ -340,9 +422,14 @@ namespace Ogre {
         }
 
         // Copy shared geometry and index map, if any
-        if (sharedVertexData)
+        if (sharedVertexData[VpNormal])
         {
-            newMesh->sharedVertexData = sharedVertexData->clone();
+            newMesh->sharedVertexData[VpNormal] = sharedVertexData[VpNormal]->clone();
+            if( sharedVertexData[VpNormal] == sharedVertexData[VpShadow] )
+                newMesh->sharedVertexData[VpShadow] = newMesh->sharedVertexData[VpNormal];
+            else
+                newMesh->sharedVertexData[VpShadow] = sharedVertexData[VpShadow]->clone();
+
             newMesh->sharedBlendIndexToBoneIndexMap = sharedBlendIndexToBoneIndexMap;
         }
 
@@ -453,13 +540,15 @@ namespace Ogre {
     void Mesh::_updateBoundsFromVertexBuffers(bool pad)
     {
         bool extendOnly = false; // First time we need full AABB of the given submesh, but on the second call just extend that one.
-        if (sharedVertexData){
-            _calcBoundsFromVertexBuffer(sharedVertexData, mAABB, mBoundRadius, extendOnly);
+        if (sharedVertexData[VpShadow]){
+            _calcBoundsFromVertexBuffer(sharedVertexData[VpShadow], mAABB, mBoundRadius, extendOnly);
             extendOnly = true;
         }
         for (size_t i = 0; i < mSubMeshList.size(); i++){
-            if (mSubMeshList[i]->vertexData){
-                _calcBoundsFromVertexBuffer(mSubMeshList[i]->vertexData, mAABB, mBoundRadius, extendOnly);
+            if (mSubMeshList[i]->vertexData[VpShadow])
+            {
+                _calcBoundsFromVertexBuffer(mSubMeshList[i]->vertexData[VpShadow],
+                                            mAABB, mBoundRadius, extendOnly);
                 extendOnly = true;
             }
         }
@@ -647,6 +736,8 @@ namespace Ogre {
                 (*i)->_compileBoneAssignments();
             }
         }
+
+        prepareForShadowMapping( false );
     }
     //-----------------------------------------------------------------------
     typedef multimap<Real, Mesh::VertexBoneAssignmentList::iterator>::type WeightIteratorMap;
@@ -748,14 +839,15 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void  Mesh::_compileBoneAssignments(void)
     {
-        if (sharedVertexData)
+        if (sharedVertexData[VpNormal])
         {
-            unsigned short maxBones = _rationaliseBoneAssignments(sharedVertexData->vertexCount, mBoneAssignments);
+            unsigned short maxBones = _rationaliseBoneAssignments(
+                        sharedVertexData[VpNormal]->vertexCount, mBoneAssignments);
 
             if (maxBones != 0)
             {
                 compileBoneAssignments(mBoneAssignments, maxBones, 
-                    sharedBlendIndexToBoneIndexMap, sharedVertexData);
+                    sharedBlendIndexToBoneIndexMap, sharedVertexData[VpNormal]);
             }
         }
         mBoneAssignmentsOutOfDate = false;
@@ -833,11 +925,23 @@ namespace Ogre {
             bindIndex = bind->getNextIndex();
         }
 
+        // Determine what usage to use for the new buffer
+        HardwareBuffer::Usage currentBufferUsage;
+        const VertexBufferBinding::VertexBufferBindingMap & bindingMap = bind->getBindings();
+        VertexBufferBinding::VertexBufferBindingMap::const_iterator currentBindingIt = bindingMap.find(bindIndex);
+        if (currentBindingIt != bindingMap.end()) {
+            currentBufferUsage = currentBindingIt->second->getUsage();
+        } else if (bindingMap.size()) {
+            currentBufferUsage = bindingMap.begin()->second->getUsage();
+        } else {
+            currentBufferUsage = HardwareBuffer::HBU_STATIC_WRITE_ONLY;
+        }
+        // Create a new buffer for bone assignments
         HardwareVertexBufferSharedPtr vbuf =
             HardwareBufferManager::getSingleton().createVertexBuffer(
                 sizeof(unsigned char)*4 + sizeof(float)*numBlendWeightsPerVertex,
                 targetVertexData->vertexCount,
-                HardwareBuffer::HBU_STATIC_WRITE_ONLY,
+                currentBufferUsage,
                 true // use shadow buffer
                 );
         // bind new buffer
@@ -1016,10 +1120,11 @@ namespace Ogre {
                     }
                 }
             }
-            if (sharedVertexData)
+            if (sharedVertexData[VpNormal])
             {
                 // check shared vertices
-                radius = _computeBoneBoundingRadiusHelper(sharedVertexData, mBoneAssignments, bonePositions, boneChildren);
+                radius = _computeBoneBoundingRadiusHelper(sharedVertexData[VpNormal], mBoneAssignments,
+                                                          bonePositions, boneChildren);
             }
 
             // check submesh vertices
@@ -1029,9 +1134,10 @@ namespace Ogre {
             while( itor != end )
             {
                 SubMesh* submesh = *itor;
-                if (!submesh->useSharedVertices && submesh->vertexData)
+                if (!submesh->useSharedVertices && submesh->vertexData[VpNormal])
                 {
-                    Real r = _computeBoneBoundingRadiusHelper(submesh->vertexData, submesh->mBoneAssignments, bonePositions, boneChildren);
+                    Real r = _computeBoneBoundingRadiusHelper( submesh->vertexData[VpNormal], submesh->mBoneAssignments,
+                                                               bonePositions, boneChildren );
                     radius = std::max( radius, r );
                 }
                 ++itor;
@@ -1136,7 +1242,8 @@ namespace Ogre {
         // Resize submesh face data lists too
         for (SubMeshList::iterator i = mSubMeshList.begin(); i != mSubMeshList.end(); ++i)
         {
-            (*i)->mLodFaceList.resize(numLevels - 1);
+            (*i)->mLodFaceList[VpNormal].resize(numLevels - 1);
+            (*i)->mLodFaceList[VpShadow].resize(numLevels - 1);
         }
     }
     //---------------------------------------------------------------------
@@ -1158,8 +1265,8 @@ namespace Ogre {
         }
     }
     //---------------------------------------------------------------------
-    void Mesh::_setSubMeshLodFaceList(unsigned short subIdx, unsigned short level,
-        IndexData* facedata)
+    void Mesh::_setSubMeshLodFaceList( unsigned short subIdx, unsigned short level,
+                                       IndexData* facedata, bool casterPass )
     {
         assert(!mEdgeListsBuilt && "Can't modify LOD after edge lists built");
 
@@ -1167,10 +1274,11 @@ namespace Ogre {
         assert(mMeshLodUsageList[level].manualName.empty() && "Not using generated LODs!");
         assert(subIdx < mSubMeshList.size() && "Index out of bounds");
         assert(level != 0 && "Can't modify first LOD level (full detail)");
-        assert(level-1 < (unsigned short)mSubMeshList[subIdx]->mLodFaceList.size() && "Index out of bounds");
+        assert(level-1 < (unsigned short)mSubMeshList[subIdx]->mLodFaceList[casterPass].size() &&
+               "Index out of bounds");
 
         SubMesh* sm = mSubMeshList[subIdx];
-        sm->mLodFaceList[level - 1] = facedata;
+        sm->mLodFaceList[casterPass][level - 1] = facedata;
     }
     //---------------------------------------------------------------------
     bool Mesh::_isManualLodLevel( unsigned short level ) const
@@ -1244,8 +1352,8 @@ namespace Ogre {
     void Mesh::mergeAdjacentTexcoords( unsigned short finalTexCoordSet,
                                         unsigned short texCoordSetToDestroy )
     {
-        if( sharedVertexData )
-            mergeAdjacentTexcoords( finalTexCoordSet, texCoordSetToDestroy, sharedVertexData );
+        if( sharedVertexData[VpNormal] )
+            mergeAdjacentTexcoords( finalTexCoordSet, texCoordSetToDestroy, sharedVertexData[VpNormal] );
 
         SubMeshList::const_iterator itor = mSubMeshList.begin();
         SubMeshList::const_iterator end  = mSubMeshList.end();
@@ -1253,7 +1361,10 @@ namespace Ogre {
         while( itor != end )
         {
             if( !(*itor)->useSharedVertices )
-                mergeAdjacentTexcoords( finalTexCoordSet, texCoordSetToDestroy, (*itor)->vertexData );
+            {
+                mergeAdjacentTexcoords( finalTexCoordSet, texCoordSetToDestroy,
+                                        (*itor)->vertexData[VpNormal] );
+            }
             ++itor;
         }
     }
@@ -1303,6 +1414,169 @@ namespace Ogre {
                 vDecl->closeGapsInSource();
             }
         }
+    }
+    //---------------------------------------------------------------------
+    void Mesh::destroyShadowMappingGeom(void)
+    {
+        if( sharedVertexData[VpShadow] != sharedVertexData[VpNormal] )
+            OGRE_DELETE sharedVertexData[VpShadow];
+        sharedVertexData[VpShadow] = 0;
+
+        SubMeshList::const_iterator itor = mSubMeshList.begin();
+        SubMeshList::const_iterator end  = mSubMeshList.end();
+
+        while( itor != end )
+        {
+            if( (*itor)->vertexData[VpShadow] != (*itor)->vertexData[VpNormal] )
+                OGRE_DELETE (*itor)->vertexData[VpShadow];
+            (*itor)->vertexData[VpShadow] = 0;
+
+            if( (*itor)->indexData[VpShadow] != (*itor)->indexData[VpNormal] )
+                OGRE_DELETE (*itor)->indexData[VpShadow];
+            (*itor)->indexData[VpShadow] = 0;
+
+            if( (*itor)->mLodFaceList[VpNormal].empty() || (*itor)->mLodFaceList[VpShadow].empty() ||
+                (*itor)->mLodFaceList[VpNormal][0] != (*itor)->mLodFaceList[VpShadow][0] )
+            {
+                SubMesh::LODFaceList::const_iterator itLod = (*itor)->mLodFaceList[VpShadow].begin();
+                SubMesh::LODFaceList::const_iterator enLod = (*itor)->mLodFaceList[VpShadow].end();
+
+                while( itLod != enLod )
+                    OGRE_DELETE *itLod++;
+            }
+
+            (*itor)->mLodFaceList[VpShadow].clear();
+
+            ++itor;
+        }
+    }
+    //---------------------------------------------------------------------
+    void Mesh::prepareForShadowMapping( bool forceSameBuffers )
+    {
+        destroyShadowMappingGeom();
+
+        if( !msOptimizeForShadowMapping || forceSameBuffers )
+        {
+            sharedVertexData[VpShadow] = sharedVertexData[VpNormal];
+
+            SubMeshList::const_iterator itor = mSubMeshList.begin();
+            SubMeshList::const_iterator end  = mSubMeshList.end();
+
+            while( itor != end )
+            {
+                (*itor)->vertexData[VpShadow] = (*itor)->vertexData[VpNormal];
+                (*itor)->indexData[VpShadow] = (*itor)->indexData[VpNormal];
+
+                SubMesh::LODFaceList::const_iterator itLod = (*itor)->mLodFaceList[VpNormal].begin();
+                SubMesh::LODFaceList::const_iterator enLod = (*itor)->mLodFaceList[VpNormal].end();
+                while( itLod != enLod )
+                    (*itor)->mLodFaceList[VpShadow].push_back( *itLod++ );
+
+                ++itor;
+            }
+        }
+        else
+        {
+            VertexShadowMapHelper::GeometryVec inGeom;
+            VertexShadowMapHelper::GeometryVec outGeom;
+
+            {
+                SubMeshList::const_iterator itor = mSubMeshList.begin();
+                SubMeshList::const_iterator end  = mSubMeshList.end();
+
+                while( itor != end )
+                {
+                    VertexShadowMapHelper::Geometry geom;
+
+                    if( (*itor)->vertexData[VpNormal] )
+                        geom.vertexData = (*itor)->vertexData[VpNormal];
+                    else
+                        geom.vertexData = sharedVertexData[VpNormal];
+
+                    geom.indexData = (*itor)->indexData[VpNormal];
+                    inGeom.push_back( geom );
+
+                    SubMesh::LODFaceList::const_iterator itLod = (*itor)->mLodFaceList[VpNormal].begin();
+                    SubMesh::LODFaceList::const_iterator enLod = (*itor)->mLodFaceList[VpNormal].end();
+
+                    while( itLod != enLod )
+                    {
+                        geom.indexData = *itLod;
+                        inGeom.push_back( geom );
+                        ++itLod;
+                    }
+
+                    ++itor;
+                }
+            }
+
+            VertexShadowMapHelper::optimizeForShadowMapping( inGeom, outGeom );
+
+            const size_t numSubMeshes = mSubMeshList.size();
+            VertexShadowMapHelper::GeometryVec::const_iterator itGeom = outGeom.begin();
+
+            for( size_t i=0; i<numSubMeshes; ++i )
+            {
+                if( mSubMeshList[i]->vertexData[VpNormal] )
+                    mSubMeshList[i]->vertexData[VpShadow] = itGeom->vertexData;
+                else
+                    sharedVertexData[VpShadow] = itGeom->vertexData;
+
+                mSubMeshList[i]->indexData[VpShadow] = itGeom->indexData;
+                ++itGeom;
+
+                const size_t numLods = mSubMeshList[i]->mLodFaceList[VpNormal].size();
+                for( size_t j=0; j<numLods; ++j )
+                {
+                    mSubMeshList[i]->mLodFaceList[VpShadow].push_back( itGeom->indexData );
+                    ++itGeom;
+                }
+            }
+        }
+    }
+    //---------------------------------------------------------------------
+    bool Mesh::hasValidShadowMappingBuffers(void) const
+    {
+        bool retVal = true;
+
+        retVal &= (sharedVertexData[VpNormal] == 0) ||
+                (sharedVertexData[VpNormal] != 0 && sharedVertexData[VpShadow] != 0);
+
+        SubMeshList::const_iterator itor = mSubMeshList.begin();
+        SubMeshList::const_iterator end  = mSubMeshList.end();
+
+        while( itor != end && retVal )
+        {
+            retVal &= ((*itor)->vertexData[VpNormal] == 0) || ((*itor)->vertexData[VpNormal] != 0 &&
+                                                               (*itor)->vertexData[VpShadow] != 0);
+            retVal &= ((*itor)->indexData[VpNormal] == 0) || ((*itor)->indexData[VpNormal] != 0 &&
+                                                              (*itor)->indexData[VpShadow] != 0);
+
+            retVal &= (*itor)->mLodFaceList[VpNormal].size() == (*itor)->mLodFaceList[VpShadow].size();
+
+            ++itor;
+        }
+
+        return retVal;
+    }
+    //---------------------------------------------------------------------
+    bool Mesh::hasIndependentShadowMappingBuffers(void) const
+    {
+        if( !hasValidShadowMappingBuffers() )
+            return false;
+
+        bool independent = sharedVertexData[VpNormal] != sharedVertexData[VpShadow];
+
+        SubMeshList::const_iterator itor = mSubMeshList.begin();
+        SubMeshList::const_iterator end  = mSubMeshList.end();
+
+        while( itor != end && !independent )
+        {
+            independent |= (*itor)->vertexData[VpNormal] != (*itor)->vertexData[VpShadow];
+            ++itor;
+        }
+
+        return independent;
     }
     //---------------------------------------------------------------------
     void Mesh::organiseTangentsBuffer(VertexData *vertexData,
@@ -1390,6 +1664,8 @@ namespace Ogre {
         unsigned short sourceTexCoordSet, unsigned short index, 
         bool splitMirrored, bool splitRotated, bool storeParityInW)
     {
+        if( !sharedVertexData[VpNormal] )
+            dearrangeToInefficient();
 
         TangentSpaceCalc tangentsCalc;
         tangentsCalc.setSplitMirrored(splitMirrored);
@@ -1397,16 +1673,16 @@ namespace Ogre {
         tangentsCalc.setStoreParityInW(storeParityInW);
 
         // shared geometry first
-        if (sharedVertexData)
+        if (sharedVertexData[VpNormal])
         {
-            tangentsCalc.setVertexData(sharedVertexData);
+            tangentsCalc.setVertexData(sharedVertexData[VpNormal]);
             bool found = false;
             for (SubMeshList::iterator i = mSubMeshList.begin(); i != mSubMeshList.end(); ++i)
             {
                 SubMesh* sm = *i;
                 if (sm->useSharedVertices)
                 {
-                    tangentsCalc.addIndexData(sm->indexData);
+                    tangentsCalc.addIndexData(sm->indexData[VpNormal]);
                     found = true;
                 }
             }
@@ -1470,8 +1746,8 @@ namespace Ogre {
             if (!sm->useSharedVertices)
             {
                 tangentsCalc.clear();
-                tangentsCalc.setVertexData(sm->vertexData);
-                tangentsCalc.addIndexData(sm->indexData, sm->operationType);
+                tangentsCalc.setVertexData(sm->vertexData[VpNormal]);
+                tangentsCalc.addIndexData(sm->indexData[VpNormal], sm->operationType);
                 TangentSpaceCalc::Result res = 
                     tangentsCalc.build(targetSemantic, sourceTexCoordSet, index);
 
@@ -1501,6 +1777,7 @@ namespace Ogre {
             }
         }
 
+        prepareForShadowMapping( false );
     }
     //---------------------------------------------------------------------
     bool Mesh::suggestTangentVectorBuildParams(VertexElementSemantic targetSemantic,
@@ -1521,12 +1798,12 @@ namespace Ogre {
             {
                 if (sharedGeometryDone)
                     continue;
-                vertexData = sharedVertexData;
+                vertexData = sharedVertexData[VpNormal];
                 sharedGeometryDone = true;
             }
             else
             {
-                vertexData = sm->vertexData;
+                vertexData = sm->vertexData[VpNormal];
             }
 
             const VertexElement *sourceElem = 0;
@@ -1574,7 +1851,15 @@ namespace Ogre {
                 {
                     foundExisting = true;
                 }
+            }
 
+            if( !foundExisting )
+            {
+                const VertexElement* testElem =
+                    vertexData->vertexDeclaration->findElementBySemantic( VES_NORMAL, 0 );
+
+                if( testElem && testElem->getType() == VET_SHORT4_SNORM )
+                    foundExisting = true; //Tangents were stored as QTangents
             }
 
             // After iterating, we should have a source and a possible destination (t)
@@ -1646,9 +1931,9 @@ namespace Ogre {
                 size_t vertexSetCount = 0;
                 bool atLeastOneIndexSet = false;
 
-                if (sharedVertexData)
+                if (sharedVertexData[VpNormal])
                 {
-                    eb.addVertexData(sharedVertexData);
+                    eb.addVertexData(sharedVertexData[VpNormal]);
                     vertexSetCount++;
                 }
 
@@ -1669,28 +1954,28 @@ namespace Ogre {
                         // Use shared vertex data, index as set 0
                         if (lodIndex == 0)
                         {
-                            eb.addIndexData(s->indexData, 0, s->operationType);
+                            eb.addIndexData(s->indexData[VpNormal], 0, s->operationType);
                         }
                         else
                         {
-                            eb.addIndexData(s->mLodFaceList[lodIndex-1], 0,
-                                s->operationType);
+                            eb.addIndexData(s->mLodFaceList[VpNormal][lodIndex-1], 0,
+                                            s->operationType);
                         }
                     }
                     else if(s->isBuildEdgesEnabled())
                     {
                         // own vertex data, add it and reference it directly
-                        eb.addVertexData(s->vertexData);
+                        eb.addVertexData(s->vertexData[VpNormal]);
                         if (lodIndex == 0)
                         {
                             // Base index data
-                            eb.addIndexData(s->indexData, vertexSetCount++,
+                            eb.addIndexData(s->indexData[VpNormal], vertexSetCount++,
                                 s->operationType);
                         }
                         else
                         {
                             // LOD index data
-                            eb.addIndexData(s->mLodFaceList[lodIndex-1],
+                            eb.addIndexData(s->mLodFaceList[VpNormal][lodIndex-1],
                                 vertexSetCount++, s->operationType);
                         }
 
@@ -1723,9 +2008,9 @@ namespace Ogre {
         // Build
         EdgeListBuilder eb;
         size_t vertexSetCount = 0;
-        if (sharedVertexData)
+        if (sharedVertexData[VpNormal])
         {
-            eb.addVertexData(sharedVertexData);
+            eb.addVertexData(sharedVertexData[VpNormal]);
             vertexSetCount++;
         }
 
@@ -1803,9 +2088,9 @@ namespace Ogre {
         if (mPreparedForShadowVolumes)
             return;
 
-        if (sharedVertexData)
+        if (sharedVertexData[VpNormal])
         {
-            sharedVertexData->prepareForShadowVolume();
+            sharedVertexData[VpNormal]->prepareForShadowVolume();
         }
         SubMeshList::iterator i, iend;
         iend = mSubMeshList.end();
@@ -1817,7 +2102,7 @@ namespace Ogre {
                 s->operationType == RenderOperation::OT_TRIANGLE_LIST ||
                 s->operationType == RenderOperation::OT_TRIANGLE_STRIP))
             {
-                s->vertexData->prepareForShadowVolume();
+                s->vertexData[VpNormal]->prepareForShadowVolume();
             }
         }
         mPreparedForShadowVolumes = true;
@@ -2125,14 +2410,25 @@ namespace Ogre {
         size_t ret = 0;
         unsigned short i;
         // Shared vertices
-        if (sharedVertexData)
+        if (sharedVertexData[VpNormal])
         {
             for (i = 0;
-                i < sharedVertexData->vertexBufferBinding->getBufferCount();
+                i < sharedVertexData[VpNormal]->vertexBufferBinding->getBufferCount();
                 ++i)
             {
-                ret += sharedVertexData->vertexBufferBinding
+                ret += sharedVertexData[VpNormal]->vertexBufferBinding
                     ->getBuffer(i)->getSizeInBytes();
+            }
+
+            if (sharedVertexData[VpNormal] != sharedVertexData[VpShadow])
+            {
+                for (i = 0;
+                    i < sharedVertexData[VpShadow]->vertexBufferBinding->getBufferCount();
+                    ++i)
+                {
+                    ret += sharedVertexData[VpShadow]->vertexBufferBinding
+                        ->getBuffer(i)->getSizeInBytes();
+                }
             }
         }
 
@@ -2143,17 +2439,31 @@ namespace Ogre {
             if (!(*si)->useSharedVertices)
             {
                 for (i = 0;
-                    i < (*si)->vertexData->vertexBufferBinding->getBufferCount();
+                    i < (*si)->vertexData[VpNormal]->vertexBufferBinding->getBufferCount();
                     ++i)
                 {
-                    ret += (*si)->vertexData->vertexBufferBinding
+                    ret += (*si)->vertexData[VpNormal]->vertexBufferBinding
                         ->getBuffer(i)->getSizeInBytes();
                 }
+
+                if( (*si)->vertexData[VpNormal] != (*si)->vertexData[VpShadow] )
+                {
+                    for (i = 0;
+                         i < (*si)->vertexData[VpShadow]->vertexBufferBinding->getBufferCount();
+                         ++i)
+                    {
+                        ret += (*si)->vertexData[VpShadow]->vertexBufferBinding
+                                ->getBuffer(i)->getSizeInBytes();
+                    }
+                }
             }
-            if (!(*si)->indexData->indexBuffer.isNull())
+            if (!(*si)->indexData[VpNormal]->indexBuffer.isNull())
             {
                 // Index data
-                ret += (*si)->indexData->indexBuffer->getSizeInBytes();
+                ret += (*si)->indexData[VpNormal]->indexBuffer->getSizeInBytes();
+
+                if( (*si)->indexData[VpNormal] != (*si)->indexData[VpShadow] )
+                    ret += (*si)->indexData[VpShadow]->indexBuffer->getSizeInBytes();
             }
 
         }
@@ -2365,11 +2675,11 @@ namespace Ogre {
     {
         if (handle == 0)
         {
-            return sharedVertexData;
+            return sharedVertexData[VpNormal];
         }
         else
         {
-            return getSubMesh(handle-1)->vertexData;
+            return getSubMesh(handle-1)->vertexData[VpNormal];
         }
     }
     //---------------------------------------------------------------------
@@ -2476,5 +2786,12 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
+    void Mesh::createAzdoBuffers(void)
+    {
+        //mSubMeshList.begin();
+    }
+
+    //---------------------------------------------------------------------
+}
 }
 

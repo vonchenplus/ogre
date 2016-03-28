@@ -72,10 +72,10 @@ namespace Ogre {
         GL3PlusRenderTexture::swapBuffers();
     }
     //-----------------------------------------------------------------------------
-    bool GL3PlusFBORenderTexture::attachDepthBuffer( DepthBuffer *depthBuffer )
+    bool GL3PlusFBORenderTexture::attachDepthBuffer( DepthBuffer *depthBuffer, bool exactFormatMatch )
     {
         bool result;
-        if( (result = GL3PlusRenderTexture::attachDepthBuffer( depthBuffer )) )
+        if( (result = GL3PlusRenderTexture::attachDepthBuffer( depthBuffer, exactFormatMatch )) )
             mFB.attachDepthBuffer( depthBuffer );
 
         return result;
@@ -175,7 +175,7 @@ namespace Ogre {
 
             OGRE_CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, PROBE_SIZE, PROBE_SIZE, 0, fmt, dataType, 0));
 
-            if (ogreFormat == PF_DEPTH)
+            if( PixelUtil::isDepth( static_cast<PixelFormat>(ogreFormat) ) )
             {
                 OGRE_CHECK_GL_ERROR(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, tid, 0));
             }
@@ -291,7 +291,8 @@ namespace Ogre {
     {
         // is glGetInternalformativ supported?
         // core since GL 4.2: see https://www.opengl.org/wiki/GLAPI/glGetInternalformat
-        bool hasInternalFormatQuery = mGLSupport.hasMinGLVersion(4, 2)
+        // NOTE! GL_FRAMEBUFFER_RENDERABLE is supported only if the GL version is 4.3 or higher
+        bool hasInternalFormatQuery = mGLSupport.hasMinGLVersion(4, 3)
                 || mGLSupport.checkExtension("GL_ARB_internalformat_query2");
 
         // Try all formats, and report which ones work as target
@@ -305,7 +306,7 @@ namespace Ogre {
             mProps[x].valid = false;
 
             // Fetch GL format token
-            GLenum internalFormat = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x);
+            GLenum internalFormat = GL3PlusPixelUtil::getGLInternalFormat((PixelFormat)x, false);
             GLenum originFormat = GL3PlusPixelUtil::getGLOriginFormat((PixelFormat)x);
             GLenum dataType = GL3PlusPixelUtil::getGLOriginDataType((PixelFormat)x);
             if(internalFormat == GL_NONE && x != 0)
@@ -428,44 +429,46 @@ namespace Ogre {
         LogManager::getSingleton().logMessage("[GL] : Valid FBO targets " + fmtstring);
     }
 
-    void GL3PlusFBOManager::getBestDepthStencil(GLenum internalFormat, GLenum *depthFormat, GLenum *stencilFormat)
+    void GL3PlusFBOManager::getBestDepthStencil( PixelFormat depthFormat, PixelFormat fboFormat,
+                                                 GLenum *outDepthFormat, GLenum *outStencilFormat )
     {
-        const FormatProperties &props = mProps[internalFormat];
-        // Decide what stencil and depth formats to use
-        // [best supported for internal format]
-        size_t bestmode=0;
-        int bestscore=-1;
-        bool requestDepthOnly = internalFormat == PF_DEPTH;
-        for(size_t mode=0; mode<props.modes.size(); mode++)
-        {
-            int desirability = 0;
-            // Find most desirable mode
-            // desirability == 0            if no depth, no stencil
-            // desirability == 1000...2000  if no depth, stencil
-            // desirability == 2000...3000  if depth, no stencil
-            // desirability == 3000+        if depth and stencil
-            // beyond this, the total number of bits (stencil+depth) is maximised
-            if(props.modes[mode].stencil && !requestDepthOnly)
-                desirability += 1000;
-            if(props.modes[mode].depth)
-                desirability += 2000;
-            if(depthBits[props.modes[mode].depth]==24) // Prefer 24 bit for now
-                desirability += 500;
-            if((depthFormats[props.modes[mode].depth]==GL_DEPTH24_STENCIL8 || depthFormats[props.modes[mode].depth]==GL_DEPTH32F_STENCIL8) && !requestDepthOnly) // Prefer 24/8 packed
-                desirability += 5000;
-            desirability += stencilBits[props.modes[mode].stencil] + depthBits[props.modes[mode].depth];
+        const FormatProperties &props = mProps[fboFormat];
 
-            if(desirability>bestscore)
+        GLenum internalDepthFormat = GL3PlusPixelUtil::getGLInternalFormat( depthFormat, false );
+
+        //Look for exact match, will try to get depth+stencil packed formats.
+        for( size_t mode=0; mode<props.modes.size(); ++mode )
+        {
+            if( depthFormats[props.modes[mode].depth] == internalDepthFormat )
             {
-                bestscore = desirability;
-                bestmode = mode;
+                *outDepthFormat      = depthFormats[props.modes[mode].depth];
+                *outStencilFormat    = GL_NONE;
+                return;
             }
         }
-        *depthFormat = depthFormats[props.modes[bestmode].depth];
-        if(requestDepthOnly)
-            *stencilFormat = 0;
-        else
-            *stencilFormat = stencilFormats[props.modes[bestmode].stencil];
+
+        //If we reach here, either the format is not supported, or the depth+stencil
+        //must not be packed. Look for non-packed formats now.
+        for( size_t mode=0; mode<props.modes.size(); ++mode )
+        {
+            if( (depthFormats[props.modes[mode].depth] == GL_DEPTH_COMPONENT24 &&
+                stencilFormats[props.modes[mode].stencil] == GL_STENCIL_INDEX8 &&
+                    (depthFormat == PF_D24_UNORM_S8_UINT || depthFormat == PF_D24_UNORM_X8 ||
+                     depthFormat == PF_X24_S8_UINT)) ||
+                (depthFormats[props.modes[mode].depth] == GL_DEPTH_COMPONENT32F &&
+                stencilFormats[props.modes[mode].stencil] == GL_STENCIL_INDEX8 &&
+                    (depthFormat == PF_D32_FLOAT_X24_S8_UINT || depthFormat == PF_D32_FLOAT_X24_X8 ||
+                     depthFormat == PF_X32_X24_S8_UINT)) )
+            {
+                *outDepthFormat      = depthFormats[props.modes[mode].depth];
+                *outStencilFormat    = stencilFormats[props.modes[mode].stencil];
+                return;
+            }
+        }
+
+        //If we end here, we couldn't find a compatible format.
+        *outDepthFormat      = GL_NONE;
+        *outStencilFormat    = GL_NONE;
     }
 
     GL3PlusFBORenderTexture *GL3PlusFBOManager::createRenderTexture(const String &name,
@@ -510,7 +513,7 @@ namespace Ogre {
             else
             {
                 // New one
-                GL3PlusRenderBuffer *rb = new GL3PlusRenderBuffer(format, width, height, fsaa);
+                v1::GL3PlusRenderBuffer *rb = new v1::GL3PlusRenderBuffer(format, width, height, fsaa);
                 mRenderBufferMap[key] = RBRef(rb);
                 retval.buffer = rb;
                 retval.zoffset = 0;

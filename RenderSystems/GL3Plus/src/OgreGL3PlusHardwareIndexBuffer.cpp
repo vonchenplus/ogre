@@ -32,7 +32,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreRoot.h"
 
 namespace Ogre {
-
+namespace v1 {
     GL3PlusHardwareIndexBuffer::GL3PlusHardwareIndexBuffer(
         HardwareBufferManagerBase* mgr,
         IndexType idxType,
@@ -79,6 +79,10 @@ namespace Ogre {
 
         OGRE_CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mBufferId));
 
+        assert( ((mUsage & HBU_WRITE_ONLY && options != HBL_NORMAL && options != HBL_READ_ONLY) ||
+                !(mUsage & HBU_WRITE_ONLY)) &&
+                "Reading from a write-only buffer! Create the buffer without HBL_WRITE_ONLY bit" );
+
         // Use glMapBuffer
         if (mUsage & HBU_WRITE_ONLY)
         {
@@ -89,8 +93,9 @@ namespace Ogre {
                 // Discard the buffer
                 access |= GL_MAP_INVALIDATE_RANGE_BIT;
             }
-            // We explicitly flush when the buffer is unlocked
-            access |= GL_MAP_UNSYNCHRONIZED_BIT;
+
+            if( options == HBL_NO_OVERWRITE )
+                access |= GL_MAP_UNSYNCHRONIZED_BIT;
         }
         else if (options == HBL_READ_ONLY)
             access |= GL_MAP_READ_BIT;
@@ -262,5 +267,5 @@ namespace Ogre {
         }
     }
 
-
+}
 }

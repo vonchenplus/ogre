@@ -36,6 +36,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     InstanceBatchShader::InstanceBatchShader( IdType id, ObjectMemoryManager *objectMemoryManager,
                                         InstanceManager *creator, MeshPtr &meshReference,
                                         const MaterialPtr &material, size_t instancesPerBatch,
@@ -55,8 +57,9 @@ namespace Ogre
     {
         const size_t numBones = std::max<size_t>( 1, baseSubMesh->blendIndexToBoneIndexMap.size() );
 
-        mMaterial->load();
-        Technique *technique = mMaterial->getBestTechnique();
+        MaterialPtr material = getMaterial();
+        material->load();
+        Technique *technique = material->getBestTechnique();
         if( technique )
         {
             GpuProgramParametersSharedPtr vertexParam = technique->getPass(0)->getVertexProgramParameters();
@@ -94,8 +97,8 @@ namespace Ogre
 
                         if( flags & IM_USE16BIT )
                         {
-                            if( baseSubMesh->vertexData->vertexCount * retVal > 0xFFFF )
-                                retVal = 0xFFFF / baseSubMesh->vertexData->vertexCount;
+                            if( baseSubMesh->vertexData[VpNormal]->vertexCount * retVal > 0xFFFF )
+                                retVal = 0xFFFF / baseSubMesh->vertexData[VpNormal]->vertexCount;
                         }
 
                         if((retVal < 3 && entry->paramType == GpuProgramParameters::ACT_WORLD_MATRIX_ARRAY_3x4) ||
@@ -103,7 +106,7 @@ namespace Ogre
                         {
                             LogManager::getSingleton().logMessage( "InstanceBatchShader: Mesh " +
                                         mMeshReference->getName() + " using material " +
-                                        mMaterial->getName() + " contains many bones. The amount of "
+                                        material->getName() + " contains many bones. The amount of "
                                         "instances per batch is very low. Performance benefits will "
                                         "be minimal, if any. It might be even slower!",
                                         LML_NORMAL );
@@ -116,7 +119,7 @@ namespace Ogre
 
             //Reaching here means material is supported, but malformed
             OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, 
-            "Material '" + mMaterial->getName() + "' is malformed for this instancing technique",
+            "Material '" + material->getName() + "' is malformed for this instancing technique",
             "InstanceBatchShader::calculateMaxNumInstances");
         }
 
@@ -138,7 +141,7 @@ namespace Ogre
         mRemoveOwnVertexData = true; //Raise flag to remove our own vertex data in the end (not always needed)
 
         VertexData *thisVertexData = mRenderOperation.vertexData;
-        VertexData *baseVertexData = baseSubMesh->vertexData;
+        VertexData *baseVertexData = baseSubMesh->vertexData[VpNormal];
 
         thisVertexData->vertexStart = 0;
         thisVertexData->vertexCount = baseVertexData->vertexCount * mInstancesPerBatch;
@@ -220,7 +223,7 @@ namespace Ogre
         mRemoveOwnIndexData = true; //Raise flag to remove our own index data in the end (not always needed)
 
         IndexData *thisIndexData = mRenderOperation.indexData;
-        IndexData *baseIndexData = baseSubMesh->indexData;
+        IndexData *baseIndexData = baseSubMesh->indexData[VpNormal];
 
         thisIndexData->indexStart = 0;
         thisIndexData->indexCount = baseIndexData->indexCount * mInstancesPerBatch;
@@ -249,7 +252,7 @@ namespace Ogre
             for( size_t j=0; j<baseIndexData->indexCount; ++j )
             {
                 uint32 originalVal;
-                if( baseSubMesh->indexData->indexBuffer->getType() == HardwareIndexBuffer::IT_16BIT )
+                if( baseSubMesh->indexData[VpNormal]->indexBuffer->getType() == HardwareIndexBuffer::IT_16BIT )
                     originalVal = *initBuf16++;
                 else
                     originalVal = *initBuf32++;
@@ -345,4 +348,5 @@ namespace Ogre
     {
         return mNumWorldMatrices;
     }
+}
 }

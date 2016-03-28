@@ -38,6 +38,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     static const uint16 c_maxTexWidthHW = 4096;
     static const uint16 c_maxTexHeightHW    = 4096;
 
@@ -61,7 +63,7 @@ namespace Ogre
         mRemoveOwnVertexData = true; //Raise flag to remove our own vertex data in the end (not always needed)
 
         VertexData *thisVertexData = mRenderOperation.vertexData;
-        VertexData *baseVertexData = baseSubMesh->vertexData;
+        VertexData *baseVertexData = baseSubMesh->vertexData[VpNormal];
 
         thisVertexData->vertexStart = 0;
         thisVertexData->vertexCount = baseVertexData->vertexCount;
@@ -135,7 +137,7 @@ namespace Ogre
     {
         //We could use just a reference, but the InstanceManager will in the end attampt to delete
         //the pointer, and we can't give it something that doesn't belong to us.
-        mRenderOperation.indexData = baseSubMesh->indexData->clone( true );
+        mRenderOperation.indexData = baseSubMesh->indexData[VpNormal]->clone( true );
         mRemoveOwnIndexData = true; //Raise flag to remove our own index data in the end (not always needed)
     }
     //-----------------------------------------------------------------------
@@ -365,7 +367,8 @@ namespace Ogre
             //we need another 3 for the unique world transform of each instanced entity
             neededTextureCoord += 3;
         }
-        if( baseSubMesh->vertexData->vertexDeclaration->getNextFreeTextureCoordinate() > 8 - neededTextureCoord )
+        if( baseSubMesh->vertexData[VpNormal]->vertexDeclaration->
+                getNextFreeTextureCoordinate() > 8 - neededTextureCoord )
         {
             OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
                     String("Given mesh must have at least ") + 
@@ -427,7 +430,7 @@ namespace Ogre
             ObjectData objData;
             const size_t numObjs = mLocalObjectMemoryManager.getFirstObjectData( objData, 0 );
 
-            visibleObjects = &mManager->_getTmpVisibleObjectsList()[0];
+            visibleObjects = &mManager->_getTmpVisibleObjectsList()[0][mRenderQueueID];
             visibleObjects->clear();
 
             //TODO: Static batches aren't yet supported (camera ptr will be null and crash)
@@ -510,11 +513,12 @@ namespace Ogre
                                                   const Camera *lodCamera )
     {
         //if( !mKeepStatic )
-        {
+        /*{
+            TODO: RENDER QUEUE
             //Completely override base functionality, since we don't cull on an "all-or-nothing" basis
             if( (mRenderOperation.numberOfInstances = updateVertexTexture( camera, lodCamera )) )
                 queue->addRenderable( this, mRenderQueueID, mRenderQueuePriority );
-        }
+        }*/
         /*else
         {
             if( mManager->getCameraRelativeRendering() )
@@ -590,4 +594,5 @@ namespace Ogre
         instancedEntity->writeDualQuatTransform( pDest, boneIdxStart, boneIdxEnd );
         ++mInstancesWritten;
     }
+}
 }

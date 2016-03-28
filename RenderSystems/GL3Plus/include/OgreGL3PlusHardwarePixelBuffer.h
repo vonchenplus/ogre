@@ -33,6 +33,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreHardwarePixelBuffer.h"
 
 namespace Ogre {
+namespace v1 {
     class _OgreGL3PlusExport GL3PlusHardwarePixelBuffer: public HardwarePixelBuffer
     {
     protected:
@@ -49,7 +50,7 @@ namespace Ogre {
         LockOptions mCurrentLockOptions;
 
         // Buffer allocation/freeage
-        void allocateBuffer();
+        void allocateBuffer( size_t bytes );
 
         void freeBuffer();
 
@@ -62,7 +63,7 @@ namespace Ogre {
     public:
         /// Should be called by HardwareBufferManager
             GL3PlusHardwarePixelBuffer(uint32 mWidth, uint32 mHeight, uint32 mDepth,
-                                   PixelFormat mFormat,
+                                   PixelFormat mFormat, bool hwGamma,
                                    HardwareBuffer::Usage usage);
 
         /// @copydoc HardwarePixelBuffer::blitFromMemory
@@ -95,5 +96,5 @@ namespace Ogre {
         GLuint mRenderbufferID;
     };
 }
-
+}
 #endif

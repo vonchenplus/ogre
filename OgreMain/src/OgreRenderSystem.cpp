@@ -45,6 +45,8 @@ THE SOFTWARE.
 #include "OgreTextureManager.h"
 #include "OgreMaterialManager.h"
 #include "OgreHardwareOcclusionQuery.h"
+#include "Vao/OgreVaoManager.h"
+#include "Vao/OgreVertexArrayObject.h"
 
 namespace Ogre {
 
@@ -54,10 +56,8 @@ namespace Ogre {
     RenderSystem::RenderSystem()
         : mActiveRenderTarget(0)
         , mTextureManager(0)
+        , mVaoManager(0)
         , mActiveViewport(0)
-        // This means CULL clockwise vertices, i.e. front of poly is counter-clockwise
-        // This makes it the same as OpenGL and other right-handed systems
-        , mCullingMode(CULL_CLOCKWISE)
         , mWBuffer(false)
         , mBatchCount(0)
         , mFaceCount(0)
@@ -70,9 +70,9 @@ namespace Ogre {
         , mDerivedDepthBiasBase(0.0f)
         , mDerivedDepthBiasMultiplier(0.0f)
         , mDerivedDepthBiasSlopeScale(0.0f)
+        , mUavStartingSlot( 1 )
         , mGlobalInstanceVertexBufferVertexDeclaration(NULL)
         , mGlobalNumberOfInstances(1)
-        , mEnableFixedPipeline(true)
         , mVertexProgramBound(false)
         , mGeometryProgramBound(false)
         , mFragmentProgramBound(false)
@@ -294,13 +294,13 @@ namespace Ogre {
                 _setVertexTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setVertexTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -313,13 +313,13 @@ namespace Ogre {
                 _setGeometryTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setGeometryTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -332,13 +332,13 @@ namespace Ogre {
                 _setComputeTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setComputeTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -351,13 +351,13 @@ namespace Ogre {
                 _setTessellationDomainTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setTessellationDomainTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -370,13 +370,13 @@ namespace Ogre {
                 _setTessellationHullTexture(texUnit, tex);
                 // bind nothing to fragment unit (hardware isn't shared but fragment
                 // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
+                _setTexture(texUnit, true, sNullTexPtr.get());
             }
             else
             {
                 // vice versa
                 _setTessellationHullTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
+                _setTexture(texUnit, true, tex.get());
             }
         }
 
@@ -384,45 +384,18 @@ namespace Ogre {
         {
             // Shared vertex / fragment textures or no vertex texture support
             // Bind texture (may be blank)
-            _setTexture(texUnit, true, tex);
+            _setTexture(texUnit, true, tex.get());
         }
+
+        _setHlmsSamplerblock( texUnit, tl.getSamplerblock() );
 
         // Set texture coordinate set
         _setTextureCoordSet(texUnit, tl.getTextureCoordSet());
-
-        //Set texture layer compare state and function 
-        _setTextureUnitCompareEnabled(texUnit,tl.getTextureCompareEnabled());
-        _setTextureUnitCompareFunction(texUnit,tl.getTextureCompareFunction());
-
-
-        // Set texture layer filtering
-        _setTextureUnitFiltering(texUnit, 
-            tl.getTextureFiltering(FT_MIN), 
-            tl.getTextureFiltering(FT_MAG), 
-            tl.getTextureFiltering(FT_MIP));
-
-        // Set texture layer filtering
-        _setTextureLayerAnisotropy(texUnit, tl.getTextureAnisotropy());
-
-        // Set mipmap biasing
-        _setTextureMipmapBias(texUnit, tl.getTextureMipmapBias());
 
         // Set blend modes
         // Note, colour before alpha is important
         _setTextureBlendMode(texUnit, tl.getColourBlendMode());
         _setTextureBlendMode(texUnit, tl.getAlphaBlendMode());
-
-        // Texture addressing mode
-        const TextureUnitState::UVWAddressingMode& uvw = tl.getTextureAddressingMode();
-        _setTextureAddressingMode(texUnit, uvw);
-
-        // Set texture border colour only if required
-        if (uvw.u == TextureUnitState::TAM_BORDER ||
-            uvw.v == TextureUnitState::TAM_BORDER ||
-            uvw.w == TextureUnitState::TAM_BORDER)
-        {
-            _setTextureBorderColour(texUnit, tl.getTextureBorderColour());
-        }
 
         // Set texture effects
         TextureUnitState::EffectMap::iterator effi;
@@ -483,7 +456,7 @@ namespace Ogre {
         const String &texname)
     {
         TexturePtr t = TextureManager::getSingleton().getByName(texname);
-        _setTexture(unit, enabled, t);
+        _setTexture(unit, enabled, t.get());
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_setBindingType(TextureUnitState::BindingType bindingType)
@@ -540,7 +513,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void RenderSystem::_disableTextureUnit(size_t texUnit)
     {
-        _setTexture(texUnit, false, sNullTexPtr);
+        _setTexture(texUnit, false, sNullTexPtr.get());
     }
     //---------------------------------------------------------------------
     void RenderSystem::_disableTextureUnitsFrom(size_t texUnit)
@@ -554,13 +527,10 @@ namespace Ogre {
             _disableTextureUnit(i);
         }
     }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_setTextureUnitFiltering(size_t unit, FilterOptions minFilter,
-            FilterOptions magFilter, FilterOptions mipFilter)
+    //---------------------------------------------------------------------
+    void RenderSystem::setUavStartingSlot( uint32 startingSlot )
     {
-        _setTextureUnitFiltering(unit, FT_MIN, minFilter);
-        _setTextureUnitFiltering(unit, FT_MAG, magFilter);
-        _setTextureUnitFiltering(unit, FT_MIP, mipFilter);
+        mUavStartingSlot = startingSlot;
     }
     //---------------------------------------------------------------------
     void RenderSystem::_cleanupDepthBuffers( bool bCleanManualBuffers )
@@ -586,28 +556,40 @@ namespace Ogre {
         }
 
         mDepthBufferPool.clear();
+
+        cleanReleasedDepthBuffers();
     }
     //-----------------------------------------------------------------------
-    CullingMode RenderSystem::_getCullingMode(void) const
+    void RenderSystem::cleanReleasedDepthBuffers(void)
     {
-        return mCullingMode;
+        DepthBufferVec::const_iterator itor = mReleasedDepthBuffers.begin();
+        DepthBufferVec::const_iterator end  = mReleasedDepthBuffers.end();
+
+        while( itor != end )
+        {
+            delete *itor;
+            ++itor;
+        }
+
+        mReleasedDepthBuffers.clear();
     }
     //-----------------------------------------------------------------------
-    bool RenderSystem::getFixedPipelineEnabled(void) const
+    void RenderSystem::_beginFrameOnce(void)
     {
-        return mEnableFixedPipeline;
+        mVaoManager->_beginFrame();
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::setFixedPipelineEnabled(bool enabled)
-    {
-        mEnableFixedPipeline = enabled;
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::setDepthBufferFor( RenderTarget *renderTarget )
+    void RenderSystem::setDepthBufferFor( RenderTarget *renderTarget, bool exactMatch )
     {
         uint16 poolId = renderTarget->getDepthBufferPool();
         if( poolId == DepthBuffer::POOL_NO_DEPTH )
             return; //RenderTarget explicitly requested no depth buffer
+
+        if( poolId == DepthBuffer::POOL_NON_SHAREABLE )
+        {
+            createUniqueDepthBufferFor( renderTarget, exactMatch );
+            return;
+        }
 
         //Find a depth buffer in the pool
         DepthBufferVec::const_iterator itor = mDepthBufferPool[poolId].begin();
@@ -615,28 +597,91 @@ namespace Ogre {
 
         bool bAttached = false;
         while( itor != end && !bAttached )
-            bAttached = renderTarget->attachDepthBuffer( *itor++ );
+            bAttached = renderTarget->attachDepthBuffer( *itor++, exactMatch );
 
         //Not found yet? Create a new one!
         if( !bAttached )
         {
-            DepthBuffer *newDepthBuffer = _createDepthBufferFor( renderTarget );
+            DepthBuffer *newDepthBuffer = _createDepthBufferFor( renderTarget, exactMatch );
 
             if( newDepthBuffer )
             {
                 newDepthBuffer->_setPoolId( poolId );
                 mDepthBufferPool[poolId].push_back( newDepthBuffer );
 
-                bAttached = renderTarget->attachDepthBuffer( newDepthBuffer );
+                bAttached = renderTarget->attachDepthBuffer( newDepthBuffer, exactMatch );
 
-                assert( bAttached && "A new DepthBuffer for a RenderTarget was created, but after creation"
-                                     "it says it's incompatible with that RT" );
+                assert( bAttached && "A new DepthBuffer for a RenderTarget was created, but after"
+                                     " creation it says it's incompatible with that RT" );
             }
             else
-                LogManager::getSingleton().logMessage( "WARNING: Couldn't create a suited DepthBuffer"
-                                                       "for RT: " + renderTarget->getName() , LML_CRITICAL);
+            {
+                if( exactMatch )
+                {
+                    //The GPU doesn't support this depth buffer format. Try a fallback.
+                    setDepthBufferFor( renderTarget, false );
+                }
+                else
+                {
+                    LogManager::getSingleton().logMessage( "WARNING: Couldn't create a suited "
+                                                           "DepthBuffer for RT: " +
+                                                           renderTarget->getName(), LML_CRITICAL );
+                }
+            }
         }
     }
+    //-----------------------------------------------------------------------
+    void RenderSystem::createUniqueDepthBufferFor( RenderTarget *renderTarget, bool exactMatch )
+    {
+        assert( renderTarget->getForceDisableColourWrites() );
+        assert( renderTarget->getDepthBufferPool() == DepthBuffer::POOL_NON_SHAREABLE );
+        assert( !renderTarget->getDepthBuffer() );
+
+        const uint16 poolId = DepthBuffer::POOL_NON_SHAREABLE;
+
+        DepthBuffer *newDepthBuffer = _createDepthBufferFor( renderTarget, exactMatch );
+
+        if( newDepthBuffer )
+        {
+            newDepthBuffer->_setPoolId( poolId );
+            mDepthBufferPool[poolId].push_back( newDepthBuffer );
+
+            bool bAttached = renderTarget->attachDepthBuffer( newDepthBuffer, exactMatch );
+
+            assert( bAttached && "A new DepthBuffer for a RenderTarget was created, but after"
+                                 " creation it says it's incompatible with that RT" );
+        }
+        else
+        {
+            if( exactMatch )
+            {
+                //The GPU doesn't support this depth buffer format. Try a fallback.
+                createUniqueDepthBufferFor( renderTarget, false );
+            }
+            else
+            {
+                LogManager::getSingleton().logMessage( "WARNING: Couldn't create a suited "
+                                                       "unique DepthBuffer for RT: " +
+                                                       renderTarget->getName(), LML_CRITICAL );
+            }
+        }
+    }
+    //-----------------------------------------------------------------------
+    void RenderSystem::_destroyDepthBuffer( DepthBuffer *depthBuffer )
+    {
+        DepthBufferVec &depthBuffersInPool = mDepthBufferPool[depthBuffer->getPoolId()];
+        DepthBufferVec::iterator itor = depthBuffersInPool.begin();
+        DepthBufferVec::iterator end  = depthBuffersInPool.end();
+
+        while( itor != end && *itor != depthBuffer )
+            ++itor;
+
+        assert( itor != depthBuffersInPool.end() );
+
+        efficientVectorRemove( depthBuffersInPool, itor );
+        mReleasedDepthBuffers.push_back( depthBuffer );
+    }
+    //-----------------------------------------------------------------------
     bool RenderSystem::getWBufferEnabled(void) const
     {
         return mWBuffer;
@@ -658,6 +703,9 @@ namespace Ogre {
         mHwOcclusionQueries.clear();
 
         _cleanupDepthBuffers();
+
+        OGRE_DELETE mVaoManager;
+        mVaoManager = 0;
 
         // Remove all the render targets.
         // (destroy primary target last since others may depend on it)
@@ -696,8 +744,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void RenderSystem::convertColourValue(const ColourValue& colour, uint32* pDest)
     {
-        *pDest = VertexElement::convertColourValue(colour, getColourVertexElementType());
-
+        *pDest = v1::VertexElement::convertColourValue(colour, getColourVertexElementType());
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_setWorldMatrices(const Matrix4* m, unsigned short count)
@@ -709,7 +756,7 @@ namespace Ogre {
         _setWorldMatrix(Matrix4::IDENTITY);
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_render(const RenderOperation& op)
+    void RenderSystem::_render(const v1::RenderOperation& op)
     {
         // Update stats
         size_t val;
@@ -729,48 +776,48 @@ namespace Ogre {
 
         switch(op.operationType)
         {
-        case RenderOperation::OT_TRIANGLE_LIST:
+        case v1::RenderOperation::OT_TRIANGLE_LIST:
             mFaceCount += (val / 3);
             break;
-        case RenderOperation::OT_TRIANGLE_STRIP:
-        case RenderOperation::OT_TRIANGLE_FAN:
+        case v1::RenderOperation::OT_TRIANGLE_STRIP:
+        case v1::RenderOperation::OT_TRIANGLE_FAN:
             mFaceCount += (val - 2);
             break;
-        case RenderOperation::OT_POINT_LIST:
-        case RenderOperation::OT_LINE_LIST:
-        case RenderOperation::OT_LINE_STRIP:
-        case RenderOperation::OT_PATCH_1_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_2_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_3_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_4_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_5_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_6_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_7_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_8_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_9_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_10_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_11_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_12_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_13_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_14_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_15_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_16_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_17_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_18_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_19_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_20_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_21_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_22_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_23_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_24_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_25_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_26_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_27_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_28_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_29_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_30_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_31_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_32_CONTROL_POINT:
+        case v1::RenderOperation::OT_POINT_LIST:
+        case v1::RenderOperation::OT_LINE_LIST:
+        case v1::RenderOperation::OT_LINE_STRIP:
+        case v1::RenderOperation::OT_PATCH_1_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_2_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_3_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_4_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_5_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_6_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_7_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_8_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_9_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_10_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_11_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_12_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_13_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_14_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_15_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_16_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_17_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_18_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_19_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_20_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_21_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_22_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_23_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_24_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_25_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_26_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_27_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_28_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_29_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_30_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_31_CONTROL_POINT:
+        case v1::RenderOperation::OT_PATCH_32_CONTROL_POINT:
             break;
         }
 
@@ -785,6 +832,15 @@ namespace Ogre {
             mClipPlanesDirty = false;
         }
     }
+    //-----------------------------------------------------------------------
+    /*void RenderSystem::_render( const VertexArrayObject *vao )
+    {
+        // Update stats
+        mFaceCount      += vao->mFaceCount;
+        mVertexCount    += vao->mVertexBuffers[0]->getNumElements();
+        ++mBatchCount;
+    }*/
+    //-----------------------------------------------------------------------
     void RenderSystem::_renderUsingReadBackAsTexture(unsigned int secondPass,Ogre::String variableName,unsigned int StartSlot)
     {
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
@@ -1000,6 +1056,12 @@ namespace Ogre {
         delete context;
     }
     //---------------------------------------------------------------------
+    void RenderSystem::_update(void)
+    {
+        mVaoManager->_update();
+        cleanReleasedDepthBuffers();
+    }
+    //---------------------------------------------------------------------
     const String& RenderSystem::_getDefaultViewportMaterialScheme( void ) const
     {
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS   
@@ -1016,12 +1078,12 @@ namespace Ogre {
         }
     }
     //---------------------------------------------------------------------
-    Ogre::HardwareVertexBufferSharedPtr RenderSystem::getGlobalInstanceVertexBuffer() const
+    Ogre::v1::HardwareVertexBufferSharedPtr RenderSystem::getGlobalInstanceVertexBuffer() const
     {
         return mGlobalInstanceVertexBuffer;
     }
     //---------------------------------------------------------------------
-    void RenderSystem::setGlobalInstanceVertexBuffer( const HardwareVertexBufferSharedPtr &val )
+    void RenderSystem::setGlobalInstanceVertexBuffer( const v1::HardwareVertexBufferSharedPtr &val )
     {
         if ( !val.isNull() && !val->getIsInstanceData() )
         {
@@ -1042,12 +1104,12 @@ namespace Ogre {
         mGlobalNumberOfInstances = val;
     }
 
-    VertexDeclaration* RenderSystem::getGlobalInstanceVertexBufferVertexDeclaration() const
+    v1::VertexDeclaration* RenderSystem::getGlobalInstanceVertexBufferVertexDeclaration() const
     {
         return mGlobalInstanceVertexBufferVertexDeclaration;
     }
     //---------------------------------------------------------------------
-    void RenderSystem::setGlobalInstanceVertexBufferVertexDeclaration( VertexDeclaration* val )
+    void RenderSystem::setGlobalInstanceVertexBufferVertexDeclaration( v1::VertexDeclaration* val )
     {
         mGlobalInstanceVertexBufferVertexDeclaration = val;
     }

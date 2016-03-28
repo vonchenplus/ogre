@@ -58,25 +58,25 @@ namespace Ogre
             assert( start <= original->size() );
         }
 
-        SubStringRef( const String *original, size_t start, size_t end_ ) :
+        SubStringRef( const String *original, size_t _start, size_t _end ) :
             mOriginal( original ),
-            mStart( start ),
-            mEnd( end_ )
+            mStart( _start ),
+            mEnd( _end )
         {
-            assert( start <= end_ );
-            assert( end_ <= original->size() );
+            assert( _start <= _end );
+            assert( _end <= original->size() );
         }
 
-        SubStringRef( const String *original, String::const_iterator start ) :
+        SubStringRef( const String *original, String::const_iterator _start ) :
             mOriginal( original ),
-            mStart( start - original->begin() ),
+            mStart( _start - original->begin() ),
             mEnd( original->size() )
         {
         }
 
-        size_t find( const char *value ) const
+        size_t find( const char *value, size_t pos=0 ) const
         {
-            size_t retVal = mOriginal->find( value, mStart );
+            size_t retVal = mOriginal->find( value, mStart + pos );
             if( retVal >= mEnd )
                 retVal = String::npos;
             else if( retVal != String::npos )
@@ -96,6 +96,27 @@ namespace Ogre
             return retVal;
         }
 
+        size_t findFirstOf( const char *c, size_t pos ) const
+        {
+            size_t retVal = mOriginal->find_first_of( c, mStart + pos );
+            if( retVal >= mEnd )
+                retVal = String::npos;
+            else if( retVal != String::npos )
+                retVal -= mStart;
+
+            return retVal;
+        }
+
+        bool matchEqual( const char *stringCompare ) const
+        {
+            const char *origStr = mOriginal->c_str() + mStart;
+            ptrdiff_t length = mEnd - mStart;
+            while( *origStr == *stringCompare && *origStr && --length )
+                ++origStr, ++stringCompare;
+
+            return length == 0 && *origStr == *stringCompare;
+        }
+
         void setStart( size_t newStart )            { mStart = std::min( newStart, mOriginal->size() ); }
         void setEnd( size_t newEnd )                { mEnd = std::min( newEnd, mOriginal->size() ); }
         size_t getStart(void) const                 { return mStart; }
@@ -106,13 +127,18 @@ namespace Ogre
         const String& getOriginalBuffer() const     { return *mOriginal; }
     };
 
-    struct HlmsProperty
+    struct _OgreExport HlmsProperty
     {
         IdString    keyName;
         int32       value;
 
         HlmsProperty( IdString _keyName, int32 _value ) :
             keyName( _keyName ), value( _value ) {}
+
+        bool operator == ( const HlmsProperty &_r) const
+        {
+            return this->keyName == _r.keyName && this->value == _r.value;
+        }
     };
 
     typedef vector<HlmsProperty>::type HlmsPropertyVec;
@@ -127,58 +153,32 @@ namespace Ogre
     inline bool OrderParamVecByKey( const std::pair<IdString, String> &_left,
                                     const std::pair<IdString, String> &_right )
     {
-        return _left.first < _right.second;
+        return _left.first < _right.first;
     }
 
-    struct HlmsParam
+    /** Up to 8 different HLMS generator types are allowed. The maximum values must be in sync
+        with ShaderBits in RenderQueue.cpp (the higher 3 bits)
+    */
+    enum HlmsTypes
     {
-        virtual ~HlmsParam() {}
+        HLMS_LOW_LEVEL, /// Proxy that redirects to a regular Material
+        HLMS_PBS,       /// Physically Based Shader Generator
+        HLMS_TOON,      /// Toon shading / Cel shading
+        HLMS_UNLIT,     /// Made for GUIs, overlays, particle FXs, self-iluminating billboards
 
-        CullingMode     cullMode;
-        PolygonMode     polygonMode;
-        bool            alphaToCoverageEnabled;
-        bool            colourWrite;
-        bool            depthCheck;
-        bool            depthWrite;
-        CompareFunction depthFunc;
-        float           depthBiasSlopeScale;
+        HLMS_USER0,
+        HLMS_USER1,
+        HLMS_USER2,
+        HLMS_USER3,
 
-        // Blending factors
-        SceneBlendFactor sourceBlendFactor;
-        SceneBlendFactor destBlendFactor;
-        SceneBlendFactor sourceBlendFactorAlpha;
-        SceneBlendFactor destBlendFactorAlpha;
-
-        // Used to determine if separate alpha blending should be used for color and alpha channels
-        bool            separateBlend;
-
-        //-------------------------------------------------------------------------
-        // Blending operations
-        SceneBlendOperation blendOperation;
-        SceneBlendOperation alphaBlendOperation;
-
-        /// Determines if we should use separate blending operations for color and alpha channels
-        bool                separateBlendOperation;
-    };
-
-    struct HlmsParamPbs : HlmsParam
-    {
-        ColourValue diffuseColour;  //kD
-        Vector3 specularColour;     //kS
-        Vector3 fresnel;            //F0
-
-        //TODO: Most likely these strings should be replaced by an index to the texture arrays.
-        uint16 diffuseMap;
-        uint16 normalMap;
-        uint16 specularMap;
-        uint16 detailMask;
-        uint16 detailMap[4];
+        HLMS_MAX = 8
     };
 
     struct HlmsCache
     {
         uint32          hash;
         HlmsPropertyVec setProperties;
+        HlmsTypes       type;
 
         GpuProgramPtr   vertexShader;
         GpuProgramPtr   geometryShader;
@@ -186,42 +186,17 @@ namespace Ogre
         GpuProgramPtr   tesselationDomainShader;
         GpuProgramPtr   pixelShader;
 
-        /* This is state, independent of the shader being used
-        CullingMode     cullMode;
-        PolygonMode     polygonMode;
-        bool            alphaToCoverageEnabled;
-        bool            colourWrite;
-        bool            depthCheck;
-        bool            depthWrite;
-        CompareFunction depthFunc;
-        float           depthBiasSlopeScale;
-
-        // Blending factors
-        SceneBlendFactor sourceBlendFactor;
-        SceneBlendFactor destBlendFactor;
-        SceneBlendFactor sourceBlendFactorAlpha;
-        SceneBlendFactor destBlendFactorAlpha;
-
-        // Used to determine if separate alpha blending should be used for color and alpha channels
-        bool            separateBlend;
-
-        //-------------------------------------------------------------------------
-        // Blending operations
-        SceneBlendOperation blendOperation;
-        SceneBlendOperation alphaBlendOperation;
-
-        /// Determines if we should use separate blending operations for color and alpha channels
-        bool                separateBlendOperation;
-*/
-
-        HlmsCache( uint32 _hash ) : hash( _hash ) {}
+        HlmsCache() : hash( 0 ), type( HLMS_MAX ) {}
+        HlmsCache( uint32 _hash, HlmsTypes _type ) : hash( _hash ), type( _type ) {}
     };
 
-    typedef vector<HlmsCache>::type HlmsCacheVec;
+    #define OGRE_EXTRACT_HLMS_TYPE_FROM_CACHE_HASH( x ) (x >> 29)
 
-    inline bool OrderCacheByHash( const HlmsCache &_left, const HlmsCache &_right )
+    typedef vector<HlmsCache*>::type HlmsCacheVec;
+
+    inline bool OrderCacheByHash( const HlmsCache *_left, const HlmsCache *_right )
     {
-        return _left.hash < _right.hash;
+        return _left->hash < _right->hash;
     }
 
     /** @} */

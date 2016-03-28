@@ -35,7 +35,7 @@
 
 namespace Ogre
 {
-    LodOutputProviderCompressedMesh::LodOutputProviderCompressedMesh( MeshPtr mesh ) :
+    LodOutputProviderCompressedMesh::LodOutputProviderCompressedMesh( v1::MeshPtr mesh ) :
         mFirstBufferPass(0), mMesh(mesh), mLastIndexBufferID(0)
     {
         fallback = new LodOutputProviderMesh(mesh);
@@ -61,7 +61,8 @@ namespace Ogre
 
     void LodOutputProviderCompressedMesh::finalize( LodData* data )
     {
-        if(!mFirstBufferPass){
+        if(!mFirstBufferPass)
+        {
             // Uneven number of Lod levels. We need to bake the last one separately.
             fallback->bakeLodLevel(data, mLastIndexBufferID);
         }
@@ -70,7 +71,8 @@ namespace Ogre
 
     void LodOutputProviderCompressedMesh::bakeManualLodLevel( LodData* data, String& manualMeshName, int lodIndex )
     {
-        if(!mFirstBufferPass){
+        if(!mFirstBufferPass)
+        {
             lodIndex--;
         }
         fallback->bakeManualLodLevel(data, manualMeshName, lodIndex);
@@ -83,46 +85,55 @@ namespace Ogre
 
     void LodOutputProviderCompressedMesh::bakeLodLevel(LodData* data, int lodIndex)
     {
-        if(mFirstBufferPass){
+        if(mFirstBufferPass)
+        {
             bakeFirstPass(data, lodIndex);
-        } else {
+        }
+        else
+        {
             bakeSecondPass(data, lodIndex);
         }
         mFirstBufferPass = !mFirstBufferPass;
     }
-    void LodOutputProviderCompressedMesh::bakeFirstPass(LodData* data, int lodIndex) {
+    void LodOutputProviderCompressedMesh::bakeFirstPass(LodData* data, int lodIndex)
+    {
         unsigned short submeshCount = mMesh->getNumSubMeshes();
         assert(mTriangleCacheList.size() == data->mTriangleList.size());
         mLastIndexBufferID =  lodIndex;
 
-        for (unsigned short i = 0; i < submeshCount; i++) {
+        for (unsigned short i = 0; i < submeshCount; i++)
+        {
             data->mIndexBufferInfoList[i].prevIndexCount = data->mIndexBufferInfoList[i].indexCount;
             data->mIndexBufferInfoList[i].prevOnlyIndexCount = 0;
         }
 
         size_t triangleCount = mTriangleCacheList.size();
-        for (size_t i = 0; i < triangleCount; i++) {
+        for (size_t i = 0; i < triangleCount; i++)
+        {
             mTriangleCacheList[i].vertexChanged = false;
-            if (!data->mTriangleList[i].isRemoved) {
+            if (!data->mTriangleList[i].isRemoved)
+            {
                 mTriangleCacheList[i].vertexID[0] = data->mTriangleList[i].vertexID[0];
                 mTriangleCacheList[i].vertexID[1] = data->mTriangleList[i].vertexID[1];
                 mTriangleCacheList[i].vertexID[2] = data->mTriangleList[i].vertexID[2];
             }
         }
     }
-    void LodOutputProviderCompressedMesh::bakeSecondPass(LodData* data, int lodIndex) {
+    void LodOutputProviderCompressedMesh::bakeSecondPass(LodData* data, int lodIndex)
+    {
         unsigned short submeshCount = mMesh->getNumSubMeshes();
         assert(mTriangleCacheList.size() == data->mTriangleList.size());
         assert(lodIndex > mLastIndexBufferID); // Implementation limitation
         // Create buffers.
-        for (unsigned short i = 0; i < submeshCount; i++) {
-            SubMesh::LODFaceList& lods = mMesh->getSubMesh(i)->mLodFaceList;
+        for (unsigned short i = 0; i < submeshCount; i++)
+        {
+            v1::SubMesh::LODFaceList& lods = mMesh->getSubMesh(i)->mLodFaceList[VpNormal];
             lods.reserve(lods.size() + 2);
             size_t indexCount = data->mIndexBufferInfoList[i].indexCount + data->mIndexBufferInfoList[i].prevOnlyIndexCount;
             assert(data->mIndexBufferInfoList[i].prevIndexCount >= data->mIndexBufferInfoList[i].indexCount);
             assert(data->mIndexBufferInfoList[i].prevIndexCount >= data->mIndexBufferInfoList[i].prevOnlyIndexCount);
-            
-            IndexData* prevLod = *lods.insert(lods.begin() + mLastIndexBufferID, OGRE_NEW IndexData());
+
+            v1::IndexData* prevLod = *lods.insert(lods.begin() + mLastIndexBufferID, OGRE_NEW v1::IndexData());
             prevLod->indexStart = 0;
 
             //If the index is empty we need to create a "dummy" triangle, just to keep the index buffer from being empty.
@@ -132,25 +143,27 @@ namespace Ogre
             indexCount = std::max<size_t>(indexCount, 3);
             prevLod->indexCount = std::max<size_t>(data->mIndexBufferInfoList[i].prevIndexCount, 3u);
 
-            prevLod->indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(
-                data->mIndexBufferInfoList[i].indexSize == 2 ?
-                HardwareIndexBuffer::IT_16BIT : HardwareIndexBuffer::IT_32BIT,
-                indexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY, false);
+            prevLod->indexBuffer = v1::HardwareBufferManager::getSingleton().createIndexBuffer(
+                                       data->mIndexBufferInfoList[i].indexSize == 2 ?
+                                       v1::HardwareIndexBuffer::IT_16BIT : v1::HardwareIndexBuffer::IT_32BIT,
+                                       indexCount, mMesh->getIndexBufferUsage(), mMesh->isIndexBufferShadowed());
 
             data->mIndexBufferInfoList[i].buf.pshort =
                 static_cast<unsigned short*>(prevLod->indexBuffer->lock(0, prevLod->indexBuffer->getSizeInBytes(),
-                HardwareBuffer::HBL_DISCARD));
+                                             v1::HardwareBuffer::HBL_DISCARD));
 
             //Check if we should fill it with a "dummy" triangle.
-            if (indexCount == 3) {
+            if (indexCount == 3)
+            {
                 memset(data->mIndexBufferInfoList[i].buf.pshort, 0, 3 * data->mIndexBufferInfoList[i].indexSize);
             }
 
             // Set up the other Lod
-            IndexData* curLod = *lods.insert(lods.begin() + lodIndex, OGRE_NEW IndexData());
+            v1::IndexData* curLod = *lods.insert(lods.begin() + lodIndex, OGRE_NEW v1::IndexData());
             curLod->indexStart = indexCount - data->mIndexBufferInfoList[i].indexCount;
             curLod->indexCount = data->mIndexBufferInfoList[i].indexCount;
-            if(curLod->indexCount == 0){
+            if(curLod->indexCount == 0)
+            {
                 curLod->indexStart-=3;
                 curLod->indexCount=3;
             }
@@ -160,19 +173,26 @@ namespace Ogre
         // Filling will be done in 3 parts.
         // 1. prevLod only indices.
         size_t triangleCount = mTriangleCacheList.size();
-        for (size_t i = 0; i < triangleCount; i++) {
-            if (mTriangleCacheList[i].vertexChanged) {
+        for (size_t i = 0; i < triangleCount; i++)
+        {
+            if (mTriangleCacheList[i].vertexChanged)
+            {
                 assert(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].prevIndexCount != 0);
                 assert(mTriangleCacheList[i].vertexID[0] != mTriangleCacheList[i].vertexID[1]);
                 assert(mTriangleCacheList[i].vertexID[1] != mTriangleCacheList[i].vertexID[2]);
                 assert(mTriangleCacheList[i].vertexID[2] != mTriangleCacheList[i].vertexID[0]);
-                if (data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].indexSize == 2) {
-                    for (int m = 0; m < 3; m++) {
+                if (data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].indexSize == 2)
+                {
+                    for (int m = 0; m < 3; m++)
+                    {
                         *(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].buf.pshort++) =
                             static_cast<unsigned short>(mTriangleCacheList[i].vertexID[m]);
                     }
-                } else {
-                    for (int m = 0; m < 3; m++) {
+                }
+                else
+                {
+                    for (int m = 0; m < 3; m++)
+                    {
                         *(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].buf.pint++) =
                             static_cast<unsigned int>(mTriangleCacheList[i].vertexID[m]);
                     }
@@ -182,21 +202,28 @@ namespace Ogre
 
 
         // 2. shared indices.
-        for (size_t i = 0; i < triangleCount; i++) {
-            if (!data->mTriangleList[i].isRemoved && !mTriangleCacheList[i].vertexChanged) {
+        for (size_t i = 0; i < triangleCount; i++)
+        {
+            if (!data->mTriangleList[i].isRemoved && !mTriangleCacheList[i].vertexChanged)
+            {
                 assert(mTriangleCacheList[i].vertexID[0] == data->mTriangleList[i].vertexID[0]);
                 assert(mTriangleCacheList[i].vertexID[1] == data->mTriangleList[i].vertexID[1]);
                 assert(mTriangleCacheList[i].vertexID[2] == data->mTriangleList[i].vertexID[2]);
 
                 assert(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].indexCount != 0);
                 assert(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].prevIndexCount != 0);
-                if (data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].indexSize == 2) {
-                    for (int m = 0; m < 3; m++) {
+                if (data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].indexSize == 2)
+                {
+                    for (int m = 0; m < 3; m++)
+                    {
                         *(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].buf.pshort++) =
                             static_cast<unsigned short>(data->mTriangleList[i].vertexID[m]);
                     }
-                } else {
-                    for (int m = 0; m < 3; m++) {
+                }
+                else
+                {
+                    for (int m = 0; m < 3; m++)
+                    {
                         *(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].buf.pint++) =
                             static_cast<unsigned int>(data->mTriangleList[i].vertexID[m]);
                     }
@@ -205,16 +232,23 @@ namespace Ogre
         }
 
         // 3. curLod indices only.
-        for (size_t i = 0; i < triangleCount; i++) {
-            if (!data->mTriangleList[i].isRemoved && mTriangleCacheList[i].vertexChanged) {
+        for (size_t i = 0; i < triangleCount; i++)
+        {
+            if (!data->mTriangleList[i].isRemoved && mTriangleCacheList[i].vertexChanged)
+            {
                 assert(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].indexCount != 0);
-                if (data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].indexSize == 2) {
-                    for (int m = 0; m < 3; m++) {
+                if (data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].indexSize == 2)
+                {
+                    for (int m = 0; m < 3; m++)
+                    {
                         *(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].buf.pshort++) =
                             static_cast<unsigned short>(data->mTriangleList[i].vertexID[m]);
                     }
-                } else {
-                    for (int m = 0; m < 3; m++) {
+                }
+                else
+                {
+                    for (int m = 0; m < 3; m++)
+                    {
                         *(data->mIndexBufferInfoList[data->mTriangleList[i].submeshID].buf.pint++) =
                             static_cast<unsigned int>(data->mTriangleList[i].vertexID[m]);
                     }
@@ -223,10 +257,11 @@ namespace Ogre
         }
 
         // Close buffers.
-        for (unsigned short i = 0; i < submeshCount; i++) {
-            SubMesh::LODFaceList& lods = mMesh->getSubMesh(i)->mLodFaceList;
-            IndexData* prevLod = lods[mLastIndexBufferID];
-            IndexData* curLod = lods[lodIndex];
+        for (unsigned short i = 0; i < submeshCount; i++)
+        {
+            v1::SubMesh::LODFaceList& lods = mMesh->getSubMesh(i)->mLodFaceList[VpNormal];
+            v1::IndexData* prevLod = lods[mLastIndexBufferID];
+            v1::IndexData* curLod = lods[lodIndex];
             prevLod->indexBuffer->unlock();
             curLod->indexBuffer = prevLod->indexBuffer;
         }
@@ -241,7 +276,8 @@ namespace Ogre
     {
         assert(!tri->isRemoved);
         TriangleCache& cache = mTriangleCacheList[LodData::getVectorIDFromPointer(data->mTriangleList, tri)];
-        if(!cache.vertexChanged){
+        if(!cache.vertexChanged)
+        {
             cache.vertexChanged = true;
             data->mIndexBufferInfoList[tri->submeshID].prevOnlyIndexCount += 3;
         }

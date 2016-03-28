@@ -125,6 +125,13 @@ namespace Ogre
         */
         void getTextureSource( size_t outputChannel, size_t &index, TextureSource &textureSource ) const;
 
+        /** Called right after we create a pass definition. Derived
+            classes may want to do something with it
+        @param passDef
+            Newly created pass to toy with.
+        */
+        virtual void postInitializePassDef( CompositorPassDef *passDef ) {}
+
         /** Reserves enough memory for all passes
         @remarks
             Calling this function is obligatory, otherwise unexpected crashes may occur.
@@ -183,6 +190,16 @@ namespace Ogre
 
         /// @copydoc TextureDefinitionBase::removeTexture
         virtual void removeTexture( IdString name );
+
+        /** Returns the pass # of the given pass definition in this node.
+            This operation is O(N). Useful for debug output.
+        @param passDef
+            The pass definition to look for
+        @return
+            Value in range [0; total_numer_of_passes_in_this_node)
+            -1 if not found (pass doesn't belong to this node)
+        */
+        size_t getPassNumber( const CompositorPassDef *passDef ) const;
 
         CompositorManager2* getCompositorManager(void) const { return mCompositorManager; }
     };

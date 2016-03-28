@@ -32,19 +32,20 @@ THE SOFTWARE.
 
 namespace Ogre 
 {
-  
+namespace v1
+{
     //-----------------------------------------------------------------------------    
     HardwarePixelBuffer::HardwarePixelBuffer(uint32 width, uint32 height, uint32 depth,
-            PixelFormat format,
+            PixelFormat format, bool hwGamma,
             HardwareBuffer::Usage usage, bool useSystemMemory, bool useShadowBuffer):
         HardwareBuffer(usage, useSystemMemory, useShadowBuffer),
         mWidth(width), mHeight(height), mDepth(depth),
-        mFormat(format)
+        mFormat(format), mHwGamma( hwGamma )
     {
         // Default
         mRowPitch = mWidth;
         mSlicePitch = mHeight*mWidth;
-        mSizeInBytes = mHeight*mWidth*PixelUtil::getNumElemBytes(mFormat);
+        mSizeInBytes = PixelUtil::getMemorySize( mHeight, mWidth, mDepth, mFormat );
     }
     
     //-----------------------------------------------------------------------------    
@@ -193,4 +194,5 @@ namespace Ogre
     {
     }
 
+}
 }

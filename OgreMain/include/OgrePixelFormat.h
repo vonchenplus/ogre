@@ -135,7 +135,7 @@ namespace Ogre {
         /// 64-bit, 2-channel floating point pixel format, 32-bit green, 32-bit red
         PF_FLOAT32_GR = 36,
         /// Depth texture format
-        PF_DEPTH = 29,
+        PF_DEPTH_DEPRECATED = 29,
         /// 64-bit pixel format, 16 bits for red, green, blue and alpha
         PF_SHORT_RGBA = 30,
         /// 32-bit pixel format, 16-bit green, 16-bit red
@@ -256,8 +256,53 @@ namespace Ogre {
         PF_ATC_RGBA_EXPLICIT_ALPHA = 93,
         /// ATC (AMD_compressed_ATC_texture)
         PF_ATC_RGBA_INTERPOLATED_ALPHA = 94,
+
+        /// Depth texture format. 24 bits for depth, 8 bits for stencil.
+        /// The following formats are just reinterpretations of the same depth buffer:
+        ///  24-bit normalized uint depth and 8-bit stencil
+        ///     * PF_D24_UNORM_S8_UINT
+        ///     * PF_D24_UNORM_X8
+        ///     * PF_X24_S8_UINT
+        /// 24-bit normalized uint depth
+        ///     * PF_D24_UNORM
+        ///  16-bit normalized uint depth
+        ///     * PF_D16_UNORM
+        ///  32-bit floating point depth
+        ///     * PF_D32_FLOAT
+        ///  32-bit floating point depth & 8-bit stencil (+24 unused bits)
+        ///     * PF_D32_FLOAT_X24_S8_UINT
+        ///     * PF_D32_FLOAT_X24_X8
+        ///     * PF_X32_X24_S8_UINT
+        ///
+        /// This means that e.g. a PF_D24_UNORM_X8 and a PF_D24_UNORM_S8_UINT
+        /// may or may not internally point to the same depth buffer. Use depth buffer
+        /// pools if you want a guarantee that they use different buffers.
+        /// Last but not least, not all GPUs support all these formats.
+        PF_D24_UNORM_S8_UINT = 95,
+        /// Depth texture format. 24 bits for depth.
+        PF_D24_UNORM_X8 = 96,
+        /// Depth texture format. 8 bits for stencil.
+        PF_X24_S8_UINT = 97,
+        /// Depth texture format 24 bits for depth.
+        PF_D24_UNORM = 98,
+        /// Depth texture format. 16 bits for depth.
+        PF_D16_UNORM = 99,
+        /// Depth texture format. 32 bits for depth.
+        PF_D32_FLOAT = 100,
+        /// Depth texture format. 32 bits for depth. 8 bits for stencil
+        PF_D32_FLOAT_X24_S8_UINT = 101,
+        /// Depth texture format. 32 bits for depth.
+        PF_D32_FLOAT_X24_X8 = 102,
+        /// Depth texture format. 8 bits for stencil
+        PF_X32_X24_S8_UINT = 103,
+
+        /// Dummy, used for UAV-only rendering. D3D11 calls it
+        /// Target-independent rasterization / UAVOnlyRenderingForcedSampleCount
+        /// OpenGL is under GL_ARB_framebuffer_no_attachments
+        PF_NULL = 104,
+
         // Number of pixel formats currently defined
-        PF_COUNT = 95
+        PF_COUNT = 105
     };
     typedef vector<PixelFormat>::type PixelFormatList;
 
@@ -281,7 +326,9 @@ namespace Ogre {
             replaces R,G and B. (but not A) */
         PFF_LUMINANCE       = 0x00000020,
         /// This is an integer format
-        PFF_INTEGER         = 0x00000040
+        PFF_INTEGER         = 0x00000040,
+        /// This integer format is signed.
+        PFF_SIGNED         = 0x00000080
     };
     
     /** Pixel component format */
@@ -335,6 +382,34 @@ namespace Ogre {
                 case, this does serious magic.
         */
         static size_t getMemorySize(uint32 width, uint32 height, uint32 depth, PixelFormat format);
+
+        /** Returns the minimum width for block compressed schemes. ie. DXT1 compresses in blocks
+            of 4x4 pixels. A texture with a width of 2 is just padded to 4.
+            When building UV atlases composed of already compressed data being stitched together,
+            the block size is very important to know as the resolution of the individual textures
+            must be a multiple of this size.
+         @remarks
+            If the format is not compressed, returns 1.
+         @par
+            The function can return a value of 0 (as happens with PVRTC & ETC1 compression); this is
+            because although they may compress in blocks (i.e. PVRTC uses a 4x4 or 8x4 block), this
+            information is useless as the compression scheme doesn't have isolated blocks (modifying
+            a single pixel can change the binary data of the entire stream) making it useless for
+            subimage sampling or creating UV atlas.
+         @param format
+            The format to query for. Can be compressed or not.
+         @param apiStrict
+            When true, obeys the rules of most APIs (i.e. ETC1 can't update subregions according to
+            GLES specs). When false, becomes more practical if manipulating by hand (i.e. ETC1's
+            subregions can be updated just fine by @bulkCompressedSubregion)
+         @return
+            The width of compression block, in pixels. Can be 0 (see remarks). If format is not
+            compressed, returns 1.
+        */
+        static uint32 getCompressedBlockWidth( PixelFormat format, bool apiStrict=true );
+
+        /// @See getCompressedBlockWidth
+        static uint32 getCompressedBlockHeight( PixelFormat format, bool apiStrict=true );
         
         /** Returns the property flags for this pixel format
           @return
@@ -351,6 +426,8 @@ namespace Ogre {
         static bool isFloatingPoint(PixelFormat format);
         /** Shortcut method to determine if the format is integer */
         static bool isInteger(PixelFormat format);
+        /** Shortcut method to determine if the format is signed */
+        static bool isSigned(PixelFormat format);
         /** Shortcut method to determine if the format is compressed */
         static bool isCompressed(PixelFormat format);
         /** Shortcut method to determine if the format is a depth format. */
@@ -511,6 +588,40 @@ namespace Ogre {
             dimensions. In case the source and destination format match, a plain copy is done.
         */
         static void bulkPixelConversion(const PixelBox &src, const PixelBox &dst);
+
+        /** Converts the input source to either PF_R8G8_SNORM or PF_BYTE_LA.
+            dst must be one of either formats.
+            @param  src         PixelBox containing the source pixels, pitches and format
+            @param  dst         PixelBox containing the destination pixels, pitches and format
+            @remarks The source and destination boxes must have the same dimensions.
+        */
+        static void convertForNormalMapping(const PixelBox &src, const PixelBox &dst);
+
+        /** Emplaces the binary compressed data from src into a subregion of dst.
+        @param  src
+            PixelBox containing the source pixels, pitches and format.
+            Data must be consecutive
+        @param  dst
+            PixelBox containing the destination pixels, pitches and format.
+            Data must be consecutive
+        @param dstRegion
+            The region on dst where src will be emplaced. dstRegion's resolution must
+            match that of src. dstRegion must be within dst's bounds.
+        @remarks
+            The source and destination must have the same the same format.
+        @par
+            Each compression format may enforce different requirements. Most notably
+            the subregions' bounds must be aligned to a certain boundary (usually to
+            multiples of 4). If these requirements aren't met, an exception will be
+            thrown.
+        @par
+            Some formats (i.e. PVRTC) don't support subregions at all, and thus
+            an exception will be thrown.
+        @par
+            @See getCompressedBlockWidth
+        */
+        static void bulkCompressedSubregion( const PixelBox &src, const PixelBox &dst,
+                                             const Box &dstRegion );
 
         /** Flips pixels inplace in vertical direction.
             @param  box         PixelBox containing pixels, pitches and format

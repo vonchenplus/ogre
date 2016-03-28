@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 #include "Compositor/OgreCompositorWorkspaceDef.h"
 #include "Compositor/OgreCompositorChannel.h"
+#include "OgreResourceTransition.h"
 
 namespace Ogre
 {
@@ -41,6 +42,8 @@ namespace Ogre
     /** \addtogroup Effects
     *  @{
     */
+
+    struct BoundUav;
 
     /** A compositor workspace is the main interface to render into an RT, be it a RenderWindow or an
         RTT (Render Texture Target). Whereas Ogre 1.x needed you to set a Viewport in order to render
@@ -97,6 +100,10 @@ namespace Ogre
         uint                    mCurrentWidth;
         uint                    mCurrentHeight;
 
+        uint8                   mExecutionMask;
+        uint8                   mViewportModifierMask;
+        Vector4                 mViewportModifier;
+
         /// Creates all the node instances from our definition
         void createAllNodes(void);
 
@@ -123,10 +130,14 @@ namespace Ogre
         */
         void setupPassesShadowNodes(void);
 
+        void analyzeHazardsAndPlaceBarriers(void);
+
     public:
         CompositorWorkspace( IdType id, const CompositorWorkspaceDef *definition,
                                 const CompositorChannel &finalRenderTarget, SceneManager *sceneManager,
-                                Camera *defaultCam, RenderSystem *renderSys, bool bEnabled );
+                                Camera *defaultCam, RenderSystem *renderSys, bool bEnabled,
+                                uint8 executionMask, uint8 viewportModifierMask,
+                                const Vector4 &vpOffsetScale );
         virtual ~CompositorWorkspace();
 
         const CompositorChannel& getGlobalTexture( IdString name ) const;
@@ -168,6 +179,11 @@ namespace Ogre
         */
         void reconnectAllNodes(void);
 
+        /** Resets the number of passes left for every pass (@see CompositorPassDef::mNumInitialPasses)
+            Useful when you have a few starting 'initialization' passes and you want to reset them.
+        */
+        void resetAllNumPassesLeft(void);
+
         /** Call before _update unless the final render target is not a render window
         @param forceBeginFrame
             Forces a beginFrame call to the D3D9 API, even if the final render target is not
@@ -177,7 +193,13 @@ namespace Ogre
         */
         void _beginUpdate( bool forceBeginFrame );
 
-        /// Updates the workspace's nodes.
+        /** Updates the workspace's nodes.
+        @remarks
+            If you're calling this manually, it may be possible you first need to call
+            RenderSystem::_beginFrameOnce if it wasn't called by OGRE already.
+            You might also need to enclose the _update calls with _beginUpdate( true )
+            and _endUpdate( true ) if you're having issues.
+        */
         void _update(void);
 
         /** Call after _update unless the final render target is not a render window
@@ -245,6 +267,11 @@ namespace Ogre
 
         /// Returns the RenderTarget we're rendering to. May be null.
         RenderTarget* getFinalTarget(void) const            { return mRenderWindow.target; }
+
+        uint8 getViewportModifierMask(void) const           { return mViewportModifierMask; }
+        const Vector4& getViewportModifier(void) const      { return mViewportModifier; }
+
+        uint8 getExecutionMask(void) const                  { return mExecutionMask; }
 
         /// Gets the compositor manager (non const)
         CompositorManager2* getCompositorManager();

@@ -33,10 +33,13 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreIdString.h"
+#include "OgreResourceTransition.h"
 
 namespace Ogre
 {
     class CompositorNodeDef;
+
+    typedef vector<IdString>::type IdStringVec;
 
     /** \addtogroup Core
     *  @{
@@ -52,6 +55,9 @@ namespace Ogre
         PASS_CLEAR,
         PASS_STENCIL,
         PASS_RESOLVE,
+        PASS_DEPTHCOPY,
+        PASS_UAV,
+        PASS_MIPMAP,
         PASS_CUSTOM
     };
 
@@ -60,6 +66,9 @@ namespace Ogre
             * PASS_QUAD (@See CompositorPassQuadDef)
             * PASS_CLEAR (@See CompositorPassClearDef)
             * PASS_STENCIL (@See CompositorPassStencilDef)
+            * PASS_DEPTHCOPY (@See CompositorPassDepthCopy)
+            * PASS_UAV (@See CompositorPassUavDef)
+            * PASS_MIPMAP (@See CompositorPassMipmapDef)
         This class doesn't do much on its own. See the derived types for more information
         A definition is shared by all pass instantiations (i.e. Five CompositorPassScene can
         share the same CompositorPassSceneDef) and are asumed to remain const throughout
@@ -83,6 +92,10 @@ namespace Ogre
         float               mVpTop;
         float               mVpWidth;
         float               mVpHeight;
+        float               mVpScissorLeft;
+        float               mVpScissorTop;
+        float               mVpScissorWidth;
+        float               mVpScissorHeight;
 
         /// Shadow map index it belongs to (only filled in passes owned by Shadow Nodes)
         uint32              mShadowMapIdx;
@@ -99,19 +112,56 @@ namespace Ogre
         /// End if we're the last consecutive pass to alter the contents of the same render target
         bool                mEndRtUpdate;
 
+        /// When false will not really bind the RenderTarget for rendering and
+        /// use a null colour buffer instead. Useful for depth prepass, or if
+        /// the RTT is actually an UAV.
+        /// Some passes may ignore this setting (e.g. Clear passes)
+        bool                mColourWrite;
+
         /** TODO: Refactor OgreOverlay to remove this design atrocity.
             A custom overlay pass is a better alternative (or just use their own RQ)
         */
         bool                mIncludeOverlays;
 
+        uint8               mExecutionMask;
+        uint8               mViewportModifierMask;
+
+        IdStringVec         mExposedTextures;
+
+        struct UavDependency
+        {
+            /// The slot must be in range [0; 64) and ignores the starting
+            /// slot (@see CompositorPassUavDef::mStartingSlot)
+            uint32                          uavSlot;
+
+            /// The UAV pass already sets the texture access.
+            /// However two passes in a row may only read from it,
+            /// thus having this information is convenient (without
+            /// needing to add another bind UAV pass)
+            ResourceAccess::ResourceAccess  access;
+            bool                            allowWriteAfterWrite;
+
+            UavDependency( uint32 _uavSlot, ResourceAccess::ResourceAccess _access,
+                           bool _allowWriteAfterWrite ) :
+                uavSlot( _uavSlot ), access( _access ), allowWriteAfterWrite( _allowWriteAfterWrite ) {}
+        };
+        typedef vector<UavDependency>::type UavDependencyVec;
+        UavDependencyVec    mUavDependencies;
+
     public:
         CompositorPassDef( CompositorPassType passType, uint32 rtIndex ) :
             mPassType( passType ), mRtIndex( rtIndex ),
             mVpLeft( 0 ), mVpTop( 0 ),
-            mVpWidth( 1 ), mVpHeight( 1 ), mShadowMapIdx( 0 ),
+            mVpWidth( 1 ), mVpHeight( 1 ),
+            mVpScissorLeft( 0 ), mVpScissorTop( 0 ),
+            mVpScissorWidth( 1 ), mVpScissorHeight( 1 ),
+            mShadowMapIdx( 0 ),
             mNumInitialPasses( -1 ), mIdentifier( 0 ),
             mBeginRtUpdate( true ), mEndRtUpdate( true ),
-            mIncludeOverlays( false ) {}
+            mColourWrite( true ),
+            mIncludeOverlays( false ),
+            mExecutionMask( 0xFF ),
+            mViewportModifierMask( 0xFF ) {}
         virtual ~CompositorPassDef() {}
 
         CompositorPassType getType() const              { return mPassType; }

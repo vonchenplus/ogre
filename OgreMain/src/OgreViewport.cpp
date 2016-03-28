@@ -46,12 +46,16 @@ namespace Ogre {
         , mRelTop(top)
         , mRelWidth(width)
         , mRelHeight(height)
+        , mScissorRelLeft(left)
+        , mScissorRelTop(top)
+        , mScissorRelWidth(width)
+        , mScissorRelHeight(height)
+        , mColourWrite( true )
         // Actual dimensions will update later
         , mUpdated(false)
         , mShowOverlays(true)
         , mShowSkies(true)
         , mVisibilityMask(0)
-        , mRQSequence(0)
         , mMaterialSchemeName(MaterialManager::DEFAULT_SCHEME_NAME)
         , mColourBuffer(CBT_BACK)
     {           
@@ -90,10 +94,21 @@ namespace Ogre {
         Real height = (Real) mTarget->getHeight();
         Real width = (Real) mTarget->getWidth();
 
+        assert( mScissorRelLeft >= mRelLeft     &&
+                mScissorRelTop >= mRelTop       &&
+                mScissorRelWidth <= mRelWidth   &&
+                mScissorRelHeight <= mRelHeight &&
+                "Scissor rectangle must be inside Viewport's!" );
+
         mActLeft = (int) (mRelLeft * width);
         mActTop = (int) (mRelTop * height);
         mActWidth = (int) (mRelWidth * width);
         mActHeight = (int) (mRelHeight * height);
+
+        mScissorActLeft     = (int)( mScissorRelLeft * width );
+        mScissorActTop      = (int)( mScissorRelTop * height );
+        mScissorActWidth    = (int)( mScissorRelWidth * width );
+        mScissorActHeight   = (int)( mScissorRelHeight * height );
 
         mUpdated = true;
     }
@@ -143,12 +158,30 @@ namespace Ogre {
         return mActHeight;
     }
     //---------------------------------------------------------------------
-    void Viewport::setDimensions(Real left, Real top, Real width, Real height)
+    void Viewport::setDimensions(Real left, Real top, Real width, Real height, bool overrideScissors)
     {
         mRelLeft = left;
         mRelTop = top;
         mRelWidth = width;
         mRelHeight = height;
+
+        if( overrideScissors )
+        {
+            mScissorRelLeft     = left;
+            mScissorRelTop      = top;
+            mScissorRelWidth    = width;
+            mScissorRelHeight   = height;
+        }
+
+        _updateDimensions();
+    }
+    //---------------------------------------------------------------------
+    void Viewport::setScissors( Real left, Real top, Real width, Real height )
+    {
+        mScissorRelLeft     = left;
+        mScissorRelTop      = top;
+        mScissorRelWidth    = width;
+        mScissorRelHeight   = height;
         _updateDimensions();
     }
     //---------------------------------------------------------------------
@@ -250,13 +283,29 @@ namespace Ogre {
         }
     }
     //---------------------------------------------------------------------
+    void Viewport::discard( unsigned int buffers )
+    {
+        RenderSystem* rs = Root::getSingleton().getRenderSystem();
+        if (rs)
+        {
+            Viewport* currentvp = rs->_getViewport();
+            if (currentvp == this)
+                rs->discardFrameBuffer( buffers );
+            else
+            {
+                rs->_setViewport(this);
+                rs->discardFrameBuffer( buffers );
+                rs->_setViewport(currentvp);
+            }
+        }
+    }
+    //---------------------------------------------------------------------
     void Viewport::getActualDimensions(int &left, int&top, int &width, int &height) const
     {
         left = mActLeft;
         top = mActTop;
         width = mActWidth;
         height = mActHeight;
-
     }
     //---------------------------------------------------------------------
     void Viewport::setOverlaysEnabled(bool enabled)
@@ -279,28 +328,10 @@ namespace Ogre {
         return mShowSkies;
     }
     //-----------------------------------------------------------------------
-    void Viewport::setRenderQueueInvocationSequenceName(const String& sequenceName)
+    void Viewport::setColourWrite( bool colourWrite )
     {
-        mRQSequenceName = sequenceName;
-        if (mRQSequenceName.empty())
-        {
-            mRQSequence = 0;
-        }
-        else
-        {
-            mRQSequence =
-                Root::getSingleton().getRenderQueueInvocationSequence(mRQSequenceName);
-        }
-    }
-    //-----------------------------------------------------------------------
-    const String& Viewport::getRenderQueueInvocationSequenceName(void) const
-    {
-        return mRQSequenceName;
-    }
-    //-----------------------------------------------------------------------
-    RenderQueueInvocationSequence* Viewport::_getRenderQueueInvocationSequence(void)
-    {
-        return mRQSequence;
+        mColourWrite = colourWrite;
+        mUpdated = true;
     }
     //-----------------------------------------------------------------------
     void Viewport::pointOrientedToScreen(const Vector2 &v, int orientationMode, Vector2 &outv)

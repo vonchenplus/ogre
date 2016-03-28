@@ -50,7 +50,7 @@ namespace Ogre {
 
             void createRenderTexture();
             /// @copydoc Texture::getBuffer
-            HardwarePixelBufferSharedPtr getBuffer(size_t face, size_t mipmap);
+            v1::HardwarePixelBufferSharedPtr getBuffer(size_t face, size_t mipmap);
 
             // Takes the OGRE texture type (1d/2d/3d/cube) and returns the appropriate GL one
             GLenum getGLES2TextureTarget(void) const;
@@ -61,6 +61,11 @@ namespace Ogre {
             }
             
             void getCustomAttribute(const String& name, void* pData);
+
+#if OGRE_NO_GLES3_SUPPORT != 0
+            void bindSamplerBlock( GLES2HlmsSamplerblock *samplerblock );
+            uint32 getLastBoundSamplerblockRsId(void) const { return mLastBoundSamplerblockRsId; }
+#endif
 
         protected:
             /// @copydoc Texture::createInternalResourcesImpl
@@ -103,10 +108,13 @@ namespace Ogre {
 
         private:
             GLuint mTextureID;
+#if OGRE_NO_GLES3_SUPPORT != 0
+            uint32 mLastBoundSamplerblockRsId;
+#endif
             GLES2Support& mGLSupport;
             
             /// Vector of pointers to subsurfaces
-            typedef vector<HardwarePixelBufferSharedPtr>::type SurfaceList;
+            typedef vector<v1::HardwarePixelBufferSharedPtr>::type SurfaceList;
             SurfaceList mSurfaceList;
 
     };

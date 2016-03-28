@@ -30,9 +30,12 @@ THE SOFTWARE.
 
 #include "Compositor/Pass/OgreCompositorPassDef.h"
 #include "Compositor/Pass/PassClear/OgreCompositorPassClearDef.h"
+#include "Compositor/Pass/PassDepthCopy/OgreCompositorPassDepthCopyDef.h"
+#include "Compositor/Pass/PassMipmap/OgreCompositorPassMipmapDef.h"
 #include "Compositor/Pass/PassQuad/OgreCompositorPassQuadDef.h"
 #include "Compositor/Pass/PassScene/OgreCompositorPassSceneDef.h"
 #include "Compositor/Pass/PassStencil/OgreCompositorPassStencilDef.h"
+#include "Compositor/Pass/PassUav/OgreCompositorPassUavDef.h"
 
 #include "Compositor/OgreCompositorNodeDef.h"
 #include "Compositor/OgreCompositorManager2.h"
@@ -71,6 +74,15 @@ namespace Ogre
         case PASS_STENCIL:
             retVal = OGRE_NEW CompositorPassStencilDef( mRtIndex );
             break;
+        case PASS_DEPTHCOPY:
+            retVal = OGRE_NEW CompositorPassDepthCopyDef( mParentNodeDef, mRtIndex );
+            break;
+        case PASS_UAV:
+            retVal = OGRE_NEW CompositorPassUavDef( mParentNodeDef, mRtIndex );
+            break;
+        case PASS_MIPMAP:
+            retVal = OGRE_NEW CompositorPassMipmapDef();
+            break;
         case PASS_CUSTOM:
             {
                 CompositorPassProvider *passProvider = mParentNodeDef->getCompositorManager()->
@@ -88,6 +100,8 @@ namespace Ogre
         default:
             break;
         }
+
+        mParentNodeDef->postInitializePassDef( retVal );
 
         mCompositorPasses.push_back( retVal );
         

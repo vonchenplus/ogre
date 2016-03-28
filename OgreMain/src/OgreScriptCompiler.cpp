@@ -1072,17 +1072,10 @@ namespace Ogre
         mIds["alpha_to_coverage"] = ID_ALPHA_TO_COVERAGE;
         mIds["light_scissor"] = ID_LIGHT_SCISSOR;
         mIds["light_clip_planes"] = ID_LIGHT_CLIP_PLANES;
-        mIds["transparent_sorting"] = ID_TRANSPARENT_SORTING;
-        mIds["illumination_stage"] = ID_ILLUMINATION_STAGE;
-        mIds["decal"] = ID_DECAL;
         mIds["cull_hardware"] = ID_CULL_HARDWARE;
+        mIds["cull_mode"] = ID_CULL_MODE;
         mIds["clockwise"] = ID_CLOCKWISE;
         mIds["anticlockwise"] = ID_ANTICLOCKWISE;
-        mIds["cull_software"] = ID_CULL_SOFTWARE;
-        mIds["back"] = ID_BACK;
-        mIds["front"] = ID_FRONT;
-        mIds["normalise_normals"] = ID_NORMALISE_NORMALS;
-        mIds["lighting"] = ID_LIGHTING;
         mIds["shading"] = ID_SHADING;
         mIds["flat"] = ID_FLAT;
         mIds["gouraud"] = ID_GOURAUD;
@@ -1140,7 +1133,6 @@ namespace Ogre
         mIds["bilinear"] = ID_BILINEAR;
         mIds["trilinear"] = ID_TRILINEAR;
         mIds["anisotropic"] = ID_ANISOTROPIC;
-        mIds["compare_test"] = ID_CMPTEST;
         mIds["compare_func"] = ID_CMPFUNC;
         mIds["max_anisotropy"] = ID_MAX_ANISOTROPY;
         mIds["mipmap_bias"] = ID_MIPMAP_BIAS;
@@ -1232,6 +1224,13 @@ namespace Ogre
         mIds["no_fsaa"]             = ID_NO_FSAA;
         mIds["explicit_resolve"]    = ID_EXPLICIT_RESOLVE;
         mIds["depth_pool"]          = ID_DEPTH_POOL;
+        mIds["depth_texture"]       = ID_DEPTH_TEXTURE;
+        mIds["depth_format"]        = ID_DEPTH_FORMAT;
+        mIds["2d_array"]            = ID_2D_ARRAY;
+        //mIds["3d"]                = ID_3D;
+        mIds["cubemap"]             = ID_CUBEMAP;
+        mIds["mipmaps"]             = ID_MIPMAPS;
+        mIds["automipmaps"]         = ID_AUTOMIPMAPS;
 
         mIds["target"] = ID_TARGET;
 
@@ -1239,12 +1238,21 @@ namespace Ogre
         mIds["stencil"]         = ID_STENCIL;
         mIds["render_scene"]    = ID_RENDER_SCENE;
         mIds["render_quad"]     = ID_RENDER_QUAD;
+        mIds["depth_copy"]      = ID_DEPTH_COPY;
+        mIds["bind_uav"]        = ID_BIND_UAV;
+        mIds["read"]            = ID_READ;
+        mIds["write"]           = ID_WRITE;
+        mIds["mipmap"]          = ID_MIPMAP;
 
         mIds["viewport"]        = ID_VIEWPORT;
         mIds["num_initial"]     = ID_NUM_INITIAL;
         mIds["identifier"]      = ID_IDENTIFIER;
         mIds["overlays"]        = ID_OVERLAYS;
-
+        mIds["execution_mask"]  = ID_EXECUTION_MASK;
+        mIds["viewport_modifier_mask"]   = ID_VIEWPORT_MODIFIER_MASK;
+        mIds["uses_uav"]        = ID_USES_UAV;
+        mIds["allow_write_after_write"] = ID_ALLOW_WRITE_AFTER_WRITE;
+        mIds["expose"]          = ID_EXPOSE;
         mIds["lod_bias"]        = ID_LOD_BIAS;
         mIds["lod_update_list"] = ID_LOD_UPDATE_LIST;
         mIds["lod_camera"]      = ID_LOD_CAMERA;
@@ -1260,7 +1268,11 @@ namespace Ogre
         mIds["quad_normals"]    = ID_QUAD_NORMALS;
         mIds["camera_far_corners_view_space"]   = ID_CAMERA_FAR_CORNERS_VIEW_SPACE;
         mIds["camera_far_corners_world_space"]  = ID_CAMERA_FAR_CORNERS_WORLD_SPACE;
+        mIds["camera_far_corners_world_space_centered"] = ID_CAMERA_FAR_CORNERS_WORLD_SPACE_CENTERED;
+        mIds["camera_direction"]                = ID_CAMERA_DIRECTION;
         mIds["input"]           = ID_INPUT;
+
+        mIds["alias_on_copy_failure"]           = ID_ALIAS_ON_COPY_FAILURE;
 
         mIds["buffers"]         = ID_BUFFERS;
         mIds["colour"]          = ID_COLOUR;
@@ -1285,6 +1297,11 @@ namespace Ogre
         mIds["pass_op"]         = ID_PASS_OP;
         mIds["two_sided"]       = ID_TWO_SIDED;
 
+        mIds["uav"]             = ID_UAV;
+        mIds["uav_external"]    = ID_UAV_EXTERNAL;
+        mIds["starting_slot"]   = ID_STARTING_SLOT;
+        mIds["keep_previous_uavs"]= ID_KEEP_PREVIOUS_UAV;
+
         mIds["compositor_node_shadow"]  = ID_SHADOW_NODE;
         mIds["num_splits"]              = ID_NUM_SPLITS;
         mIds["pssm_split_padding"]      = ID_PSSM_SPLIT_PADDING;
@@ -1294,6 +1311,8 @@ namespace Ogre
         mIds["fsaa"]                    = ID_FSAA;
         mIds["light"]                   = ID_LIGHT;
         mIds["split"]                   = ID_SPLIT;
+
+        mIds["hlms"]            = ID_HLMS;
 
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
         mIds["rtshader_system"] = ID_RT_SHADER_SYSTEM;

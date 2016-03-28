@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -234,7 +235,7 @@ namespace Ogre {
             /// @copydoc Renderable::getMaterial
             const MaterialPtr& getMaterial(void) const;
             Technique* getTechnique(void) const;
-            void getRenderOperation(RenderOperation& op);
+            void getRenderOperation(RenderOperation& op, bool casterPass);
             void getWorldTransforms(Matrix4* xform) const;
             Real getSquaredViewDepth(const Camera* cam) const;
             const LightList& getLights(void) const;
@@ -727,6 +728,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
+}
 }
 
 #include "OgreHeaderSuffix.h"

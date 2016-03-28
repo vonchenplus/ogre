@@ -34,6 +34,7 @@ THE SOFTWARE.
 
 
 namespace Ogre {
+namespace v1 {
 
     const unsigned short HEADER_CHUNK_ID = 0x1000;
     //---------------------------------------------------------------------
@@ -45,11 +46,15 @@ namespace Ogre {
         
         // Note MUST be added in reverse order so latest is first in the list
 
+        mVersionData.push_back(OGRE_NEW MeshVersionData(
+            MESH_VERSION_2_1, "[MeshSerializer_v2.1 R0 LEGACYV1]",
+            OGRE_NEW MeshSerializerImpl()));
+
         // This one is a little ugly, 1.10 is used for version 1.1 legacy meshes.
         // So bump up to 1.100
         mVersionData.push_back(OGRE_NEW MeshVersionData(
-            MESH_VERSION_1_10, "[MeshSerializer_v1.100]", 
-            OGRE_NEW MeshSerializerImpl()));
+            MESH_VERSION_1_10, "[MeshSerializer_v1.100]",
+            OGRE_NEW MeshSerializerImpl_v1_10()));
 
         mVersionData.push_back(OGRE_NEW MeshVersionData(
             MESH_VERSION_1_8, "[MeshSerializer_v1.8]", 
@@ -192,14 +197,14 @@ namespace Ogre {
         {
             LogManager::getSingleton().logMessage("WARNING: " + pDest->getName() + 
                 " is an older format (" + ver + "); you should upgrade it as soon as possible" +
-                " using the OgreMeshUpgrade tool.", LML_CRITICAL);
+                " using the OgreMeshTool tool.", LML_CRITICAL);
         }
 
         if(mListener)
             mListener->processMeshCompleted(pDest);
     }
     //---------------------------------------------------------------------
-    void MeshSerializer::setListener(Ogre::MeshSerializerListener *listener)
+    void MeshSerializer::setListener( MeshSerializerListener *listener )
     {
         mListener = listener;
     }
@@ -208,5 +213,6 @@ namespace Ogre {
     {
         return mListener;
     }
+}
 }
 

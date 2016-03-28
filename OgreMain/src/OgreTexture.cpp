@@ -33,6 +33,9 @@ THE SOFTWARE.
 #include "OgreException.h"
 #include "OgreTextureManager.h"
 
+#include "OgreRoot.h"
+#include "OgreRenderSystemCapabilities.h"
+
 namespace Ogre {
     //--------------------------------------------------------------------------
     Texture::Texture(ResourceManager* creator, const String& name, 
@@ -79,7 +82,13 @@ namespace Ogre {
             setDesiredBitDepths(tmgr.getPreferredIntegerBitDepth(), tmgr.getPreferredFloatBitDepth());
         }
 
-        
+        const RenderSystemCapabilities *caps = Root::getSingleton().getRenderSystem()->getCapabilities();
+        if( (mUsage & TU_UAV) && !caps->hasCapability( RSC_UAV ) )
+        {
+            OGRE_EXCEPT( Exception::ERR_NOT_IMPLEMENTED,
+                         "This GPU does not support UAVs. Texture: " + mName,
+                         "Texture::Texture" );
+        }
     }
     //--------------------------------------------------------------------------
     void Texture::loadRawData( DataStreamPtr& stream, 
@@ -275,7 +284,7 @@ namespace Ogre {
             // Scoped
             {
                 // Print data about first destination surface
-                HardwarePixelBufferSharedPtr buf = getBuffer(0, 0); 
+                v1::HardwarePixelBufferSharedPtr buf = getBuffer(0, 0);
                 str << " Internal format is " << PixelUtil::getFormatName(buf->getFormat()) << 
                 "," << buf->getWidth() << "x" << buf->getHeight() << "x" << buf->getDepth() << ".";
             }
@@ -464,10 +473,8 @@ namespace Ogre {
         destImage.loadDynamicImage((Ogre::uchar*)pixData, getWidth(), getHeight(), getDepth(), getFormat(), true, 
             getNumFaces(), numMips - 1);
     }
-
     //--------------------------------------------------------------------------
     void Texture::getCustomAttribute(const String&, void*)
     {
-    } 
-
+    }
 }

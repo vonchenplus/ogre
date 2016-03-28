@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreHardwarePixelBuffer.h"
 #include "OgreRenderSystem.h"
 #include "OgreTextureManager.h"
+#include "OgreDepthBuffer.h"
 
 namespace Ogre
 {
@@ -265,16 +266,43 @@ namespace Ogre
                 height = static_cast<uint>( ceilf( finalTarget->getHeight() * textureDef.heightFactor ) );
         }
 
+        uint numMips = textureDef.numMipmaps;
+        if( textureDef.numMipmaps < 0 )
+            numMips = MIP_UNLIMITED;
+
+        uint32 texUsageFlags = TU_RENDERTARGET;
+
+        if( numMips != 0 ) //Allow calling _autogenerateMipmaps
+            texUsageFlags |= TU_AUTOMIPMAP;
+
+        if( textureDef.uav )
+            texUsageFlags |= TU_UAV;
+        if( textureDef.automipmaps )
+        {
+            texUsageFlags |= TU_AUTOMIPMAP|TU_AUTOMIPMAP_AUTO;
+            if( numMips == 0 )
+                numMips = MIP_UNLIMITED;
+        }
+
+        assert( textureDef.depth > 0 &&
+                (textureDef.depth == 1 || textureDef.textureType > TEX_TYPE_2D) &&
+                (textureDef.depth == 6 || textureDef.textureType != TEX_TYPE_CUBE_MAP) );
+
         if( textureDef.formatList.size() == 1 )
         {
             //Normal RT
             TexturePtr tex = TextureManager::getSingleton().createManual( texName,
                                             ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME,
-                                            TEX_TYPE_2D, width, height, 0,
-                                            textureDef.formatList[0], TU_RENDERTARGET, 0, hwGamma,
-                                            fsaa, fsaaHint, textureDef.fsaaExplicitResolve );
+                                            textureDef.textureType, width, height, textureDef.depth,
+                                            numMips, textureDef.formatList[0], (int)texUsageFlags, 0,
+                                            hwGamma, fsaa, fsaaHint, textureDef.fsaaExplicitResolve,
+                                            textureDef.depthBufferId != DepthBuffer::POOL_NON_SHAREABLE );
             RenderTexture* rt = tex->getBuffer()->getRenderTarget();
             rt->setDepthBufferPool( textureDef.depthBufferId );
+            if( !PixelUtil::isDepth( textureDef.formatList[0] ) )
+                rt->setPreferDepthTexture( textureDef.preferDepthTexture );
+            if( textureDef.depthBufferFormat != PF_UNKNOWN )
+                rt->setDesiredDepthBufferFormat( textureDef.depthBufferFormat );
             newChannel.target = rt;
             newChannel.textures.push_back( tex );
         }
@@ -286,6 +314,10 @@ namespace Ogre
             PixelFormatList::const_iterator pixEn = textureDef.formatList.end();
 
             mrt->setDepthBufferPool( textureDef.depthBufferId );
+            if( !PixelUtil::isDepth( textureDef.formatList[0] ) )
+                mrt->setPreferDepthTexture( textureDef.preferDepthTexture );
+            if( textureDef.depthBufferFormat != PF_UNKNOWN )
+                mrt->setDesiredDepthBufferFormat( textureDef.depthBufferFormat );
             newChannel.target = mrt;
 
             while( pixIt != pixEn )
@@ -294,9 +326,10 @@ namespace Ogre
                 TexturePtr tex = TextureManager::getSingleton().createManual(
                                             texName + StringConverter::toString( rtNum ),
                                             ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME,
-                                            TEX_TYPE_2D, width, height, 0,
-                                            *pixIt, TU_RENDERTARGET, 0, hwGamma,
-                                            fsaa, fsaaHint, textureDef.fsaaExplicitResolve );
+                                            textureDef.textureType, width, height, textureDef.depth, 0,
+                                            *pixIt, (int)texUsageFlags, 0, hwGamma,
+                                            fsaa, fsaaHint, textureDef.fsaaExplicitResolve,
+                                            textureDef.depthBufferId != DepthBuffer::POOL_NON_SHAREABLE );
                 RenderTexture* rt = tex->getBuffer()->getRenderTarget();
                 mrt->bindSurface( rtNum, rt );
                 newChannel.textures.push_back( tex );

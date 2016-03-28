@@ -111,6 +111,10 @@ namespace Ogre
     */
     class _OgreExport CompositorShadowNode : public CompositorNode
     {
+    public:
+        typedef vector<bool>::type LightsBitSet;
+
+    private:
         CompositorShadowNodeDef const *mDefinition;
 
         struct ShadowMapCamera
@@ -137,7 +141,6 @@ namespace Ogre
         */
         AxisAlignedBox          mCastersBox;
 
-        typedef vector<bool>::type LightsBitSet;
         LightsBitSet            mAffectedLights;
 
         /// Changes with each call to setShadowMapsToPass
@@ -168,7 +171,7 @@ namespace Ogre
         void _update(Camera* camera, const Camera *lodCamera, SceneManager *sceneManager);
 
         /// We derive so we can override the camera with ours
-        virtual void postInitializePassScene( CompositorPassScene *pass );
+        virtual void postInitializePass( CompositorPass *pass );
 
         const LightList* setShadowMapsToPass( Renderable* rend, const Pass* pass,
                                               AutoParamDataSource *autoParamDataSource,
@@ -179,9 +182,13 @@ namespace Ogre
 
         /** Outputs the min & max depth range for the given camera. 0 & 100000 if camera not found
         @remarks
-            Performs linear search O(N)
+            Performs linear search O(N), except the overload that provides a shadowMapIdx
         */
         void getMinMaxDepthRange( const Frustum *shadowMapCamera, Real &outMin, Real &outMax ) const;
+        void getMinMaxDepthRange( size_t shadowMapIdx, Real &outMin, Real &outMax ) const;
+
+        /// Returns the texture view projection matrix for the given shadow map index
+        Matrix4 getViewProjectionMatrix( size_t shadowMapIdx ) const;
 
         /** Returns a list of points with the limits of each PSSM split in projection space
             for the given shadow map index.
@@ -201,6 +208,8 @@ namespace Ogre
         */
         size_t getNumShadowCastingLights(void) const                { return mShadowMapCastingLights.size(); }
         const LightClosestArray& getShadowCastingLights(void) const { return mShadowMapCastingLights; }
+
+        const LightsBitSet& getAffectedLightsBitSet(void) const     { return mAffectedLights; }
 
         /// @copydoc CompositorNode::finalTargetResized
         virtual void finalTargetResized( const RenderTarget *finalTarget );

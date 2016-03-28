@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "OgreMaterialManager.h"
 #include "OgreRenderSystem.h"
 #include "OgreGLES2GpuProgram.h"
+#include "OgreHlmsSamplerblock.h"
 
 namespace Ogre {
     class GLES2Context;
@@ -46,6 +47,7 @@ namespace Ogre {
     class GLSLESCgProgramFactory;
 #endif
     class GLSLESGpuProgram;
+    namespace v1 {
     class HardwareBufferManager;
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
     class GLES2ManagedResourceManager;
@@ -71,6 +73,8 @@ namespace Ogre {
 
             /// Holds texture type settings for every stage
             GLenum mTextureTypes[OGRE_MAX_TEXTURE_LAYERS];
+            GLES2TexturePtr mBoundTextures[OGRE_MAX_TEXTURE_LAYERS];
+            uint32          mSamplerblocksInternalIdCount;
 
             /// Number of fixed-function texture units
             unsigned short mFixedFunctionTextureUnits;
@@ -95,12 +99,15 @@ namespace Ogre {
             /// List of background thread contexts
             GLES2ContextList mBackgroundContextList;
 
+            bool mScissorsEnabled;
+            GLenum mGlPolyMode;
+
             GLES2GpuProgramManager *mGpuProgramManager;
             GLSLESProgramFactory* mGLSLESProgramFactory;
 #if !OGRE_NO_GLES2_CG_SUPPORT
             GLSLESCgProgramFactory* mGLSLESCgProgramFactory;
 #endif
-            HardwareBufferManager* mHardwareBufferManager;
+            v1::HardwareBufferManager* mHardwareBufferManager;
 
             /** Manager object for creating render textures.
                 Direct render to texture via GL_OES_framebuffer_object is preferable 
@@ -111,6 +118,7 @@ namespace Ogre {
 
             /// Check if the GL system has already been initialised
             bool mGLInitialised;
+            GLfloat mLargestSupportedAnisotropy;
 
             // local data member of _render that were moved here to improve performance
             // (save allocations)
@@ -122,13 +130,17 @@ namespace Ogre {
             GLES2GpuProgram* mCurrentVertexProgram;
             GLES2GpuProgram* mCurrentFragmentProgram;
 
+            GLint getTextureAddressingMode(TextureAddressingMode tam) const;
             GLint getTextureAddressingMode(TextureUnitState::TextureAddressingMode tam) const;
             GLenum getBlendMode(SceneBlendFactor ogreBlend) const;
-            void bindVertexElementToGpu( const VertexElement &elem, HardwareVertexBufferSharedPtr vertexBuffer,
-                                        const size_t vertexStart,
-                                        vector<GLuint>::type &attribsBound,
-                                        vector<GLuint>::type &instanceAttribsBound,
-                                        bool updateVAO);
+            void bindVertexElementToGpu( const v1::VertexElement &elem,
+                                         v1::HardwareVertexBufferSharedPtr vertexBuffer,
+                                         const size_t vertexStart,
+                                         vector<GLuint>::type &attribsBound,
+                                         vector<GLuint>::type &instanceAttribsBound,
+                                         bool updateVAO);
+
+            void correctViewport( GLint x, GLint &y, GLint &w, GLint &h, RenderTarget *renderTarget );
 
             // Mipmap count of the actual bounded texture
             size_t mCurTexMipCount;
@@ -189,14 +201,6 @@ namespace Ogre {
               RenderSystem
              */
             void setAmbientLight(float r, float g, float b) { };   // Not supported
-            /** See
-              RenderSystem
-             */
-            void setShadingType(ShadeOptions so) { };   // Not supported
-            /** See
-              RenderSystem
-             */
-            void setLightingEnabled(bool enabled) { };   // Not supported
 
             /// @copydoc RenderSystem::_createRenderWindow
             RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height, 
@@ -224,10 +228,6 @@ namespace Ogre {
               RenderSystem
              */
             VertexElementType getColourVertexElementType(void) const;
-            /** See
-              RenderSystem
-             */
-            void setNormaliseNormals(bool normalise) { };   // Not supported
 
             // -----------------------------
             // Low-level overridden members
@@ -271,7 +271,7 @@ namespace Ogre {
             /** See
              RenderSystem
              */
-            void _setTexture(size_t unit, bool enabled, const TexturePtr &tex);
+            void _setTexture(size_t unit, bool enabled, Texture *tex);
             /** See
              RenderSystem
              */
@@ -305,6 +305,16 @@ namespace Ogre {
              RenderSystem
              */
             void _setViewport(Viewport *vp);
+
+            virtual void _hlmsMacroblockCreated( HlmsMacroblock *newBlock );
+            virtual void _hlmsMacroblockDestroyed( HlmsMacroblock *block );
+            virtual void _hlmsSamplerblockCreated( HlmsSamplerblock *newBlock );
+            virtual void _hlmsSamplerblockDestroyed( HlmsSamplerblock *block );
+			virtual void _setHlmsMacroblock( const HlmsMacroblock *macroblock );
+			virtual void _setHlmsBlendblock( const HlmsBlendblock *blendblock );
+            virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *samplerblock );
+			virtual void _setProgramsFromHlms( const HlmsCache *hlmsCache );
+
             /** See
              RenderSystem
              */
@@ -313,10 +323,6 @@ namespace Ogre {
              RenderSystem
              */
             void _endFrame(void);
-            /** See
-             RenderSystem
-             */
-            void _setCullingMode(CullingMode mode);
             /** See
              RenderSystem
              */
@@ -341,10 +347,6 @@ namespace Ogre {
              RenderSystem
              */
             void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha);
-            /** See
-             RenderSystem
-             */
-            void _setFog(FogMode mode, const ColourValue& colour, Real density, Real start, Real end);
             /** See
              RenderSystem
              */
@@ -378,10 +380,6 @@ namespace Ogre {
              RenderSystem
              */
             void enableClipPlane (ushort index, bool enable);
-            /** See
-             RenderSystem
-             */
-            void _setPolygonMode(PolygonMode level);
             /** See
              RenderSystem
              */
@@ -424,23 +422,19 @@ namespace Ogre {
             /** See
              RenderSystem
              */
-            void setVertexDeclaration(VertexDeclaration* decl);
+            void setVertexDeclaration(v1::VertexDeclaration* decl);
             /** See
              RenderSystem
              */
-            void setVertexDeclaration(VertexDeclaration* decl, VertexBufferBinding* binding);
+            void setVertexDeclaration(v1::VertexDeclaration* decl, v1::VertexBufferBinding* binding);
             /** See
              RenderSystem
              */
-            void setVertexBufferBinding(VertexBufferBinding* binding) {}
+            void setVertexBufferBinding(v1::VertexBufferBinding* binding) {}
             /** See
              RenderSystem
              */
-            void _render(const RenderOperation& op);
-            /** See
-             RenderSystem
-             */
-            void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);
+            void _render(const v1::RenderOperation& op);
 
             void clearFrameBuffer(unsigned int buffers,
                 const ColourValue& colour = ColourValue::Black,

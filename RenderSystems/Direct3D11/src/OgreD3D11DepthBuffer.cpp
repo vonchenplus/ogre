@@ -27,19 +27,25 @@ THE SOFTWARE.
 */
 #include "OgreD3D11DepthBuffer.h"
 #include "OgreD3D11HardwarePixelBuffer.h"
+#include "OgreD3D11DepthTexture.h"
 #include "OgreD3D11Texture.h"
 #include "OgreD3D11Mappings.h"
 
 namespace Ogre
 {
     D3D11DepthBuffer::D3D11DepthBuffer( uint16 poolId, D3D11RenderSystem *renderSystem,
+                                        ID3D11Texture2D *depthStencilResource,
                                         ID3D11DepthStencilView *depthBufferView,
-                                        uint32 width, uint32 height,
-                                        uint32 fsaa, uint32 multiSampleQuality, bool isManual ) :
-                DepthBuffer( poolId, 0, width, height, fsaa, "", isManual ),
+                                        ID3D11ShaderResourceView *depthTextureView,
+                                        uint32 width, uint32 height, uint32 fsaa,
+                                        uint32 multiSampleQuality, PixelFormat pixelFormat,
+                                        bool isDepthTexture, bool isManual ) :
+                DepthBuffer( poolId, 0, width, height, fsaa, "", pixelFormat,
+                             isDepthTexture, isManual, renderSystem ),
                 mDepthStencilView( depthBufferView ),
-                mMultiSampleQuality( multiSampleQuality),
-                mRenderSystem(renderSystem)
+                mDepthTextureView( depthTextureView ),
+                mMultiSampleQuality( multiSampleQuality ),
+                mDepthStencilResource( depthStencilResource )
     {
         D3D11_DEPTH_STENCIL_VIEW_DESC pDesc;
         mDepthStencilView->GetDesc( &pDesc );
@@ -51,58 +57,50 @@ namespace Ogre
     D3D11DepthBuffer::~D3D11DepthBuffer()
     {
         if( !mManual )
+        {
             mDepthStencilView->Release();
-        mDepthStencilView = 0;
+
+            if( mDepthTextureView )
+                mDepthTextureView->Release();
+
+            mDepthStencilResource->Release();
+        }
+        mDepthStencilView       = 0;
+        mDepthTextureView       = 0;
+        mDepthStencilResource   = 0;
     }
     //---------------------------------------------------------------------
-    bool D3D11DepthBuffer::isCompatible( RenderTarget *renderTarget ) const
+    bool D3D11DepthBuffer::isCompatible( RenderTarget *renderTarget, bool exactFormatMatch ) const
     {
+        ID3D11Texture2D *D3D11texture = NULL;
+        renderTarget->getCustomAttribute( "First_ID3D11Texture2D", &D3D11texture );
         D3D11_TEXTURE2D_DESC BBDesc;
 
-        bool isTexture = false;
-        renderTarget->getCustomAttribute( "isTexture", &isTexture );
-
-        if(isTexture)
+        ZeroMemory( &BBDesc, sizeof(D3D11_TEXTURE2D_DESC) );
+        if( D3D11texture )
         {
-            ID3D11Texture2D *D3D11texture;
-            D3D11HardwarePixelBuffer *pBuffer;
-            renderTarget->getCustomAttribute( "BUFFER", &pBuffer );
-            D3D11texture = static_cast<ID3D11Texture2D*>( pBuffer->getParentTexture()->getTextureResource() );
-            D3D11texture->GetDesc(&BBDesc);
+            D3D11texture->GetDesc( &BBDesc );
         }
         else
         {
-            ID3D11Texture2D* pBack[OGRE_MAX_MULTIPLE_RENDER_TARGETS];
-            memset( pBack, 0, sizeof(pBack) );
-            renderTarget->getCustomAttribute( "DDBACKBUFFER", &pBack );
-            
-            if( pBack[0] )
-            {
-                pBack[0]->GetDesc(&BBDesc);
-            }
-            else
-            {
-                ID3D11Texture2D *D3D11texture;
-                renderTarget->getCustomAttribute( "ID3D11Texture2D", &D3D11texture );
-                D3D11texture->GetDesc( &BBDesc );
-            }
+            //Depth textures.
+            assert( dynamic_cast<D3D11DepthTextureTarget*>(renderTarget) );
+            //BBDesc.ArraySize = renderTarget;
+            BBDesc.SampleDesc.Count     = std::max( 1u, renderTarget->getFSAA() );
+            BBDesc.SampleDesc.Quality   = atoi( renderTarget->getFSAAHint().c_str() );
         }
 
-        /*
-        ID3D11Texture2D *D3D11texture = NULL;
-        renderTarget->getCustomAttribute( "ID3D11Texture2D", &D3D11texture );
-        D3D11_TEXTURE2D_DESC BBDesc;
-        D3D11texture->GetDesc( &BBDesc );
-        */
         //RenderSystem will determine if bitdepths match (i.e. 32 bit RT don't like 16 bit Depth)
         //This is the same function used to create them. Note results are usually cached so this should
         //be quick
 
-        //TODO: Needs to check format too!
         if( mFsaa == BBDesc.SampleDesc.Count &&
             mMultiSampleQuality == BBDesc.SampleDesc.Quality &&
             this->getWidth() == renderTarget->getWidth() &&
-            this->getHeight() == renderTarget->getHeight() )
+            this->getHeight() == renderTarget->getHeight() &&
+            mDepthTexture == renderTarget->prefersDepthTexture() &&
+            ((!exactFormatMatch && mFormat == PF_D24_UNORM_S8_UINT) ||
+             mFormat == renderTarget->getDesiredDepthBufferFormat()) )
         {
             return true;
         }
@@ -110,9 +108,35 @@ namespace Ogre
         return false;
     }
     //---------------------------------------------------------------------
+    bool D3D11DepthBuffer::copyToImpl( DepthBuffer *_destination )
+    {
+        bool retVal = false;
+        D3D11RenderSystem *renderSystem = static_cast<D3D11RenderSystem*>( mRenderSystem );
+
+        if( renderSystem->_getFeatureLevel() >= D3D_FEATURE_LEVEL_10_1 )
+        {
+            D3D11DepthBuffer *destination   = static_cast<D3D11DepthBuffer*>( _destination );
+
+            D3D11Device &device = renderSystem->_getDevice();
+            ID3D11DeviceContextN *deviceContext = device.GetImmediateContext();
+
+            deviceContext->CopyResource( destination->mDepthStencilResource,
+                                         this->mDepthStencilResource );
+
+            retVal = true;
+        }
+
+        return retVal;
+    }
+    //---------------------------------------------------------------------
     ID3D11DepthStencilView* D3D11DepthBuffer::getDepthStencilView() const
     {
         return mDepthStencilView;
+    }
+    //---------------------------------------------------------------------
+    ID3D11ShaderResourceView* D3D11DepthBuffer::getDepthTextureView() const
+    {
+        return mDepthTextureView;
     }
     //---------------------------------------------------------------------
     void D3D11DepthBuffer::_resized(ID3D11DepthStencilView *depthBufferView, uint32 width, uint32 height)

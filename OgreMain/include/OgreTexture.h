@@ -48,28 +48,34 @@ namespace Ogre {
     enum TextureUsage
     {
         /// @copydoc HardwareBuffer::Usage
-        TU_STATIC = HardwareBuffer::HBU_STATIC,
-        TU_DYNAMIC = HardwareBuffer::HBU_DYNAMIC,
-        TU_WRITE_ONLY = HardwareBuffer::HBU_WRITE_ONLY,
-        TU_STATIC_WRITE_ONLY = HardwareBuffer::HBU_STATIC_WRITE_ONLY, 
-        TU_DYNAMIC_WRITE_ONLY = HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY,
-        TU_DYNAMIC_WRITE_ONLY_DISCARDABLE = HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE,
+        TU_STATIC = v1::HardwareBuffer::HBU_STATIC,
+        TU_DYNAMIC = v1::HardwareBuffer::HBU_DYNAMIC,
+        TU_WRITE_ONLY = v1::HardwareBuffer::HBU_WRITE_ONLY,
+        TU_STATIC_WRITE_ONLY = v1::HardwareBuffer::HBU_STATIC_WRITE_ONLY,
+        TU_DYNAMIC_WRITE_ONLY = v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY,
+        TU_DYNAMIC_WRITE_ONLY_DISCARDABLE = v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE,
         /// Mipmaps will be automatically generated for this texture
         TU_AUTOMIPMAP = 0x10,
         /** This texture will be a render target, i.e. used as a target for render to texture
             setting this flag will ignore all other texture usages except TU_AUTOMIPMAP */
         TU_RENDERTARGET = 0x20,
+
+        /// Texture can be bound as an Unordered Access View
+        /// (imageStore/imageRead/glBindImageTexture in GL jargon)
+        TU_UAV = 0x40,
+
+        /// @see TU_UAV_NOT_TEXTURE
+        TU_NOT_TEXTURE = 0x80,
+
+        /// Texture can be used as an UAV, but not as a regular texture.
+        TU_UAV_NOT_TEXTURE = TU_UAV|TU_NOT_TEXTURE,
+
+        /// Must be used with TU_AUTOMIPMAP. When this flag is present, writing to a RenderTexture
+        /// will automatically call _autogenerateMipmaps when it's used as a Texture again.
+        TU_AUTOMIPMAP_AUTO = 0x100,
+
         /// Default to automatic mipmap generation static textures
         TU_DEFAULT = TU_AUTOMIPMAP | TU_STATIC_WRITE_ONLY
-    };
-
-    /** Enum identifying the texture access privilege
-     */
-    enum TextureAccess
-    {
-        TA_READ = 0x01,
-        TA_WRITE = 0x10,
-        TA_READ_WRITE = TA_READ | TA_WRITE
     };
 
     /** Enum identifying the texture type
@@ -119,31 +125,36 @@ namespace Ogre {
         
         /** Sets the type of texture; can only be changed before load() 
         */
-        virtual void setTextureType(TextureType ttype ) { mTextureType = ttype; }
+        void setTextureType(TextureType ttype ) { mTextureType = ttype; }
 
         /** Gets the type of texture 
         */
-        virtual TextureType getTextureType(void) const { return mTextureType; }
+        TextureType getTextureType(void) const { return mTextureType; }
+
+        bool isTextureTypeArray(void) const
+        {
+            return mTextureType == TEX_TYPE_2D_ARRAY;
+        }
 
         /** Gets the number of mipmaps to be used for this texture.
         */
-        virtual uint8 getNumMipmaps(void) const {return mNumMipmaps;}
+        uint8 getNumMipmaps(void) const {return mNumMipmaps;}
 
         /** Sets the number of mipmaps to be used for this texture.
             @note
                 Must be set before calling any 'load' method.
         */
-        virtual void setNumMipmaps(uint8 num) {mNumRequestedMipmaps = mNumMipmaps = num;}
+        void setNumMipmaps(uint8 num) {mNumRequestedMipmaps = mNumMipmaps = num;}
 
         /** Are mipmaps hardware generated?
         @remarks
             Will only be accurate after texture load, or createInternalResources
         */
-        virtual bool getMipmapsHardwareGenerated(void) const { return mMipmapsHardwareGenerated; }
+        bool getMipmapsHardwareGenerated(void) const { return mMipmapsHardwareGenerated; }
 
         /** Returns the gamma adjustment factor applied to this texture on loading.
         */
-        virtual float getGamma(void) const { return mGamma; }
+        float getGamma(void) const { return mGamma; }
 
         /** Sets the gamma adjustment factor applied to this texture on loading the
             data.
@@ -153,7 +164,7 @@ namespace Ogre {
                 You can use setHardwareGamma if supported to apply gamma on 
                 sampling the texture instead.
         */
-        virtual void setGamma(float g) { mGamma = g; }
+        void setGamma(float g) { mGamma = g; }
 
         /** Sets whether this texture will be set up so that on sampling it, 
             hardware gamma correction is applied.
@@ -173,7 +184,7 @@ namespace Ogre {
             construction of the underlying hardware resources.
             Also note this only useful on textures using 8-bit colour channels.
         */
-        virtual void setHardwareGammaEnabled(bool enabled) { mHwGamma = enabled; }
+        void setHardwareGammaEnabled(bool enabled) { mHwGamma = enabled; }
 
         /** Gets whether this texture will be set up so that on sampling it, 
         hardware gamma correction is applied.
@@ -202,40 +213,40 @@ namespace Ogre {
 
         /** Returns the height of the texture.
         */
-        virtual uint32 getHeight(void) const { return mHeight; }
+        uint32 getHeight(void) const { return mHeight; }
 
         /** Returns the width of the texture.
         */
-        virtual uint32 getWidth(void) const { return mWidth; }
+        uint32 getWidth(void) const { return mWidth; }
 
         /** Returns the depth of the texture (only applicable for 3D textures).
         */
-        virtual uint32 getDepth(void) const { return mDepth; }
+        uint32 getDepth(void) const { return mDepth; }
 
         /** Returns the height of the original input texture (may differ due to hardware requirements).
         */
-        virtual uint32 getSrcHeight(void) const { return mSrcHeight; }
+        uint32 getSrcHeight(void) const { return mSrcHeight; }
 
         /** Returns the width of the original input texture (may differ due to hardware requirements).
         */
-        virtual uint32 getSrcWidth(void) const { return mSrcWidth; }
+        uint32 getSrcWidth(void) const { return mSrcWidth; }
 
         /** Returns the original depth of the input texture (only applicable for 3D textures).
         */
-        virtual uint32 getSrcDepth(void) const { return mSrcDepth; }
+        uint32 getSrcDepth(void) const { return mSrcDepth; }
 
         /** Set the height of the texture; can only do this before load();
         */
-        virtual void setHeight(uint32 h) { mHeight = mSrcHeight = h; }
+        void setHeight(uint32 h) { mHeight = mSrcHeight = h; }
 
         /** Set the width of the texture; can only do this before load();
         */
-        virtual void setWidth(uint32 w) { mWidth = mSrcWidth = w; }
+        void setWidth(uint32 w) { mWidth = mSrcWidth = w; }
 
         /** Set the depth of the texture (only applicable for 3D textures);
             can only do this before load();
         */
-        virtual void setDepth(uint32 d)  { mDepth = mSrcDepth = d; }
+        void setDepth(uint32 d)  { mDepth = mSrcDepth = d; }
 
         /** Returns the TextureUsage identifier for this Texture
         */
@@ -269,6 +280,10 @@ namespace Ogre {
         /** Frees internal texture resources for this texture. 
         */
         virtual void freeInternalResources(void);
+
+        /// Tells the API to let the HW autogenerate mipmaps. Assumes the
+        /// texture is of usage TU_RENDERTARGET & TU_AUTOMIPMAP
+        virtual void _autogenerateMipmaps(void) = 0;
         
         /** Copies (and maybe scales to fit) the contents of this texture to
             another texture. */
@@ -303,13 +318,13 @@ namespace Ogre {
         virtual void _loadImages( const ConstImagePtrList& images );
 
         /** Returns the pixel format for the texture surface. */
-        virtual PixelFormat getFormat() const
+        PixelFormat getFormat() const
         {
             return mFormat;
         }
 
         /** Returns the desired pixel format for the texture surface. */
-        virtual PixelFormat getDesiredFormat(void) const
+        PixelFormat getDesiredFormat(void) const
         {
             return mDesiredFormat;
         }
@@ -317,7 +332,7 @@ namespace Ogre {
         /** Returns the pixel format of the original input texture (may differ due to
             hardware requirements and pixel format conversion).
         */
-        virtual PixelFormat getSrcFormat(void) const
+        PixelFormat getSrcFormat(void) const
         {
             return mSrcFormat;
         }
@@ -379,7 +394,7 @@ namespace Ogre {
             @remarks    The buffer is invalidated when the resource is unloaded or destroyed.
                         Do not use it after the lifetime of the containing texture.
         */
-        virtual HardwarePixelBufferSharedPtr getBuffer(size_t face=0, size_t mipmap=0) = 0;
+        virtual v1::HardwarePixelBufferSharedPtr getBuffer(size_t face=0, size_t mipmap=0) = 0;
 
 
         /** Populate an Image with the contents of this texture. 
@@ -394,19 +409,6 @@ namespace Ogre {
          @param pData Pointer to memory matching the type of data you want to retrieve.
         */
         virtual void getCustomAttribute(const String& name, void* pData);
-        
-
-        /** Enable read and/or write privileges to the texture from shaders.
-            @param bindPoint The buffer binding location for shader access. For OpenGL this must be unique and is not related to the texture binding point.
-            @param access The texture access privileges given to the shader.
-            @param mipmapLevel The texture mipmap level to use.
-            @param textureArrayIndex The index of the texture array to use. If texture is not a texture array, set to 0.
-            @param format Texture format to be read in by shader. For OpenGL this may be different than the bound texture format.
-        */
-        virtual void createShaderAccessPoint(uint bindPoint, TextureAccess access = TA_READ_WRITE,
-                                             int mipmapLevel = 0, int textureArrayIndex = 0,
-                                             PixelFormat* format = NULL) {}
-
 
     protected:
         uint32 mHeight;

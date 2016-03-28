@@ -32,6 +32,7 @@ THE SOFTWARE.
 
 
 namespace Ogre {
+namespace v1 {
 
     //-----------------------------------------------------------------------
     D3D11VertexDeclaration::D3D11VertexDeclaration(D3D11Device &  device) 
@@ -67,7 +68,7 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    const VertexElement& D3D11VertexDeclaration::addElement(unsigned short source, 
+    const VertexElement& D3D11VertexDeclaration::addElement(unsigned short source,
         size_t offset, VertexElementType theType,
         VertexElementSemantic semantic, unsigned short index)
     {
@@ -101,7 +102,7 @@ namespace Ogre {
         mNeedsRebuild = true;
     }
     //-----------------------------------------------------------------------
-    void D3D11VertexDeclaration::modifyElement(unsigned short elem_index, 
+    void D3D11VertexDeclaration::modifyElement(unsigned short elem_index,
         unsigned short source, size_t offset, VertexElementType theType,
         VertexElementSemantic semantic, unsigned short index)
     {
@@ -140,8 +141,22 @@ namespace Ogre {
                     }
                 }
 
+                if( !found && strcmp("DRAWID", inputDesc.SemanticName) == 0 &&
+                    inputDesc.SemanticIndex == 0 )
+                {
+                    D3delems[idx].SemanticName          = inputDesc.SemanticName;
+                    D3delems[idx].SemanticIndex         = inputDesc.SemanticIndex;
+                    D3delems[idx].Format                = DXGI_FORMAT_R32_UINT;
+                    D3delems[idx].InputSlot             = 15;
+                    D3delems[idx].AlignedByteOffset     = static_cast<WORD>(0);
+                    D3delems[idx].InputSlotClass        = D3D11_INPUT_PER_INSTANCE_DATA;
+                    D3delems[idx].InstanceDataStepRate  = 1;
+                    continue;
+                }
+
                 if(!found)
                 {
+                    delete D3delems;
                     OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Unable to set D3D11 vertex declaration" , 
                                                 "D3D11VertexDeclaration::getILayoutByShader");
                 }
@@ -171,7 +186,7 @@ namespace Ogre {
                         "Unable to found a bound vertex for a slot that is used in the vertex declaration." , 
                         "D3D11VertexDeclaration::getD3DVertexDeclaration");
 
-                }               
+                }
             }
 
             mD3delems[boundVertexProgram] = D3delems;
@@ -185,7 +200,7 @@ namespace Ogre {
     {
         ShaderToILayoutMapIterator foundIter = mShaderToILayoutMap.find(boundVertexProgram);
 
-        ID3D11InputLayout*  pVertexLayout = 0; 
+        ID3D11InputLayout*  pVertexLayout = 0;
 
         if (foundIter == mShaderToILayoutMap.end())
         {
@@ -199,20 +214,20 @@ namespace Ogre {
             // bad bug tracing. see what will happen next.
             //if (pVertexDecl->Format == DXGI_FORMAT_R16G16_SINT)
             //  pVertexDecl->Format = DXGI_FORMAT_R16G16_FLOAT;
-            HRESULT hr = mlpD3DDevice->CreateInputLayout( 
-                pVertexDecl, 
-                boundVertexProgram->getNumInputs(), 
-                &vSBuf[0], 
+            HRESULT hr = mlpD3DDevice->CreateInputLayout(
+                pVertexDecl,
+                boundVertexProgram->getNumInputs(),
+                &vSBuf[0],
                 vSBuf.size(),
                 &pVertexLayout );
 
             if (FAILED(hr)|| mlpD3DDevice.isError())
             {
-				String errorDescription = mlpD3DDevice.getErrorDescription(hr);
+                String errorDescription = mlpD3DDevice.getErrorDescription(hr);
                 errorDescription += "\nBound shader name: " + boundVertexProgram->getName();
 
-				OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
-					"Unable to set D3D11 vertex declaration" + errorDescription,
+                OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+                    "Unable to set D3D11 vertex declaration" + errorDescription,
                     "D3D11VertexDeclaration::getILayoutByShader");
             }
 
@@ -229,11 +244,17 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void D3D11VertexDeclaration::bindToShader(D3D11HLSLProgram* boundVertexProgram, VertexBufferBinding* binding)
     {
-        ID3D11InputLayout*  pVertexLayout = getILayoutByShader(boundVertexProgram, binding);
+        if(mNeedsRebuild)
+        {
+            mD3delems.clear();
+            mShaderToILayoutMap.clear();
+            mNeedsRebuild = false;
+        }
 
         // Set the input layout
+        ID3D11InputLayout*  pVertexLayout = getILayoutByShader(boundVertexProgram, binding);
         mlpD3DDevice.GetImmediateContext()->IASetInputLayout( pVertexLayout);
-    }   
+    }
 }
-
+}
 

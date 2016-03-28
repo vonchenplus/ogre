@@ -12,6 +12,22 @@
 # Use same build type for components as main build
 set(OGRE_COMP_LIB_TYPE ${OGRE_LIB_TYPE})
 
+if (OGRE_BUILD_COMPONENT_HLMS_PBS_MOBILE)
+	add_subdirectory(Hlms/PbsMobile)
+endif ()
+
+if (OGRE_BUILD_COMPONENT_HLMS_UNLIT_MOBILE)
+	add_subdirectory(Hlms/UnlitMobile)
+endif ()
+
+if (OGRE_BUILD_COMPONENT_HLMS_PBS)
+	add_subdirectory(Hlms/Pbs)
+endif ()
+
+if (OGRE_BUILD_COMPONENT_HLMS_UNLIT)
+	add_subdirectory(Hlms/Unlit)
+endif ()
+
 if (OGRE_BUILD_COMPONENT_PAGING)
   add_subdirectory(Paging)
 endif ()

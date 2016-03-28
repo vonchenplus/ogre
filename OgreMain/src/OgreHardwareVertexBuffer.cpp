@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreRenderSystem.h"
 
 namespace Ogre {
+namespace v1 {
 
     //-----------------------------------------------------------------------------
     HardwareVertexBuffer::HardwareVertexBuffer(HardwareBufferManagerBase* mgr, size_t vertexSize,  
@@ -148,21 +149,17 @@ namespace Ogre {
             return sizeof(double)*3;
         case VET_DOUBLE4:
             return sizeof(double)*4;
-        case VET_SHORT1:
-            return sizeof(short);
         case VET_SHORT2:
+        case VET_SHORT2_SNORM:
             return sizeof(short)*2;
-        case VET_SHORT3:
-            return sizeof(short)*3;
         case VET_SHORT4:
+        case VET_SHORT4_SNORM:
             return sizeof(short)*4;
-        case VET_USHORT1:
-            return sizeof(unsigned short);
         case VET_USHORT2:
+        case VET_USHORT2_NORM:
             return sizeof(unsigned short)*2;
-        case VET_USHORT3:
-            return sizeof(unsigned short)*3;
         case VET_USHORT4:
+        case VET_USHORT4_NORM:
             return sizeof(unsigned short)*4;
         case VET_INT1:
             return sizeof(int);
@@ -181,7 +178,20 @@ namespace Ogre {
         case VET_UINT4:
             return sizeof(unsigned int)*4;
         case VET_UBYTE4:
+        case VET_UBYTE4_NORM:
             return sizeof(unsigned char)*4;
+        case VET_BYTE4:
+        case VET_BYTE4_SNORM:
+            return sizeof(char) * 4;
+        case VET_HALF2:
+            return sizeof(float);
+        case VET_HALF4:
+            return sizeof(float) * 2;
+
+        case VET_USHORT1_DEPRECATED:
+            return sizeof(unsigned short);
+        case VET_USHORT3_DEPRECATED:
+            return sizeof(unsigned short) * 3;
         }
         return 0;
     }
@@ -194,11 +204,10 @@ namespace Ogre {
         case VET_COLOUR_ABGR:
         case VET_COLOUR_ARGB:
         case VET_FLOAT1:
-        case VET_SHORT1:
-        case VET_USHORT1:
         case VET_UINT1:
         case VET_INT1:
         case VET_DOUBLE1:
+        case VET_USHORT1_DEPRECATED:
             return 1;
         case VET_FLOAT2:
         case VET_SHORT2:
@@ -206,13 +215,15 @@ namespace Ogre {
         case VET_UINT2:
         case VET_INT2:
         case VET_DOUBLE2:
+        case VET_HALF2:
+        case VET_SHORT2_SNORM:
+        case VET_USHORT2_NORM:
             return 2;
         case VET_FLOAT3:
-        case VET_SHORT3:
-        case VET_USHORT3:
         case VET_UINT3:
         case VET_INT3:
         case VET_DOUBLE3:
+        case VET_USHORT3_DEPRECATED:
             return 3;
         case VET_FLOAT4:
         case VET_SHORT4:
@@ -221,10 +232,33 @@ namespace Ogre {
         case VET_INT4:
         case VET_DOUBLE4:
         case VET_UBYTE4:
+        case VET_HALF4:
+        case VET_BYTE4:
+        case VET_BYTE4_SNORM:
+        case VET_UBYTE4_NORM:
+        case VET_SHORT4_SNORM:
+        case VET_USHORT4_NORM:
             return 4;
         }
         OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Invalid type", 
             "VertexElement::getTypeCount");
+    }
+    //-----------------------------------------------------------------------------
+    bool VertexElement::isTypeNormalized( VertexElementType etype )
+    {
+        VertexElementType baseType = getBaseType( etype );
+        switch( baseType )
+        {
+            case VET_SHORT2_SNORM:
+            case VET_USHORT2_NORM:
+            case VET_BYTE4_SNORM:
+            case VET_UBYTE4_NORM:
+                return true;
+            default:
+                return false;
+        }
+
+        return false;
     }
     //-----------------------------------------------------------------------------
     VertexElementType VertexElement::multiplyTypeCount(VertexElementType baseType, 
@@ -247,17 +281,28 @@ namespace Ogre {
                 break;
             }
             break;
-        case VET_SHORT1:
+        case VET_SHORT2:
             switch(count)
             {
             case 1:
-                return VET_SHORT1;
             case 2:
                 return VET_SHORT2;
             case 3:
-                return VET_SHORT3;
             case 4:
                 return VET_SHORT4;
+            default:
+                break;
+            }
+            break;
+        case VET_HALF2:
+            switch(count)
+            {
+            case 1:
+            case 2:
+                return VET_HALF2;
+            case 3:
+            case 4:
+                return VET_HALF4;
             default:
                 break;
             }
@@ -349,18 +394,32 @@ namespace Ogre {
                 return VET_COLOUR_ABGR;
             case VET_COLOUR_ARGB:
                 return VET_COLOUR_ARGB;
-            case VET_SHORT1:
             case VET_SHORT2:
-            case VET_SHORT3:
             case VET_SHORT4:
-                return VET_SHORT1;
-            case VET_USHORT1:
+                return VET_SHORT2;
+            case VET_USHORT1_DEPRECATED:
+            case VET_USHORT3_DEPRECATED:
+                return VET_USHORT1_DEPRECATED;
             case VET_USHORT2:
-            case VET_USHORT3:
             case VET_USHORT4:
-                return VET_USHORT1;
+                return VET_USHORT2;
+            case VET_HALF2:
+            case VET_HALF4:
+                return VET_HALF2;
             case VET_UBYTE4:
                 return VET_UBYTE4;
+            case VET_BYTE4:
+                return VET_BYTE4;
+            case VET_BYTE4_SNORM:
+                return VET_BYTE4_SNORM;
+            case VET_UBYTE4_NORM:
+                return VET_UBYTE4_NORM;
+            case VET_SHORT2_SNORM:
+            case VET_SHORT4_SNORM:
+                return VET_SHORT2_SNORM;
+            case VET_USHORT2_NORM:
+            case VET_USHORT4_NORM:
+                return VET_USHORT2_NORM;
         };
         // To keep compiler happy
         return VET_FLOAT1;
@@ -529,6 +588,72 @@ namespace Ogre {
         }
         return ret;
     }
+    //-----------------------------------------------------------------------------------
+    VertexElement2VecVec VertexDeclaration::convertToV2(void)
+    {
+        VertexElement2VecVec retVal;
+        retVal.resize( getMaxSource() + 1 );
+
+        //Make sure the declaration is sorted
+        sortForV2();
+
+        VertexElementList::const_iterator itor = mElementList.begin();
+        VertexElementList::const_iterator end  = mElementList.end();
+
+        while( itor != end )
+        {
+            retVal[itor->getSource()].push_back( VertexElement2( itor->getType(),
+                                                                 itor->getSemantic() ) );
+            ++itor;
+        }
+
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void VertexDeclaration::convertFromV2( const VertexElement2Vec &v2Decl )
+    {
+        //Recreate the vertex declaration
+        removeAllElements();
+
+        size_t acumOffset = 0;
+        unsigned short repeatCounts[VES_COUNT];
+        memset( repeatCounts, 0, sizeof( repeatCounts ) );
+
+        VertexElement2Vec::const_iterator itor = v2Decl.begin();
+        VertexElement2Vec::const_iterator end  = v2Decl.end();
+
+        while( itor != end )
+        {
+            addElement( 0, acumOffset, itor->mType, itor->mSemantic,
+                        repeatCounts[itor->mSemantic-1]++ );
+            acumOffset += v1::VertexElement::getTypeSize( itor->mType );
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
+    void VertexDeclaration::convertFromV2( const VertexElement2VecVec &v2Decl )
+    {
+        //Recreate the vertex declaration
+        removeAllElements();
+
+        size_t acumOffset = 0;
+        unsigned short repeatCounts[VES_COUNT];
+        memset( repeatCounts, 0, sizeof( repeatCounts ) );
+
+        for( size_t i=0; i<v2Decl.size(); ++i )
+        {
+            VertexElement2Vec::const_iterator itor = v2Decl[i].begin();
+            VertexElement2Vec::const_iterator end  = v2Decl[i].end();
+
+            while( itor != end )
+            {
+                addElement( i, acumOffset, itor->mType, itor->mSemantic,
+                            repeatCounts[itor->mSemantic-1]++ );
+                acumOffset += v1::VertexElement::getTypeSize( itor->mType );
+                ++itor;
+            }
+        }
+    }
     //-----------------------------------------------------------------------------
     // Sort routine for VertexElement
     bool VertexDeclaration::vertexElementLess(const VertexElement& e1, const VertexElement& e2)
@@ -559,6 +684,20 @@ namespace Ogre {
     void VertexDeclaration::sort(void)
     {
         mElementList.sort(VertexDeclaration::vertexElementLess);
+    }
+    //-----------------------------------------------------------------------------
+    // Sort routine for VertexElement
+    bool VertexDeclaration::vertexElementLessForV2(const VertexElement& e1, const VertexElement& e2)
+    {
+        // Sort by source first, then by offset
+        if( e1.getSource() != e2.getSource() )
+            return e1.getSource() < e2.getSource();
+        else
+            return e1.getOffset() < e2.getOffset();
+    }
+    void VertexDeclaration::sortForV2(void)
+    {
+        mElementList.sort(VertexDeclaration::vertexElementLessForV2);
     }
     //-----------------------------------------------------------------------------
     void VertexDeclaration::closeGapsInSource(void)
@@ -817,8 +956,5 @@ namespace Ogre {
     {
 
     }
-
-
-
-
+}
 }

@@ -32,6 +32,7 @@
 #include "OgreGL3PlusRenderSystem.h"
 
 namespace Ogre {
+namespace v1 {
     GL3PlusHardwareShaderStorageBuffer::GL3PlusHardwareShaderStorageBuffer(
         HardwareBufferManagerBase* mgr,
         size_t bufferSize,
@@ -85,6 +86,10 @@ namespace Ogre {
         // Use glMapBuffer
         OGRE_CHECK_GL_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, mBufferId));
 
+        assert( ((mUsage & HBU_WRITE_ONLY && options != HBL_NORMAL && options != HBL_READ_ONLY) ||
+                !(mUsage & HBU_WRITE_ONLY)) &&
+                "Reading from a write-only buffer! Create the buffer without HBL_WRITE_ONLY bit" );
+
         if (mUsage & HBU_WRITE_ONLY)
         {
             access |= GL_MAP_WRITE_BIT;
@@ -101,7 +106,8 @@ namespace Ogre {
             access |= GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
 
         //FIXME Is this correct usage for shader storage buffers?
-        access |= GL_MAP_UNSYNCHRONIZED_BIT;
+        if( options == HBL_NO_OVERWRITE )
+            access |= GL_MAP_UNSYNCHRONIZED_BIT;
 
         void* pBuffer = 0;
         OGRE_CHECK_GL_ERROR(pBuffer = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, offset, length, access));
@@ -203,4 +209,5 @@ namespace Ogre {
             OGRE_CHECK_GL_ERROR(glBindBuffer(GL_COPY_WRITE_BUFFER, 0));
         }
     }
+}
 }

@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "OgreHardwarePixelBuffer.h"
 
 namespace Ogre {
+namespace v1 {
     class _OgreGLES2Export GLES2HardwarePixelBuffer: public HardwarePixelBuffer
     {
         protected:
@@ -62,7 +63,7 @@ namespace Ogre {
         public:
             /// Should be called by HardwareBufferManager
             GLES2HardwarePixelBuffer(uint32 mWidth, uint32 mHeight, uint32 mDepth,
-                                  PixelFormat mFormat,
+                                  PixelFormat mFormat, bool hwGamma,
                                   HardwareBuffer::Usage usage);
 
             /// @copydoc HardwarePixelBuffer::blitFromMemory
@@ -158,6 +159,7 @@ namespace Ogre {
             GLuint mRenderbufferID;
             GLsizei mNumSamples;
     };
+}
 }
 
 #endif

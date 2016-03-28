@@ -1,4 +1,4 @@
-/*
+﻿/*
 -----------------------------------------------------------------------------
 This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
@@ -31,13 +31,20 @@ THE SOFTWARE.
 #include "OgreMesh.h"
 #include "OgreException.h"
 #include "OgreMaterialManager.h"
+#include "OgreHardwareBufferManager.h"
+#include "OgreSubMesh2.h"
+#include "OgreMesh2.h"
+
+#include "Vao/OgreAsyncTicket.h"
+#include "Vao/OgreVaoManager.h"
 
 namespace Ogre {
+namespace v1 {
     //-----------------------------------------------------------------------
     SubMesh::SubMesh()
         : useSharedVertices(true)
+        , renderOpMeshIndex(++RenderOperation::MeshIndexId)
         , operationType(RenderOperation::OT_TRIANGLE_LIST)
-        , vertexData(0)
         , parent(0)
         , mMatInitialised(false)
         , mBoneAssignmentsOutOfDate(false)
@@ -45,16 +52,26 @@ namespace Ogre {
         , mVertexAnimationIncludesNormals(false)
         , mBuildEdgesEnabled(true)
     {
-        indexData = OGRE_NEW IndexData();
+        memset( vertexData, 0, sizeof(vertexData) );
+
+        indexData[VpNormal] = OGRE_NEW IndexData();
+        indexData[VpShadow] = 0;
     }
     //-----------------------------------------------------------------------
     SubMesh::~SubMesh()
     {
         removeLodLevels();
-        OGRE_DELETE vertexData;
-        OGRE_DELETE indexData;
 
-        removeLodLevels();
+        if( vertexData[VpShadow] == vertexData[VpNormal] )
+            vertexData[VpShadow] = 0;
+        if( indexData[VpShadow] == indexData[VpNormal] )
+            indexData[VpShadow] = 0;
+
+        for( size_t i=0; i<NumVertexPass; ++i )
+        {
+            OGRE_DELETE vertexData[i];
+            OGRE_DELETE indexData[i];
+        }
     }
 
     //-----------------------------------------------------------------------
@@ -75,23 +92,23 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    void SubMesh::_getRenderOperation(RenderOperation& ro, ushort lodIndex)
+    void SubMesh::_getRenderOperation(RenderOperation& ro, ushort lodIndex, bool casterPass)
     {
-        assert( !lodIndex || (lodIndex - 1) < (ushort)mLodFaceList.size() );
+        assert( !lodIndex || (lodIndex - 1) < (ushort)mLodFaceList[casterPass].size() );
 
-        ro.useIndexes = indexData->indexCount != 0;
+        ro.useIndexes = indexData[casterPass]->indexCount != 0;
         if (lodIndex > 0)
         {
             // lodIndex - 1 because we don't store full detail version in mLodFaceList
-            ro.indexData = mLodFaceList[lodIndex-1];
+            ro.indexData = mLodFaceList[casterPass][lodIndex-1];
         }
         else
         {
-            ro.indexData = indexData;
+            ro.indexData = indexData[casterPass];
         }
         ro.operationType = operationType;
-        ro.vertexData = useSharedVertices? parent->sharedVertexData : vertexData;
-
+        ro.vertexData = useSharedVertices? parent->sharedVertexData[casterPass] : vertexData[casterPass];
+        ro.meshIndex = renderOpMeshIndex;
     }
     //-----------------------------------------------------------------------
     void SubMesh::addBoneAssignment(const VertexBoneAssignment& vertBoneAssign)
@@ -116,12 +133,12 @@ namespace Ogre {
     void SubMesh::_compileBoneAssignments(void)
     {
         unsigned short maxBones =
-            parent->_rationaliseBoneAssignments(vertexData->vertexCount, mBoneAssignments);
+            parent->_rationaliseBoneAssignments(vertexData[VpNormal]->vertexCount, mBoneAssignments);
 
         if (maxBones != 0)
         {
-            parent->compileBoneAssignments(mBoneAssignments, maxBones, 
-                blendIndexToBoneIndexMap, vertexData);
+            parent->compileBoneAssignments(mBoneAssignments, maxBones,
+                blendIndexToBoneIndexMap, vertexData[VpNormal]);
         }
 
         mBoneAssignmentsOutOfDate = false;
@@ -213,15 +230,22 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void SubMesh::removeLodLevels(void)
     {
-        LODFaceList::iterator lodi, lodend;
-        lodend = mLodFaceList.end();
-        for (lodi = mLodFaceList.begin(); lodi != lodend; ++lodi)
-        {
-            OGRE_DELETE *lodi;
-        }
+        if( !parent->hasIndependentShadowMappingBuffers() )
+            mLodFaceList[VpShadow].clear();
 
-        mLodFaceList.clear();
+        removeLodLevel( mLodFaceList[VpShadow] );
+        removeLodLevel( mLodFaceList[VpNormal] );
+    }
+    //---------------------------------------------------------------------
+    void SubMesh::removeLodLevel( LODFaceList &lodList )
+    {
+        LODFaceList::const_iterator itor = lodList.begin();
+        LODFaceList::const_iterator end  = lodList.end();
 
+        while( itor != end )
+            OGRE_DELETE *itor++;
+
+        lodList.clear();
     }
     //---------------------------------------------------------------------
     VertexAnimationType SubMesh::getVertexAnimationType(void) const
@@ -330,7 +354,7 @@ namespace Ogre {
          */
 
         VertexData *vert = useSharedVertices ?
-            parent->sharedVertexData : vertexData;
+            parent->sharedVertexData[VpNormal] : vertexData[VpNormal];
         const VertexElement *poselem = vert->vertexDeclaration->
             findElementBySemantic (VES_POSITION);
         HardwareVertexBufferSharedPtr vbuf = vert->vertexBufferBinding->
@@ -344,27 +368,27 @@ namespace Ogre {
         // First of all, find min and max bounding box of the submesh
         boxes.push_back (Cluster ());
 
-        if (indexData->indexCount > 0)
+        if (indexData[VpNormal]->indexCount > 0)
         {
 
-            uint elsz = indexData->indexBuffer->getType () == HardwareIndexBuffer::IT_32BIT ?
-                4 : 2;
-            uint8 *idata = (uint8 *)indexData->indexBuffer->lock (
-                indexData->indexStart * elsz, indexData->indexCount * elsz,
+            uint elsz = indexData[VpNormal]->indexBuffer->getType () == HardwareIndexBuffer::IT_32BIT ?
+                        4 : 2;
+            uint8 *idata = (uint8 *)indexData[VpNormal]->indexBuffer->lock (
+                indexData[VpNormal]->indexStart * elsz, indexData[VpNormal]->indexCount * elsz,
                 HardwareIndexBuffer::HBL_READ_ONLY);
 
-            for (size_t i = 0; i < indexData->indexCount; i++)
+            for (size_t i = 0; i < indexData[VpNormal]->indexCount; i++)
             {
                 int idx = (elsz == 2) ? ((uint16 *)idata) [i] : ((uint32 *)idata) [i];
                 boxes [0].mIndices.insert (idx);
             }
-            indexData->indexBuffer->unlock ();
+            indexData[VpNormal]->indexBuffer->unlock ();
 
         }
         else
         {
             // just insert all indexes
-            for (size_t i = vertexData->vertexStart; i < vertexData->vertexCount; i++)
+            for (size_t i=vertexData[VpNormal]->vertexStart; i<vertexData[VpNormal]->vertexCount; i++)
             {
                 boxes [0].mIndices.insert (static_cast<int>(i));
             }
@@ -480,14 +504,29 @@ namespace Ogre {
         if (!this->useSharedVertices)
         {
             // Copy unique vertex data
-            newSub->vertexData = this->vertexData->clone();
+            newSub->vertexData[VpNormal] = this->vertexData[VpNormal]->clone();
+
+            if( this->vertexData[VpNormal] == this->vertexData[VpShadow] )
+                newSub->vertexData[VpNormal] = newSub->vertexData[VpShadow];
+            else
+                newSub->vertexData[VpShadow] = this->vertexData[VpShadow]->clone();
+
             // Copy unique index map
             newSub->blendIndexToBoneIndexMap = this->blendIndexToBoneIndexMap;
         }
 
         // Copy index data
-        OGRE_DELETE newSub->indexData;
-        newSub->indexData = this->indexData->clone();
+        if( newSub->indexData[VpNormal] == newSub->indexData[VpShadow] )
+            newSub->indexData[VpShadow] = 0;
+        OGRE_DELETE newSub->indexData[VpNormal];
+        OGRE_DELETE newSub->indexData[VpShadow];
+        newSub->indexData[VpNormal] = this->indexData[VpNormal]->clone();
+
+        if( this->indexData[VpNormal] == this->indexData[VpShadow] )
+            newSub->indexData[VpNormal] = newSub->indexData[VpShadow];
+        else
+            newSub->indexData[VpShadow] = this->indexData[VpShadow]->clone();
+
         // Copy any bone assignments
         newSub->mBoneAssignments = this->mBoneAssignments;
         newSub->mBoneAssignmentsOutOfDate = this->mBoneAssignmentsOutOfDate;
@@ -495,14 +534,222 @@ namespace Ogre {
         newSub->mTextureAliases = this->mTextureAliases;
 
         // Copy lod face lists
-        newSub->mLodFaceList.reserve(this->mLodFaceList.size());
-        SubMesh::LODFaceList::const_iterator facei;
-        for (facei = this->mLodFaceList.begin(); facei != this->mLodFaceList.end(); ++facei) {
-            IndexData* newIndexData = (*facei)->clone();
-            newSub->mLodFaceList.push_back(newIndexData);
+        newSub->mLodFaceList[VpNormal].reserve( this->mLodFaceList[VpNormal].size() );
+        newSub->mLodFaceList[VpShadow].reserve( this->mLodFaceList[VpShadow].size() );
+
+        assert( this->mLodFaceList[VpNormal].size() == this->mLodFaceList[VpShadow].size() );
+
+        for( size_t i=0; i<this->mLodFaceList[VpNormal].size(); ++i )
+        {
+            IndexData* newIndexData = this->mLodFaceList[VpNormal][i]->clone();
+            newSub->mLodFaceList[VpNormal].push_back( newIndexData );
+
+            if( this->mLodFaceList[VpNormal][i] == this->mLodFaceList[VpShadow][i] )
+            {
+                newSub->mLodFaceList[VpShadow].push_back( newIndexData );
+            }
+            else
+            {
+                newIndexData = this->mLodFaceList[VpShadow][i]->clone();
+                newSub->mLodFaceList[VpShadow].push_back( newIndexData );
+            }
         }
+
         return newSub;
     }
+    //---------------------------------------------------------------------
+    void SubMesh::importFromV2( Ogre::SubMesh *subMesh )
+    {
+        const Ogre::SubMesh::VertexBoneAssignmentVec &v2BoneAssignments = subMesh->getBoneAssignments();
+
+        {
+            Ogre::SubMesh::VertexBoneAssignmentVec::const_iterator itor = v2BoneAssignments.begin();
+            Ogre::SubMesh::VertexBoneAssignmentVec::const_iterator end  = v2BoneAssignments.end();
+
+            while( itor != end )
+            {
+                v1::VertexBoneAssignment assignment;
+                assignment.vertexIndex  = itor->vertexIndex;
+                assignment.boneIndex    = itor->boneIndex;
+                assignment.weight       = itor->weight;
+                mBoneAssignments.insert( VertexBoneAssignmentList::value_type( itor->vertexIndex,
+                                                                               assignment ) );
+                ++itor;
+            }
+        }
+        blendIndexToBoneIndexMap = subMesh->mBlendIndexToBoneIndexMap;
+        mBoneAssignmentsOutOfDate = false;
+        useSharedVertices = false;
+
+        const uint8 numVaoPasses = subMesh->mParent->hasIndependentShadowMappingVaos() + 1;
+        for( uint8 i=0; i<numVaoPasses; ++i )
+        {
+            VertexArrayObjectArray::const_iterator itor = subMesh->mVao[i].begin();
+            VertexArrayObjectArray::const_iterator end  = subMesh->mVao[i].end();
+
+            while( itor != end )
+            {
+                const VertexBufferPackedVec &vertexBuffers = (*itor)->getVertexBuffers();
+
+                vertexData[i] = OGRE_NEW VertexData();
+                HardwareBufferManagerBase *hwManager = vertexData[i]->_getHardwareBufferManager();
+
+                VertexBufferPackedVec::const_iterator itVertexBuffer = vertexBuffers.begin();
+                VertexBufferPackedVec::const_iterator enVertexBuffer = vertexBuffers.end();
+
+                while( itVertexBuffer != enVertexBuffer )
+                {
+                    AsyncTicketPtr asyncTicket =
+                            (*itVertexBuffer)->readRequest( 0, (*itVertexBuffer)->getNumElements() );
+                    const void *srcData = asyncTicket->map();
+                    HardwareVertexBufferSharedPtr v1VertexBuf = hwManager->createVertexBuffer(
+                                VaoManager::calculateVertexSize( (*itVertexBuffer)->getVertexElements() ),
+                                (*itVertexBuffer)->getNumElements(), parent->mVertexBufferUsage );
+                    void *dstData = v1VertexBuf->lock( HardwareBuffer::HBL_NO_OVERWRITE );
+                    memcpy( dstData, srcData, (*itVertexBuffer)->getTotalSizeBytes() );
+                    v1VertexBuf->unlock();
+                    asyncTicket->unmap();
+
+                    vertexData[i]->vertexBufferBinding->setBinding(
+                                (unsigned short)(itVertexBuffer - vertexBuffers.begin()), v1VertexBuf );
+
+                    ++itVertexBuffer;
+                }
+
+                vertexData[i]->vertexCount = vertexBuffers[0]->getNumElements();
+                vertexData[i]->vertexDeclaration->convertFromV2( (*itor)->getVertexDeclaration() );
+
+                IndexBufferPacked *indexBuffer = (*itor)->getIndexBuffer();
+                if( indexBuffer )
+                {
+                    if( !indexData[i] )
+                        indexData[i] = OGRE_NEW IndexData();
+
+                    indexData[i]->indexCount = indexBuffer->getNumElements();
+                    indexData[i]->indexBuffer = hwManager->createIndexBuffer(
+                                indexBuffer->getIndexType() == IndexBufferPacked::IT_16BIT ?
+                                    HardwareIndexBuffer::IT_16BIT : HardwareIndexBuffer::IT_32BIT,
+                                indexBuffer->getNumElements(), parent->mIndexBufferUsage );
+
+                    AsyncTicketPtr asyncTicket = indexBuffer->readRequest( 0, indexBuffer->getNumElements() );
+                    const void *srcData = asyncTicket->map();
+                    void *dstData = indexData[i]->indexBuffer->lock( HardwareBuffer::HBL_NO_OVERWRITE );
+                    memcpy( dstData, srcData, indexBuffer->getTotalSizeBytes() );
+                    indexData[i]->indexBuffer->unlock();
+                    asyncTicket->unmap();
+                }
+
+                operationType = (*itor)->getOperationType();
+
+                ++itor;
+            }
+        }
+        mMaterialName = subMesh->getMaterialName();
+        mMatInitialised = false;
+    }
+    //---------------------------------------------------------------------
+    void SubMesh::arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents )
+    {
+        assert( !useSharedVertices );
+        arrangeEfficient( halfPos, halfTexCoords, qTangents, 0 );
+
+        if( parent->hasIndependentShadowMappingBuffers() )
+            arrangeEfficient( halfPos, halfTexCoords, qTangents, 1 );
+    }
+    //---------------------------------------------------------------------
+    void SubMesh::arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents, size_t vaoPassIdx )
+    {
+        char *data = 0;
+        {
+            VertexElement2Vec vertexElements;
+            data = Ogre::SubMesh::_arrangeEfficient( this, halfPos, halfTexCoords, qTangents,
+                                                     &vertexElements, vaoPassIdx );
+
+            //Recreate the vertex declaration
+            vertexData[vaoPassIdx]->vertexDeclaration->convertFromV2( vertexElements );
+        }
+
+        HardwareBufferManagerBase *hwManager = vertexData[vaoPassIdx]->_getHardwareBufferManager();
+        HardwareVertexBufferSharedPtr vbuf = hwManager->createVertexBuffer(
+                                                vertexData[vaoPassIdx]->
+                                                    vertexDeclaration->getVertexSize( 0 ),
+                                                vertexData[vaoPassIdx]->vertexCount,
+                                                parent->mVertexBufferUsage,
+                                                parent->mVertexBufferShadowBuffer );
+        vertexData[vaoPassIdx]->vertexBufferBinding->unsetAllBindings();
+        vertexData[vaoPassIdx]->vertexBufferBinding->setBinding( 0, vbuf );
+
+        void *dstBuffer = vbuf->lock( HardwareBuffer::HBL_DISCARD );
+        memcpy( dstBuffer, data, vbuf->getSizeInBytes() );
+        vbuf->unlock();
+
+        OGRE_FREE_SIMD( data, MEMCATEGORY_GEOMETRY );
+    }
+    //---------------------------------------------------------------------
+    void SubMesh::dearrangeToInefficient(void)
+    {
+        assert( !useSharedVertices );
+
+        const uint8 numVaoPasses = parent->hasIndependentShadowMappingBuffers() + 1;
+
+        //First check if we need to do any conversion
+        for( uint8 i=0; i<numVaoPasses; ++i )
+        {
+            bool needsConversion = false;
+            const VertexDeclaration::VertexElementList &elements = vertexData[i]->vertexDeclaration->
+                                                                                        getElements();
+            VertexDeclaration::VertexElementList::const_iterator itor = elements.begin();
+            VertexDeclaration::VertexElementList::const_iterator end  = elements.end();
+
+            while( itor != end )
+            {
+                if( (itor->getSemantic() == VES_NORMAL && itor->getType() == VET_SHORT4_SNORM) ||
+                    VertexElement::getBaseType( itor->getType() ) == VET_HALF2 )
+                {
+                    needsConversion = true;
+                }
+
+                ++itor;
+            }
+
+            if( !needsConversion )
+                return;
+        }
+
+        //Perform actual conversion
+        for( uint8 i=0; i<numVaoPasses; ++i )
+        {
+            VertexElement2VecVec vertexElements = vertexData[i]->vertexDeclaration->convertToV2();
+            VertexElement2VecVec newDeclaration;
+            newDeclaration.resize( vertexData[i]->vertexDeclaration->getMaxSource()+1 );
+
+            for( size_t j=0; j<vertexData[i]->vertexDeclaration->getMaxSource()+1u; ++j )
+            {
+                const HardwareVertexBufferSharedPtr &vertexBuffer = vertexData[i]->
+                                                                vertexBufferBinding->getBuffer( j );
+
+                const char *data = reinterpret_cast<const char*>( vertexBuffer->lock( HardwareBuffer::
+                                                                                      HBL_READ_ONLY ) );
+
+                char *newData = Ogre::SubMesh::_dearrangeEfficient( data, vertexData[i]->vertexCount,
+                                                                    vertexElements[j],
+                                                                    &newDeclaration[j] );
+                vertexBuffer->unlock();
+
+                HardwareBufferManagerBase *hwManager = vertexData[i]->_getHardwareBufferManager();
+                HardwareVertexBufferSharedPtr vbuf = hwManager->createVertexBuffer(
+                                                VaoManager::calculateVertexSize( newDeclaration[j] ),
+                                                vertexData[i]->vertexCount,
+                                                vertexBuffer->getUsage(),
+                                                vertexBuffer->hasShadowBuffer() );
+                void *dstBuffer = vbuf->lock( HardwareBuffer::HBL_DISCARD );
+                memcpy( dstBuffer, newData, vbuf->getSizeInBytes() );
+                vbuf->unlock();
+                vertexData[i]->vertexBufferBinding->setBinding( j, vbuf );
+            }
+
+            vertexData[i]->vertexDeclaration->convertFromV2( newDeclaration );
+        }
+    }
 }
-
-
+}

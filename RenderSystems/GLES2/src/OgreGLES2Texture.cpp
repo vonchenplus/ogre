@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include "OgreGLES2PixelFormat.h"
 #include "OgreGLES2RenderSystem.h"
 #include "OgreGLES2HardwarePixelBuffer.h"
+#include "OgreGLES2HlmsSamplerblock.h"
 #include "OgreGLES2Support.h"
 #include "OgreGLES2StateCacheManager.h"
 #include "OgreRoot.h"
@@ -68,7 +69,11 @@ namespace Ogre {
                              ResourceHandle handle, const String& group, bool isManual,
                              ManualResourceLoader* loader, GLES2Support& support)
         : Texture(creator, name, handle, group, isManual, loader),
-          mTextureID(0), mGLSupport(support)
+          mTextureID(0),
+#if OGRE_NO_GLES3_SUPPORT != 0
+          mLastBoundSamplerblockRsId(0),
+#endif
+          mGLSupport(support)
     {
     }
 
@@ -182,7 +187,7 @@ namespace Ogre {
 
         // Allocate internal buffer so that glTexSubImageXD can be used
         // Internal format
-        GLenum format = GLES2PixelUtil::getGLOriginFormat(mFormat);
+        GLenum format = GLES2PixelUtil::getGLOriginFormat(mFormat, mHwGamma);
         GLenum internalformat = GLES2PixelUtil::getClosestGLInternalFormat(mFormat, mHwGamma);
         uint32 width = mWidth;
         uint32 height = mHeight;
@@ -545,7 +550,7 @@ namespace Ogre {
 
             for (uint8 mip = 0; mip <= getNumMipmaps(); mip++)
             {
-                GLES2HardwarePixelBuffer *buf = OGRE_NEW GLES2TextureBuffer(mName,
+                v1::GLES2HardwarePixelBuffer *buf = OGRE_NEW v1::GLES2TextureBuffer(mName,
                                                                             getGLES2TextureTarget(),
                                                                             mTextureID,
                                                                             width, height, depth,
@@ -553,10 +558,10 @@ namespace Ogre {
                                                                             GLES2PixelUtil::getGLOriginDataType(mFormat),
                                                                             static_cast<GLint>(face),
                                                                             mip,
-                                                                            static_cast<HardwareBuffer::Usage>(mUsage),
+                                                                            static_cast<v1::HardwareBuffer::Usage>(mUsage),
                                                                             doSoftware && mip == 0, mHwGamma, mFSAA);
 
-                mSurfaceList.push_back(HardwarePixelBufferSharedPtr(buf));
+                mSurfaceList.push_back(v1::HardwarePixelBufferSharedPtr(buf));
 
                 // Check for error
                 if (buf->getWidth() == 0 ||
@@ -575,7 +580,7 @@ namespace Ogre {
         }
     }
 
-    HardwarePixelBufferSharedPtr GLES2Texture::getBuffer(size_t face, size_t mipmap)
+    v1::HardwarePixelBufferSharedPtr GLES2Texture::getBuffer(size_t face, size_t mipmap)
     {
         if (face >= getNumFaces())
         {
@@ -601,5 +606,40 @@ namespace Ogre {
 		if (name == "GLID")
 			*static_cast<GLuint*>(pData) = mTextureID;
 	}
+
+#if OGRE_NO_GLES3_SUPPORT != 0
+    void GLES2Texture::bindSamplerBlock( GLES2HlmsSamplerblock *samplerblock )
+    {
+        mLastBoundSamplerblockRsId = samplerblock->mInternalId;
+
+        GLenum target = getGLES2TextureTarget();
+
+        GLES2StateCacheManager *stateCacheManager = mGLSupport.getStateCacheManager();
+
+        stateCacheManager->setTexParameteri( target, GL_TEXTURE_MIN_FILTER, samplerblock->mMinFilter );
+        stateCacheManager->setTexParameteri( target, GL_TEXTURE_MIN_FILTER, samplerblock->mMinFilter );
+        stateCacheManager->setTexParameteri( target, GL_TEXTURE_MAG_FILTER, samplerblock->mMagFilter );
+
+        stateCacheManager->setTexParameteri( target, GL_TEXTURE_WRAP_S, samplerblock->mU );
+        stateCacheManager->setTexParameteri( target, GL_TEXTURE_WRAP_T, samplerblock->mV );
+
+        if( samplerblock->mAnisotropy != 0 )
+        {
+            stateCacheManager->setTexParameterf( target, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+                                                 samplerblock->mAnisotropy );
+        }
+
+        //stateCacheManager->setTexParameteri( target, GL_TEXTURE_WRAP_R_OES, samplerblock->mW );
+
+        /*stateCacheManager->setTexParameterf( target, GL_TEXTURE_LOD_BIAS, samplerblock->mMipLodBias );
+
+        OCGE( glTexParameterfv( target, GL_TEXTURE_BORDER_COLOR,
+                                              reinterpret_cast<GLfloat*>(
+                                                    &samplerblock->mBorderColour ) ) );
+
+        stateCacheManager->setTexParameterf( target, GL_TEXTURE_MIN_LOD, samplerblock->mMinLod );
+        stateCacheManager->setTexParameterf( target, GL_TEXTURE_MAX_LOD, samplerblock->mMaxLod );*/
+    }
+#endif
 
 }

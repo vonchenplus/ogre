@@ -41,6 +41,8 @@ THE SOFTWARE.
 
 namespace Ogre {
 
+    class LodStrategy;
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -50,7 +52,6 @@ namespace Ogre {
     */
 
     struct MeshLodUsage;
-    class LodStrategy;
 
     /** Resource holding data about 3D mesh.
     @remarks
@@ -88,6 +89,7 @@ namespace Ogre {
     {
         friend class SubMesh;
         friend class MeshSerializerImpl;
+        friend class MeshSerializerImpl_v1_10;
         friend class MeshSerializerImpl_v1_8;
         friend class MeshSerializerImpl_v1_4;
         friend class MeshSerializerImpl_v1_3;
@@ -208,6 +210,7 @@ namespace Ogre {
         void mergeAdjacentTexcoords( unsigned short finalTexCoordSet,
                                      unsigned short texCoordSetToDestroy, VertexData *vertexData );
 
+        void destroyShadowMappingGeom(void);
 
     public:
         /** Default constructor - used by MeshManager
@@ -280,6 +283,42 @@ namespace Ogre {
         /// Gets an iterator over the available submeshes
         SubMeshIterator getSubMeshIterator(void)
         { return SubMeshIterator(mSubMeshList.begin(), mSubMeshList.end()); }
+
+        /// Converts a v2 mesh back to v1.
+        void importV2( Ogre::Mesh *mesh );
+
+        /** Rearranges the buffers in this Mesh so that they are more efficient for
+            rendering with shaders. It's not recommended to use this option if
+            you plan on using SW skinning or pose/morph animations.
+        @remarks
+            Multiple buffer streams will be merged into one, making an interleaved format.
+            Shared vertices with submeshes will be unshared.
+        @param halfPos
+            True if you want to convert the position data to VET_HALF4 format.
+            Recommended on desktop to reduce memory and bandwidth requirements.
+            Rarely the extra precision is needed.
+
+            Unfortuntately on mobile, not all ES2 devices support VET_HALF4.
+            Do NOT use this flag if you intend to run the mesh in GLES2 devices which
+            don't have the GL_OES_VERTEX_HALF_FLOAT extension (many iOS, some Android).
+        @param halfTexCoords
+            True if you want to convert the position data to VET_HALF2 or VET_HALF4 format.
+            Same recommendations as halfPos.
+        @param qTangents
+            True if you want to generate tangent and reflection information (modifying
+            the original v1 mesh) and convert this data to a QTangent, requiring
+            VET_SHORT4_SNORM (8 bytes vs 28 bytes to store normals, tangents and
+            reflection). Needs much less space, trading for more ALU ops in the
+            vertex shader for decoding the QTangent.
+            Highly recommended on both desktop and mobile if you need tangents (i.e.
+            normal mapping).
+        */
+        void arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents );
+
+        /// Reverts the effects from arrangeEfficient by converting all 16-bit half float back
+        /// to 32-bit float; and QTangents to Normal, Tangent + Reflection representation,
+        /// which are more compatible for doing certain operations vertex operations in the CPU.
+        void dearrangeToInefficient(void);
       
         /** Shared vertex data.
         @remarks
@@ -289,7 +328,7 @@ namespace Ogre {
             The use of shared or non-shared buffers is determined when
             model data is converted to the OGRE .mesh format.
         */
-        VertexData *sharedVertexData;
+        VertexData *sharedVertexData[NumVertexPass];
 
         /** Shared index map for translating blend index to bone index.
         @remarks
@@ -506,7 +545,8 @@ namespace Ogre {
         /** Internal methods for loading LOD, do not use. */
         void _setLodUsage(unsigned short level, const MeshLodUsage& usage);
         /** Internal methods for loading LOD, do not use. */
-        void _setSubMeshLodFaceList(unsigned short subIdx, unsigned short level, IndexData* facedata);
+        void _setSubMeshLodFaceList( unsigned short subIdx, unsigned short level, IndexData* facedata,
+                                     bool casterPass );
         /** Internal methods for loading LOD, do not use. */
         bool _isManualLodLevel(unsigned short level) const;
 
@@ -623,6 +663,19 @@ namespace Ogre {
             successful merges.
         */
         void mergeAdjacentTexcoords( unsigned short finalTexCoordSet, unsigned short texCoordSetToDestroy );
+
+        /// @copydoc Mesh::msOptimizeForShadowMapping
+        static bool msOptimizeForShadowMapping;
+
+        void prepareForShadowMapping( bool forceSameBuffers );
+
+        /// Returns true if the mesh is ready for rendering with valid shadow mapping buffers
+        /// Otherwise prepareForShadowMapping must be called on this mesh.
+        bool hasValidShadowMappingBuffers(void) const;
+
+        /// Returns true if the shadow mapping buffers do not just reference the real buffers,
+        /// but are rather their own separate set of optimized geometry.
+        bool hasIndependentShadowMappingBuffers(void) const;
 
         /** This method builds a set of tangent vectors for a given mesh into a 3D texture coordinate buffer.
         @remarks
@@ -956,6 +1009,8 @@ namespace Ogre {
 
         const LodValueArray* _getLodValueArray(void) const                      { return &mLodValues; }
 
+        void createAzdoBuffers(void);
+
     };
 
     /** A way of recording the way each LODs is recorded this Mesh. */
@@ -988,7 +1043,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
-
+}
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"

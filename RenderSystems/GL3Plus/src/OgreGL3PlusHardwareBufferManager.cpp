@@ -36,6 +36,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreRoot.h"
 
 namespace Ogre {
+namespace v1 {
 
     // Scratch pool management (32 bit structure)
     struct GL3PlusScratchBufferAlloc
@@ -190,21 +191,25 @@ namespace Ogre {
         case VET_UINT3:
         case VET_UINT4:
             return GL_UNSIGNED_INT;
-        case VET_SHORT1:
         case VET_SHORT2:
-        case VET_SHORT3:
         case VET_SHORT4:
+        case VET_SHORT2_SNORM:
+        case VET_SHORT4_SNORM:
             return GL_SHORT;
-        case VET_USHORT1:
         case VET_USHORT2:
-        case VET_USHORT3:
         case VET_USHORT4:
+        case VET_USHORT2_NORM:
+        case VET_USHORT4_NORM:
             return GL_UNSIGNED_SHORT;
         case VET_COLOUR:
         case VET_COLOUR_ABGR:
         case VET_COLOUR_ARGB:
         case VET_UBYTE4:
+        case VET_UBYTE4_NORM:
             return GL_UNSIGNED_BYTE;
+        case VET_HALF2:
+        case VET_HALF4:
+            return GL_HALF_FLOAT;
         default:
             return 0;
         };
@@ -319,4 +324,5 @@ namespace Ogre {
     {
         mMapBufferThreshold = value;
     }
+}
 }

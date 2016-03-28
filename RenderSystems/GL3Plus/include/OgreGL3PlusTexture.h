@@ -1,4 +1,4 @@
-/*
+﻿/*
   -----------------------------------------------------------------------------
   This source file is part of OGRE
   (Object-oriented Graphics Rendering Engine)
@@ -49,7 +49,7 @@ namespace Ogre {
 
         void createRenderTexture();
         /// @copydoc Texture::getBuffer
-        HardwarePixelBufferSharedPtr getBuffer(size_t face, size_t mipmap);
+        v1::HardwarePixelBufferSharedPtr getBuffer(size_t face, size_t mipmap);
 
         // Takes the OGRE texture type (1d/2d/3d/cube) and returns the appropriate GL one
         GLenum getGL3PlusTextureTarget(void) const;
@@ -67,7 +67,7 @@ namespace Ogre {
             @return
                 The GLuint handle/id of the texture.
             */
-            GLuint getGLID( bool &outIsFsaa ) const
+            GLuint getGLID( bool &outIsFsaa )
             {
                 GLuint retVal = mTextureID;
                 bool isFsaa = false;
@@ -93,15 +93,19 @@ namespace Ogre {
                     }
                 }
 
+                if( (mUsage & (TU_AUTOMIPMAP|TU_RENDERTARGET|TU_AUTOMIPMAP_AUTO)) ==
+                        (TU_AUTOMIPMAP|TU_RENDERTARGET|TU_AUTOMIPMAP_AUTO) )
+                {
+                    RenderTarget *renderTarget = mSurfaceList[0]->getRenderTarget();
+                    if( renderTarget->isMipmapsDirty() )
+                        this->_autogenerateMipmaps();
+                }
+
                 outIsFsaa = isFsaa;
                 return mTextureID;
             }
 
-        void getCustomAttribute(const String& name, void* pData);
-
-        void createShaderAccessPoint(uint bindPoint, TextureAccess access = TA_READ_WRITE,
-                                     int mipmapLevel = 0, int textureArrayIndex = 0,
-                                     PixelFormat* format = NULL);
+        virtual void getCustomAttribute(const String& name, void* pData);
 
     protected:
         /// @copydoc Texture::createInternalResourcesImpl
@@ -122,6 +126,8 @@ namespace Ogre {
         */
         void _createSurfaceList();
 
+        virtual void _autogenerateMipmaps(void);
+
         /// Used to hold images between calls to prepare and load.
         typedef SharedPtr<vector<Image>::type > LoadedImages;
 
@@ -131,13 +137,11 @@ namespace Ogre {
         */
         LoadedImages mLoadedImages;
 
-
-    private:
         GLuint mTextureID;
         GL3PlusSupport& mGLSupport;
 
         /// Vector of pointers to subsurfaces
-        typedef vector<HardwarePixelBufferSharedPtr>::type SurfaceList;
+        typedef vector<v1::HardwarePixelBufferSharedPtr>::type SurfaceList;
         SurfaceList mSurfaceList;
     };
 }

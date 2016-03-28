@@ -32,12 +32,12 @@ THE SOFTWARE.
 #include "OgreHardwareBuffer.h"
 
 namespace Ogre { 
-
+namespace v1 {
 
     /** Base implementation of a D3D11 buffer, dealing with all the common
     aspects.
     */
-    class D3D11HardwareBuffer : public HardwareBuffer
+    class _OgreD3D11Export D3D11HardwareBuffer : public HardwareBuffer
     {
     public:
         enum BufferType
@@ -83,7 +83,7 @@ namespace Ogre {
         ID3D11Buffer* getD3DBuffer(void) { return mlpD3DBuffer; }
     };
 
-
+}
 }
 
 

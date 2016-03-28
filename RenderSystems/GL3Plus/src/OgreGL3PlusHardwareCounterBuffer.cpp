@@ -38,7 +38,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #endif
 
 namespace Ogre {
-
+namespace v1 {
     GL3PlusHardwareCounterBuffer::GL3PlusHardwareCounterBuffer(
         HardwareBufferManagerBase* mgr, const String& name = "")
         : HardwareCounterBuffer(mgr, sizeof(GLuint), 
@@ -89,6 +89,10 @@ namespace Ogre {
         // Use glMapBuffer
         OGRE_CHECK_GL_ERROR(glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, mBufferId));
 
+        assert( ((mUsage & HBU_WRITE_ONLY && options != HBL_NORMAL && options != HBL_READ_ONLY) ||
+                !(mUsage & HBU_WRITE_ONLY)) &&
+                "Reading from a write-only buffer! Create the buffer without HBL_WRITE_ONLY bit" );
+
         if (mUsage & HBU_WRITE_ONLY)
         {
             access |= GL_MAP_WRITE_BIT;
@@ -104,7 +108,8 @@ namespace Ogre {
         else
             access |= GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
 
-        access |= GL_MAP_UNSYNCHRONIZED_BIT;
+        if( options == HBL_NO_OVERWRITE )
+            access |= GL_MAP_UNSYNCHRONIZED_BIT;
 
         void* pBuffer = 0;
         OGRE_CHECK_GL_ERROR(pBuffer = glMapBufferRange(GL_ATOMIC_COUNTER_BUFFER, offset, length, access));
@@ -205,5 +210,5 @@ namespace Ogre {
         }
     }
 
-
+}
 }

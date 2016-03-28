@@ -60,7 +60,8 @@ namespace Ogre
             --mNumPassesLeft;
         }
 
-        //TODO: Implement mDiscardOnly
+        executeResourceTransitions();
+
         mSceneManager->_setViewport( mViewport );
 
         //Fire the listener in case it wants to change anything
@@ -68,8 +69,46 @@ namespace Ogre
         if( listener )
             listener->passPreExecute( this );
 
-        mTarget->setFsaaResolveDirty();
-        mViewport->clear( mDefinition->mClearBufferFlags, mDefinition->mColourValue,
-                            mDefinition->mDepthValue, mDefinition->mStencilValue );
+        if( mDefinition->mDiscardOnly )
+        {
+            mViewport->discard( mDefinition->mClearBufferFlags );
+        }
+        else
+        {
+            mTarget->setFsaaResolveDirty();
+            mViewport->clear( mDefinition->mClearBufferFlags, mDefinition->mColourValue,
+                              mDefinition->mDepthValue, mDefinition->mStencilValue );
+        }
+
+        if( listener )
+            listener->passPosExecute( this );
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPassClear::_placeBarriersAndEmulateUavExecution( BoundUav boundUavs[64],
+                                                                    ResourceAccessMap &uavsAccess,
+                                                                    ResourceLayoutMap &resourcesLayout )
+    {
+        RenderSystem *renderSystem = mParentNode->getRenderSystem();
+        const RenderSystemCapabilities *caps = renderSystem->getCapabilities();
+        const bool explicitApi = caps->hasCapability( RSC_EXPLICIT_API );
+
+        if( !explicitApi )
+            return;
+
+        //Check <anything> -> Clear
+        ResourceLayoutMap::iterator currentLayout = resourcesLayout.find( mTarget );
+        if( currentLayout->second != ResourceLayout::Clear )
+        {
+            addResourceTransition( currentLayout,
+                                   ResourceLayout::Clear,
+                                   ReadBarrier::RenderTarget );
+        }
+
+        OGRE_EXCEPT( Exception::ERR_NOT_IMPLEMENTED,
+                     "D3D12/Vulkan/Mantle - Missing DepthBuffer ResourceTransition code",
+                     "CompositorPassDepthCopy::_placeBarriersAndEmulateUavExecution" );
+
+        //Do not use base class functionality at all.
+        //CompositorPass::_placeBarriersAndEmulateUavExecution();
     }
 }

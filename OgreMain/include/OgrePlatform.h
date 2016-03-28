@@ -155,11 +155,8 @@ namespace Ogre {
 #   ifndef OGRE_STATIC_LIB
 #       error OGRE must be built as static for NaCl (OGRE_STATIC=true in CMake)
 #   endif
-#   ifdef OGRE_BUILD_RENDERSYSTEM_D3D9
-#       error D3D9 is not supported on NaCl (OGRE_BUILD_RENDERSYSTEM_D3D9 false in CMake)
-#   endif
-#   ifdef OGRE_BUILD_RENDERSYSTEM_GL
-#       error OpenGL is not supported on NaCl (OGRE_BUILD_RENDERSYSTEM_GL=false in CMake)
+#   ifdef OGRE_BUILD_RENDERSYSTEM_GL3PLUS
+#       error OpenGL is not supported on NaCl (OGRE_BUILD_RENDERSYSTEM_GL3PLUS=false in CMake)
 #   endif
 #   ifndef OGRE_BUILD_RENDERSYSTEM_GLES2
 #       error GLES2 render system is required for NaCl (OGRE_BUILD_RENDERSYSTEM_GLES2=false in CMake)
@@ -193,6 +190,21 @@ namespace Ogre {
 #endif
 // Disable OGRE_WCHAR_T_STRINGS until we figure out what to do about it.
 #define OGRE_WCHAR_T_STRINGS 0
+
+// For safely overriding virtual functions
+#if OGRE_COMPILER == OGRE_COMPILER_MSVC
+#   define OGRE_OVERRIDE override
+#elif OGRE_COMPILER == OGRE_COMPILER_GNUC
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)
+#   define OGRE_OVERRIDE
+#else
+#   define OGRE_OVERRIDE
+#endif
+#elif __cplusplus >= 201103L // Noone defines this these days...
+#   define OGRE_OVERRIDE override
+#else
+#   define OGRE_OVERRIDE
+#endif
 
 //----------------------------------------------------------------------------
 // Windows Settings

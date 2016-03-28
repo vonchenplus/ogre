@@ -45,6 +45,11 @@ THE SOFTWARE.
 
 #include "OgreStringVector.h"
 #include "OgreHlms.h"
+#include "OgreHlmsDatablock.h"
+#include "OgreHlmsManager.h"
+#include "OgreHlmsPbsMobile.h"
+#include "OgreHlmsUnlitMobile.h"
+#include "OgreHlmsUnlitMobileDatablock.h"
 #include "OgreArchiveManager.h"
 #include "OgreEntity.h"
 
@@ -52,6 +57,13 @@ THE SOFTWARE.
 
 using namespace Ogre;
 using namespace std;
+
+int main( int numargs, char** args )
+{
+    return 0;
+}
+
+#if 0
 
 int main( int numargs, char** args )
 {
@@ -138,7 +150,7 @@ bool HlmsCmd::configure(void)
     bool retVal = false;
     if( mOpts.language == "glsl" )
     {
-        RenderSystem *rs = mRoot->getRenderSystemByName("OpenGL 3+ Rendering Subsystem (ALPHA)");
+        RenderSystem *rs = mRoot->getRenderSystemByName("OpenGL 3+ Rendering Subsystem");
         //rs->setConfigOption( "Colour Depth", "32" );
         rs->setConfigOption( "Display Frequency", "N/A" );
         rs->setConfigOption( "FSAA", "0" );
@@ -195,15 +207,22 @@ void HlmsCmd::createScene(void)
         light->setType( Light::LT_SPOTLIGHT );
     }
 
-    Entity *entity = mSceneMgr->createEntity( "penguin.mesh" );
-    Archive *archive = ArchiveManager::getSingletonPtr()->load(
-                    "/home/matias/Ogre2-Hlms/Samples/Media/Hlms/PBS/GLSL",
-                    "FileSystem", true );
-    Hlms hlms( archive );
+    v1::Entity *entity = mSceneMgr->createEntity( "penguin.mesh" );
+
     HlmsParamVec params;
-    params.insert( /*std::lower_bound( params.begin(), params.end(), )*/params.begin(),
-                   std::pair<IdString, String>( "envprobe_map", "example.dds" ) );
-    entity->getSubEntity(0)->setHlms( &hlms, params );
+    /*params.insert( *//*std::lower_bound( params.begin(), params.end(), )*//*params.begin(),
+                   std::pair<IdString, String>( "envprobe_map", "example.dds" ) );*/
+    params.push_back( std::pair<IdString, String>( "diffuse_map0", "penguin.jpg 0" ) );
+    params.push_back( std::pair<IdString, String>( "diffuse_map1", "penguin.jpg 0 Add" ) );
+    std::sort( params.begin(), params.end(), OrderParamVecByKey );
+    HlmsMacroblock macroblockRef;
+    HlmsBlendblock blendblockRef;
+
+    HlmsManager *hlmsManager = mRoot->getHlmsManager();
+    Hlms *usedGenerator = hlmsManager->getHlms( HLMS_UNLIT );
+    HlmsDatablock *datablock = usedGenerator->createDatablock( "TEST MATERIAL", "TEST MATERIAL",
+                                                               macroblockRef, blendblockRef, params );
+    entity->setDatablock( datablock );
 
     mSceneMgr->updateSceneGraph();
 
@@ -211,8 +230,14 @@ void HlmsCmd::createScene(void)
     if( shadowNode )
         shadowNode->_update( mCamera, mCamera, mSceneMgr );
 
-    HlmsCache passCache = hlms.preparePassHash( shadowNode, false, false, mSceneMgr );
-    const HlmsCache *finalCache = hlms.getMaterial( passCache, entity->getSubEntity(0), entity, false );
+    HlmsCache dummy( 0, HLMS_MAX );
+    HlmsCache const *lastHlmsCache = &dummy;
+
+    bool casterPass = false;
+    HlmsCache passCache = usedGenerator->preparePassHash( shadowNode, casterPass, false, mSceneMgr );
+    QueuedRenderable queuedRenderable( 0, entity->getSubEntity(0), entity );
+    const HlmsCache *finalCache = usedGenerator->getMaterial( lastHlmsCache, passCache,
+                                                              queuedRenderable, casterPass );
 
     if( !finalCache->vertexShader.isNull() )
     {
@@ -316,6 +341,18 @@ void HlmsCmd::createCompositor(void)
 //-------------------------------------------------------------------------------------
 void HlmsCmd::setupResources(void)
 {
+    Archive *archivePbs = ArchiveManager::getSingletonPtr()->load(
+                    "/home/matias/Ogre2-Hlms/Samples/Media/Hlms/PbsMobile/GLSL",
+                    "FileSystem", true );
+    Archive *archiveGui = ArchiveManager::getSingletonPtr()->load(
+                    "/home/matias/Ogre2-Hlms/Samples/Media/Hlms/GuiMobile/GLSL",
+                    "FileSystem", true );
+    HlmsPbsMobile   *pbs    = OGRE_NEW HlmsPbsMobile( archivePbs );
+    HlmsUnlitMobile *Unlit  = OGRE_NEW HlmsUnlitMobile( archiveGui );
+    HlmsManager *hlmsManager = mRoot->getHlmsManager();
+    hlmsManager->registerHlms( pbs );
+    hlmsManager->registerHlms( Unlit );
+
     // Load resource paths from config file
     Ogre::ConfigFile cf;
     cf.load(mResourcesCfg);
@@ -420,3 +457,4 @@ bool HlmsCmd::setup(void)
     return true;
 };
 //-------------------------------------------------------------------------------------
+#endif

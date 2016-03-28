@@ -172,106 +172,106 @@ namespace Ogre {
         height = mHeight;
         depth = mDepth;
 
-        // Allocate texture storage so that glTexSubImageXD can be
-        // used to upload the texture.
-        if (PixelUtil::isCompressed(mFormat))
+        if (hasGL42 || mGLSupport.checkExtension("GL_ARB_texture_storage"))
         {
-            // Compressed formats
-            GLsizei size;
-
-            for (uint8 mip = 0; mip <= mNumMipmaps; mip++)
+            switch(mTextureType)
             {
-                size = static_cast<GLsizei>(PixelUtil::getMemorySize(width, height, depth, mFormat));
-                // std::stringstream str;
-                // str << "GL3PlusTexture::create - " << StringConverter::toString(mTextureID)
-                // << " bytes: " << StringConverter::toString(PixelUtil::getMemorySize(mWidth, mHeight, mDepth, mFormat))
-                // << " Mip: " + StringConverter::toString(mip)
-                // << " Width: " << StringConverter::toString(width)
-                // << " Height: " << StringConverter::toString(height)
-                // << " Format " << PixelUtil::getFormatName(mFormat)
-                // << " Internal Format: 0x" << std::hex << format
-                // << " Origin Format: 0x" << std::hex << GL3PlusPixelUtil::getGLOriginFormat(mFormat)
-                // << " Data type: 0x" << std::hex << datatype;
-                // LogManager::getSingleton().logMessage(LML_NORMAL, str.str());
-
-                switch(mTextureType)
-                {
-                case TEX_TYPE_1D:
-                    OGRE_CHECK_GL_ERROR(glCompressedTexImage1D(GL_TEXTURE_1D, mip, format,
-                                                               width, 0,
-                                                               size, NULL));
-                    break;
-                case TEX_TYPE_2D:
-                    OGRE_CHECK_GL_ERROR(glCompressedTexImage2D(GL_TEXTURE_2D,
-                                                               mip,
-                                                               format,
-                                                               width, height,
-                                                               0,
-                                                               size,
-                                                               NULL));
-                    break;
-                case TEX_TYPE_2D_RECT:
-                    OGRE_CHECK_GL_ERROR(glCompressedTexImage2D(GL_TEXTURE_RECTANGLE,
-                                                               mip,
-                                                               format,
-                                                               width, height,
-                                                               0,
-                                                               size,
-                                                               NULL));
-                    break;
-                case TEX_TYPE_2D_ARRAY:
-                case TEX_TYPE_3D:
-                    OGRE_CHECK_GL_ERROR(glCompressedTexImage3D(texTarget, mip, format,
-                                                               width, height, depth, 0,
-                                                               size, NULL));
-                    break;
-                case TEX_TYPE_CUBE_MAP:
-                    for(int face = 0; face < 6; face++) {
-                        OGRE_CHECK_GL_ERROR(glCompressedTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, mip, format,
-                                                                   width, height, 0,
-                                                                   size, NULL));
-                    }
-                    break;
-                default:
-                    break;
-                };
-
-                if (width > 1)
-                {
-                    width = width / 2;
-                }
-                if (height > 1)
-                {
-                    height = height / 2;
-                }
-                if (depth > 1 && mTextureType != TEX_TYPE_2D_ARRAY)
-                {
-                    depth = depth / 2;
-                }
+            case TEX_TYPE_1D:
+                OGRE_CHECK_GL_ERROR(glTexStorage1D(GL_TEXTURE_1D, GLsizei(mNumMipmaps+1), format, GLsizei(width)));
+                break;
+            case TEX_TYPE_2D:
+            case TEX_TYPE_2D_RECT:
+                OGRE_CHECK_GL_ERROR(glTexStorage2D(GL_TEXTURE_2D, GLsizei(mNumMipmaps+1), format, GLsizei(width), GLsizei(height)));
+                break;
+            case TEX_TYPE_CUBE_MAP:
+                OGRE_CHECK_GL_ERROR(glTexStorage2D(GL_TEXTURE_CUBE_MAP, GLsizei(mNumMipmaps+1), format, GLsizei(width), GLsizei(height)));
+                break;
+            case TEX_TYPE_2D_ARRAY:
+                OGRE_CHECK_GL_ERROR(glTexStorage3D(GL_TEXTURE_2D_ARRAY, GLsizei(mNumMipmaps+1), format, GLsizei(width), GLsizei(height), GLsizei(depth)));
+                break;
+            case TEX_TYPE_3D:
+                OGRE_CHECK_GL_ERROR(glTexStorage3D(GL_TEXTURE_3D, GLsizei(mNumMipmaps+1), format, GLsizei(width), GLsizei(height), GLsizei(depth)));
+                break;
             }
         }
         else
         {
-            if (mGLSupport.checkExtension("GL_ARB_texture_storage") || hasGL42)
+            // Allocate texture storage so that glTexSubImageXD can be
+            // used to upload the texture.
+            if (PixelUtil::isCompressed(mFormat))
             {
-                switch(mTextureType)
+                // Compressed formats
+                GLsizei size;
+
+                for (uint8 mip = 0; mip <= mNumMipmaps; mip++)
                 {
-                case TEX_TYPE_1D:
-                    OGRE_CHECK_GL_ERROR(glTexStorage1D(GL_TEXTURE_1D, GLsizei(mNumMipmaps+1), format, GLsizei(width)));
-                    break;
-                case TEX_TYPE_2D:
-                case TEX_TYPE_2D_RECT:
-                    OGRE_CHECK_GL_ERROR(glTexStorage2D(GL_TEXTURE_2D, GLsizei(mNumMipmaps+1), format, GLsizei(width), GLsizei(height)));
-                    break;
-                case TEX_TYPE_CUBE_MAP:
-                    OGRE_CHECK_GL_ERROR(glTexStorage2D(GL_TEXTURE_CUBE_MAP, GLsizei(mNumMipmaps+1), format, GLsizei(width), GLsizei(height)));
-                    break;
-                case TEX_TYPE_2D_ARRAY:
-                    OGRE_CHECK_GL_ERROR(glTexStorage3D(GL_TEXTURE_2D_ARRAY, GLsizei(mNumMipmaps+1), format, GLsizei(width), GLsizei(height), GLsizei(depth)));
-                    break;
-                case TEX_TYPE_3D:
-                    OGRE_CHECK_GL_ERROR(glTexStorage3D(GL_TEXTURE_3D, GLsizei(mNumMipmaps+1), format, GLsizei(width), GLsizei(height), GLsizei(depth)));
-                    break;
+                    size = static_cast<GLsizei>(PixelUtil::getMemorySize(width, height, depth, mFormat));
+                    // std::stringstream str;
+                    // str << "GL3PlusTexture::create - " << StringConverter::toString(mTextureID)
+                    // << " bytes: " << StringConverter::toString(PixelUtil::getMemorySize(mWidth, mHeight, mDepth, mFormat))
+                    // << " Mip: " + StringConverter::toString(mip)
+                    // << " Width: " << StringConverter::toString(width)
+                    // << " Height: " << StringConverter::toString(height)
+                    // << " Format " << PixelUtil::getFormatName(mFormat)
+                    // << " Internal Format: 0x" << std::hex << format
+                    // << " Origin Format: 0x" << std::hex << GL3PlusPixelUtil::getGLOriginFormat(mFormat)
+                    // << " Data type: 0x" << std::hex << datatype;
+                    // LogManager::getSingleton().logMessage(LML_NORMAL, str.str());
+
+                    switch(mTextureType)
+                    {
+                    case TEX_TYPE_1D:
+                        OGRE_CHECK_GL_ERROR(glCompressedTexImage1D(GL_TEXTURE_1D, mip, format,
+                                                                   width, 0,
+                                                                   size, NULL));
+                        break;
+                    case TEX_TYPE_2D:
+                        OGRE_CHECK_GL_ERROR(glCompressedTexImage2D(GL_TEXTURE_2D,
+                                                                   mip,
+                                                                   format,
+                                                                   width, height,
+                                                                   0,
+                                                                   size,
+                                                                   NULL));
+                        break;
+                    case TEX_TYPE_2D_RECT:
+                        OGRE_CHECK_GL_ERROR(glCompressedTexImage2D(GL_TEXTURE_RECTANGLE,
+                                                                   mip,
+                                                                   format,
+                                                                   width, height,
+                                                                   0,
+                                                                   size,
+                                                                   NULL));
+                        break;
+                    case TEX_TYPE_2D_ARRAY:
+                    case TEX_TYPE_3D:
+                        OGRE_CHECK_GL_ERROR(glCompressedTexImage3D(texTarget, mip, format,
+                                                                   width, height, depth, 0,
+                                                                   size, NULL));
+                        break;
+                    case TEX_TYPE_CUBE_MAP:
+                        for(int face = 0; face < 6; face++) {
+                            OGRE_CHECK_GL_ERROR(glCompressedTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, mip, format,
+                                                                       width, height, 0,
+                                                                       size / depth, NULL));
+                        }
+                        break;
+                    default:
+                        break;
+                    };
+
+                    if (width > 1)
+                    {
+                        width = width / 2;
+                    }
+                    if (height > 1)
+                    {
+                        height = height / 2;
+                    }
+                    if (depth > 1 && mTextureType != TEX_TYPE_2D_ARRAY)
+                    {
+                        depth = depth / 2;
+                    }
                 }
             }
             else
@@ -352,6 +352,10 @@ namespace Ogre {
 
         // Reset unpack alignment to defaults
         OGRE_CHECK_GL_ERROR(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
+
+        //Allocate internal buffers for automipmaps before we load anything into them
+        if(mUsage & TU_AUTOMIPMAP)
+            OGRE_CHECK_GL_ERROR(glGenerateMipmap(getGL3PlusTextureTarget()));
 
         _createSurfaceList();
 
@@ -488,15 +492,15 @@ namespace Ogre {
         {
             for (uint8 mip = 0; mip <= getNumMipmaps(); mip++)
             {
-                GL3PlusHardwarePixelBuffer *buf = new GL3PlusTextureBuffer(mName,
+                v1::GL3PlusHardwarePixelBuffer *buf = new v1::GL3PlusTextureBuffer(mName,
                                                                            getGL3PlusTextureTarget(),
                                                                            mTextureID,
                                                                            face,
                                                                            mip,
-                                                                           static_cast<HardwareBuffer::Usage>(mUsage),
+                                                                           static_cast<v1::HardwareBuffer::Usage>(mUsage),
                                                                            mHwGamma, mFSAA);
 
-                mSurfaceList.push_back(HardwarePixelBufferSharedPtr(buf));
+                mSurfaceList.push_back(v1::HardwarePixelBufferSharedPtr(buf));
 
                 // Check for error
                 if (buf->getWidth() == 0 ||
@@ -515,7 +519,16 @@ namespace Ogre {
         }
     }
 
-    HardwarePixelBufferSharedPtr GL3PlusTexture::getBuffer(size_t face, size_t mipmap)
+    void GL3PlusTexture::_autogenerateMipmaps(void)
+    {
+        const GLenum texTarget = getGL3PlusTextureTarget();
+        OCGE( glBindTexture( texTarget, mTextureID ) );
+        OCGE( glGenerateMipmap( texTarget ) );
+
+        mSurfaceList[0]->getRenderTarget()->_setMipmapsUpdated();
+    }
+
+    v1::HardwarePixelBufferSharedPtr GL3PlusTexture::getBuffer(size_t face, size_t mipmap)
     {
         if (face >= getNumFaces())
         {
@@ -542,74 +555,4 @@ namespace Ogre {
         if (name == "GLID")
             *static_cast<GLuint*>(pData) = mTextureID;
     }
-    
-    void GL3PlusTexture::createShaderAccessPoint(uint bindPoint, TextureAccess access, 
-                                                 int mipmapLevel, int textureArrayIndex, 
-                                                 PixelFormat* format)
-    {
-        GLenum GlAccess = 0;
-
-        switch (access)
-        {
-        case TA_READ:
-            GlAccess = GL_READ_ONLY;
-            break;
-        case TA_WRITE:
-            GlAccess = GL_WRITE_ONLY;
-            break;
-        case TA_READ_WRITE:
-            GlAccess = GL_READ_WRITE;
-            break;
-        default:
-            //TODO error handling
-            break;
-        }
-
-        if (!format) format = &mFormat;
-        GLenum GlFormat = GL3PlusPixelUtil::getClosestGLImageInternalFormat(*format);
-
-        GLboolean isArrayTexture;
-
-        switch(mTextureType)
-        {
-        case TEX_TYPE_2D_ARRAY:
-            isArrayTexture = GL_TRUE;
-            break;
-        default:
-            isArrayTexture = GL_FALSE;
-            break;
-        }
-
-        // TODO
-        // * add memory barrier
-        // * material script access (can have multiple instances for a single texture_unit)
-        //     shader_access <binding point> [<access>] [<mipmap level>] [<texture array layer>] [<format>]
-        //     shader_access 2 read_write 0 0 PF_UINT32_R
-        //   binding point - location to bind for shader access; for OpenGL this must be unique and is not related to texture binding point
-        //   access - give the shader read, write, or read_write privileges [default read_write]
-        //   mipmap level - texture mipmap level to use [default 0]
-        //   texture array layer - layer of texture array to use: 'all', or layer number (if not layered, just use 0) [default 0]
-        //   format - texture format to be read in shader; for OpenGL this may be different than bound texture format - not sure about DX11 [default same format as texture]
-        //   Note that for OpenGL the shader access (image) binding point 
-        //   must be specified, it is NOT the same as the texture binding point,
-        //   and it must be unique among textures in this pass.
-        // * enforce binding point uniqueness by checking against 
-        //   image binding point allocation list in GL3PlusTextureManager
-        // * generalize for other render systems by introducing vitual method in Texture 
-        // for (image in mImages)
-        // {
-        // OGRE_CHECK_GL_ERROR(
-        //     glBindImageTexture(
-        //         mImageBind, mTextureID, 
-        //         mMipmapLevel, 
-        //         mLayered.find('all') != str::npos ? GL_TRUE : GL_FALSE, mLayer,
-        //         mImageAccess (READ, WRITE, READ_WRITE), 
-        //         toImageFormat(mFormatInShader))); //GL_RGBA8)); //GL_R32UI)); GL_READ_WRITE
-        if (mGLSupport.checkExtension("GL_ARB_shader_image_load_store") || mGLSupport.hasMinGLVersion(4, 2))
-        {
-            OGRE_CHECK_GL_ERROR(glBindImageTexture(bindPoint, mTextureID, mipmapLevel, isArrayTexture, textureArrayIndex, GlAccess, GlFormat));
-        }
-    }
-
-
 }

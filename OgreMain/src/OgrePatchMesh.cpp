@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgreHardwareBufferManager.h"
 
 namespace Ogre {
+namespace v1 {
 
     //-----------------------------------------------------------------------
     PatchMesh::PatchMesh(ResourceManager* creator, const String& name, ResourceHandle handle,
@@ -66,59 +67,60 @@ namespace Ogre {
                            PatchSurface::VisibleSide visibleSide)
     {
         mSurface.defineSurface(controlPointBuffer, mDeclaration, width, height, PatchSurface::PST_BEZIER, uMaxSubdivisionLevel, vMaxSubdivisionLevel, visibleSide);
-        Ogre::SubMesh* sm = this->getSubMesh(0);
-        Ogre::VertexData* vertex_data = sm->useSharedVertices ? this->sharedVertexData : sm->vertexData;
-        const Ogre::VertexElement* posElem = vertex_data->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
-        Ogre::HardwareVertexBufferSharedPtr vbuf = vertex_data->vertexBufferBinding->getBuffer(posElem->getSource());
+        SubMesh* sm = this->getSubMesh(0);
+        VertexData* vertex_data = sm->useSharedVertices ? this->sharedVertexData[VpNormal] : sm->vertexData[VpNormal];
+        const VertexElement* posElem = vertex_data->vertexDeclaration->findElementBySemantic(Ogre::VES_POSITION);
+        HardwareVertexBufferSharedPtr vbuf = vertex_data->vertexBufferBinding->getBuffer(posElem->getSource());
 
         // Build patch with new control points
-        mSurface.build(vbuf, 0, sm->indexData->indexBuffer, 0);
+        mSurface.build(vbuf, 0, sm->indexData[VpShadow]->indexBuffer, 0);
     }
     //-----------------------------------------------------------------------
     void PatchMesh::setSubdivision(Real factor)
     {
         mSurface.setSubdivisionFactor(factor);
         SubMesh* sm = this->getSubMesh(0);
-        sm->indexData->indexCount = mSurface.getCurrentIndexCount();
-        
+        sm->indexData[VpNormal]->indexCount = mSurface.getCurrentIndexCount();
     }
     //-----------------------------------------------------------------------
     void PatchMesh::loadImpl(void)
     {
         SubMesh* sm = this->createSubMesh();
-        sm->vertexData = OGRE_NEW VertexData();
+        sm->vertexData[VpNormal] = OGRE_NEW VertexData();
         sm->useSharedVertices = false;
 
         // Set up vertex buffer
-        sm->vertexData->vertexStart = 0;
-        sm->vertexData->vertexCount = mSurface.getRequiredVertexCount();
-        sm->vertexData->vertexDeclaration = mDeclaration;
+        sm->vertexData[VpNormal]->vertexStart = 0;
+        sm->vertexData[VpNormal]->vertexCount = mSurface.getRequiredVertexCount();
+        sm->vertexData[VpNormal]->vertexDeclaration = mDeclaration;
         HardwareVertexBufferSharedPtr vbuf = HardwareBufferManager::getSingleton().
             createVertexBuffer(
                 mDeclaration->getVertexSize(0), 
-                sm->vertexData->vertexCount, 
+                sm->vertexData[VpNormal]->vertexCount,
                 mVertexBufferUsage, 
                 mVertexBufferShadowBuffer);
-        sm->vertexData->vertexBufferBinding->setBinding(0, vbuf);
+        sm->vertexData[VpNormal]->vertexBufferBinding->setBinding(0, vbuf);
 
         // Set up index buffer
-        sm->indexData->indexStart = 0;
-        sm->indexData->indexCount = mSurface.getRequiredIndexCount();
-        sm->indexData->indexBuffer = HardwareBufferManager::getSingleton().
+        sm->indexData[VpNormal]->indexStart = 0;
+        sm->indexData[VpNormal]->indexCount = mSurface.getRequiredIndexCount();
+        sm->indexData[VpNormal]->indexBuffer = HardwareBufferManager::getSingleton().
             createIndexBuffer(
                 HardwareIndexBuffer::IT_16BIT, // only 16-bit indexes supported, patches shouldn't be bigger than that
-                sm->indexData->indexCount,
+                sm->indexData[VpNormal]->indexCount,
                 mIndexBufferUsage, 
                 mIndexBufferShadowBuffer);
         
         // Build patch
-        mSurface.build(vbuf, 0, sm->indexData->indexBuffer, 0);
+        mSurface.build(vbuf, 0, sm->indexData[VpNormal]->indexBuffer, 0);
+
+        this->prepareForShadowMapping( true );
 
         // Set bounds
         this->_setBounds(mSurface.getBounds(), true);
         this->_setBoundingSphereRadius(mSurface.getBoundingSphereRadius());
 
     }
-
+}
 }
 

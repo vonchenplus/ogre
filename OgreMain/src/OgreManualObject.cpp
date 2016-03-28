@@ -40,14 +40,16 @@ THE SOFTWARE.
 #include "OgreTechnique.h"
 
 namespace Ogre {
+namespace v1 {
 
 #define TEMP_INITIAL_SIZE 50
 #define TEMP_VERTEXSIZE_GUESS sizeof(float) * 12
 #define TEMP_INITIAL_VERTEX_SIZE TEMP_VERTEXSIZE_GUESS * TEMP_INITIAL_SIZE
 #define TEMP_INITIAL_INDEX_SIZE sizeof(uint32) * TEMP_INITIAL_SIZE
     //-----------------------------------------------------------------------------
-    ManualObject::ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager )
-		: MovableObject( id, objectMemoryManager, RENDER_QUEUE_MAIN ),
+    ManualObject::ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                SceneManager *manager )
+        : MovableObject( id, objectMemoryManager, manager, 1 ),
           mDynamic(false), mCurrentSection(0), mFirstVertex(true),
           mTempVertexPending(false),
           mTempVertexBuffer(0), mTempVertexSize(TEMP_INITIAL_VERTEX_SIZE),
@@ -798,7 +800,8 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------------
-    MeshPtr ManualObject::convertToMesh(const String& meshName, const String& groupName)
+    MeshPtr ManualObject::convertToMesh( const String& meshName, const String& groupName,
+                                         bool buildShadowMapBuffers )
     {
         if (mCurrentSection)
         {
@@ -824,15 +827,19 @@ namespace Ogre {
             sm->operationType = rop->operationType;
             sm->setMaterialName(sec->getMaterialName(), groupName);
             // Copy vertex data; replicate buffers too
-            sm->vertexData = rop->vertexData->clone(true);
+            sm->vertexData[VpNormal] = rop->vertexData->clone(true);
             // Copy index data; replicate buffers too; delete the default, old one to avoid memory leaks
 
             // check if index data is present
             if (rop->indexData)
             {
                 // Copy index data; replicate buffers too; delete the default, old one to avoid memory leaks
-                OGRE_DELETE sm->indexData;
-                sm->indexData = rop->indexData->clone(true);
+                if( sm->indexData[VpNormal] == sm->indexData[VpShadow] )
+                    sm->indexData[VpShadow] = 0;
+                OGRE_DELETE sm->indexData[VpNormal];
+                OGRE_DELETE sm->indexData[VpShadow];
+                sm->indexData[VpNormal] = rop->indexData->clone(true);
+                sm->indexData[VpShadow] = sm->indexData[VpNormal];
             }
         }
         // update bounds
@@ -840,11 +847,11 @@ namespace Ogre {
         m->_setBounds( AxisAlignedBox( aabb.getMinimum(), aabb.getMaximum() ) );
         m->_setBoundingSphereRadius( mObjectData.mLocalRadius[mObjectData.mIndex] );
 
+        m->prepareForShadowMapping( !buildShadowMapBuffers );
+
         m->load();
 
         return m;
-
-
     }
     //-----------------------------------------------------------------------------
     void ManualObject::setUseIdentityProjection(bool useIdentityProjection)
@@ -900,7 +907,8 @@ namespace Ogre {
                 (rop->useIndexes && rop->indexData->indexCount == 0))
                 continue;
             
-            queue->addRenderable(*i, mRenderQueueID, mRenderQueuePriority);
+            //TODO: RENDER QUEUE ?
+            //queue->addRenderable(*i, mRenderQueueID, mRenderQueuePriority);
         }
     }
     //-----------------------------------------------------------------------------
@@ -996,7 +1004,7 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------------
-    void ManualObject::ManualObjectSection::getRenderOperation(RenderOperation& op)
+    void ManualObject::ManualObjectSection::getRenderOperation(RenderOperation& op, bool casterPass)
     {
         // direct copy
         op = mRenderOperation;
@@ -1027,17 +1035,16 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------------
     MovableObject* ManualObjectFactory::createInstanceImpl( IdType id,
-                                            ObjectMemoryManager *objectMemoryManager,
-                                            const NameValuePairList* params )
+                                                            ObjectMemoryManager *objectMemoryManager,
+                                                            SceneManager *manager,
+                                                            const NameValuePairList* params )
     {
-        return OGRE_NEW ManualObject( id, objectMemoryManager );
+        return OGRE_NEW ManualObject( id, objectMemoryManager, manager );
     }
     //-----------------------------------------------------------------------------
     void ManualObjectFactory::destroyInstance( MovableObject* obj)
     {
         OGRE_DELETE obj;
     }
-
-
-
+}
 }

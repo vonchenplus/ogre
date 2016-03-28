@@ -512,6 +512,7 @@ namespace Ogre
             TEXTURE,
             MATERIAL,
             GPU_PROGRAM,
+            UAV,
             COMPOSITOR
         };
         ResourceType mResourceType;
@@ -680,17 +681,10 @@ namespace Ogre
         ID_ALPHA_TO_COVERAGE,
         ID_LIGHT_SCISSOR,
         ID_LIGHT_CLIP_PLANES,
-        ID_TRANSPARENT_SORTING,
-        ID_ILLUMINATION_STAGE,
-            ID_DECAL,
         ID_CULL_HARDWARE,
+        ID_CULL_MODE,
             ID_CLOCKWISE,
             ID_ANTICLOCKWISE,
-        ID_CULL_SOFTWARE,
-            ID_BACK,
-            ID_FRONT,
-        ID_NORMALISE_NORMALS,
-        ID_LIGHTING,
         ID_SHADING,
             ID_FLAT, 
             ID_GOURAUD,
@@ -748,9 +742,6 @@ namespace Ogre
             ID_BILINEAR,
             ID_TRILINEAR,
             ID_ANISOTROPIC,
-        ID_CMPTEST,
-            ID_ON,
-            ID_OFF,
         ID_CMPFUNC,
         ID_MAX_ANISOTROPY,
         ID_MIPMAP_BIAS,
@@ -835,22 +826,37 @@ namespace Ogre
                 ID_NO_FSAA,
                 ID_EXPLICIT_RESOLVE,
                 ID_DEPTH_POOL,
+                ID_DEPTH_TEXTURE,
+                ID_DEPTH_FORMAT,
+                ID_2D_ARRAY,
+                //ID_3D,
+                ID_CUBEMAP,
+                ID_MIPMAPS,
+                ID_AUTOMIPMAPS,
             ID_TARGET,
         //  ID_PASS,
                 ID_CLEAR,
                 ID_STENCIL,
                 ID_RENDER_SCENE,
                 ID_RENDER_QUAD,
+                ID_DEPTH_COPY,
+                ID_BIND_UAV,
                     ID_VIEWPORT,
                     ID_NUM_INITIAL,
                     ID_IDENTIFIER,
                     ID_OVERLAYS,
+                    ID_EXECUTION_MASK,
+                    ID_VIEWPORT_MODIFIER_MASK,
+                    ID_USES_UAV,
+                        ID_ALLOW_WRITE_AFTER_WRITE, //Used inside ID_USES_UAV
+                    //ID_COLOUR_WRITE,
+                    ID_EXPOSE,
 
                     //Used by PASS_SCENE
                     ID_LOD_BIAS,
                     ID_LOD_UPDATE_LIST,
                     ID_LOD_CAMERA,
-                    ID_MATERIAL_SCHEME, //TODO
+                    ID_MATERIAL_SCHEME,
                     ID_VISIBILITY_MASK,
                     ID_SHADOWS_ENABLED,
                     ID_CAMERA,
@@ -863,7 +869,12 @@ namespace Ogre
                     ID_QUAD_NORMALS,
                         ID_CAMERA_FAR_CORNERS_VIEW_SPACE,
                         ID_CAMERA_FAR_CORNERS_WORLD_SPACE,
+                        ID_CAMERA_FAR_CORNERS_WORLD_SPACE_CENTERED,
+                        ID_CAMERA_DIRECTION,
                     ID_INPUT,
+
+                    //Used by ID_DEPTH_COPY
+                    ID_ALIAS_ON_COPY_FAILURE,
 
                     //Used by PASS_CLEAR
                     ID_BUFFERS,
@@ -889,6 +900,16 @@ namespace Ogre
                     ID_DEPTH_FAIL_OP,
                     ID_PASS_OP,
                     ID_TWO_SIDED,
+
+                    //Used by PASS_UAV
+                    ID_UAV,
+                    ID_UAV_EXTERNAL,
+                    ID_STARTING_SLOT,
+                    ID_KEEP_PREVIOUS_UAV,
+                    ID_READ,
+                    ID_WRITE,
+                    ID_MIPMAP,
+
             ID_READ_BACK_AS_TEXTURE,
 
         ID_SHADOW_NODE,
@@ -900,6 +921,8 @@ namespace Ogre
                 ID_FSAA,
                 ID_LIGHT,
                 ID_SPLIT,
+
+        ID_HLMS,
 
 #ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
         ID_RT_SHADER_SYSTEM,

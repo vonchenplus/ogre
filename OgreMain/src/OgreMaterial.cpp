@@ -605,73 +605,23 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Material::setDepthCheckEnabled(bool enabled)
+    void Material::setMacroblock( const HlmsMacroblock &macroblock )
     {
         Techniques::iterator i, iend;
         iend = mTechniques.end();
         for (i = mTechniques.begin(); i != iend; ++i)
         {
-            (*i)->setDepthCheckEnabled(enabled);
+            (*i)->setMacroblock( macroblock );
         }
     }
-    //-----------------------------------------------------------------------
-    void Material::setDepthWriteEnabled(bool enabled)
+    // --------------------------------------------------------------------
+    void Material::setBlendblock( const HlmsBlendblock &blendblock )
     {
         Techniques::iterator i, iend;
         iend = mTechniques.end();
         for (i = mTechniques.begin(); i != iend; ++i)
         {
-            (*i)->setDepthWriteEnabled(enabled);
-        }
-    }
-    //-----------------------------------------------------------------------
-    void Material::setDepthFunction( CompareFunction func )
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setDepthFunction(func);
-        }
-    }
-    //-----------------------------------------------------------------------
-    void Material::setColourWriteEnabled(bool enabled)
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setColourWriteEnabled(enabled);
-        }
-    }
-    //-----------------------------------------------------------------------
-    void Material::setCullingMode( CullingMode mode )
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setCullingMode(mode);
-        }
-    }
-    //-----------------------------------------------------------------------
-    void Material::setManualCullingMode( ManualCullingMode mode )
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setManualCullingMode(mode);
-        }
-    }
-    //-----------------------------------------------------------------------
-    void Material::setLightingEnabled(bool enabled)
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setLightingEnabled(enabled);
+            (*i)->setBlendblock( blendblock );
         }
     }
     //-----------------------------------------------------------------------
@@ -696,74 +646,13 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Material::setDepthBias(float constantBias, float slopeScaleBias)
+    void Material::setSamplerblock( const HlmsSamplerblock &samplerblock )
     {
         Techniques::iterator i, iend;
         iend = mTechniques.end();
         for (i = mTechniques.begin(); i != iend; ++i)
         {
-            (*i)->setDepthBias(constantBias, slopeScaleBias);
-        }
-    }
-    //-----------------------------------------------------------------------
-    void Material::setTextureFiltering(TextureFilterOptions filterType)
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setTextureFiltering(filterType);
-        }
-    }
-    // --------------------------------------------------------------------
-    void Material::setTextureAnisotropy(int maxAniso)
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setTextureAnisotropy(maxAniso);
-        }
-    }
-    // --------------------------------------------------------------------
-    void Material::setSceneBlending( const SceneBlendType sbt )
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setSceneBlending(sbt);
-        }
-    }
-    // --------------------------------------------------------------------
-    void Material::setSeparateSceneBlending( const SceneBlendType sbt, const SceneBlendType sbta )
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setSeparateSceneBlending(sbt, sbta);
-        }
-    }
-    // --------------------------------------------------------------------
-    void Material::setSceneBlending( const SceneBlendFactor sourceFactor, 
-        const SceneBlendFactor destFactor)
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setSceneBlending(sourceFactor, destFactor);
-        }
-    }
-    // --------------------------------------------------------------------
-    void Material::setSeparateSceneBlending( const SceneBlendFactor sourceFactor, const SceneBlendFactor destFactor, const SceneBlendFactor sourceFactorAlpha, const SceneBlendFactor destFactorAlpha)
-    {
-        Techniques::iterator i, iend;
-        iend = mTechniques.end();
-        for (i = mTechniques.begin(); i != iend; ++i)
-        {
-            (*i)->setSeparateSceneBlending(sourceFactor, destFactor, sourceFactorAlpha, destFactorAlpha);
+            (*i)->setSamplerblock( samplerblock );
         }
     }
     // --------------------------------------------------------------------

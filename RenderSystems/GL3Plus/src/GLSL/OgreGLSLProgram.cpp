@@ -32,6 +32,8 @@
 #include "OgreGLSLShader.h"
 #include "OgreRoot.h"
 
+#include "Vao/OgreGL3PlusVaoManager.h"
+
 namespace Ogre {
 
     GLSLProgram::GLSLProgram(GLSLShader* vertexShader,
@@ -126,6 +128,41 @@ namespace Ogre {
         return name;
     }
 
+    Ogre::String GLSLProgram::getCombinedSource() const
+    {
+        String retVal;
+        size_t memorySize = 0;
+
+        if( mVertexShader )
+            memorySize += mVertexShader->getSource().size();
+        if( mHullShader )
+            memorySize += mHullShader->getSource().size();
+        if( mDomainShader )
+            memorySize += mDomainShader->getSource().size();
+        if( mGeometryShader )
+            memorySize += mGeometryShader->getSource().size();
+        if( mFragmentShader )
+            memorySize += mFragmentShader->getSource().size();
+        if( mComputeShader )
+            memorySize += mComputeShader->getSource().size();
+
+        retVal.reserve( memorySize );
+
+        if( mVertexShader )
+            retVal += mVertexShader->getSource();
+        if( mHullShader )
+            retVal += mHullShader->getSource();
+        if( mDomainShader )
+            retVal += mDomainShader->getSource();
+        if( mGeometryShader )
+            retVal += mGeometryShader->getSource();
+        if( mFragmentShader )
+            retVal += mFragmentShader->getSource();
+        if( mComputeShader )
+            retVal += mComputeShader->getSource();
+
+        return retVal;
+    }
 
     VertexElementSemantic GLSLProgram::getAttributeSemanticEnum(String type)
     {
@@ -137,7 +174,7 @@ namespace Ogre {
         else
         {
             assert(false && "Missing attribute!");
-            return (VertexElementSemantic)0;
+            return (VertexElementSemantic)1;
         }
     }
 
@@ -293,6 +330,51 @@ namespace Ogre {
                 currPos = shaderSource.find("layout", currPos);
             }
         }
+    }
+
+    void GLSLProgram::bindFixedAttributes( GLuint programName )
+    {
+        struct SemanticNameTable
+        {
+            const char *semanticName;
+            VertexElementSemantic semantic;
+        };
+
+#define OGRE_NUM_SEMANTICS 12
+        static const SemanticNameTable attributesTable[OGRE_NUM_SEMANTICS] =
+        {
+            { "vertex",         VES_POSITION },
+            { "blendWeights",   VES_BLEND_WEIGHTS },
+            { "blendIndices",   VES_BLEND_INDICES },
+            { "normal",         VES_NORMAL },
+            { "colour",         VES_DIFFUSE },
+            { "secondary_colour",VES_SPECULAR },
+            { "tangent",        VES_TANGENT },
+            { "binormal",       VES_BINORMAL },
+            { "qtangent",       VES_NORMAL },
+            { "blendWeights2",  VES_BLEND_WEIGHTS2 },
+            { "blendIndices2",  VES_BLEND_INDICES2 },
+            { "uv",             VES_TEXTURE_COORDINATES },
+        };
+
+        for( size_t i=0; i<OGRE_NUM_SEMANTICS - 1; ++i )
+        {
+            const SemanticNameTable &entry = attributesTable[i];
+            OCGE( glBindAttribLocation( programName,
+                                        GL3PlusVaoManager::getAttributeIndexFor( entry.semantic ),
+                                        entry.semanticName ) );
+        }
+
+        for( size_t i=0; i<8; ++i )
+        {
+            //UVs are a special case.
+            OCGE( glBindAttribLocation( programName,
+                                        GL3PlusVaoManager::getAttributeIndexFor(
+                                                    VES_TEXTURE_COORDINATES ) + i,
+                                        ("uv" + StringConverter::toString( i )).c_str() ) );
+        }
+
+        OCGE( glBindAttribLocation( programName, 15, "drawId" ) );
     }
 
 } // namespace Ogre

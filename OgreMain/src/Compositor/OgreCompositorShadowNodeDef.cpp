@@ -109,6 +109,13 @@ namespace Ogre
         return &mShadowMapTexDefinitions.back();
     }
     //-----------------------------------------------------------------------------------
+    void CompositorShadowNodeDef::postInitializePassDef( CompositorPassDef *passDef )
+    {
+        //Shadow nodes usually should be unaffected by these masks.
+        passDef->mExecutionMask         = 0xFF;
+        passDef->mViewportModifierMask  = 0x00;
+    }
+    //-----------------------------------------------------------------------------------
     void CompositorShadowNodeDef::_validateAndFinish(void)
     {
         const Real EPSILON = 1e-6f;
@@ -166,7 +173,11 @@ namespace Ogre
                         Math::Abs( pass->mVpLeft - otherPass->mVpLeft )     < EPSILON &&
                         Math::Abs( pass->mVpTop - otherPass->mVpTop )       < EPSILON &&
                         Math::Abs( pass->mVpWidth - otherPass->mVpWidth )   < EPSILON &&
-                        Math::Abs( pass->mVpHeight - otherPass->mVpHeight ) < EPSILON )
+                        Math::Abs( pass->mVpHeight - otherPass->mVpHeight ) < EPSILON &&
+                        Math::Abs( pass->mVpScissorLeft - otherPass->mVpScissorLeft )     < EPSILON &&
+                        Math::Abs( pass->mVpScissorTop - otherPass->mVpScissorTop )       < EPSILON &&
+                        Math::Abs( pass->mVpScissorWidth - otherPass->mVpScissorWidth )   < EPSILON &&
+                        Math::Abs( pass->mVpScissorHeight - otherPass->mVpScissorHeight ) < EPSILON )
                     {
                         LogManager::getSingleton().logMessage( "WARNING: Not all scene passes render to "
                                     "the same viewport! Attempting to fix. ShadowNode: '" +
@@ -176,6 +187,10 @@ namespace Ogre
                         pass->mVpTop    = otherPass->mVpTop;
                         pass->mVpWidth  = otherPass->mVpWidth;
                         pass->mVpHeight = otherPass->mVpHeight;
+                        pass->mVpScissorLeft   = otherPass->mVpScissorLeft;
+                        pass->mVpScissorTop    = otherPass->mVpScissorTop;
+                        pass->mVpScissorWidth  = otherPass->mVpScissorWidth;
+                        pass->mVpScissorHeight = otherPass->mVpScissorHeight;
                     }
 
                     ++it2;

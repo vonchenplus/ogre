@@ -296,6 +296,7 @@ namespace Ogre
     typedef GeneralAllocatedObject      ArchiveAlloc;
     typedef GeometryAllocatedObject     BatchedGeometryAlloc;
     typedef RenderSysAllocatedObject    BufferAlloc;
+    typedef GeometryAllocatedObject     BufferPackedAlloc;
     typedef GeneralAllocatedObject      CodecAlloc;
     typedef ResourceAllocatedObject     CompositorInstAlloc;
     typedef GeneralAllocatedObject      ConfigAlloc;
@@ -327,6 +328,7 @@ namespace Ogre
     typedef ScriptingAllocatedObject    ScriptCompilerAlloc;
     typedef ScriptingAllocatedObject    ScriptTranslatorAlloc;
     typedef SceneCtlAllocatedObject     ShadowDataAlloc;
+    typedef GeometryAllocatedObject     StagingBufferAlloc;
     typedef GeneralAllocatedObject      StreamAlloc;
     typedef SceneObjAllocatedObject     SubEntityAlloc;
     typedef ResourceAllocatedObject     SubMeshAlloc;
@@ -335,6 +337,7 @@ namespace Ogre
     typedef ResourceAllocatedObject     TextureUnitStateAlloc;
     typedef GeneralAllocatedObject      UtilityAlloc;
     typedef GeometryAllocatedObject     VertexDataAlloc;
+    typedef GeometryAllocatedObject     VertexArrayObjectAlloc;
     typedef RenderSysAllocatedObject    ViewportAlloc;
     typedef SceneCtlAllocatedObject     LodAlloc;
     typedef GeneralAllocatedObject      FileSystemLayerAlloc;

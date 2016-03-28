@@ -43,7 +43,7 @@ THE SOFTWARE.
 #include "OgreEdgeListBuilder.h"
 
 namespace Ogre {
-
+namespace v1 {
     #define REGION_RANGE 1024
     #define REGION_HALF_RANGE 512
     #define REGION_MAX_INDEX 511
@@ -61,7 +61,7 @@ namespace Ogre {
         mHalfRegionDimensions(Vector3(500,500,500)),
         mOrigin(Vector3(0,0,0)),
         mVisible(true),
-        mRenderQueueID(RENDER_QUEUE_MAIN),
+        mRenderQueueID(0),
         mRenderQueueIDSet(false),
         mVisibilityFlags(Ogre::MovableObject::getDefaultVisibilityFlags())
     {
@@ -303,7 +303,7 @@ namespace Ogre {
             // Get the geometry for this SubMesh
             q->submesh = se->getSubMesh();
             q->geometryLodList = determineGeometry(q->submesh);
-            q->materialName = se->getMaterialName();
+            q->materialName = se->getMaterial()->getName();
             q->orientation = orientation;
             q->position = position;
             q->scale = scale;
@@ -338,11 +338,11 @@ namespace Ogre {
             IndexData *lodIndexData;
             if (lod == 0)
             {
-                lodIndexData = sm->indexData;
+                lodIndexData = sm->indexData[VpNormal];
             }
             else
             {
-                lodIndexData = sm->mLodFaceList[lod - 1];
+                lodIndexData = sm->mLodFaceList[VpNormal][lod - 1];
             }
             // Can use the original mesh geometry?
             if (sm->useSharedVertices)
@@ -350,13 +350,13 @@ namespace Ogre {
                 if (sm->parent->getNumSubMeshes() == 1)
                 {
                     // Ok, this is actually our own anyway
-                    geomLink.vertexData = sm->parent->sharedVertexData;
+                    geomLink.vertexData = sm->parent->sharedVertexData[VpNormal];
                     geomLink.indexData = lodIndexData;
                 }
                 else
                 {
                     // We have to split it
-                    splitGeometry(sm->parent->sharedVertexData,
+                    splitGeometry(sm->parent->sharedVertexData[VpNormal],
                         lodIndexData, &geomLink);
                 }
             }
@@ -366,13 +366,13 @@ namespace Ogre {
                 {
                     // Ok, we can use the existing geometry; should be in full
                     // use by just this SubMesh
-                    geomLink.vertexData = sm->vertexData;
-                    geomLink.indexData = sm->indexData;
+                    geomLink.vertexData = sm->vertexData[VpNormal];
+                    geomLink.indexData = sm->indexData[VpNormal];
                 }
                 else
                 {
                     // We have to split it
-                    splitGeometry(sm->vertexData,
+                    splitGeometry(sm->vertexData[VpNormal],
                         lodIndexData, &geomLink);
                 }
             }
@@ -632,7 +632,6 @@ namespace Ogre {
     //--------------------------------------------------------------------------
     void StaticGeometry::setRenderQueueGroup(uint8 queueID)
     {
-        assert(queueID <= RENDER_QUEUE_MAX && "Render queue out of range!");
         mRenderQueueIDSet = true;
         mRenderQueueID = queueID;
         // tell any existing regions
@@ -707,7 +706,7 @@ namespace Ogre {
     StaticGeometry::Region::Region( IdType id, ObjectMemoryManager *objectMemoryManager,
                                     StaticGeometry* parent, SceneManager* mgr, uint32 regionID,
                                     const Vector3& centre ) :
-        MovableObject( id, objectMemoryManager, RENDER_QUEUE_MAIN ),
+        MovableObject( id, objectMemoryManager, 0, 1 ),
         mParent(parent), mSceneMgr(mgr), mNode(0),
         mRegionID(regionID), mCentre(centre)
     {
@@ -799,14 +798,6 @@ namespace Ogre {
             // now build
             lodBucket->build();
         }
-
-        mLodMaterial.reserve( mLodBucketList[0]->getNumMaterials() );
-        StaticGeometry::LODBucket::MaterialIterator matIt = mLodBucketList[0]->getMaterialIterator();
-        while( matIt.hasMoreElements() )
-        {
-            MaterialBucket *matBucket = matIt.getNext();
-            mLodMaterial.push_back( matBucket->getMaterial()->_getLodValues() );
-        }
     }
     //--------------------------------------------------------------------------
     const String& StaticGeometry::Region::getMovableType(void) const
@@ -834,7 +825,7 @@ namespace Ogre {
         // Cache squared view depth for use by GeometryBucket
         mCamera = lodCamera;
         mSquaredViewDepth = mParentNode->getSquaredViewDepth( lodCamera );
-        mLodBucketList[mCurrentMeshLod]->addRenderables(queue, mRenderQueueID, mCurrentMaterialLod);
+        mLodBucketList[mCurrentMeshLod]->addRenderables(queue, mRenderQueueID, 0);
     }
     //---------------------------------------------------------------------
     void StaticGeometry::Region::visitRenderables(Renderable::Visitor* visitor, 
@@ -1085,13 +1076,15 @@ namespace Ogre {
         Region *region = mParent->getParent();
 
         // Determine the current material technique
-        mTechnique = mMaterial->getBestTechnique( region->mCurrentMaterialLod[materialLod] );
+        mTechnique = mMaterial->getBestTechnique( 0 );
         GeometryBucketList::iterator i, iend;
         iend =  mGeometryBucketList.end();
-        for (i = mGeometryBucketList.begin(); i != iend; ++i)
+        //TODO: RENDER QUEUE
+        //TODO: mCurrentMeshLod
+        /*for (i = mGeometryBucketList.begin(); i != iend; ++i)
         {
             queue->addRenderable(*i, group);
-        }
+        }*/
 
     }
     //--------------------------------------------------------------------------
@@ -1225,7 +1218,7 @@ namespace Ogre {
         return mParent->getCurrentTechnique();
     }
     //--------------------------------------------------------------------------
-    void StaticGeometry::GeometryBucket::getRenderOperation(RenderOperation& op)
+    void StaticGeometry::GeometryBucket::getRenderOperation(RenderOperation& op, bool casterPass)
     {
         op.indexData = mIndexData;
         op.operationType = RenderOperation::OT_TRIANGLE_LIST;
@@ -1471,6 +1464,6 @@ namespace Ogre {
 
     }
     //--------------------------------------------------------------------------
-
+}
 }
 

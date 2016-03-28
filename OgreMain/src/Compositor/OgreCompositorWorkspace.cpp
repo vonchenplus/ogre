@@ -1,4 +1,4 @@
-/*
+﻿/*
 -----------------------------------------------------------------------------
 This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
@@ -35,16 +35,21 @@ THE SOFTWARE.
 
 #include "Compositor/Pass/PassScene/OgreCompositorPassScene.h"
 
+#include "OgreHardwarePixelBuffer.h"
+#include "OgreRenderTexture.h"
+
 #include "OgreSceneManager.h"
 #include "OgreRenderTarget.h"
 #include "OgreLogManager.h"
 
 namespace Ogre
 {
-    CompositorWorkspace::CompositorWorkspace( IdType id, const CompositorWorkspaceDef *definition,
+    CompositorWorkspace::CompositorWorkspace(IdType id, const CompositorWorkspaceDef *definition,
                                                 const CompositorChannel &finalRenderTarget,
                                                 SceneManager *sceneManager, Camera *defaultCam,
-                                                RenderSystem *renderSys, bool bEnabled ) :
+                                                RenderSystem *renderSys, bool bEnabled,
+                                                uint8 executionMask, uint8 viewportModifierMask,
+                                                const Vector4 &vpOffsetScale ) :
             IdObject( id ),
             mDefinition( definition ),
             mValid( false ),
@@ -53,8 +58,14 @@ namespace Ogre
             mDefaultCamera( defaultCam ),
             mSceneManager( sceneManager ),
             mRenderSys( renderSys ),
-            mRenderWindow( finalRenderTarget )
+            mRenderWindow( finalRenderTarget ),
+            mExecutionMask( executionMask ),
+            mViewportModifierMask( viewportModifierMask ),
+            mViewportModifier( vpOffsetScale )
     {
+        assert( (!defaultCam || (defaultCam->getSceneManager() == sceneManager)) &&
+                "Camera was created with a different SceneManager than supplied" );
+
         //Create global textures
         TextureDefinitionBase::createTextures( definition->mLocalTextureDefs, mGlobalTextures,
                                                 id, true, mRenderWindow.target, mRenderSys );
@@ -242,6 +253,8 @@ namespace Ogre
             mNodeSequence.insert( mNodeSequence.end(), unprocessedList.begin(), unprocessedList.end() );
 
             mValid = true;
+
+            analyzeHazardsAndPlaceBarriers();
         }
     }
     //-----------------------------------------------------------------------------------
@@ -357,6 +370,45 @@ namespace Ogre
         }
     }
     //-----------------------------------------------------------------------------------
+    void CompositorWorkspace::analyzeHazardsAndPlaceBarriers(void)
+    {
+        ResourceLayoutMap resourcesLayout;
+        ResourceAccessMap uavsAccess;
+
+        //Q: Include mListener in the constructor so that we can account for the listener?
+        //A: No. If the user overrides normal behavior, it's his responsability to clean
+        //   whatever he ends up doing.
+        BoundUav boundUavs[64];
+        memset( boundUavs, 0, sizeof(boundUavs) );
+
+        resourcesLayout[mRenderWindow.target] = ResourceLayout::RenderTarget;
+        {
+            Ogre::CompositorChannelVec renderTargetChannel;
+            renderTargetChannel.push_back( mRenderWindow );
+            CompositorNode::fillResourcesLayout( resourcesLayout, renderTargetChannel,
+                                                 ResourceLayout::RenderTarget );
+        }
+        CompositorNode::fillResourcesLayout( resourcesLayout, mGlobalTextures,
+                                             ResourceLayout::Undefined );
+
+        CompositorNodeVec::iterator itor = mNodeSequence.begin();
+        CompositorNodeVec::iterator end  = mNodeSequence.end();
+
+        while( itor != end )
+        {
+            (*itor)->_placeBarriersAndEmulateUavExecution( boundUavs, uavsAccess, resourcesLayout );
+            ++itor;
+        }
+
+        //Check the output is still a RenderTarget at the end.
+        ResourceLayoutMap::iterator currentLayout = resourcesLayout.find( mRenderWindow.target );
+        if( currentLayout->second != ResourceLayout::RenderTarget )
+        {
+            CompositorNode *node = mNodeSequence.back();
+            node->_setFinalTargetAsRenderTarget( currentLayout );
+        }
+    }
+    //-----------------------------------------------------------------------------------
     CompositorNode* CompositorWorkspace::findNode( IdString aliasName, bool includeShadowNodes ) const
     {
         CompositorNode *retVal = 0;
@@ -396,6 +448,18 @@ namespace Ogre
         connectAllNodes();
     }
     //-----------------------------------------------------------------------------------
+    void CompositorWorkspace::resetAllNumPassesLeft(void)
+    {
+        CompositorNodeVec::const_iterator itor = mNodeSequence.begin();
+        CompositorNodeVec::const_iterator end  = mNodeSequence.end();
+
+        while( itor != end )
+        {
+            (*itor)->resetAllNumPassesLeft();
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------------------
     Camera* CompositorWorkspace::findCamera( IdString cameraName ) const 
     {
         return mSceneManager->findCamera( cameraName );
@@ -420,7 +484,7 @@ namespace Ogre
     {
         //We need to do this so that D3D9 (and D3D11?) knows which device
         //is active now, so that _beginFrame calls go to the right device.
-        mRenderSys->_setRenderTarget( mRenderWindow.target );
+        mRenderSys->_setRenderTarget( mRenderWindow.target, true );
         if( mRenderWindow.target->isRenderWindow() || forceBeginFrame )
         {
             // Begin the frame
@@ -432,7 +496,7 @@ namespace Ogre
     {
         //We need to do this so that D3D9 (and D3D11?) knows which device
         //is active now, so that _endFrame calls go to the right device.
-        mRenderSys->_setRenderTarget( mRenderWindow.target );
+        mRenderSys->_setRenderTarget( mRenderWindow.target, true );
         if( mRenderWindow.target->isRenderWindow() || forceEndFrame )
         {
             // End the frame
@@ -447,7 +511,7 @@ namespace Ogre
 
         //We need to do this so that D3D9 (and D3D11?) knows which device
         //is active now, so that our calls go to the right device.
-        mRenderSys->_setRenderTarget( mRenderWindow.target );
+        mRenderSys->_setRenderTarget( mRenderWindow.target, true );
 
         if( mCurrentWidth != mRenderWindow.target->getWidth() || mCurrentHeight != mRenderWindow.target->getHeight() )
         {
@@ -543,7 +607,7 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void CompositorWorkspace::_validateFinalTarget(void)
     {
-        mRenderSys->_setRenderTarget( mRenderWindow.target );
+        mRenderSys->_setRenderTarget( mRenderWindow.target, true );
     }
     //-----------------------------------------------------------------------------------
     CompositorShadowNode* CompositorWorkspace::findShadowNode( IdString nodeDefName ) const

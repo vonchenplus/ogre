@@ -133,7 +133,10 @@ namespace Ogre
         //Passes belonging to a ShadowNode should not override their parent.
         CompositorShadowNode* shadowNode = ( mShadowNode && mShadowNode->getEnabled() ) ? mShadowNode : 0;
         if( mDefinition->mShadowNodeRecalculation != SHADOW_NODE_CASTER_PASS )
-            sceneManager->_setCurrentShadowNode( shadowNode );
+        {
+            sceneManager->_setCurrentShadowNode( shadowNode, mDefinition->mShadowNodeRecalculation ==
+                                                                                    SHADOW_NODE_REUSE );
+        }
 
         mViewport->_setVisibilityMask( mDefinition->mVisibilityMask );
 
@@ -154,12 +157,16 @@ namespace Ogre
             shadowNode->_update( mCamera, usedLodCamera, sceneManager );
             sceneManager->_swapVisibleObjectsForShadowMapping();
 
-            //ShadowNode passes may've overriden this setting.
-            sceneManager->_setCurrentShadowNode( shadowNode );
+            //ShadowNode passes may've overriden these settings.
+            sceneManager->_setCurrentShadowNode( shadowNode, mDefinition->mShadowNodeRecalculation ==
+                                                                                    SHADOW_NODE_REUSE );
+            mCamera->_notifyViewport( mViewport );
 
             //We need to restore the previous RT's update
             mTarget->_beginUpdate();
         }
+
+        executeResourceTransitions();
 
         mTarget->setFsaaResolveDirty();
         mTarget->_updateViewportRenderPhase02( mViewport, mCamera, usedLodCamera,
@@ -174,9 +181,25 @@ namespace Ogre
         //restore viewport material scheme
         mViewport->setMaterialScheme(oldViewportMatScheme);
 
+        if( listener )
+            listener->passPosExecute( this );
+
         //Call endUpdate if we're the last pass in a row to use this RT
         if( mDefinition->mEndRtUpdate )
             mTarget->_endUpdate();
+    }
+    //-----------------------------------------------------------------------------------
+    void CompositorPassScene::_placeBarriersAndEmulateUavExecution( BoundUav boundUavs[64],
+                                                                    ResourceAccessMap &uavsAccess,
+                                                                    ResourceLayoutMap &resourcesLayout )
+    {
+        if( mShadowNode && mUpdateShadowNode )
+        {
+            mShadowNode->_placeBarriersAndEmulateUavExecution( boundUavs, uavsAccess,
+                                                               resourcesLayout );
+        }
+
+        CompositorPass::_placeBarriersAndEmulateUavExecution( boundUavs, uavsAccess, resourcesLayout );
     }
     //-----------------------------------------------------------------------------------
     void CompositorPassScene::notifyCleared(void)

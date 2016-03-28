@@ -49,7 +49,6 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
-
     typedef _StringBase String;
 
     /** \addtogroup Core
@@ -68,6 +67,13 @@ namespace Ogre {
         return FastHash((const char*)&data, sizeof(T), hashSoFar);
     }
 
+    enum VertexPass
+    {
+        VpNormal,
+        VpShadow,
+        NumVertexPass
+    };
+
 
     /** Comparison functions used for the depth/stencil buffer operations and 
         others. */
@@ -80,7 +86,8 @@ namespace Ogre {
         CMPF_EQUAL,
         CMPF_NOT_EQUAL,
         CMPF_GREATER_EQUAL,
-        CMPF_GREATER
+        CMPF_GREATER,
+        NUM_COMPARE_FUNCTIONS,
     };
 
     /// Enum describing the various actions which can be taken on the stencil buffer
@@ -140,7 +147,7 @@ namespace Ogre {
         FO_ANISOTROPIC
     };
 
-    /** Light shading modes. */
+    /** Light shading modes. DEPRECATED */
     enum ShadeOptions
     {
         SO_FLAT,
@@ -162,7 +169,19 @@ namespace Ogre {
     };
 
     /** Hardware culling modes based on vertex winding.
-        This setting applies to how the hardware API culls triangles it is sent. */
+        This setting applies to how the hardware API culls triangles it is sent.
+    @par
+        A typical way for the rendering engine to cull triangles is based on the 'vertex winding' of
+        triangles. Vertex winding refers to the direction in which the vertices are passed or indexed
+        to in the rendering operation as viewed from the camera, and will wither be clockwise or
+        anticlockwise (that's 'counterclockwise' for you Americans out there ;) The default is
+        CULL_CLOCKWISE i.e. that only triangles whose vertices are passed/indexed in anticlockwise order
+        are rendered - this is a common approach and is used in 3D studio models for example. You can
+        alter this culling mode if you wish but it is not advised unless you know what you are doing.
+    @par
+        You may wish to use the CULL_NONE option for mesh data that you cull yourself where the vertex
+        winding is uncertain.
+    */
     enum CullingMode
     {
         /// Hardware never culls triangles and renders everything it receives.
@@ -171,21 +190,6 @@ namespace Ogre {
         CULL_CLOCKWISE = 2,
         /// Hardware culls triangles whose vertices are listed anticlockwise in the view.
         CULL_ANTICLOCKWISE = 3
-    };
-
-    /** Manual culling modes based on vertex normals.
-        This setting applies to how the software culls triangles before sending them to the 
-        hardware API. This culling mode is used by scene managers which choose to implement it -
-        normally those which deal with large amounts of fixed world geometry which is often 
-        planar (software culling movable variable geometry is expensive). */
-    enum ManualCullingMode
-    {
-        /// No culling so everything is sent to the hardware.
-        MANUAL_CULL_NONE = 1,
-        /// Cull triangles whose normal is pointing away from the camera (default).
-        MANUAL_CULL_BACK = 2,
-        /// Cull triangles whose normal is pointing towards the camera.
-        MANUAL_CULL_FRONT = 3
     };
 
     /** Enumerates the wave types usable with the Ogre engine. */
@@ -256,6 +260,16 @@ namespace Ogre {
     {
       SMT_NONE = 0x0,
       SMT_FRAME_SEQUENTIAL
+    };
+
+    enum ShaderType
+    {
+        VertexShader,
+        PixelShader,
+        GeometryShader,
+        HullShader,
+        DomainShader,
+        NumShaderTypes
     };
 
     /** Flags for the Instance Manager when calculating ideal number of instances per batch */
@@ -564,7 +578,21 @@ namespace Ogre {
             light( _light ), globalIndex( _globalIndex ),
             distance( _distance ) {}
 
-        inline bool operator < ( const LightClosest &right ) const;
+        inline bool operator < ( const LightClosest &right ) const
+        {
+            /*Shouldn't be necessary. distance is insanely low (big negative number)
+            if( light->getType() == Light::LT_DIRECTIONAL &&
+                right.light->getType() != Light::LT_DIRECTIONAL )
+            {
+                return true;
+            }
+            else if( light->getType() != Light::LT_DIRECTIONAL &&
+                     right.light->getType() == Light::LT_DIRECTIONAL )
+            {
+                return false;
+            }*/
+            return distance < right.distance;
+        }
     };
     /// Holds all lights in SoA after being culled over all frustums
     struct LightListInfo
@@ -826,6 +854,23 @@ namespace Ogre {
         container.pop_back();
 
         return container.begin() + idx;
+    }
+
+    /// Aligns the input 'offset' to the next multiple of 'alignment'.
+    /// Alignment can be any value except 0. Some examples:
+    ///
+    /// alignToNextMultiple( 0, 4 ) = 0;
+    /// alignToNextMultiple( 1, 4 ) = 4;
+    /// alignToNextMultiple( 2, 4 ) = 4;
+    /// alignToNextMultiple( 3, 4 ) = 4;
+    /// alignToNextMultiple( 4, 4 ) = 4;
+    /// alignToNextMultiple( 5, 4 ) = 8;
+    ///
+    /// alignToNextMultiple( 0, 3 ) = 0;
+    /// alignToNextMultiple( 1, 3 ) = 3;
+    inline size_t alignToNextMultiple( size_t offset, size_t alignment )
+    {
+        return ( (offset + alignment - 1) / alignment ) * alignment;
     }
 
 #if OGRE_CPU == OGRE_CPU_X86

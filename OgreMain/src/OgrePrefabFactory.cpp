@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "OgreSubMesh.h"
 
 namespace Ogre {
+namespace v1 {
     //---------------------------------------------------------------------
     bool PrefabFactory::createPrefab(Mesh* mesh)
     {
@@ -74,10 +75,10 @@ namespace Ogre {
             0,0,1,
             0,0 
         };
-        mesh->sharedVertexData = OGRE_NEW VertexData();
-        mesh->sharedVertexData->vertexCount = 4;
-        VertexDeclaration* decl = mesh->sharedVertexData->vertexDeclaration;
-        VertexBufferBinding* bind = mesh->sharedVertexData->vertexBufferBinding;
+        mesh->sharedVertexData[VpNormal] = OGRE_NEW VertexData();
+        mesh->sharedVertexData[VpNormal]->vertexCount = 4;
+        VertexDeclaration* decl = mesh->sharedVertexData[VpNormal]->vertexDeclaration;
+        VertexBufferBinding* bind = mesh->sharedVertexData[VpNormal]->vertexBufferBinding;
 
         size_t offset = 0;
         decl->addElement(0, offset, VET_FLOAT3, VES_POSITION);
@@ -103,13 +104,15 @@ namespace Ogre {
 
         unsigned short faces[6] = {0,1,2,
             0,2,3 };
-        sub->indexData->indexBuffer = ibuf;
-        sub->indexData->indexCount = 6;
-        sub->indexData->indexStart =0;
+        sub->indexData[VpNormal]->indexBuffer = ibuf;
+        sub->indexData[VpNormal]->indexCount = 6;
+        sub->indexData[VpNormal]->indexStart = 0;
         ibuf->writeData(0, ibuf->getSizeInBytes(), faces, true);
 
         mesh->_setBounds(AxisAlignedBox(-100,-100,0,100,100,0), true);
         mesh->_setBoundingSphereRadius(Math::Sqrt(100*100+100*100));
+
+        mesh->prepareForShadowMapping( true );
     }
     //---------------------------------------------------------------------
     void PrefabFactory::createCube(Mesh* mesh)
@@ -213,10 +216,10 @@ namespace Ogre {
             0,0 
         };
 
-        mesh->sharedVertexData = OGRE_NEW VertexData();
-        mesh->sharedVertexData->vertexCount = NUM_VERTICES;
-        VertexDeclaration* decl = mesh->sharedVertexData->vertexDeclaration;
-        VertexBufferBinding* bind = mesh->sharedVertexData->vertexBufferBinding;
+        mesh->sharedVertexData[VpNormal] = OGRE_NEW VertexData();
+        mesh->sharedVertexData[VpNormal]->vertexCount = NUM_VERTICES;
+        VertexDeclaration* decl = mesh->sharedVertexData[VpNormal]->vertexDeclaration;
+        VertexBufferBinding* bind = mesh->sharedVertexData[VpNormal]->vertexBufferBinding;
 
         size_t offset = 0;
         decl->addElement(0, offset, VET_FLOAT3, VES_POSITION);
@@ -266,15 +269,17 @@ namespace Ogre {
             20,22,23
         };
 
-        sub->indexData->indexBuffer = ibuf;
-        sub->indexData->indexCount = NUM_INDICES;
-        sub->indexData->indexStart = 0;
+        sub->indexData[VpNormal]->indexBuffer = ibuf;
+        sub->indexData[VpNormal]->indexCount = NUM_INDICES;
+        sub->indexData[VpNormal]->indexStart = 0;
         ibuf->writeData(0, ibuf->getSizeInBytes(), faces, true);
 
         mesh->_setBounds(AxisAlignedBox(-CUBE_HALF_SIZE, -CUBE_HALF_SIZE, -CUBE_HALF_SIZE,
             CUBE_HALF_SIZE, CUBE_HALF_SIZE, CUBE_HALF_SIZE), true);
 
         mesh->_setBoundingSphereRadius(CUBE_HALF_SIZE);
+
+        mesh->prepareForShadowMapping( true );
     }
     //---------------------------------------------------------------------
     void PrefabFactory::createSphere(Mesh* mesh)
@@ -286,8 +291,8 @@ namespace Ogre {
         const int NUM_RINGS = 16;
         const Real SPHERE_RADIUS = 50.0;
 
-        mesh->sharedVertexData = OGRE_NEW VertexData();
-        VertexData* vertexData = mesh->sharedVertexData;
+        mesh->sharedVertexData[VpNormal] = OGRE_NEW VertexData();
+        VertexData* vertexData = mesh->sharedVertexData[VpNormal];
 
         // define the vertex format
         VertexDeclaration* vertexDecl = vertexData->vertexDeclaration;
@@ -309,9 +314,9 @@ namespace Ogre {
         float* pVertex = static_cast<float*>(vBuf->lock(HardwareBuffer::HBL_DISCARD));
 
         // allocate index buffer
-        pSphereVertex->indexData->indexCount = 6 * NUM_RINGS * (NUM_SEGMENTS + 1);
-        pSphereVertex->indexData->indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(HardwareIndexBuffer::IT_16BIT, pSphereVertex->indexData->indexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY, false);
-        HardwareIndexBufferSharedPtr iBuf = pSphereVertex->indexData->indexBuffer;
+        pSphereVertex->indexData[VpNormal]->indexCount = 6 * NUM_RINGS * (NUM_SEGMENTS + 1);
+        pSphereVertex->indexData[VpNormal]->indexBuffer = HardwareBufferManager::getSingleton().createIndexBuffer(HardwareIndexBuffer::IT_16BIT, pSphereVertex->indexData[VpNormal]->indexCount, HardwareBuffer::HBU_STATIC_WRITE_ONLY, false);
+        HardwareIndexBufferSharedPtr iBuf = pSphereVertex->indexData[VpNormal]->indexBuffer;
         unsigned short* pIndices = static_cast<unsigned short*>(iBuf->lock(HardwareBuffer::HBL_DISCARD));
 
         float fDeltaRingAngle = (Math::PI / NUM_RINGS);
@@ -365,6 +370,9 @@ namespace Ogre {
             Vector3(SPHERE_RADIUS, SPHERE_RADIUS, SPHERE_RADIUS) ), false );
 
         mesh->_setBoundingSphereRadius(SPHERE_RADIUS);
+
+        mesh->prepareForShadowMapping( true );
     }
     //---------------------------------------------------------------------
+}
 }

@@ -50,12 +50,14 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreLodStrategy.h"
 #include "OgreLodListener.h"
 #include "OgreMaterialManager.h"
+#include "OgreHlmsManager.h"
 
 namespace Ogre {
+namespace v1 {
     extern const FastArray<Real> c_DefaultLodMesh;
     //-----------------------------------------------------------------------
-    Entity::Entity ( IdType id, ObjectMemoryManager *objectMemoryManager )
-		: MovableObject( id, objectMemoryManager, RENDER_QUEUE_MAIN ),
+    Entity::Entity ( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager )
+        : MovableObject( id, objectMemoryManager, manager, 1 ),
           mAnimationState(NULL),
           mSkelAnimVertexData(0),
           mTempVertexAnimInfo(),
@@ -85,8 +87,9 @@ namespace Ogre {
         mObjectData.mQueryFlags[mObjectData.mIndex] = SceneManager::QUERY_ENTITY_DEFAULT_MASK;
     }
     //-----------------------------------------------------------------------
-    Entity::Entity( IdType id, ObjectMemoryManager *objectMemoryManager, const MeshPtr& mesh) :
-		MovableObject(id, objectMemoryManager, RENDER_QUEUE_MAIN),
+    Entity::Entity( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                    const MeshPtr& mesh ) :
+        MovableObject(id, objectMemoryManager, manager, 1),
         mMesh(mesh),
         mAnimationState(NULL),
         mSkelAnimVertexData(0),
@@ -145,19 +148,22 @@ namespace Ogre {
             mSkeletonInstance->load();
         }
 
-        mCurrentMaterialLod.resize( mMesh->getNumSubMeshes(), 0 );
         mLodMesh = mMesh->_getLodValueArray();
-        mLodMaterial.resize( mMesh->getNumSubMeshes(), 0 );
 
         // Build main subentity list
         buildSubEntityList(mMesh, &mSubEntityList);
 
-        for( size_t i=0; i<mSubEntityList.size(); ++i )
         {
-            if( !mSubEntityList[i].getMaterial().isNull() )
-                mLodMaterial[i] = mSubEntityList[i].getMaterial()->_getLodValues();
-            else
-                mLodMaterial[i] = &c_DefaultLodMesh;
+            //Without filling the renderables list, the RenderQueue won't
+            //catch our sub entities and thus we won't be rendered
+            mRenderables.reserve( mSubEntityList.size() );
+            SubEntityList::iterator itor = mSubEntityList.begin();
+            SubEntityList::iterator end  = mSubEntityList.end();
+            while( itor != end )
+            {
+                mRenderables.push_back( &(*itor) );
+                ++itor;
+            }
         }
 
         // Check if mesh is using manual LOD
@@ -171,7 +177,8 @@ namespace Ogre {
                 const MeshLodUsage& usage = mMesh->getLodLevel(i);
                 // Manually create entity
                 Entity* lodEnt = OGRE_NEW Entity( Id::generateNewId<MovableObject>(),
-                                                    mObjectMemoryManager, usage.manualMesh );
+                                                  mObjectMemoryManager, mManager,
+                                                  usage.manualMesh );
                 lodEnt->setName( mName + "Lod" + StringConverter::toString(i) );
                 mLodEntityList.push_back(lodEnt);
             }
@@ -193,6 +200,27 @@ namespace Ogre {
 
         reevaluateVertexProcessing();
 
+        HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+        size_t numSubMeshes = mMesh->getNumSubMeshes();
+        for( size_t i=0; i<numSubMeshes; ++i )
+        {
+            SubMesh *subMesh = mMesh->getSubMesh(i);
+            if( subMesh->isMatInitialised() )
+            {
+                //Give preference to HLMS materials of the same name
+                HlmsDatablock *datablock = hlmsManager->getDatablockNoDefault(
+                                                    subMesh->getMaterialName() );
+                if( datablock )
+                {
+                    mSubEntityList[i].setDatablock( datablock );
+                }
+                else
+                {
+                    mSubEntityList[i].setMaterialName( subMesh->getMaterialName(), mMesh->getGroup() );
+                }
+            }
+        }
+
         Aabb aabb;
         if( mMesh->getBounds().isInfinite() )
             aabb = Aabb::BOX_INFINITE;
@@ -200,7 +228,6 @@ namespace Ogre {
             aabb = Aabb::BOX_NULL;
         else
             aabb = Aabb( mMesh->getBounds().getCenter(), mMesh->getBounds().getHalfSize() );
-
         mObjectData.mLocalAabb->setFromAabb( aabb, mObjectData.mIndex );
         mObjectData.mWorldAabb->setFromAabb( aabb, mObjectData.mIndex );
         mObjectData.mLocalRadius[mObjectData.mIndex] = aabb.getRadius();
@@ -217,6 +244,7 @@ namespace Ogre {
 
         // Delete submeshes
         mSubEntityList.clear();
+        mRenderables.clear();
         
         // Delete LOD entities
         LODEntityList::iterator li, liend;
@@ -330,6 +358,26 @@ namespace Ogre {
         return mSubEntityList.size();
     }
     //-----------------------------------------------------------------------
+    void Entity::setDatablock( HlmsDatablock *datablock )
+    {
+        SubEntityList::iterator itor = mSubEntityList.begin();
+        SubEntityList::iterator end  = mSubEntityList.end();
+
+        while( itor != end )
+        {
+            itor->setDatablock( datablock );
+            ++itor;
+        }
+    }
+    //-----------------------------------------------------------------------
+    void Entity::setDatablock( IdString datablockName )
+    {
+        HlmsManager *hlmsManager = Root::getSingleton().getHlmsManager();
+        HlmsDatablock *datablock = hlmsManager->getDatablock( datablockName );
+
+        setDatablock( datablock );
+    }
+    //-----------------------------------------------------------------------
     Entity* Entity::clone(void) const
     {
         if (!mManager)
@@ -348,7 +396,7 @@ namespace Ogre {
             unsigned int n = 0;
             for (i = mSubEntityList.begin(); i != mSubEntityList.end(); ++i, ++n)
             {
-                newEnt->getSubEntity(n)->setMaterialName(i->getMaterialName());
+                newEnt->getSubEntity(n)->setDatablock( i->getDatablock() );
             }
             if (mAnimationState)
             {
@@ -358,6 +406,17 @@ namespace Ogre {
         }
 
         return newEnt;
+    }
+    //-----------------------------------------------------------------------
+    void Entity::setDatablockOrMaterialName( const String& name,
+                                             const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
+    {
+        // Set for all subentities
+        SubEntityList::iterator i;
+        for (i = mSubEntityList.begin(); i != mSubEntityList.end(); ++i)
+        {
+            i->setDatablockOrMaterialName(name, groupName);
+        }
     }
     //-----------------------------------------------------------------------
     void Entity::setMaterialName( const String& name, const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
@@ -380,20 +439,41 @@ namespace Ogre {
             i->setMaterial(material);
         }
     }
-	//-----------------------------------------------------------------------
-	void Entity::setUpdateBoundingBoxFromSkeleton(bool update)
-	{
-		mUpdateBoundingBoxFromSkeleton = update;
-		if (mMesh->isLoaded() && mMesh->getBoneBoundingRadius() == Real(0))
-		{
-			mMesh->_computeBoneBoundingRadius();
-		}
-	}
     //-----------------------------------------------------------------------
+    void Entity::setRenderQueueSubGroup( uint8 subGroup )
+    {
+        // Set for all subentities
+        SubEntityList::iterator i;
+        for (i = mSubEntityList.begin(); i != mSubEntityList.end(); ++i)
+            i->setRenderQueueSubGroup( subGroup );
+#if !OGRE_NO_MESHLOD
+        // Set render queue for all manual LOD entities
+        if (mMesh->hasManualLodLevel())
+        {
+            LODEntityList::iterator li, liend;
+            liend = mLodEntityList.end();
+            for (li = mLodEntityList.begin(); li != liend; ++li)
+            {
+                if(*li != this)
+                    (*li)->setRenderQueueSubGroup( subGroup );
+            }
+        }
+#endif
+    }
+    //-----------------------------------------------------------------------
+    void Entity::setUpdateBoundingBoxFromSkeleton(bool update)
+    {
+        mUpdateBoundingBoxFromSkeleton = update;
+        if (mMesh->isLoaded() && mMesh->getBoneBoundingRadius() == Real(0))
+        {
+            mMesh->_computeBoneBoundingRadius();
+        }
+    }
+    //-----------------------------------------------------------------------
+#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
     void Entity::_notifyCurrentCamera(Camera* cam)
     {
         //TODO (dark_sylinc): This whole state tracking thing feels wrong.
-#ifdef ENABLE_INCOMPATIBLE_OGRE_2_0
         // Calculate the LOD
         if (mParentNode)
         {
@@ -480,12 +560,12 @@ namespace Ogre {
         {
             (*child_itr).second->_notifyCurrentCamera(cam);
         }
-#endif
     }
+#endif
     //-----------------------------------------------------------------------
     void Entity::_updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera)
     {
-        // Do nothing if not initialised yet
+        /*// Do nothing if not initialised yet
         if (!mInitialised)
             return;
 
@@ -571,6 +651,13 @@ namespace Ogre {
                 OldBone* bone = mSkeletonInstance->getBone(b);
                 queue->addRenderable(bone->getDebugRenderable(1), mRenderQueueID, mRenderQueuePriority);
             }
+        }*/
+
+        // Since we know we're going to be rendered, take this opportunity to
+        // update the animation
+        if (hasSkeleton() || hasVertexAnimation())
+        {
+            updateAnimation();
         }
     }
     //-----------------------------------------------------------------------
@@ -604,7 +691,7 @@ namespace Ogre {
     {
         // Do we still have temp buffers for software vertex animation bound?
         bool ret = true;
-        if (mMesh->sharedVertexData && mMesh->getSharedVertexDataAnimationType() != VAT_NONE)
+        if (mMesh->sharedVertexData[VpNormal] && mMesh->getSharedVertexDataAnimationType() != VAT_NONE)
         {
             ret = ret && mTempVertexAnimInfo.buffersCheckedOut(true, mMesh->getSharedVertexDataAnimationIncludesNormals());
         }
@@ -734,7 +821,7 @@ namespace Ogre {
                         // Blend, taking source from either mesh data or morph data
                         Mesh::softwareVertexBlend(
                             (mMesh->getSharedVertexDataAnimationType() != VAT_NONE) ?
-                                mSoftwareVertexAnimVertexData : mMesh->sharedVertexData,
+                                mSoftwareVertexAnimVertexData : mMesh->sharedVertexData[VpNormal],
                             mSkelAnimVertexData,
                             blendMatrices, mMesh->sharedBlendIndexToBoneIndexMap.size(),
                             blendNormals);
@@ -756,7 +843,7 @@ namespace Ogre {
                             // Blend, taking source from either mesh data or morph data
                             Mesh::softwareVertexBlend(
                                 (se.getSubMesh()->getVertexAnimationType() != VAT_NONE)?
-                                    se.mSoftwareVertexAnimVertexData : se.mSubMesh->vertexData,
+                                    se.mSoftwareVertexAnimVertexData : se.mSubMesh->vertexData[VpNormal],
                                 se.mSkelAnimVertexData,
                                 blendMatrices, se.mSubMesh->blendIndexToBoneIndexMap.size(),
                                 blendNormals);
@@ -892,8 +979,9 @@ namespace Ogre {
                     ->vertexBufferBinding->getBuffer(elem->getSource());
                 buf->suppressHardwareUpdate(true);
                 
-                initialisePoseVertexData(mMesh->sharedVertexData, mSoftwareVertexAnimVertexData, 
-                    mMesh->getSharedVertexDataAnimationIncludesNormals());
+                initialisePoseVertexData(mMesh->sharedVertexData[VpNormal],
+                                         mSoftwareVertexAnimVertexData,
+                                         mMesh->getSharedVertexDataAnimationIncludesNormals());
             }
             for (SubEntityList::iterator si = mSubEntityList.begin();
                 si != mSubEntityList.end(); ++si)
@@ -909,7 +997,7 @@ namespace Ogre {
                         ->vertexBufferBinding->getBuffer(elem->getSource());
                     buf->suppressHardwareUpdate(true);
                     // if we're animating normals, we need to start with zeros
-                    initialisePoseVertexData(sub.getSubMesh()->vertexData, data,
+                    initialisePoseVertexData(sub.getSubMesh()->vertexData[VpNormal], data,
                         sub.getSubMesh()->getVertexAnimationIncludesNormals());
                 }
             }
@@ -942,7 +1030,7 @@ namespace Ogre {
             {
                 // if we're animating normals, if pose influence < 1 need to use the base mesh
                 if (mMesh->getSharedVertexDataAnimationIncludesNormals())
-                    finalisePoseNormals(mMesh->sharedVertexData, mSoftwareVertexAnimVertexData);
+                    finalisePoseNormals(mMesh->sharedVertexData[VpNormal], mSoftwareVertexAnimVertexData);
             
                 const VertexElement* elem = mSoftwareVertexAnimVertexData
                     ->vertexDeclaration->findElementBySemantic(VES_POSITION);
@@ -960,7 +1048,7 @@ namespace Ogre {
                     VertexData* data = sub._getSoftwareVertexAnimVertexData();
                     // if we're animating normals, if pose influence < 1 need to use the base mesh
                     if (sub.getSubMesh()->getVertexAnimationIncludesNormals())
-                        finalisePoseNormals(sub.getSubMesh()->vertexData, data);
+                        finalisePoseNormals(sub.getSubMesh()->vertexData[VpNormal], data);
                     
                     const VertexElement* elem = data->vertexDeclaration
                         ->findElementBySemantic(VES_POSITION);
@@ -995,16 +1083,17 @@ namespace Ogre {
         //  We didn't apply any animation and
         //    We're morph animated (hardware binds keyframe, software is missing)
         //    or we're pose animated and software (hardware is fine, still bound)
-        if (mMesh->sharedVertexData &&
+        if (mMesh->sharedVertexData[VpNormal] &&
             !mVertexAnimationAppliedThisFrame &&
             (!hardwareAnimation || mMesh->getSharedVertexDataAnimationType() == VAT_MORPH))
         {
             // Note, VES_POSITION is specified here but if normals are included in animation
             // then these will be re-bound too (buffers must be shared)
             const VertexElement* srcPosElem =
-                mMesh->sharedVertexData->vertexDeclaration->findElementBySemantic(VES_POSITION);
+                mMesh->sharedVertexData[VpNormal]->vertexDeclaration->
+                    findElementBySemantic(VES_POSITION);
             HardwareVertexBufferSharedPtr srcBuf =
-                mMesh->sharedVertexData->vertexBufferBinding->getBuffer(
+                mMesh->sharedVertexData[VpNormal]->vertexBufferBinding->getBuffer(
                     srcPosElem->getSource());
 
             // Bind to software
@@ -1018,10 +1107,11 @@ namespace Ogre {
         // rebind any missing hardware pose buffers
         // Caused by not having any animations enabled, or keyframes which reference
         // no poses
-        if (mMesh->sharedVertexData && hardwareAnimation 
+        if (mMesh->sharedVertexData[VpNormal] && hardwareAnimation
             && mMesh->getSharedVertexDataAnimationType() == VAT_POSE)
         {
-            bindMissingHardwarePoseBuffers(mMesh->sharedVertexData, mHardwareVertexAnimVertexData);
+            bindMissingHardwarePoseBuffers(mMesh->sharedVertexData[VpNormal],
+                                           mHardwareVertexAnimVertexData);
         }
 
 
@@ -1235,7 +1325,7 @@ namespace Ogre {
     {
         return mDisplaySkeleton;
     }
-	//-----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
     Entity* Entity::getManualLodLevel(size_t index) const
     {
 #if !OGRE_NO_MESHLOD
@@ -1247,7 +1337,7 @@ namespace Ogre {
         return NULL;
 #endif
     }
-	//-----------------------------------------------------------------------
+    //-----------------------------------------------------------------------
     size_t Entity::getNumManualLodLevels(void) const
     {
         return mLodEntityList.size();
@@ -1265,8 +1355,6 @@ namespace Ogre {
         {
             subMesh = mesh->getSubMesh(i);
             sublist->push_back( SubEntity( this, subMesh ) );
-            if (subMesh->isMatInitialised())
-                sublist->back().setMaterialName(subMesh->getMaterialName(), mesh->getGroup());
         }
     }
     //-----------------------------------------------------------------------
@@ -1429,33 +1517,33 @@ namespace Ogre {
         if (hasVertexAnimation())
         {
             // Shared data
-            if (mMesh->sharedVertexData
+            if (mMesh->sharedVertexData[VpNormal]
                 && mMesh->getSharedVertexDataAnimationType() != VAT_NONE)
             {
                 // Create temporary vertex blend info
                 // Prepare temp vertex data if needed
                 // Clone without copying data, don't remove any blending info
                 // (since if we skeletally animate too, we need it)
-                mSoftwareVertexAnimVertexData = mMesh->sharedVertexData->clone(false);
+                mSoftwareVertexAnimVertexData = mMesh->sharedVertexData[VpNormal]->clone(false);
                 extractTempBufferInfo(mSoftwareVertexAnimVertexData, &mTempVertexAnimInfo);
 
                 // Also clone for hardware usage, don't remove blend info since we'll
                 // need it if we also hardware skeletally animate
-                mHardwareVertexAnimVertexData = mMesh->sharedVertexData->clone(false);
+                mHardwareVertexAnimVertexData = mMesh->sharedVertexData[VpNormal]->clone(false);
             }
         }
 
         if (hasSkeleton())
         {
             // Shared data
-            if (mMesh->sharedVertexData)
+            if (mMesh->sharedVertexData[VpNormal])
             {
                 // Create temporary vertex blend info
                 // Prepare temp vertex data if needed
                 // Clone without copying data, remove blending info
                 // (since blend is performed in software)
                 mSkelAnimVertexData =
-                    cloneVertexDataRemoveBlendInfo(mMesh->sharedVertexData);
+                    cloneVertexDataRemoveBlendInfo(mMesh->sharedVertexData[VpNormal]);
                 extractTempBufferInfo(mSkelAnimVertexData, &mTempSkelAnimInfo);
             }
 
@@ -1576,6 +1664,7 @@ namespace Ogre {
         for (i = mSubEntityList.begin(); i != iend; ++i)
         {
             SubEntity &sub = *i;
+
             const MaterialPtr& m = sub.getMaterial();
 
             if( m.isNull() )
@@ -1709,7 +1798,7 @@ namespace Ogre {
     {
         bool skel = hasSkeleton();
 
-        if (orig == mMesh->sharedVertexData)
+        if (orig == mMesh->sharedVertexData[VpNormal] || orig == mMesh->sharedVertexData[VpShadow])
         {
             return skel? mSkelAnimVertexData : mSoftwareVertexAnimVertexData;
         }
@@ -1717,7 +1806,8 @@ namespace Ogre {
         iend = mSubEntityList.end();
         for (i = mSubEntityList.begin(); i != iend; ++i)
         {
-            if (orig == i->getSubMesh()->vertexData)
+            if (orig == i->getSubMesh()->vertexData[VpNormal] ||
+                orig == i->getSubMesh()->vertexData[VpShadow])
             {
                 return skel? i->_getSkelAnimVertexData() : i->_getSoftwareVertexAnimVertexData();
             }
@@ -1730,7 +1820,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     SubEntity* Entity::findSubEntityForVertexData(const VertexData* orig)
     {
-        if (orig == mMesh->sharedVertexData)
+        if (orig == mMesh->sharedVertexData[VpNormal] || orig == mMesh->sharedVertexData[VpShadow])
         {
             return 0;
         }
@@ -1739,7 +1829,8 @@ namespace Ogre {
         iend = mSubEntityList.end();
         for (i = mSubEntityList.begin(); i != iend; ++i)
         {
-            if (orig == i->getSubMesh()->vertexData)
+            if (orig == i->getSubMesh()->vertexData[VpNormal] ||
+                orig == i->getSubMesh()->vertexData[VpShadow])
             {
                 return &(*i);
             }
@@ -1800,22 +1891,6 @@ namespace Ogre {
             }
         }
 #endif
-    }
-    //-----------------------------------------------------------------------
-    void Entity::setRenderQueueGroupAndPriority(uint8 queueID, ushort priority)
-    {
-        MovableObject::setRenderQueueGroupAndPriority(queueID, priority);
-
-        // Set render queue for all manual LOD entities
-        if (mMesh->hasManualLodLevel())
-        {
-            LODEntityList::iterator li, liend;
-            liend = mLodEntityList.end();
-            for (li = mLodEntityList.begin(); li != liend; ++li)
-            {
-                (*li)->setRenderQueueGroupAndPriority(queueID, priority);
-            }
-        }
     }
     //-----------------------------------------------------------------------
     void Entity::shareSkeletonInstanceWith(Entity* entity)
@@ -1906,23 +1981,26 @@ namespace Ogre {
         mMesh->_refreshAnimationState(mAnimationState);
     }
     //-----------------------------------------------------------------------
-    VertexData* Entity::getVertexDataForBinding(void)
+    VertexData* Entity::getVertexDataForBinding( bool casterPass )
     {
         Entity::VertexDataBindChoice c =
             chooseVertexDataForBinding(mMesh->getSharedVertexDataAnimationType() != VAT_NONE);
         switch(c)
         {
         case BIND_ORIGINAL:
-            return mMesh->sharedVertexData;
+            return mMesh->sharedVertexData[casterPass];
         case BIND_HARDWARE_MORPH:
+            assert( !casterPass );
             return mHardwareVertexAnimVertexData;
         case BIND_SOFTWARE_MORPH:
+            assert( !casterPass );
             return mSoftwareVertexAnimVertexData;
         case BIND_SOFTWARE_SKELETAL:
+            assert( !casterPass );
             return mSkelAnimVertexData;
         };
         // keep compiler happy
-        return mMesh->sharedVertexData;
+        return mMesh->sharedVertexData[casterPass];
     }
     //-----------------------------------------------------------------------
     Entity::VertexDataBindChoice Entity::chooseVertexDataForBinding(bool vertexAnim)
@@ -1998,8 +2076,9 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------
     MovableObject* EntityFactory::createInstanceImpl( IdType id,
-                                            ObjectMemoryManager *objectMemoryManager,
-                                            const NameValuePairList* params )
+                                                      ObjectMemoryManager *objectMemoryManager,
+                                                      SceneManager* manager,
+                                                      const NameValuePairList* params )
     {
         // must have mesh parameter
         MeshPtr pMesh;
@@ -2033,7 +2112,7 @@ namespace Ogre {
                 "EntityFactory::createInstance");
         }
 
-        return OGRE_NEW Entity( id, objectMemoryManager, pMesh );
+        return OGRE_NEW Entity( id, objectMemoryManager, manager, pMesh );
     }
     //-----------------------------------------------------------------------
     void EntityFactory::destroyInstance( MovableObject* obj)
@@ -2041,5 +2120,5 @@ namespace Ogre {
         OGRE_DELETE obj;
     }
 
-
+}
 }

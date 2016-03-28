@@ -101,6 +101,10 @@ if (UNIX AND NOT APPLE AND NOT ANDROID AND NOT EMSCRIPTEN)
   mark_as_advanced(XAW_LIBRARY)
 endif ()
 
+# Find rapidjson
+find_package(Rapidjson)
+macro_log_feature(Rapidjson_FOUND "rapidjson" "C++ JSON parser" "http://rapidjson.org/" FALSE "" "")
+
 
 #######################################################################
 # RenderSystem dependencies
@@ -255,6 +259,10 @@ else ()
 	macro_log_feature(OIS_FOUND "OIS" "Input library needed for the samples" "http://sourceforge.net/projects/wgois" FALSE "" "")
 endif ()
 
+# Find sdl2
+find_package(SDL2)
+macro_log_feature(SDL2_FOUND "SDL2" "Simple DirectMedia Library" "https://www.libsdl.org/" FALSE "" "")
+
 #######################################################################
 # Tools
 #######################################################################
@@ -297,6 +305,7 @@ include_directories(
   ${ZZip_INCLUDE_DIRS}
   ${FreeImage_INCLUDE_DIRS}
   ${FREETYPE_INCLUDE_DIRS}
+  ${Rapidjson_INCLUDE_DIRS}
   ${OPENGL_INCLUDE_DIRS}
   ${OPENGLES_INCLUDE_DIRS}
   ${OPENGLES2_INCLUDE_DIRS}

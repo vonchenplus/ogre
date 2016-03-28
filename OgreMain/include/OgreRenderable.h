@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreCommon.h"
 
+#include "OgreIdString.h"
 #include "OgreGpuProgram.h"
 #include "OgreGpuProgramParams.h"
 #include "OgreMatrix4.h"
@@ -39,10 +40,12 @@ THE SOFTWARE.
 #include "OgreVector4.h"
 #include "OgreException.h"
 #include "OgreUserObjectBindings.h"
-#include "OgreHlms.h"
+#include "OgreLodStrategy.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+
+    typedef FastArray<VertexArrayObject*> VertexArrayObjectArray;
 
     /** \addtogroup Core
     *  @{
@@ -71,31 +74,25 @@ namespace Ogre {
         */
         class RenderSystemData {}; 
     public:
-        Renderable() : mPolygonModeOverrideable(true), mUseIdentityProjection(false), mUseIdentityView(false), mRenderSystemData(NULL) {}
+        Renderable();
+
         /** Virtual destructor needed as class has virtual methods. */
-        virtual ~Renderable() 
-        {
-            if (mRenderSystemData)
-            {
-                delete mRenderSystemData;
-                mRenderSystemData = NULL;
-            }
-        }
-        /** Retrieves a weak reference to the material this renderable object uses.
-        @remarks
-            Note that the Renderable also has the option to override the getTechnique method
-            to specify a particular Technique to use instead of the best one available.
+        virtual ~Renderable();
+
+        /// Sets the name of the Material to be used. Prefer using HLMS @See setHlms
+        void setMaterialName( const String& name, const String& groupName );
+
+        /// Sets the given material. Overrides HLMS materials.
+        virtual void setMaterial( const MaterialPtr& material );
+
+        /** Retrieves the material this renderable object uses. It may be null if it's using
+            the HLMS. @See getDatablock
         */
-        virtual const MaterialPtr& getMaterial(void) const = 0;
-        /** Retrieves a pointer to the Material Technique this renderable object uses.
-        @remarks
-            This is to allow Renderables to use a chosen Technique if they wish, otherwise
-            they will use the best Technique available for the Material they are using.
-        */
-        virtual Technique* getTechnique(void) const { return getMaterial()->getBestTechnique(0, this); }
+        MaterialPtr getMaterial(void) const;
+
         /** Gets the render operation required to send this object to the frame buffer.
         */
-        virtual void getRenderOperation(RenderOperation& op) = 0;
+        virtual void getRenderOperation(v1::RenderOperation& op, bool casterPass) = 0;
 
         /** Called just prior to the Renderable being rendered. 
         @remarks
@@ -153,6 +150,30 @@ namespace Ogre {
         */
         virtual unsigned short getNumWorldTransforms(void) const { return 1; }
 
+        bool hasSkeletonAnimation(void) const               { return mHasSkeletonAnimation; }
+
+        /** Returns whether the world matrix is an identify matrix.
+        @remarks
+            It is up to the Hlms implementation whether to honour this request. Take in mind
+            changes of this value at runtime may not be seen until the datablock is flushed.
+            It is implemented as a virtual call because this functionality isn't required
+            very often (hence we save per-Renderable space for those that don't use it)
+            and this function will be called at creation time to use a different shader;
+            not during rendering time per Renderable.
+        */
+        virtual bool getUseIdentityWorldMatrix(void) const          { return false; }
+
+        /** Returns whether the Hlms implementation should evaluate getUseIdentityProjection
+            per object at runtime, or if it can assume the Renderable will remain with
+            the same setting until the datablock is flushed (performance optimization)
+        @remarks
+            Hlms implementations may ignore this setting (e.g. assume always true or always
+            false) or even not support identity matrix overrides at all.
+            For example currently Unlit supports them all, but will assume this returns
+            always true if getUseIdentityWorldMatrix returns false.
+        */
+        virtual bool getUseIdentityViewProjMatrixIsDynamic(void) const  { return false; }
+
         /** Sets whether or not to use an 'identity' projection.
         @remarks
             Usually Renderable objects will use a projection matrix as determined
@@ -202,13 +223,6 @@ namespace Ogre {
         @see Renderable::setUseIdentityView
         */
         bool getUseIdentityView(void) const { return mUseIdentityView; }
-
-        /** Returns the camera-relative squared depth of this renderable.
-        @remarks
-            Used to sort transparent objects. Squared depth is used rather than
-            actual depth to avoid having to perform a square root on the result.
-        */
-        virtual Real getSquaredViewDepth(const Camera* cam) const = 0;
 
         /** Gets a list of lights, ordered relative to how close they are to this renderable.
         @remarks
@@ -410,24 +424,95 @@ namespace Ogre {
             mRenderSystemData = val; 
         }
 
+        const VertexArrayObjectArray& getVaos( VertexPass vertexPass ) const
+                                                { return mVaoPerLod[vertexPass]; }
+
         uint32 getHlmsHash(void) const          { return mHlmsHash; }
         uint32 getHlmsCasterHash(void) const    { return mHlmsCasterHash; }
+        HlmsDatablock* getDatablock(void) const { return mHlmsDatablock; }
 
-        void setHlms( Hlms *hlms, const HlmsParamVec &params )
-        {
-            hlms->calculateHashFor( this, params, mHlmsHash, mHlmsCasterHash );
-        }
+        /** First tries to see if an HLMS datablock exist with the given name,
+            if not, tries to search among low level materials.
+        */
+        void setDatablockOrMaterialName( String materialName, String groupName );
+
+        /** Assigns a datablock (i.e. HLMS material) based on its unique name.
+        @remarks
+            An null IdString() is valid, it will use the default material
+        */
+        void setDatablock( IdString datablockName );
+
+        /// Assigns a datablock (i.e. HLMS Material) to this renderable
+        virtual void setDatablock( HlmsDatablock *datablock );
+
+        /// Manually sets the hlms hashes. Don't call this directly
+        virtual void _setHlmsHashes( uint32 hash, uint32 casterHash );
+
+        uint8 getCurrentMaterialLod(void) const { return mCurrentMaterialLod; }
+
+        friend void LodStrategy::lodSet( ObjectData &t, Real lodValues[ARRAY_PACKED_REALS] );
+
+        /** Sets the render queue sub group.
+        @remarks
+            Within the same RenderQueue ID, you may want to have the renderables to have a
+            specific order (i.e. have a mesh, but the hair submesh with alpha blending
+            needs to be rendered last).
+        @par
+            RenderQueue Subgroups are useful for manually sorting objects, just like
+            RenderQueue IDs. However, RenderQueue IDs can also be useful for skipping
+            large number of objects through clever compositing and thus a performance
+            optimization. Subgroups cannot be used for such optimizations.
+        @param subGroup
+            The sub group. This value can't exceed OGRE_MAKE_MASK( SubRqIdBits )
+            @See RenderQueue
+        */
+        void setRenderQueueSubGroup( uint8 subGroup )   { mRenderQueueSubGroup = subGroup; }
+        uint8 getRenderQueueSubGroup(void) const        { return mRenderQueueSubGroup; }
 
     protected:
         typedef map<size_t, Vector4>::type CustomParameterMap;
         CustomParameterMap mCustomParameters;
-        uint32 mHlmsHash;
-        uint32 mHlmsCasterHash;
+        /// VAO to render the submesh. One per LOD level. Each LOD may or
+        /// may not share the vertex and index buffers the other levels
+        /// [0] = Used for regular rendering
+        /// [1] = Used for shadow map caster passes
+        /// Note that mVaoPerLod[1] = mVaoPerLod[0] is valid.
+        /// But if they're not exactly the same VertexArrayObject pointers,
+        /// then they won't share any pointer.
+        VertexArrayObjectArray  mVaoPerLod[NumVertexPass];
+        uint32              mHlmsHash;
+        uint32              mHlmsCasterHash;
+        HlmsDatablock       *mHlmsDatablock;
+        MaterialPtr         mMaterial; /// Only valid when using low level materials
+        uint8               mRenderQueueSubGroup;
+        bool                    mHasSkeletonAnimation;
+        uint8                   mCurrentMaterialLod;
+        FastArray<Real> const   *mLodMaterial;
+
+        /** Index in the vector holding this Rendrable reference in the HLMS datablock.
+            Used for O(1) removals.
+        @remarks
+            Despite being public, Do NOT modify it manually.
+        */
+        public: uint32      mHlmsGlobalIndex;
+    protected:
         bool mPolygonModeOverrideable;
         bool mUseIdentityProjection;
         bool mUseIdentityView;
         UserObjectBindings mUserObjectBindings;      /// User objects binding.
         mutable RenderSystemData * mRenderSystemData;/// This should be used only by a render system for internal use
+    };
+
+    class _OgreExport RenderableAnimated : public Renderable
+    {
+    public:
+        typedef FastArray<unsigned short> IndexMap;
+    protected:
+        IndexMap    *mBlendIndexToBoneIndexMap;
+    public:
+        RenderableAnimated();
+
+        const IndexMap* getBlendIndexToBoneIndexMap(void) const { return mBlendIndexToBoneIndexMap; }
     };
 
     /** @} */

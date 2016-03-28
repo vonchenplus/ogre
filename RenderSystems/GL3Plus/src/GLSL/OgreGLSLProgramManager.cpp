@@ -39,6 +39,20 @@
 
 namespace Ogre {
 
+    const size_t c_numTypeQualifiers = 8;
+
+    const String c_typeQualifiers[c_numTypeQualifiers] =
+    {
+        "lowp",
+        "mediump",
+        "highp",
+        "restrict",
+        "coherent",
+        "volatile",
+        "readonly",
+        "writeonly"
+    };
+
     
     GLSLProgramManager::GLSLProgramManager(const GL3PlusSupport& support) :
         mActiveVertexShader(NULL),
@@ -244,6 +258,9 @@ namespace Ogre {
             defToUpdate.constType = GCT_SAMPLER2DSHADOW;
             break;
         case GL_INT:
+        case GL_SAMPLER_BUFFER:
+        case GL_INT_SAMPLER_BUFFER:
+        case GL_UNSIGNED_INT_SAMPLER_BUFFER:
             defToUpdate.constType = GCT_INT1;
             break;
         case GL_INT_VEC2:
@@ -347,7 +364,10 @@ namespace Ogre {
             defToUpdate.constType = GCT_BOOL4;
             break;
         default:
-            defToUpdate.constType = GCT_UNKNOWN;
+            if( gltype >= GL_IMAGE_1D && gltype <= GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY )
+                defToUpdate.constType = GCT_INT1;
+            else
+                defToUpdate.constType = GCT_UNKNOWN;
             break;
         }
 
@@ -680,6 +700,7 @@ namespace Ogre {
 
         GLint blockCount = 0;
 
+#if 0
         // Now deal with uniform blocks
 
         OGRE_CHECK_GL_ERROR(glGetProgramiv(programObject, GL_ACTIVE_UNIFORM_BLOCKS, &blockCount));
@@ -695,23 +716,24 @@ namespace Ogre {
             //TODO error handling for when buffer has no associated shared parameter?
             //if (bufferi == mSharedParamGLBufferMap.end()) continue;
 
-            GL3PlusHardwareUniformBuffer* hwGlBuffer;
+            v1::GL3PlusHardwareUniformBuffer* hwGlBuffer;
             SharedParamsBufferMap::const_iterator bufferMapi = sharedParamsBufferMap.find(blockSharedParams);
             if (bufferMapi != sharedParamsBufferMap.end())
             {
-                hwGlBuffer = static_cast<GL3PlusHardwareUniformBuffer*>(bufferMapi->second.get());
+                hwGlBuffer = static_cast<v1::GL3PlusHardwareUniformBuffer*>(bufferMapi->second.get());
             }
             else
             {
                 // Create buffer and add entry to buffer map.
                 GLint blockSize;
                 OGRE_CHECK_GL_ERROR(glGetActiveUniformBlockiv(programObject, index, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize));
-                HardwareUniformBufferSharedPtr newUniformBuffer = HardwareBufferManager::getSingleton().createUniformBuffer(blockSize, HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE, false, uniformName);
+                v1::HardwareUniformBufferSharedPtr newUniformBuffer = v1::HardwareBufferManager::getSingleton().
+                        createUniformBuffer(blockSize, v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE, false, uniformName);
                 // bufferMapi->second() = newUniformBuffer;
-                hwGlBuffer = static_cast<GL3PlusHardwareUniformBuffer*>(newUniformBuffer.get());
+                hwGlBuffer = static_cast<v1::GL3PlusHardwareUniformBuffer*>(newUniformBuffer.get());
                 GLint bufferBinding = sharedParamsBufferMap.size();
                 hwGlBuffer->setGLBufferBinding(bufferBinding);
-                std::pair<GpuSharedParametersPtr, HardwareUniformBufferSharedPtr> newPair (blockSharedParams, newUniformBuffer);
+                std::pair<GpuSharedParametersPtr, v1::HardwareUniformBufferSharedPtr> newPair (blockSharedParams, newUniformBuffer);
                 sharedParamsBufferMap.insert(newPair);
 
                 // Get active block parameter properties.
@@ -753,11 +775,12 @@ namespace Ogre {
 
             OGRE_CHECK_GL_ERROR(glUniformBlockBinding(programObject, index, bufferBinding));
         }
+#endif
 
         // Now deal with shader storage blocks
 
         //TODO Need easier, more robust feature checking.
-        // if (mGLSupport.checkExtension("GL_ARB_program_interface_query") || gl3wIsSupported(4, 3))
+        // if (mGLSupport.checkExtension("GL_ARB_program_interface_query") || mHasGL43)
         if (mGLSupport.hasMinGLVersion(4, 3))
         {
             OGRE_CHECK_GL_ERROR(glGetProgramInterfaceiv(programObject, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &blockCount));
@@ -780,11 +803,11 @@ namespace Ogre {
 
                 // No more shader storage blocks.
                 // if (uniformName == 0) break;
-                GL3PlusHardwareShaderStorageBuffer* hwGlBuffer;
+                v1::GL3PlusHardwareShaderStorageBuffer* hwGlBuffer;
                 SharedParamsBufferMap::const_iterator bufferMapi = sharedParamsBufferMap.find(blockSharedParams);
                 if (bufferMapi != sharedParamsBufferMap.end())
                 {
-                    hwGlBuffer = static_cast<GL3PlusHardwareShaderStorageBuffer*>(bufferMapi->second.get());
+                    hwGlBuffer = static_cast<v1::GL3PlusHardwareShaderStorageBuffer*>(bufferMapi->second.get());
                 }
                 else
                 {
@@ -806,8 +829,8 @@ namespace Ogre {
                     //blockSize = properties[0];
                     //TODO Implement shared param access param in materials (R, W, R+W)
                     // HardwareUniformBufferSharedPtr newShaderStorageBuffer = static_cast<GL3PlusHardwareBufferManager*>(HardwareBufferManager::getSingletonPtr())->createShaderStorageBuffer(blockSize, HardwareBuffer::HBU_DYNAMIC, false, uniformName);
-                    HardwareUniformBufferSharedPtr newShaderStorageBuffer = static_cast<GL3PlusHardwareBufferManager*>(HardwareBufferManager::getSingletonPtr())->createShaderStorageBuffer(blockSize, HardwareBuffer::HBU_DYNAMIC, false, uniformName);
-                    hwGlBuffer = static_cast<GL3PlusHardwareShaderStorageBuffer*>(newShaderStorageBuffer.get());
+                    v1::HardwareUniformBufferSharedPtr newShaderStorageBuffer = static_cast<v1::GL3PlusHardwareBufferManager*>(v1::HardwareBufferManager::getSingletonPtr())->createShaderStorageBuffer(blockSize, v1::HardwareBuffer::HBU_DYNAMIC, false, uniformName);
+                    hwGlBuffer = static_cast<v1::GL3PlusHardwareShaderStorageBuffer*>(newShaderStorageBuffer.get());
 
                     // OGRE_CHECK_GL_ERROR(glGetActiveUniformBlockiv(programObject, index, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize));
                     // OGRE_CHECK_GL_ERROR(glGetActiveUniformBlockiv(programObject, index, GL_UNIFORM_BLOCK_BINDING, &blockBinding));
@@ -816,7 +839,7 @@ namespace Ogre {
                     GLint bufferBinding = sharedParamsBufferMap.size();
                     hwGlBuffer->setGLBufferBinding(bufferBinding);
 
-                    std::pair<GpuSharedParametersPtr, HardwareUniformBufferSharedPtr> newPair (blockSharedParams, newShaderStorageBuffer);
+                    std::pair<GpuSharedParametersPtr, v1::HardwareUniformBufferSharedPtr> newPair (blockSharedParams, newShaderStorageBuffer);
                     //sharedParamsBufferMap.insert(newPair);
 
                     // Get active block parameter properties.
@@ -847,9 +870,9 @@ namespace Ogre {
                 OGRE_CHECK_GL_ERROR(glGetActiveAtomicCounterBufferiv(programObject, index, GL_ATOMIC_COUNTER_BUFFER_DATA_SIZE, &bufferSize));
                 OGRE_CHECK_GL_ERROR(glGetActiveAtomicCounterBufferiv(programObject, index, GL_ATOMIC_COUNTER_BUFFER_BINDING, &bufferBinding));
                 //TODO check parameters of this GL call
-                HardwareCounterBufferSharedPtr newCounterBuffer = HardwareBufferManager::getSingleton().createCounterBuffer(bufferSize, HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE, false);
+                v1::HardwareCounterBufferSharedPtr newCounterBuffer = v1::HardwareBufferManager::getSingleton().createCounterBuffer(bufferSize, v1::HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY_DISCARDABLE, false);
 
-                GL3PlusHardwareCounterBuffer* hwGlBuffer = static_cast<GL3PlusHardwareCounterBuffer*>(newCounterBuffer.get());
+                v1::GL3PlusHardwareCounterBuffer* hwGlBuffer = static_cast<v1::GL3PlusHardwareCounterBuffer*>(newCounterBuffer.get());
                 hwGlBuffer->setGLBufferBinding(bufferBinding);
                 counterBufferList.push_back(newCounterBuffer);
             }
@@ -888,6 +911,7 @@ namespace Ogre {
             if (!inLargerString)
             {
                 String::size_type endPos;
+                String typeString;
                 GpuSharedParametersPtr blockSharedParams;
 
                 // Check for a type. If there is one, then the
@@ -896,12 +920,25 @@ namespace Ogre {
                 String::size_type lineEndPos = src.find_first_of("\n\r", currPos);
                 line = src.substr(currPos, lineEndPos - currPos);
                 StringVector parts = StringUtil::split(line, " \t");
-                StringToEnumMap::iterator typei = mTypeEnumMap.find(parts.front());
+
+                size_t partStart = 0;
+                for( size_t i=0; i<c_numTypeQualifiers && partStart<parts.size(); ++i )
+                {
+                    if( StringUtil::match( parts[partStart], c_typeQualifiers[i] ) )
+                    {
+                        i = 0;
+                        ++partStart;
+                    }
+                }
+
+                if( partStart < parts.size() )
+                    typeString = parts[partStart];
+                else
+                    typeString = parts[0];
+
+                StringToEnumMap::iterator typei = mTypeEnumMap.find(typeString);
                 if (typei == mTypeEnumMap.end())
                 {
-                    // Gobble up the external name
-                    String externalName = parts.front();
-
                     // Now there should be an opening brace
                     String::size_type openBracePos = src.find("{", currPos);
                     if (openBracePos != String::npos)
@@ -1032,11 +1069,15 @@ namespace Ogre {
                 StringUtil::trim(*i);
                 if (i->empty()) continue;
 
-                // Skip over precision keywords
-                if(StringUtil::match((*i), "lowp") ||
-                   StringUtil::match((*i), "mediump") ||
-                   StringUtil::match((*i), "highp"))
-                    continue;
+                {
+                    // Skip over precision keywords & other similar type qualifiers
+                    bool skipElement = false;
+                    for( size_t j=0; j<c_numTypeQualifiers && !skipElement; ++j )
+                        skipElement = StringUtil::match( *i, c_typeQualifiers[j] );
+
+                    if( skipElement )
+                        continue;
+                }
 
                 String::size_type arrayStart = i->find("[", 0);
                 if (arrayStart != String::npos)
@@ -1127,7 +1168,7 @@ namespace Ogre {
                         const GpuConstantDefinition &sharedDef = sharedParams->getConstantDefinition(paramName);
                         (void)sharedDef;    // Silence warning
                     }
-                    catch (Exception& e)
+                    catch (Exception&)
                     {
                         // This constant doesn't exist so we'll create a new one
                         sharedParams->addConstantDefinition(paramName, def.constType);

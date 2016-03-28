@@ -39,13 +39,15 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     InstancedEntity::InstancedEntity(IdType id, ObjectMemoryManager *objectMemoryManager,
                                         InstanceBatch *batchOwner, uint32 instanceID,
                                  #ifndef OGRE_LEGACY_ANIMATIONS
                                         BoneMemoryManager *boneMemoryManager,
                                  #endif
                                         InstancedEntity* sharedTransformEntity ) :
-                MovableObject( id, objectMemoryManager, 0 ),
+                MovableObject( id, objectMemoryManager, (SceneManager*)0, 1 ),
                 mInstanceId( instanceID ),
                 mInUse( false ),
                 mBatchOwner( batchOwner ),
@@ -522,4 +524,5 @@ namespace Ogre
     {
         return mBatchOwner->_getCustomParam( this, idx );
     }
+}
 }

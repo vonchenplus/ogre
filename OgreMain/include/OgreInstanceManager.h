@@ -35,6 +35,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     /** \addtogroup Core
     *  @{
     */
@@ -150,11 +152,6 @@ namespace Ogre
             in container.
         */
         void applySettingToBatches( BatchSettingId id, bool value, const InstanceBatchVec &container );
-
-        /** Called when we you use a mesh which has shared vertices, the function creates separate
-            vertex/index buffers and also recreates the bone assignments.
-        */
-        void unshareVertices(const Ogre::MeshPtr &mesh);
 
     public:
         InstanceManager( IdString customName, SceneManager *sceneManager,
@@ -354,6 +351,7 @@ namespace Ogre
         }
     };
 
+}
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"

@@ -32,7 +32,7 @@
 #include "OgreGL3PlusHardwarePixelBuffer.h"
 
 namespace Ogre {
-
+namespace v1 {
     /** Texture surface.
      */
     class _OgreGL3PlusExport GL3PlusTextureBuffer: public GL3PlusHardwarePixelBuffer
@@ -75,6 +75,9 @@ namespace Ogre {
         void blitFromTexture(GL3PlusTextureBuffer *src,
                              const Image::Box &srcBox, const Image::Box &dstBox);
 
+        GLenum getGlTarget(void) const          { return mTarget; }
+        GLuint getGlTextureId(void) const       { return mTextureID; }
+
     protected:
         // In case this is a texture level.
         GLenum mTarget;
@@ -92,6 +95,7 @@ namespace Ogre {
         void _bindToFramebuffer(GLenum attachment, uint32 zoffset, GLenum which);
     };
 
+}
 }
 
 #endif

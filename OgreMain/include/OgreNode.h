@@ -57,6 +57,7 @@ namespace Ogre {
     */
     class _OgreExport Node : public NodeAlloc, public IdObject
     {
+        friend class TagPoint;
     public:
         /** Enumeration denoting the spaces which a transform can be relative to.
         */
@@ -97,7 +98,7 @@ namespace Ogre {
         };
 
         /** Inner class for displaying debug renderable for Node. */
-        class DebugRenderable : public Renderable, public NodeAlloc
+        /*class DebugRenderable : public Renderable, public NodeAlloc
         {
         protected:
             Node* mParent;
@@ -114,7 +115,7 @@ namespace Ogre {
             const LightList& getLights(void) const;
             void setScaling(Real s) { mScaling = s; }
 
-        };
+        };*/
 
     protected:
         /// Depth level in the hierarchy tree (0: Root node, 1: Child of root, etc)
@@ -165,8 +166,6 @@ namespace Ogre {
         /// The memory manager used to allocate the Transform.
         NodeMemoryManager *mNodeMemoryManager;
 
-        DebugRenderable* mDebug;
-
         /// User objects binding.
         UserObjectBindings mUserObjectBindings;
 
@@ -202,6 +201,13 @@ namespace Ogre {
 
         /** Gets this node's parent (NULL if this is the root). */
         Node* getParent(void) const;
+
+        /** Migrates the node and all of its children to the new memory manager,
+            at the same depth level.
+        @param nodeMemoryManager
+            New memory manager to migrate to.
+        */
+        void migrateTo( NodeMemoryManager *nodeMemoryManager );
 
         /// Checks whether this node is static. @See setStatic
         bool isStatic() const;
@@ -691,9 +697,6 @@ namespace Ogre {
         /** Helper function, get the squared view depth.  */
         virtual Real getSquaredViewDepth(const Camera* cam) const;
 
-        /** Get a debug renderable for rendering the Node.  */
-        virtual DebugRenderable* getDebugRenderable(Real scaling);
-
         /** @deprecated use UserObjectBindings::setUserAny via getUserObjectBindings() instead.
             Sets any kind of user value on this object.
         @remarks
@@ -731,6 +734,8 @@ namespace Ogre {
             (i.e. Transform) may have changed (e.g. during cleanups, change of parent, etc)
         */
         virtual void _callMemoryChangeListeners(void) = 0;
+
+        virtual NodeMemoryManager* getDefaultNodeMemoryManager( SceneMemoryMgrTypes sceneType ) = 0;
 
 #ifndef NDEBUG
         virtual void _setCachedTransformOutOfDate(void);

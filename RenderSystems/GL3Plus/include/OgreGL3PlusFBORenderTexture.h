@@ -34,7 +34,6 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 namespace Ogre {
     class GL3PlusFBOManager;
-    class GL3PlusRenderBuffer;
 
     /** RenderTexture for GL FBO
      */
@@ -49,7 +48,7 @@ namespace Ogre {
         virtual void swapBuffers();
 
         /// Override so we can attach the depth buffer to the FBO
-        virtual bool attachDepthBuffer( DepthBuffer *depthBuffer );
+        virtual bool attachDepthBuffer( DepthBuffer *depthBuffer, bool exactFormatMatch );
         virtual void detachDepthBuffer();
         virtual void _detachDepthBuffer();
     protected:
@@ -75,7 +74,8 @@ namespace Ogre {
 
         /** Get best depth and stencil supported for given internalFormat
          */
-        void getBestDepthStencil(GLenum internalFormat, GLenum *depthFormat, GLenum *stencilFormat);
+        virtual void getBestDepthStencil( PixelFormat depthFormat, PixelFormat fboFormat,
+                                          GLenum *outDepthFormat, GLenum *outStencilFormat );
 
         /** Create a texture rendertarget object
          */
@@ -169,10 +169,10 @@ namespace Ogre {
         struct RBRef
         {
             RBRef(){}
-        RBRef(GL3PlusRenderBuffer *inBuffer):
+        RBRef(v1::GL3PlusRenderBuffer *inBuffer):
             buffer(inBuffer), refcount(1)
             { }
-            GL3PlusRenderBuffer *buffer;
+            v1::GL3PlusRenderBuffer *buffer;
             size_t refcount;
         };
         typedef map<RBFormat, RBRef>::type RenderBufferMap;

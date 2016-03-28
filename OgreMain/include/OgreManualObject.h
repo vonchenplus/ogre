@@ -38,6 +38,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     /** \addtogroup Core
     *  @{
     */
@@ -107,7 +109,7 @@ namespace Ogre
     class _OgreExport ManualObject : public MovableObject
     {
     public:
-        ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager );
+        ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
         virtual ~ManualObject();
 
         //pre-declare ManualObjectSection
@@ -298,9 +300,13 @@ namespace Ogre
         @note Only objects which use indexed geometry may be converted to a mesh.
         @param meshName The name to give the mesh
         @param groupName The resource group to create the mesh in
+        @param buildShadowMapBuffers
+            True to create an optimized copy of the vertex buffers for efficient
+            shadow mapping.
         */
         virtual MeshPtr convertToMesh(const String& meshName, 
-            const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+            const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+            bool buildShadowMapBuffers = true );
 
         /** Sets whether or not to use an 'identity' projection.
         @remarks
@@ -414,7 +420,7 @@ namespace Ogre
             /** @copydoc Renderable::getMaterial. */
             const MaterialPtr& getMaterial(void) const;
             /** @copydoc Renderable::getRenderOperation. */
-            void getRenderOperation(RenderOperation& op);
+            void getRenderOperation(RenderOperation& op, bool casterPass);
             /** @copydoc Renderable::getWorldTransforms. */
             void getWorldTransforms(Matrix4* xform) const;
             /** @copydoc Renderable::getSquaredViewDepth. */
@@ -504,7 +510,8 @@ namespace Ogre
     {
     protected:
         virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
-                                                    const NameValuePairList* params = 0 );
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         ManualObjectFactory() {}
         ~ManualObjectFactory() {}
@@ -517,6 +524,7 @@ namespace Ogre
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

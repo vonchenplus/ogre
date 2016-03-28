@@ -36,6 +36,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     InstanceBatchHW::InstanceBatchHW( IdType id, ObjectMemoryManager *objectMemoryManager,
                                         InstanceManager *creator, MeshPtr &meshReference,
                                         const MaterialPtr &material, size_t instancesPerBatch,
@@ -89,7 +91,7 @@ namespace Ogre
     //-----------------------------------------------------------------------
     void InstanceBatchHW::setupVertices( const SubMesh* baseSubMesh )
     {
-        mRenderOperation.vertexData = baseSubMesh->vertexData->clone();
+        mRenderOperation.vertexData = baseSubMesh->vertexData[VpNormal]->clone();
         mRemoveOwnVertexData = true; //Raise flag to remove our own vertex data in the end (not always needed)
         
         VertexData *thisVertexData = mRenderOperation.vertexData;
@@ -123,7 +125,7 @@ namespace Ogre
     {
         //We could use just a reference, but the InstanceManager will in the end attampt to delete
         //the pointer, and we can't give it something that doesn't belong to us.
-        mRenderOperation.indexData = baseSubMesh->indexData->clone( true );
+        mRenderOperation.indexData = baseSubMesh->indexData[VpNormal]->clone( true );
         mRemoveOwnIndexData = true; //Raise flag to remove our own index data in the end (not always needed)
     }
     //-----------------------------------------------------------------------
@@ -158,13 +160,13 @@ namespace Ogre
     bool InstanceBatchHW::checkSubMeshCompatibility( const SubMesh* baseSubMesh )
     {
         //Max number of texture coordinates is _usually_ 8, we need at least 3 available
-        if( baseSubMesh->vertexData->vertexDeclaration->getNextFreeTextureCoordinate() > 8-2 )
+        if( baseSubMesh->vertexData[VpNormal]->vertexDeclaration->getNextFreeTextureCoordinate() > 8-2 )
         {
             OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, "Given mesh must have at "
                                                         "least 3 free TEXCOORDs",
                         "InstanceBatchHW::checkSubMeshCompatibility");
         }
-        if( baseSubMesh->vertexData->vertexDeclaration->getNextFreeTextureCoordinate() >
+        if( baseSubMesh->vertexData[VpNormal]->vertexDeclaration->getNextFreeTextureCoordinate() >
             8-2-mCreator->getNumCustomParams() ||
             3 + mCreator->getNumCustomParams() >= 8 )
         {
@@ -188,7 +190,7 @@ namespace Ogre
             ObjectData objData;
             const size_t numObjs = mLocalObjectMemoryManager.getFirstObjectData( objData, 0 );
 
-            visibleObjects = &mManager->_getTmpVisibleObjectsList()[0];
+            visibleObjects = &mManager->_getTmpVisibleObjectsList()[0][mRenderQueueID];
             visibleObjects->clear();
 
             //TODO: Static batches aren't yet supported (camera ptr will be null and crash)
@@ -260,12 +262,13 @@ namespace Ogre
                                                const Camera *lodCamera )
     {
         //if( !mKeepStatic )
-        {
+        /*{
             //Completely override base functionality, since we don't cull on an "all-or-nothing" basis
             //and we don't support skeletal animation
+            //TODO: RENDER QUEUE
             if( (mRenderOperation.numberOfInstances = updateVertexBuffer( camera, lodCamera )) )
                 queue->addRenderable( this, mRenderQueueID, mRenderQueuePriority );
-        }
+        }*/
         /*else
         {
             if( mManager->getCameraRelativeRendering() )
@@ -280,4 +283,5 @@ namespace Ogre
                 queue->addRenderable( this, mRenderQueueID, mRenderQueuePriority );
         }*/
     }
+}
 }

@@ -36,11 +36,15 @@ namespace Ogre
     // forward decls
     class Font;
     class FontManager;
-    class Overlay;
-    class OverlayContainer;
-    class OverlayElement;
-    class OverlayElementFactory;
-    class OverlayManager;
+    namespace v1
+    {
+        class Overlay;
+        class OverlayContainer;
+        class OverlayElement;
+        class OverlayElementFactory;
+        class OverlayManager;
+        class OverlaySystem;
+    }
 
     typedef SharedPtr<Font> FontPtr;
 }
@@ -65,6 +69,18 @@ namespace Ogre
 #   define _OgreOverlayExport
 #endif 
 
-
+#ifdef OGRE_BUILD_COMPONENT_HLMS_UNLIT
+    namespace Ogre
+    {
+        class HlmsUnlitDatablock;
+        typedef HlmsUnlitDatablock OverlayUnlitDatablock;
+    }
+#else
+    namespace Ogre
+    {
+        class HlmsUnlitMobileDatablock;
+        typedef HlmsUnlitMobileDatablock OverlayUnlitDatablock;
+    }
+#endif
 
 #endif 

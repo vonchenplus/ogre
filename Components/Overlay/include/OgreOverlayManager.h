@@ -33,8 +33,10 @@ THE SOFTWARE.
 #include "OgreStringVector.h"
 #include "OgreScriptLoader.h"
 #include "OgreFrustum.h"
+#include "Math/Array/OgreObjectMemoryManager.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -53,6 +55,7 @@ namespace Ogre {
         typedef map<String, Overlay*>::type OverlayMap;
         typedef map<String, OverlayElement*>::type ElementMap;
         typedef map<String, OverlayElementFactory*>::type FactoryMap;
+
     protected:
         OverlayMap mOverlayMap;
         StringVector mScriptPatterns;
@@ -64,6 +67,10 @@ namespace Ogre {
         void skipToNextCloseBrace(DataStreamPtr& chunk);
         void skipToNextOpenBrace(DataStreamPtr& chunk);
 
+    public:
+        uint8 mDefaultRenderQueueId;
+
+    protected:
         int mLastViewportWidth, mLastViewportHeight;
         OrientationMode mLastViewportOrientationMode;
 
@@ -78,7 +85,9 @@ namespace Ogre {
         typedef set<String>::type LoadedScripts;
         LoadedScripts mLoadedScripts;
 
-
+        SceneNode               *mDummyNode;
+        NodeMemoryManager       *mNodeMemoryManager;
+        ObjectMemoryManager     mOverlayMemoryManager;
 
 
         ElementMap& getElementMap(bool isTemplate);
@@ -241,7 +250,7 @@ namespace Ogre {
 
     /** @} */
     /** @} */
-
+}
 }
 
 

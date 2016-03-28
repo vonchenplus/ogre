@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreException.h"
 
 namespace Ogre {
+namespace v1 {
     //-----------------------------------------------------------------------
     SubEntity::SubEntity (Entity* parent, SubMesh* subMeshBasis)
         : Renderable(), mParentEntity(parent), //mMaterialName("BaseWhite"),
@@ -50,6 +51,8 @@ namespace Ogre {
         mHardwarePoseCount = 0;
         mIndexStart = 0;
         mIndexEnd = 0;
+
+        mHasSkeletonAnimation = !subMeshBasis->parent->getSkeleton().isNull();
     }
     //-----------------------------------------------------------------------
     SubEntity::~SubEntity()
@@ -64,84 +67,28 @@ namespace Ogre {
         return mSubMesh;
     }
     //-----------------------------------------------------------------------
-    const String& SubEntity::getMaterialName(void) const
-    {
-        return !mMaterialPtr.isNull() ? mMaterialPtr->getName() : BLANKSTRING;
-    }
-    //-----------------------------------------------------------------------
-    void SubEntity::setMaterialName( const String& name, const String& groupName /* = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME */)
-    {
-        MaterialPtr material = MaterialManager::getSingleton().getByName(name, groupName);
-
-        if( material.isNull() )
-        {
-            LogManager::getSingleton().logMessage("Can't assign material " + name +
-                " to SubEntity of " + mParentEntity->getName() + " because this "
-                "Material does not exist. Have you forgotten to define it in a "
-                ".material script?", LML_CRITICAL);
-
-            material = MaterialManager::getSingleton().getByName("BaseWhite");
-
-            if (material.isNull())
-            {
-                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
-                    "to SubEntity of " + mParentEntity->getName() + ". Did "
-                    "you forget to call MaterialManager::initialise()?",
-                    "SubEntity::setMaterialName");
-            }
-        }
-
-        setMaterial( material );
-    }
-    //-----------------------------------------------------------------------
     void SubEntity::setMaterial( const MaterialPtr& material )
     {
-        mMaterialPtr = material;
-        
-        if (mMaterialPtr.isNull())
-        {
-            LogManager::getSingleton().logMessage("Can't assign material "  
-                " to SubEntity of " + mParentEntity->getName() + " because this "
-                "Material does not exist. Have you forgotten to define it in a "
-                ".material script?", LML_CRITICAL);
-            
-            mMaterialPtr = MaterialManager::getSingleton().getByName("BaseWhite");
-            
-            if (mMaterialPtr.isNull())
-            {
-                OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, "Can't assign default material "
-                    "to SubEntity of " + mParentEntity->getName() + ". Did "
-                    "you forget to call MaterialManager::initialise()?",
-                    "SubEntity::setMaterial");
-            }
-        }
-        
-        // Ensure new material loaded (will not load again if already loaded)
-        mMaterialPtr->load();
-
-        size_t subEntityIndex = this - &(*mParentEntity->mSubEntityList.begin());
-        mParentEntity->mLodMaterial[subEntityIndex] = mMaterialPtr->_getLodValues();
-
         // tell parent to reconsider material vertex processing options
         mParentEntity->reevaluateVertexProcessing();
+
+        Renderable::setMaterial( material );
     }
     //-----------------------------------------------------------------------
-    const MaterialPtr& SubEntity::getMaterial(void) const
+    void SubEntity::setDatablock( HlmsDatablock *datablock )
     {
-        return mMaterialPtr;
+        // tell parent to reconsider material vertex processing options
+        mParentEntity->reevaluateVertexProcessing();
+
+        Renderable::setDatablock( datablock );
     }
     //-----------------------------------------------------------------------
-    Technique* SubEntity::getTechnique(void) const
-    {
-        return mMaterialPtr->getBestTechnique(mMaterialLodIndex, this);
-    }
-    //-----------------------------------------------------------------------
-    void SubEntity::getRenderOperation(RenderOperation& op)
+    void SubEntity::getRenderOperation(RenderOperation& op, bool casterPass)
     {
         // Use LOD
-        mSubMesh->_getRenderOperation(op, mParentEntity->mCurrentMeshLod );
+        mSubMesh->_getRenderOperation( op, mParentEntity->mCurrentMeshLod, casterPass );
         // Deal with any vertex data overrides
-        op.vertexData = getVertexDataForBinding();
+        op.vertexData = getVertexDataForBinding( casterPass );
 
         // If we use custom index position the client is responsible to set meaningful values 
         if(mIndexStart != mIndexEnd)
@@ -153,8 +100,19 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void SubEntity::setIndexDataStartIndex(size_t start_index)
     {
-        if(start_index < mSubMesh->indexData->indexCount)
+        if(start_index < mSubMesh->indexData[VpNormal]->indexCount)
+        {
             mIndexStart = start_index;
+
+            if( start_index && mSubMesh->indexData[VpNormal] != mSubMesh->indexData[VpShadow] )
+            {
+                OGRE_EXCEPT( Exception::ERR_INVALID_CALL,
+                             "To call this function you will have to disable separate "
+                             "vertex/index data for shadow caster passes optimization. "
+                             "See Mesh::prepareForShadowMapping( true )",
+                             "SubEntity::setIndexDataStartIndex" );
+            }
+        }
     }
     //-----------------------------------------------------------------------
     size_t SubEntity::getIndexDataStartIndex() const
@@ -164,8 +122,20 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void SubEntity::setIndexDataEndIndex(size_t end_index)
     {
-        if(end_index > 0 && end_index <= mSubMesh->indexData->indexCount)
+        if(end_index > 0 && end_index <= mSubMesh->indexData[VpNormal]->indexCount)
+        {
             mIndexEnd = end_index;
+
+            if( end_index != mSubMesh->indexData[VpNormal]->indexCount &&
+                mSubMesh->indexData[VpNormal] != mSubMesh->indexData[VpShadow] )
+            {
+                OGRE_EXCEPT( Exception::ERR_INVALID_CALL,
+                             "To call this function you will have to disable separate "
+                             "vertex/index data for shadow caster passes optimization. "
+                             "See Mesh::prepareForShadowMapping( true )",
+                             "SubEntity::setIndexDataStartIndex" );
+            }
+        }
     }
     //-----------------------------------------------------------------------
     size_t SubEntity::getIndexDataEndIndex() const
@@ -179,11 +149,11 @@ namespace Ogre {
         mIndexEnd = 0;
     }
     //-----------------------------------------------------------------------
-    VertexData* SubEntity::getVertexDataForBinding(void)
+    VertexData* SubEntity::getVertexDataForBinding( bool casterPass )
     {
         if (mSubMesh->useSharedVertices)
         {
-            return mParentEntity->getVertexDataForBinding();
+            return mParentEntity->getVertexDataForBinding( casterPass );
         }
         else
         {
@@ -193,16 +163,19 @@ namespace Ogre {
             switch(c)
             {
             case Entity::BIND_ORIGINAL:
-                return mSubMesh->vertexData;
+                return mSubMesh->vertexData[casterPass];
             case Entity::BIND_HARDWARE_MORPH:
+                assert( !casterPass );
                 return mHardwareVertexAnimVertexData;
             case Entity::BIND_SOFTWARE_MORPH:
+                assert( !casterPass );
                 return mSoftwareVertexAnimVertexData;
             case Entity::BIND_SOFTWARE_SKELETAL:
+                assert( !casterPass );
                 return mSkelAnimVertexData;
             };
             // keep compiler happy
-            return mSubMesh->vertexData;
+            return mSubMesh->vertexData[casterPass];
 
         }
     }
@@ -320,12 +293,12 @@ namespace Ogre {
                 // Prepare temp vertex data if needed
                 // Clone without copying data, don't remove any blending info
                 // (since if we skeletally animate too, we need it)
-                mSoftwareVertexAnimVertexData = mSubMesh->vertexData->clone(false);
+                mSoftwareVertexAnimVertexData = mSubMesh->vertexData[VpNormal]->clone(false);
                 mParentEntity->extractTempBufferInfo(mSoftwareVertexAnimVertexData, &mTempVertexAnimInfo);
 
                 // Also clone for hardware usage, don't remove blend info since we'll
                 // need it if we also hardware skeletally animate
-                mHardwareVertexAnimVertexData = mSubMesh->vertexData->clone(false);
+                mHardwareVertexAnimVertexData = mSubMesh->vertexData[VpNormal]->clone(false);
             }
 
             if (mParentEntity->hasSkeleton())
@@ -335,7 +308,7 @@ namespace Ogre {
                 // Clone without copying data, remove blending info
                 // (since blend is performed in software)
                 mSkelAnimVertexData = 
-                    mParentEntity->cloneVertexDataRemoveBlendInfo(mSubMesh->vertexData);
+                    mParentEntity->cloneVertexDataRemoveBlendInfo(mSubMesh->vertexData[VpNormal]);
                 mParentEntity->extractTempBufferInfo(mSkelAnimVertexData, &mTempSkelAnimInfo);
 
             }
@@ -434,9 +407,9 @@ namespace Ogre {
             // Note, VES_POSITION is specified here but if normals are included in animation
             // then these will be re-bound too (buffers must be shared)
             const VertexElement* srcPosElem = 
-                mSubMesh->vertexData->vertexDeclaration->findElementBySemantic(VES_POSITION);
+                mSubMesh->vertexData[VpNormal]->vertexDeclaration->findElementBySemantic(VES_POSITION);
             HardwareVertexBufferSharedPtr srcBuf = 
-                mSubMesh->vertexData->vertexBufferBinding->getBuffer(
+                mSubMesh->vertexData[VpNormal]->vertexBufferBinding->getBuffer(
                 srcPosElem->getSource());
 
             // Bind to software
@@ -454,8 +427,9 @@ namespace Ogre {
             && mSubMesh->getVertexAnimationType() == VAT_POSE)
         {
             mParentEntity->bindMissingHardwarePoseBuffers(
-                mSubMesh->vertexData, mHardwareVertexAnimVertexData);
+                mSubMesh->vertexData[VpNormal], mHardwareVertexAnimVertexData);
         }
 
     }
+}
 }

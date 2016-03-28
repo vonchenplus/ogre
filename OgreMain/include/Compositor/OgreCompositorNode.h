@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 #include "Compositor/OgreCompositorCommon.h"
 #include "Compositor/OgreCompositorChannel.h"
+#include "OgreResourceTransition.h"
 #include "OgreIdString.h"
 #include "OgreId.h"
 
@@ -45,6 +46,8 @@ namespace Ogre
     /** \addtogroup Effects
     *  @{
     */
+
+    struct BoundUav;
 
     /** Compositor nodes are the core subject of compositing.
         This is an instantiation. All const, shared parameters are in the definition
@@ -126,12 +129,12 @@ namespace Ogre
         */
         void disconnectOutput();
 
-        /** Called right after we create a PASS_SCENE pass. Derived
+        /** Called right after we create a pass. Derived
             classes may want to do something with it
         @param pass
             Newly created pass to toy with.
         */
-        virtual void postInitializePassScene( CompositorPassScene *pass ) {}
+        virtual void postInitializePass( CompositorPass *pass ) {}
 
     public:
         /** The Id must be unique across all engine so we can create unique named textures.
@@ -144,6 +147,8 @@ namespace Ogre
 
         IdString getName(void) const                                { return mName; }
         const CompositorNodeDef* getDefinition() const              { return mDefinition; }
+
+        RenderSystem* getRenderSystem(void) const                   { return mRenderSystem; }
 
         /** Enables or disables all instances of this node
         @remarks
@@ -203,6 +208,8 @@ namespace Ogre
         */
         TexturePtr getDefinedTexture( IdString textureName, size_t mrtIndex ) const;
 
+        const CompositorChannel* _getDefinedTexture( IdString textureName ) const;
+
         /** Creates all passes based on our definition
         @remarks
             Call this function after connecting all channels (at least our input)
@@ -220,6 +227,20 @@ namespace Ogre
             used for syncing shadow mapping).
         */
         void _update( const Camera *lodCamera, SceneManager *sceneManager );
+
+        static void fillResourcesLayout( ResourceLayoutMap &outResourcesLayout,
+                                         const CompositorChannelVec &compositorChannels,
+                                         ResourceLayout::Layout layout );
+
+        /// @see CompositorPass::_placeBarriersAndEmulateUavExecution
+        void _placeBarriersAndEmulateUavExecution( BoundUav boundUavs[64],
+                                                   ResourceAccessMap &uavsAccess,
+                                                   ResourceLayoutMap &resourcesLayout );
+
+        /// Places a resource transition in our last pass to the given RenderTarget.
+        /// Usually needed to ensure the final 'RenderWindow' is still a RenderTarget
+        /// after the workspace is finished.
+        void _setFinalTargetAsRenderTarget( ResourceLayoutMap::iterator finalTargetCurrentLayout );
 
         /** Call this function when you're replacing the textures from oldChannel with the
             ones in newChannel. Useful when recreating textures (i.e. resolution changed)
@@ -255,6 +276,12 @@ namespace Ogre
             resolution.
         */
         virtual void finalTargetResized( const RenderTarget *finalTarget );
+
+        /// @copydoc CompositorWorkspace::resetAllNumPassesLeft
+        void resetAllNumPassesLeft(void);
+
+        /// @copydoc CompositorPassDef::getPassNumber
+        size_t getPassNumber( CompositorPass *pass ) const;
 
         /// Returns our parent workspace
         CompositorWorkspace* getWorkspace(void)                     { return mWorkspace; }

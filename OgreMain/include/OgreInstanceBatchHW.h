@@ -32,6 +32,8 @@ THE SOFTWARE.
 
 namespace Ogre
 {
+namespace v1
+{
     /** \addtogroup Core
     *  @{
     */
@@ -92,13 +94,14 @@ namespace Ogre
             per unit basis and finally updated the vertex buffer */
         virtual void _updateRenderQueue( RenderQueue* queue, Camera *camera, const Camera *lodCamera );
 
-        virtual void instanceBatchCullFrustumThreaded( const Frustum *frustum,
+        virtual void instanceBatchCullFrustumThreaded( const Camera *frustum,
                                                        const Camera *lodCamera,
                                                         uint32 combinedVisibilityFlags )
         {
             instanceBatchCullFrustumThreadedImpl( frustum, lodCamera, combinedVisibilityFlags );
         }
     };
+}
 }
 
 #endif

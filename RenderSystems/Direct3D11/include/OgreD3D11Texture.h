@@ -40,7 +40,7 @@ THE SOFTWARE.
 #endif
 
 namespace Ogre {
-    class D3D11Texture : public Texture
+    class _OgreD3D11Export D3D11Texture : public Texture
     {
 	public:
 		/// constructor 
@@ -57,11 +57,11 @@ namespace Ogre {
 
 
 		/// @copydoc Texture::getBuffer
-		HardwarePixelBufferSharedPtr getBuffer(size_t face, size_t mipmap);
+        v1::HardwarePixelBufferSharedPtr getBuffer(size_t face, size_t mipmap);
 
 		ID3D11Resource *getTextureResource() { assert(mpTex); return mpTex; }
 		/// retrieves a pointer to the actual texture
-		ID3D11ShaderResourceView *getTexture() { assert(mpShaderResourceView); return mpShaderResourceView; }
+        ID3D11ShaderResourceView *getTexture();
 		D3D11_SHADER_RESOURCE_VIEW_DESC getShaderResourceViewDesc() const { return mSRVDesc; }
 
 		ID3D11Texture1D * GetTex1D() { return mp1DTex; };
@@ -124,7 +124,7 @@ namespace Ogre {
         // Dynamic textures?
         bool                            mDynamicTextures;
         /// Vector of pointers to subsurfaces
-        typedef vector<HardwarePixelBufferSharedPtr>::type SurfaceList;
+        typedef vector<v1::HardwarePixelBufferSharedPtr>::type SurfaceList;
         SurfaceList                     mSurfaceList;
 
         D3D11_SHADER_RESOURCE_VIEW_DESC mSRVDesc;
@@ -157,10 +157,11 @@ namespace Ogre {
         /// internal method, the cube map face name for the spec. face index
 		String _getCubeFaceName(unsigned char face) const { assert(face < 6); return mCubeFaceNames[face]; }
 
+        virtual void _autogenerateMipmaps(void);
+
         /// internal method, create D3D11HardwarePixelBuffers for every face and
         /// mipmap level. This method must be called after the D3D texture object was created
         void _createSurfaceList(void);
-
 
         /// @copydoc Resource::prepareImpl
         void prepareImpl(void);
@@ -182,16 +183,16 @@ namespace Ogre {
     };
 
     /// RenderTexture implementation for D3D11
-    class D3D11RenderTexture : public RenderTexture
+    class _OgreD3D11Export D3D11RenderTexture : public RenderTexture
     {
         D3D11Device & mDevice;
         ID3D11RenderTargetView * mRenderTargetView;
-        ID3D11DepthStencilView * mDepthStencilView;
     public:
-        D3D11RenderTexture(const String &name, D3D11HardwarePixelBuffer *buffer, D3D11Device & device );
+        D3D11RenderTexture( const String &name, v1::D3D11HardwarePixelBuffer *buffer,
+                            bool writeGamma, D3D11Device & device );
         virtual ~D3D11RenderTexture();
 
-        void rebind(D3D11HardwarePixelBuffer *buffer);
+        void rebind(v1::D3D11HardwarePixelBuffer *buffer);
 
         virtual void getCustomAttribute( const String& name, void *pData );
 

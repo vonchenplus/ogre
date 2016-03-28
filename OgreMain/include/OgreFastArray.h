@@ -115,8 +115,7 @@ namespace Ogre
             mData = (T*)::operator new( mSize * sizeof(T) );
             for( size_t i=0; i<mSize; ++i )
             {
-                new (&mData[i]) T();
-                mData[i] = copy.mData[i];
+                new (&mData[i]) T( copy.mData[i] );
             }
         }
 
@@ -134,8 +133,7 @@ namespace Ogre
                 mData = (T*)::operator new( mSize * sizeof(T) );
                 for( size_t i=0; i<mSize; ++i )
                 {
-                    new (&mData[i]) T();
-                    mData[i] = copy.mData[i];
+                    new (&mData[i]) T( copy.mData[i] );
                 }
             }
         }
@@ -156,8 +154,7 @@ namespace Ogre
             mData = (T*)::operator new( count * sizeof(T) );
             for( size_t i=0; i<count; ++i )
             {
-                new (&mData[i]) T();
-                mData[i] = value;
+                new (&mData[i]) T( value );
             }
         }
 
@@ -174,8 +171,7 @@ namespace Ogre
         void push_back( const T& val )
         {
             growToFit( 1 );
-            new (&mData[mSize]) T();
-            mData[mSize] = val;
+            new (&mData[mSize]) T( val );
             ++mSize;
         }
 
@@ -193,9 +189,26 @@ namespace Ogre
             growToFit( 1 );
 
             memmove( mData + idx + 1, mData + idx, (mSize - idx) *  sizeof(T) );
-            new (&mData[idx]) T();
-            mData[idx] = val;
+            new (&mData[idx]) T( val );
             ++mSize;
+
+            return mData + idx;
+        }
+
+        /// otherBegin & otherEnd must not overlap with this->begin() and this->end()
+        iterator insertPOD( iterator where, const_iterator otherBegin, const_iterator otherEnd )
+        {
+            size_t idx = (where - mData);
+
+            const size_t otherSize = otherEnd - otherBegin;
+
+            growToFit( otherSize );
+
+            memmove( mData + idx + otherSize, mData + idx, (mSize - idx) *  sizeof(T) );
+
+            while( otherBegin != otherEnd )
+                *where++ = *otherBegin++;
+            mSize += otherSize;
 
             return mData + idx;
         }
@@ -214,6 +227,35 @@ namespace Ogre
             toErase->~T();
             memmove( mData + idx, mData + idx + 1, (mSize - idx - 1) * sizeof(T) );
             --mSize;
+
+            return mData + idx;
+        }
+
+        iterator erase( iterator first, iterator last )
+        {
+            assert( first <= last && last <= end() );
+
+            size_t idx      = (first - mData);
+            size_t idxNext  = (last - mData);
+            while( first != last )
+            {
+                first->~T();
+                ++first;
+            }
+            memmove( mData + idx, mData + idxNext, (mSize - idxNext) * sizeof(T) );
+            mSize -= idxNext - idx;
+
+            return mData + idx;
+        }
+
+        iterator erasePOD( iterator first, iterator last )
+        {
+            assert( first <= last && last <= end() );
+
+            size_t idx      = (first - mData);
+            size_t idxNext  = (last - mData);
+            memmove( mData + idx, mData + idxNext, (mSize - idxNext) * sizeof(T) );
+            mSize -= idxNext - idx;
 
             return mData + idx;
         }
@@ -248,8 +290,7 @@ namespace Ogre
                 growToFit( newSize - mSize );
                 for( size_t i=mSize; i<newSize; ++i )
                 {
-                    new (&mData[i]) T();
-                    mData[i] = value;
+                    new (&mData[i]) T( value );
                 }
             }
 

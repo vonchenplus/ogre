@@ -32,6 +32,7 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreGL3PlusRenderSystem.h"
 
 namespace Ogre {
+namespace v1 {
     GL3PlusHardwareUniformBuffer::GL3PlusHardwareUniformBuffer(
         HardwareBufferManagerBase* mgr,
         size_t bufferSize,
@@ -85,6 +86,10 @@ namespace Ogre {
         // Use glMapBuffer
         OGRE_CHECK_GL_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, mBufferId));
 
+        assert( ((mUsage & HBU_WRITE_ONLY && options != HBL_NORMAL && options != HBL_READ_ONLY) ||
+                !(mUsage & HBU_WRITE_ONLY)) &&
+                "Reading from a write-only buffer! Create the buffer without HBL_WRITE_ONLY bit" );
+
         if (mUsage & HBU_WRITE_ONLY)
         {
             access |= GL_MAP_WRITE_BIT;
@@ -100,7 +105,8 @@ namespace Ogre {
         else
             access |= GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
 
-        access |= GL_MAP_UNSYNCHRONIZED_BIT;
+        if( options == HBL_NO_OVERWRITE )
+            access |= GL_MAP_UNSYNCHRONIZED_BIT;
 
         void* pBuffer = 0;
         OGRE_CHECK_GL_ERROR(pBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, offset, length, access));
@@ -206,4 +212,5 @@ namespace Ogre {
     // {
         
     // }
+}
 }

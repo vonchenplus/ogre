@@ -72,6 +72,8 @@ namespace Ogre
             NO_CORNERS,
             VIEW_SPACE_CORNERS,
             WORLD_SPACE_CORNERS,
+            WORLD_SPACE_CORNERS_CENTERED,
+            CAMERA_DIRECTION
         };
 
         /** Whether to use a full screen quad or triangle. (default: false). Note that you may not
@@ -87,6 +89,7 @@ namespace Ogre
         */
         bool    mIsResolve;
 
+        bool    mMaterialIsHlms;    /// If true, mMaterialName is an Hlms material
         String  mMaterialName;
 
         /** Type of frustum corners to pass in the quad normals.
@@ -100,6 +103,7 @@ namespace Ogre
             mParentNodeDef( parentNodeDef ),
             mUseQuad( false ),
             mIsResolve( false ),
+            mMaterialIsHlms( false ),
             mFrustumCorners( NO_CORNERS )
         {
         }
