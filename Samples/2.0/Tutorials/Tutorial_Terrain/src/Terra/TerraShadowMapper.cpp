@@ -64,12 +64,12 @@ namespace Ogre
         m_shadowMapTex = TextureManager::getSingleton().createManual(
                     "ShadowMap" + StringConverter::toString( id ),
                     Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-                    TEX_TYPE_2D, m_heightMapTex->getWidth(), m_heightMapTex->getHeight(), 1,
+                    TEX_TYPE_2D, m_heightMapTex->getWidth(), m_heightMapTex->getHeight(), 0,
                     PF_A2B10G10R10, TU_RENDERTARGET | TU_UAV );
 
-        CompositorChannel finalTarget;
-        finalTarget.target = m_shadowMapTex->getBuffer(0)->getRenderTarget();
-        finalTarget.textures.push_back( m_shadowMapTex );
+        CompositorChannelVec finalTarget( 1, CompositorChannel() );
+        finalTarget[0].target = m_shadowMapTex->getBuffer(0)->getRenderTarget();
+        finalTarget[0].textures.push_back( m_shadowMapTex );
         m_shadowWorkspace = m_compositorManager->addWorkspace( m_sceneManager, finalTarget, 0,
                                                                "Terra/ShadowGeneratorWorkspace", false );
 
@@ -152,6 +152,7 @@ namespace Ogre
         };
 
         Vector2 lightDir2d( Vector2(lightDir.x, lightDir.z).normalisedCopy() );
+        float heightDelta = lightDir.y;
 
         if( lightDir2d.squaredLength() < 1e-6f )
         {
@@ -184,12 +185,16 @@ namespace Ogre
             y1 *= fabsf( lightDir2d.y ) / fabsf( lightDir2d.x );
             heightOrWidth = height;
             widthOrHeight = width;
+
+            heightDelta *= 1.0f / fabsf( lightDir.x );
         }
         else
         {
             x1 *= fabsf( lightDir2d.x ) / fabsf( lightDir2d.y );
             heightOrWidth = width;
             widthOrHeight = height;
+
+            heightDelta *= 1.0f / fabsf( lightDir.z );
         }
 
         if( lightDir2d.x < 0 )
@@ -234,8 +239,16 @@ namespace Ogre
         };
         m_jobParamXYStep->setManualValue( xyStep, 2u );
 
-        m_jobParamHeightDelta->setManualValue( ( -lightDir.y * (xzDimensions.x / width) ) /
-                                               heightScale );
+        heightDelta = ( -heightDelta * (xzDimensions.x / width) ) / heightScale;
+        //Avoid sending +/- inf (which causes NaNs inside the shader).
+        //Values greater than 1.0 (or less than -1.0) are pointless anyway.
+        heightDelta = Ogre::max( -1.0f, Ogre::min( 1.0f, heightDelta ) );
+        m_jobParamHeightDelta->setManualValue( heightDelta );
+
+        //y0 is not needed anymore, and we need it to be either 0 or heightOrWidth for the
+        //algorithm to work correctly (depending on the sign of xyStep[1]). So do this now.
+        if( y0 >= y1 )
+            y0 = heightOrWidth;
 
         int32 *starts = startsBase;
 
@@ -307,5 +320,17 @@ namespace Ogre
         shaderParams.setDirty();
 
         m_shadowWorkspace->_update();
+    }
+    //-----------------------------------------------------------------------------------
+    void ShadowMapper::fillUavDataForCompositorChannel( CompositorChannel &outChannel,
+                                                        ResourceLayoutMap &outInitialLayouts,
+                                                        ResourceAccessMap &outInitialUavAccess ) const
+    {
+        outChannel.target = m_shadowMapTex->getBuffer(0)->getRenderTarget();
+        outChannel.textures.push_back( m_shadowMapTex );
+        outInitialLayouts.insert( m_shadowWorkspace->getResourcesLayout().begin(),
+                                  m_shadowWorkspace->getResourcesLayout().end() );
+        outInitialUavAccess.insert( m_shadowWorkspace->getUavsAccess().begin(),
+                                    m_shadowWorkspace->getUavsAccess().end() );
     }
 }
