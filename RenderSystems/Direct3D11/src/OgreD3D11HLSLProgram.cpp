@@ -1077,20 +1077,6 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void D3D11HLSLProgram::analizeMicrocode()
     {
-        // enum parameters
-        mInputVertexDeclaration.removeAllElements();
-
-        for (UINT i=0 ; i < mD3d11ShaderInputParameters.size() ; i++)
-        {
-            D3D11_SIGNATURE_PARAMETER_DESC  & paramDesc = mD3d11ShaderInputParameters[i];
-            mInputVertexDeclaration.addElement(
-                paramDesc.Register, 
-                -1, // we don't need the offset
-                VET_FLOAT1, // doesn't matter
-                D3D11Mappings::get(paramDesc.SemanticName),
-                paramDesc.SemanticIndex);
-        }
-
         UINT bufferCount = 0;
         UINT pointerCount = 0;
         UINT typeCount = 0;
@@ -1179,8 +1165,9 @@ namespace Ogre {
                                         newVar.name += "."; 
                                         newVar.name += mMemberTypeName[nameCount++].Name;
                                         newVar.size = mMemberTypeDesc[memberCount].Rows * mMemberTypeDesc[memberCount].Columns * 
-                                                                    (mMemberTypeDesc[memberCount].Type == D3D_SVT_FLOAT ||
-                                                                        mMemberTypeDesc[memberCount].Type == D3D_SVT_INT ? 4 : 1);
+                                                                    ((mMemberTypeDesc[memberCount].Type == D3D_SVT_FLOAT ||
+                                                                      mMemberTypeDesc[memberCount].Type == D3D_SVT_INT ||
+                                                                      mMemberTypeDesc[memberCount].Type == D3D_SVT_UINT) ? 4 : 1);
                                         newVar.startOffset = parentOffset + mMemberTypeDesc[memberCount].Offset;
                                         memberCount++;
                                         fixVariableNameFromCg(newVar);
@@ -1286,6 +1273,16 @@ namespace Ogre {
                 mFloatLogicalToPhysical->bufferSize += def.arraySize * def.elementSize;
                 mConstantDefs->floatBufferSize = mFloatLogicalToPhysical->bufferSize;
             }
+            else if( def.isUnsignedInt() )
+            {
+                def.physicalIndex = mUIntLogicalToPhysical->bufferSize;
+                OGRE_LOCK_MUTEX(mUIntLogicalToPhysical->mutex);
+                    mUIntLogicalToPhysical->map.insert(
+                    GpuLogicalIndexUseMap::value_type(paramIndex,
+                    GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, GPV_GLOBAL)));
+                mUIntLogicalToPhysical->bufferSize += def.arraySize * def.elementSize;
+                mConstantDefs->uintBufferSize = mUIntLogicalToPhysical->bufferSize;
+            }
             else
             {
                 def.physicalIndex = mIntLogicalToPhysical->bufferSize;
@@ -1375,7 +1372,8 @@ namespace Ogre {
         else
         {
             // Process params
-            if (varRefTypeDesc.Type == D3D_SVT_FLOAT || varRefTypeDesc.Type == D3D_SVT_INT || varRefTypeDesc.Type == D3D_SVT_BOOL)
+            if (varRefTypeDesc.Type == D3D_SVT_FLOAT || varRefTypeDesc.Type == D3D_SVT_INT ||
+                varRefTypeDesc.Type == D3D_SVT_UINT || varRefTypeDesc.Type == D3D_SVT_BOOL)
             {
                 GpuConstantDefinitionWithName def;
                 String * name = new String(prefix + paramName);
@@ -1413,6 +1411,23 @@ namespace Ogre {
                 break;
             case 4:
                 def.constType = GCT_INT4;
+                break;
+            } // columns
+            break;
+        case D3D10_SVT_UINT:
+            switch(d3dDesc.Columns)
+            {
+            case 1:
+                def.constType = GCT_UINT1;
+                break;
+            case 2:
+                def.constType = GCT_UINT2;
+                break;
+            case 3:
+                def.constType = GCT_UINT3;
+                break;
+            case 4:
+                def.constType = GCT_UINT4;
                 break;
             } // columns
             break;
@@ -1504,7 +1519,7 @@ namespace Ogre {
         , mErrorsInCompile(false), mConstantBuffer(NULL), mDevice(device)
         , mVertexShader(NULL), mConstantBufferSize(0)
         , mPixelShader(NULL),mGeometryShader(NULL), mHullShader(NULL), mDomainShader(NULL), mComputeShader(NULL)
-		, mColumnMajorMatrices(true), mEnableBackwardsCompatibility(false), shaderMacroSet(false), mInputVertexDeclaration(device)
+        , mColumnMajorMatrices(true), mEnableBackwardsCompatibility(false), shaderMacroSet(false)
     {
 #if SUPPORT_SM2_0_HLSL_SHADERS == 1
 		mEnableBackwardsCompatibility = true;
@@ -1933,37 +1948,24 @@ namespace Ogre {
         return it->second;
     }
     //-----------------------------------------------------------------------------
-    ID3D11InputLayout* D3D11HLSLProgram::getLayoutForVao( const VertexArrayObject *vao )
+    ID3D11InputLayout* D3D11HLSLProgram::getLayoutForPso( const VertexElement2VecVec &vertexElements )
     {
-        InputLayoutVaoBindVec::iterator itLayout = std::lower_bound(
-                    mInputLayoutVaoBind.begin(), mInputLayoutVaoBind.end(),
-                    InputLayoutVaoBind( vao->getVaoName(), 0 ) );
-
-        //Already cached.
-        if( itLayout != mInputLayoutVaoBind.end() && itLayout->vaoName == vao->getVaoName() )
-            return itLayout->inputLayout;
-
         size_t numShaderInputs = getNumInputs();
         size_t numShaderInputsFound = 0;
-
-        const VertexBufferPackedVec &vertexBuffers = vao->getVertexBuffers();
 
         size_t currDesc = 0;
         size_t uvCount = 0;
         size_t colourCount = 0;
-        D3D11_INPUT_ELEMENT_DESC inputDesc[128];
 
+        D3D11_INPUT_ELEMENT_DESC inputDesc[128];
         ZeroMemory( &inputDesc, sizeof(D3D11_INPUT_ELEMENT_DESC) * 128 );
 
-        for( size_t i=0; i<vao->getVertexBuffers().size(); ++i )
+        for( size_t i=0; i<vertexElements.size(); ++i )
         {
+            VertexElement2Vec::const_iterator it = vertexElements[i].begin();
+            VertexElement2Vec::const_iterator en = vertexElements[i].end();
+
             size_t bindAccumOffset = 0;
-
-            VertexBufferPacked *vertexBuffer = vertexBuffers[i];
-            const VertexElement2Vec &vertexElements = vertexBuffer->getVertexElements();
-
-            VertexElement2Vec::const_iterator it = vertexElements.begin();
-            VertexElement2Vec::const_iterator en = vertexElements.end();
 
             while( it != en )
             {
@@ -1973,7 +1975,7 @@ namespace Ogre {
                 {
                     inputDesc[currDesc].SemanticIndex = uvCount++;
                 }
-                else if( it->mSemantic == VES_TEXTURE_COORDINATES )
+                else if( it->mSemantic == VES_DIFFUSE )
                 {
                     inputDesc[currDesc].SemanticIndex = colourCount++;
                 }
@@ -1982,16 +1984,10 @@ namespace Ogre {
                 inputDesc[currDesc].InputSlot           = i;
                 inputDesc[currDesc].AlignedByteOffset   = bindAccumOffset;
 
-                /*if( binding.instancingDivisor == 0 );
-                {*/
-                    inputDesc[currDesc].InputSlotClass          = D3D11_INPUT_PER_VERTEX_DATA;
-                    inputDesc[currDesc].InstanceDataStepRate    = 0;
-                /*}
-                else
-                {
-                    inputDesc[currDesc].InputSlotClass          = D3D11_INPUT_PER_INSTANCE_DATA;
-                    inputDesc[currDesc].InstanceDataStepRate    = 1;
-                }*/
+                inputDesc[currDesc].InputSlotClass          = it->mInstancingStepRate == 0 ?
+                                                                    D3D11_INPUT_PER_VERTEX_DATA :
+                                                                    D3D11_INPUT_PER_INSTANCE_DATA;
+                inputDesc[currDesc].InstanceDataStepRate    = it->mInstancingStepRate;
 
                 bool bFound = false;
                 for( size_t j=0; j<numShaderInputs && !bFound; ++j )
@@ -2015,11 +2011,11 @@ namespace Ogre {
             }
         }
 
-        //Bind the draw ID. Must always be present
+        //Bind the draw ID, if present
         inputDesc[currDesc].SemanticName            = "DRAWID";
         inputDesc[currDesc].SemanticIndex           = 0;
         inputDesc[currDesc].Format                  = DXGI_FORMAT_R32_UINT;
-        inputDesc[currDesc].InputSlot               = vao->getVertexBuffers().size();
+        inputDesc[currDesc].InputSlot               = vertexElements.size();
         inputDesc[currDesc].AlignedByteOffset       = 0;
         inputDesc[currDesc].InputSlotClass          = D3D11_INPUT_PER_INSTANCE_DATA;
         inputDesc[currDesc].InstanceDataStepRate    = 1;
@@ -2059,8 +2055,9 @@ namespace Ogre {
         if( numShaderInputsFound < numShaderInputs )
         {
             OGRE_EXCEPT( Exception::ERR_RENDERINGAPI_ERROR,
-                         "Not all of the shader input semantics are set by the VertexArrayObject",
-                         "D3D11VertexDeclaration::getILayoutByShader");
+                         "The shader requires more input attributes/semantics than what the "
+                         "VertexArrayObject / v1::VertexDeclaration has to offer. You're "
+                         "missing a component", "D3D11HLSLProgram::getLayoutForPso" );
         }
 
         ID3D11DeviceN *d3dDevice = mDevice.get();
@@ -2081,10 +2078,8 @@ namespace Ogre {
 
             OGRE_EXCEPT_EX( Exception::ERR_RENDERINGAPI_ERROR, hr,
                             "Unable to create D3D11 input layout: " + errorDescription,
-                            "D3D11HLSLProgram::bindVao" );
+                            "D3D11HLSLProgram::getLayoutForPso" );
         }
-
-        mInputLayoutVaoBind.insert( itLayout, InputLayoutVaoBind( vao->getVaoName(), d3dInputLayout ) );
 
         return d3dInputLayout;
     }
@@ -2115,6 +2110,10 @@ namespace Ogre {
                         if(def.isFloat())
                         {
                             src = (void *)&(*(params->getFloatConstantList().begin() + def.physicalIndex));
+                        }
+                        else if( def.isUnsignedInt() )
+                        {
+                            src = (void *)&(*(params->getUnsignedIntConstantList().begin() + def.physicalIndex));
                         }
                         else
                         {
@@ -2161,6 +2160,10 @@ namespace Ogre {
                         if(def.isFloat())
                         {
                             src = (void *)&(*(params->getFloatConstantList().begin() + def.physicalIndex));
+                        }
+                        else if( def.isUnsignedInt() )
+                        {
+                            src = (void *)&(*(params->getUnsignedIntConstantList().begin() + def.physicalIndex));
                         }
                         else
                         {

@@ -44,6 +44,7 @@ namespace Ogre
     */
 
     struct BoundUav;
+    typedef vector<UavBufferPacked*>::type UavBufferPackedVec;
 
     /** A compositor workspace is the main interface to render into an RT, be it a RenderWindow or an
         RTT (Render Texture Target). Whereas Ogre 1.x needed you to set a Viewport in order to render
@@ -92,6 +93,7 @@ namespace Ogre
         CompositorNodeVec       mNodeSequence;
         CompositorShadowNodeVec mShadowNodes;
         CompositorChannelVec    mGlobalTextures;
+        CompositorNamedBufferVec mGlobalBuffers;
         Camera                  *mDefaultCamera; /// Could be null. @See CompositorManager2::addWorkspace
         SceneManager            *mSceneManager;
         RenderSystem            *mRenderSys;
@@ -103,6 +105,13 @@ namespace Ogre
         uint8                   mExecutionMask;
         uint8                   mViewportModifierMask;
         Vector4                 mViewportModifier;
+
+        UavBufferPackedVec      mExternalBuffers;
+
+        ResourceLayoutMap       mInitialResourcesLayout;
+        ResourceAccessMap       mInitialUavsAccess;
+        ResourceLayoutMap       mResourcesLayout;
+        ResourceAccessMap       mUavsAccess;
 
         /// Creates all the node instances from our definition
         void createAllNodes(void);
@@ -134,13 +143,18 @@ namespace Ogre
 
     public:
         CompositorWorkspace( IdType id, const CompositorWorkspaceDef *definition,
-                                const CompositorChannel &finalRenderTarget, SceneManager *sceneManager,
-                                Camera *defaultCam, RenderSystem *renderSys, bool bEnabled,
-                                uint8 executionMask, uint8 viewportModifierMask,
-                                const Vector4 &vpOffsetScale );
+                             const CompositorChannel &finalRenderTarget, SceneManager *sceneManager,
+                             Camera *defaultCam, RenderSystem *renderSys, bool bEnabled,
+                             uint8 executionMask, uint8 viewportModifierMask,
+                             const Vector4 &vpOffsetScale,
+                             const UavBufferPackedVec *uavBuffers,
+                             const ResourceLayoutMap* initialLayouts,
+                             const ResourceAccessMap* initialUavAccess );
         virtual ~CompositorWorkspace();
 
         const CompositorChannel& getGlobalTexture( IdString name ) const;
+
+        const CompositorNamedBufferVec& getGlobalBuffers(void) const    { return mGlobalBuffers; }
 
         /// Only valid workspaces can update without crashing
         bool isValid(void) const                            { return mValid; }
@@ -150,6 +164,9 @@ namespace Ogre
 
         void setListener( CompositorWorkspaceListener *listener )   { mListener = listener; }
         CompositorWorkspaceListener* getListener(void) const        { return mListener; }
+
+        const ResourceLayoutMap& getResourcesLayout(void) const     { return mResourcesLayout; }
+        const ResourceAccessMap& getUavsAccess(void) const          { return mUavsAccess; }
 
         /** Finds a node instance with the given aliased name
         @remarks
@@ -161,9 +178,11 @@ namespace Ogre
             it will not be created (default: false). @See findShadowNode
             When a Node has the same name of a Shadow Node, the Node takes precedence.
         @return
-            Null if not found. Valid pointer otherwise.
+            Regular version: Valid pointer. Throws exception if not found.
+            NoThrow version: Null if not found. Valid pointer otherwise.
         */
         CompositorNode* findNode( IdString aliasName, bool includeShadowNodes=false ) const;
+        CompositorNode* findNodeNoThrow( IdString aliasName, bool includeShadowNodes=false ) const;
 
         /** Destroys and recreates all nodes. TODO: Only revalidate nodes adjacent to those that
             were invalidated, to avoid recreating so many D3D/GL resources (local textures)
