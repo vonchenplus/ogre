@@ -188,14 +188,14 @@ namespace Ogre
                                                                     1, 1 ) );
         psParams->setNamedConstant( "vScale", vScale );
 
-        CompositorChannel finalTargetChannel;
-        finalTargetChannel.target = m_normalMapTex->getBuffer()->getRenderTarget();
-        finalTargetChannel.textures.push_back( m_normalMapTex );
+        CompositorChannelVec finalTargetChannels( 1, CompositorChannel() );
+        finalTargetChannels[0].target = m_normalMapTex->getBuffer()->getRenderTarget();
+        finalTargetChannels[0].textures.push_back( m_normalMapTex );
 
         Camera *dummyCamera = mManager->createCamera( "TerraDummyCamera" );
 
         CompositorWorkspace *workspace =
-                m_compositorManager->addWorkspace( mManager, finalTargetChannel, dummyCamera,
+                m_compositorManager->addWorkspace( mManager, finalTargetChannels, dummyCamera,
                                                    "Terra/GpuNormalMapperWorkspace", false );
         workspace->_beginUpdate( true );
         workspace->_update();
@@ -552,6 +552,11 @@ namespace Ogre
             itor->setDatablock( datablock );
             ++itor;
         }
+    }
+    //-----------------------------------------------------------------------------------
+    Ogre::TexturePtr Terra::_getShadowMapTex(void) const
+    {
+        return m_shadowMapper->getShadowMapTex();
     }
     //-----------------------------------------------------------------------------------
     const String& Terra::getMovableType(void) const

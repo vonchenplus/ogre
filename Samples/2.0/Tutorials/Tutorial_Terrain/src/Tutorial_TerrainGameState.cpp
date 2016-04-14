@@ -13,8 +13,16 @@
 #include "OgreRenderWindow.h"
 
 #include "Terra/Terra.h"
+#include "Terra/TerraShadowMapper.h"
 #include "OgreHlmsManager.h"
 #include "OgreHlms.h"
+#include "Compositor/OgreCompositorManager2.h"
+#include "Compositor/OgreCompositorWorkspace.h"
+
+#include "OgreTextureManager.h"
+#include "OgreTexture.h"
+#include "OgreHardwarePixelBuffer.h"
+#include "OgreRenderTexture.h"
 
 using namespace Demo;
 
@@ -22,9 +30,76 @@ namespace Demo
 {
     Tutorial_TerrainGameState::Tutorial_TerrainGameState( const Ogre::String &helpDescription ) :
         TutorialGameState( helpDescription ),
+        mTimeOfDay( Ogre::Math::PI * /*0.25f*/0.55f ),
+        mAzimuth( 0 ),
         mTerra( 0 ),
         mSunLight( 0 )
     {
+    }
+    //-----------------------------------------------------------------------------------
+    Ogre::CompositorWorkspace* Tutorial_TerrainGameState::setupCompositor()
+    {
+        // The first time this function gets called Terra is not initialized. This is a very possible
+        // scenario i.e. load a level without Terrain, but we still need a workspace to render.
+        //
+        // Thus we pass a PF_NULL texture to the workspace as a dud that barely consumes any
+        // memory (it consumes no GPU memory btw) by specifying PF_NULL. Alternatively you
+        // could use a different workspace (either defined in script or programmatically) that
+        // doesn't require specifying a second external texture. But using a dud is just simpler.
+        //
+        // The second time we get called, Terra will be initialized and we can pass the
+        // proper external texture filled with the UAV so Ogre can place the right
+        // barriers.
+        //
+        // Note: We *could* delay the creation of the workspace in this sample until Terra
+        // is initialized; instead of creating the workspace unnecessarily twice.
+        // However we're doing this on purpose to show how to deal with perfectly valid &
+        // very common scenarios.
+        using namespace Ogre;
+
+        Root *root = mGraphicsSystem->getRoot();
+        SceneManager *sceneManager = mGraphicsSystem->getSceneManager();
+        RenderWindow *renderWindow = mGraphicsSystem->getRenderWindow();
+        Camera *camera = mGraphicsSystem->getCamera();
+        CompositorManager2 *compositorManager = root->getCompositorManager2();
+
+        CompositorWorkspace *oldWorkspace = mGraphicsSystem->getCompositorWorkspace();
+        if( oldWorkspace )
+        {
+            TexturePtr terraShadowTex = oldWorkspace->getExternalRenderTargets()[1].textures.back();
+            if( terraShadowTex->getFormat() == PF_NULL )
+                TextureManager::getSingleton().remove( ResourcePtr( terraShadowTex ) );
+            compositorManager->removeWorkspace( oldWorkspace );
+        }
+
+        CompositorChannelVec externalChannels( 2 );
+        //Render window
+        externalChannels[0].target = renderWindow;
+
+        //Terra's Shadow texture
+        ResourceLayoutMap initialLayouts;
+        ResourceAccessMap initialUavAccess;
+        if( mTerra )
+        {
+            //Terra is initialized
+            const ShadowMapper *shadowMapper = mTerra->getShadowMapper();
+            shadowMapper->fillUavDataForCompositorChannel( externalChannels[1], initialLayouts,
+                                                           initialUavAccess );
+        }
+        else
+        {
+            //The texture is not available. Create a dummy dud using PF_NULL.
+            TexturePtr nullTex = TextureManager::getSingleton().createManual(
+                        "DummyNull", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                        TEX_TYPE_2D, 1, 1, 0, PF_NULL );
+            externalChannels[1].target = nullTex->getBuffer(0)->getRenderTarget();
+            externalChannels[1].textures.push_back( nullTex );
+        }
+
+        return compositorManager->addWorkspace( sceneManager, externalChannels, camera,
+                                                "Tutorial_TerrainWorkspace", true, -1,
+                                                (UavBufferPackedVec*)0, &initialLayouts,
+                                                &initialUavAccess );
     }
     //-----------------------------------------------------------------------------------
     void Tutorial_TerrainGameState::createScene01(void)
@@ -63,7 +138,7 @@ namespace Demo
         mSunLight->setDirection( Ogre::Vector3( -1, -1, -1 ).normalisedCopy() );
 
         mCameraController = new CameraController( mGraphicsSystem, false );
-        mGraphicsSystem->getCamera()->setFarClipDistance( 10000.0f );
+        mGraphicsSystem->getCamera()->setFarClipDistance( 100000.0f );
 
         TutorialGameState::createScene01();
     }
@@ -78,8 +153,61 @@ namespace Demo
     //-----------------------------------------------------------------------------------
     void Tutorial_TerrainGameState::update( float timeSinceLast )
     {
-		mTerra->update( mSunLight->getDerivedDirectionUpdated() );
+        static float accumTime = 0;
+        //mSunLight->setDirection( Ogre::Vector3( cosf( mTimeOfDay ), -sinf( mTimeOfDay ), -1.0 ).normalisedCopy() );
+        //mSunLight->setDirection( Ogre::Vector3( 0, -sinf( mTimeOfDay ), -1.0 ).normalisedCopy() );
+        mSunLight->setDirection( Ogre::Quaternion( Ogre::Radian(mAzimuth), Ogre::Vector3::UNIT_Y ) *
+                                 Ogre::Vector3( cosf( mTimeOfDay ), -sinf( mTimeOfDay ), 0.0 ).normalisedCopy() );
+        //mSunLight->setDirection( -Ogre::Vector3::UNIT_Y );
+
+        mTerra->update( mSunLight->getDerivedDirectionUpdated() );
 
         TutorialGameState::update( timeSinceLast );
+    }
+    //-----------------------------------------------------------------------------------
+    void Tutorial_TerrainGameState::generateDebugText( float timeSinceLast, Ogre::String &outText )
+    {
+        TutorialGameState::generateDebugText( timeSinceLast, outText );
+        outText += "\n+/- to change time of day. [";
+        outText += Ogre::StringConverter::toString( mTimeOfDay * 180.0f / Ogre::Math::PI ) + "]";
+        outText += "\n9/6 to change azimuth. [";
+        outText += Ogre::StringConverter::toString( mAzimuth * 180.0f / Ogre::Math::PI ) + "]";
+    }
+    //-----------------------------------------------------------------------------------
+    void Tutorial_TerrainGameState::keyReleased( const SDL_KeyboardEvent &arg )
+    {
+        if( (arg.keysym.mod & ~(KMOD_NUM|KMOD_CAPS)) != 0 )
+        {
+            TutorialGameState::keyReleased( arg );
+            return;
+        }
+
+        if( arg.keysym.scancode == SDL_SCANCODE_KP_PLUS )
+        {
+            mTimeOfDay += 0.1f;
+            mTimeOfDay = Ogre::min( mTimeOfDay, Ogre::Math::PI );
+        }
+        else if( arg.keysym.scancode == SDL_SCANCODE_MINUS ||
+                 arg.keysym.scancode == SDL_SCANCODE_KP_MINUS )
+        {
+            mTimeOfDay -= 0.1f;
+            mTimeOfDay = Ogre::max( mTimeOfDay, 0 );
+        }
+        else if( arg.keysym.scancode == SDL_SCANCODE_KP_9 )
+        {
+            mAzimuth += 0.1f;
+            mAzimuth = fmodf( mAzimuth, Ogre::Math::TWO_PI );
+        }
+        else if( arg.keysym.scancode == SDL_SCANCODE_KP_6 )
+        {
+            mAzimuth -= 0.1f;
+            mAzimuth = fmodf( mAzimuth, Ogre::Math::TWO_PI );
+            if( mAzimuth < 0 )
+                mAzimuth = Ogre::Math::TWO_PI - mAzimuth;
+        }
+        else
+        {
+            TutorialGameState::keyReleased( arg );
+        }
     }
 }
