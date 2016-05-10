@@ -1,4 +1,4 @@
-﻿/*
+/*
 -----------------------------------------------------------------------------
 This source file is part of OGRE
     (Object-oriented Graphics Rendering Engine)
@@ -276,9 +276,9 @@ namespace Ogre
         }
 
         //Set samplers.
-        if( !retVal->pixelShader.isNull() )
+        if( !retVal->pso.pixelShader.isNull() )
         {
-            GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
+            GpuProgramParametersSharedPtr psParams = retVal->pso.pixelShader->getDefaultParameters();
 
             int texUnit = 1; //Vertex shader consumes 1 slot with its tbuffer.
 
@@ -318,18 +318,18 @@ namespace Ogre
             }
         }
 
-        GpuProgramParametersSharedPtr vsParams = retVal->vertexShader->getDefaultParameters();
+        GpuProgramParametersSharedPtr vsParams = retVal->pso.vertexShader->getDefaultParameters();
         vsParams->setNamedConstant( "worldMatBuf", 0 );
 
         mListener->shaderCacheEntryCreated( mShaderProfile, retVal, passCache,
                                             mSetProperties, queuedRenderable );
 
-        mRenderSystem->_setProgramsFromHlms( retVal );
+        mRenderSystem->_setPipelineStateObject( &retVal->pso );
 
         mRenderSystem->bindGpuProgramParameters( GPT_VERTEX_PROGRAM, vsParams, GPV_ALL );
-        if( !retVal->pixelShader.isNull() )
+        if( !retVal->pso.pixelShader.isNull() )
         {
-            GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
+            GpuProgramParametersSharedPtr psParams = retVal->pso.pixelShader->getDefaultParameters();
             mRenderSystem->bindGpuProgramParameters( GPT_FRAGMENT_PROGRAM, psParams, GPV_ALL );
         }
 

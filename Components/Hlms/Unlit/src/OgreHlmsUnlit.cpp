@@ -131,9 +131,9 @@ namespace Ogre
         const HlmsUnlitDatablock *datablock = static_cast<const HlmsUnlitDatablock*>(
                                                 queuedRenderable.renderable->getDatablock() );
 
-        if( !retVal->pixelShader.isNull() )
+        if( !retVal->pso.pixelShader.isNull() )
         {
-            GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
+            GpuProgramParametersSharedPtr psParams = retVal->pso.pixelShader->getDefaultParameters();
 
             int texUnit = 2; //Vertex shader consumes 2 slots with its two tbuffers.
 
@@ -164,7 +164,7 @@ namespace Ogre
             }
         }
 
-        GpuProgramParametersSharedPtr vsParams = retVal->vertexShader->getDefaultParameters();
+        GpuProgramParametersSharedPtr vsParams = retVal->pso.vertexShader->getDefaultParameters();
         vsParams->setNamedConstant( "worldMatBuf", 0 );
         if( datablock->mNumEnabledAnimationMatrices )
             vsParams->setNamedConstant( "animationMatrixBuf", 1 );
@@ -172,12 +172,12 @@ namespace Ogre
         mListener->shaderCacheEntryCreated( mShaderProfile, retVal, passCache,
                                             mSetProperties, queuedRenderable );
 
-        mRenderSystem->_setProgramsFromHlms( retVal );
+        mRenderSystem->_setPipelineStateObject( &retVal->pso );
 
         mRenderSystem->bindGpuProgramParameters( GPT_VERTEX_PROGRAM, vsParams, GPV_ALL );
-        if( !retVal->pixelShader.isNull() )
+        if( !retVal->pso.pixelShader.isNull() )
         {
-            GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
+            GpuProgramParametersSharedPtr psParams = retVal->pso.pixelShader->getDefaultParameters();
             mRenderSystem->bindGpuProgramParameters( GPT_FRAGMENT_PROGRAM, psParams, GPV_ALL );
         }
 
@@ -427,23 +427,30 @@ namespace Ogre
         RenderTarget *renderTarget = sceneManager->getCurrentViewport()->getTarget();
         setProperty( HlmsBaseProp::ShadowUsesDepthTexture,
                      renderTarget->getForceDisableColourWrites() ? 1 : 0 );
+        setProperty( HlmsBaseProp::RenderDepthOnly,
+                     renderTarget->getForceDisableColourWrites() ? 1 : 0 );
 
         mListener->preparePassHash( shadowNode, casterPass, dualParaboloid, sceneManager, this );
 
-        assert( mPassCache.size() < 32768 );
-        HlmsPropertyVecVec::iterator it = std::find( mPassCache.begin(), mPassCache.end(),
-                                                     mSetProperties );
+        PassCache passCache;
+        passCache.passPso = getPassPsoForScene( sceneManager );
+        passCache.properties = mSetProperties;
+
+        assert( mPassCache.size() <= (size_t)HlmsBits::PassMask &&
+                "Too many passes combinations, we'll overflow the bits assigned in the hash!" );
+        PassCacheVec::iterator it = std::find( mPassCache.begin(), mPassCache.end(), passCache );
         if( it == mPassCache.end() )
         {
-            mPassCache.push_back( mSetProperties );
+            mPassCache.push_back( passCache );
             it = mPassCache.end() - 1;
         }
 
-        const uint32 hash = it - mPassCache.begin();
+        const uint32 hash = (it - mPassCache.begin()) << HlmsBits::PassShift;
 
         //Fill the buffers
-        HlmsCache retVal( hash, mType );
+        HlmsCache retVal( hash, mType, HlmsPso() );
         retVal.setProperties = mSetProperties;
+        retVal.pso.pass = passCache.passPso;
 
         Camera *camera = sceneManager->getCameraInProgress();
         Matrix4 viewMatrix = camera->getViewMatrix(true);

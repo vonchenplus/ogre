@@ -74,7 +74,9 @@ namespace Demo
             vpOffsetScale   = Ogre::Vector4( 0.0f, 0.0f, 0.5f, 1.0f );
             mEyeWorkspaces[0] = compositorManager->addWorkspace( mSceneManager, mRenderWindow,
                                                                  mEyeCameras[0], workspaceName,
-                                                                 true, -1,
+                                                                 true, -1, (Ogre::UavBufferPackedVec*)0,
+                                                                 (Ogre::ResourceLayoutMap*)0,
+                                                                 (Ogre::ResourceAccessMap*)0,
                                                                  vpOffsetScale,
                                                                  vpModifierMask,
                                                                  executionMask );
@@ -84,7 +86,9 @@ namespace Demo
             vpOffsetScale   = Ogre::Vector4( 0.5f, 0.0f, 0.5f, 1.0f );
             mEyeWorkspaces[1] = compositorManager->addWorkspace( mSceneManager, mRenderWindow,
                                                                  mEyeCameras[1], workspaceName,
-                                                                 true, -1,
+                                                                 true, -1, (Ogre::UavBufferPackedVec*)0,
+                                                                 (Ogre::ResourceLayoutMap*)0,
+                                                                 (Ogre::ResourceAccessMap*)0,
                                                                  vpOffsetScale,
                                                                  vpModifierMask,
                                                                  executionMask);
