@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "Vao/OgreNULLBufferInterface.h"
 #include "Vao/OgreNULLConstBufferPacked.h"
 #include "Vao/OgreNULLTexBufferPacked.h"
+#include "Vao/OgreNULLUavBufferPacked.h"
 #include "Vao/OgreNULLMultiSourceVertexBufferPool.h"
 #include "Vao/OgreNULLAsyncTicket.h"
 
@@ -191,6 +192,26 @@ namespace Ogre
     {
     }
     //-----------------------------------------------------------------------------------
+    UavBufferPacked* NULLVaoManager::createUavBufferImpl( size_t numElements, uint32 bytesPerElement,
+                                                          uint32 bindFlags,
+                                                          void *initialData, bool keepAsShadow )
+    {
+        NULLBufferInterface *bufferInterface = new NULLBufferInterface( 0 );
+        UavBufferPacked *retVal = OGRE_NEW NULLUavBufferPacked(
+                                                        0, numElements, bytesPerElement,
+                                                        bindFlags, initialData, keepAsShadow,
+                                                        this, bufferInterface );
+
+        if( initialData )
+            bufferInterface->_firstUpload( initialData, 0, numElements );
+
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void NULLVaoManager::destroyUavBufferImpl( UavBufferPacked *uavBuffer )
+    {
+    }
+    //-----------------------------------------------------------------------------------
     IndirectBufferPacked* NULLVaoManager::createIndirectBufferImpl( size_t sizeBytes,
                                                                        BufferType bufferType,
                                                                        void *initialData,
@@ -244,7 +265,7 @@ namespace Ogre
     VertexArrayObject* NULLVaoManager::createVertexArrayObjectImpl(
                                                             const VertexBufferPackedVec &vertexBuffers,
                                                             IndexBufferPacked *indexBuffer,
-                                                            v1::RenderOperation::OperationType opType )
+                                                            OperationType opType )
     {
         size_t idx = mVertexArrayObjects.size();
 
