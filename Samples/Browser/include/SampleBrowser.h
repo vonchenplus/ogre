@@ -1784,7 +1784,6 @@ protected:
 			mHiddenOverlays.clear();
 			mThumbs.clear();
 			mCarouselPlace = 0;
-            mWindow = 0;
 
 			SampleContext::shutdown();
 

@@ -913,6 +913,7 @@ namespace OgreBites
 
 			// remove window event listener before shutting down OIS
 			Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, this);
+            mWindow = 0;
 
 			shutdownInput();
 		}
