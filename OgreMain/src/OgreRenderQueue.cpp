@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "OgreSceneManager.h"
 #include "OgreMovableObject.h"
 #include "OgreSceneManagerEnumerator.h"
+#include "OgreHardwareBufferManager.h"
 #include "OgreTechnique.h"
 #include "OgreHlmsDatablock.h"
 #include "OgreHlmsManager.h"
@@ -46,7 +47,7 @@ THE SOFTWARE.
 #include "Vao/OgreIndirectBufferPacked.h"
 
 #include "CommandBuffer/OgreCommandBuffer.h"
-#include "CommandBuffer/OgreCbBlocks.h"
+#include "CommandBuffer/OgreCbPipelineStateObject.h"
 #include "CommandBuffer/OgreCbDrawCall.h"
 #include "CommandBuffer/OgreCbShaderBuffer.h"
 
@@ -55,7 +56,7 @@ namespace Ogre
 {
     AtomicScalar<uint32> v1::RenderOperation::MeshIndexId( 0 );
 
-    const HlmsCache c_dummyCache( 0, HLMS_MAX );
+    const HlmsCache c_dummyCache( 0, HLMS_MAX, HlmsPso() );
 
     const int RqBits::SubRqIdBits           = 3;
     const int RqBits::TransparencyBits      = 1;
@@ -85,8 +86,6 @@ namespace Ogre
         mSceneManager( sceneManager ),
         mVaoManager( vaoManager ),
         mLastWasCasterPass( false ),
-        mLastMacroblock( 0 ),
-        mLastBlendblock( 0 ),
         mLastVaoName( 0 ),
         mLastVertexData( 0 ),
         mLastIndexData( 0 ),
@@ -184,8 +183,6 @@ namespace Ogre
     void RenderQueue::clearState(void)
     {
         mLastWasCasterPass = false;
-        mLastMacroblock = 0;
-        mLastBlendblock = 0;
         mLastVaoName    = 0;
         mLastVertexData = 0;
         mLastIndexData  = 0;
@@ -356,6 +353,8 @@ namespace Ogre
             startIndirectDraw = indirectDraw;
         }
 
+        v1::HardwareBufferManager::getSingleton()._updateDirtyInputLayouts();
+
         for( size_t i=firstRq; i<lastRq; ++i )
         {
             QueuedRenderableArray &queuedRenderables = mRenderQueues[i].mQueuedRenderables;
@@ -449,8 +448,6 @@ namespace Ogre
                                  HlmsCache passCache[HLMS_MAX],
                                  const RenderQueueGroup &renderQueueGroup )
     {
-        HlmsMacroblock const *lastMacroblock = mLastMacroblock;
-        HlmsBlendblock const *lastBlendblock = mLastBlendblock;
         v1::VertexData const *lastVertexData = mLastVertexData;
         v1::IndexData const *lastIndexData = mLastIndexData;
         HlmsCache const *lastHlmsCache = &c_dummyCache;
@@ -473,18 +470,6 @@ namespace Ogre
             queuedRenderable.renderable->getRenderOperation(
                         op, casterPass & (datablock->getAlphaTest() == CMPF_ALWAYS_PASS) );
 
-            if( lastMacroblock != datablock->mMacroblock[casterPass] )
-            {
-                rs->_setHlmsMacroblock( datablock->mMacroblock[casterPass] );
-                lastMacroblock = datablock->mMacroblock[casterPass];
-            }
-
-            if( lastBlendblock != datablock->mBlendblock[casterPass] )
-            {
-                rs->_setHlmsBlendblock( datablock->mBlendblock[casterPass] );
-                lastBlendblock = datablock->mBlendblock[casterPass];
-            }
-
             if( lastVertexData != op.vertexData )
             {
                 lastVertexData = op.vertexData;
@@ -500,23 +485,25 @@ namespace Ogre
             const HlmsCache *hlmsCache = hlms->getMaterial( lastHlmsCache,
                                                             passCache[datablock->mType],
                                                             queuedRenderable,
-                                                            casterPass );
+                                                            op.vertexData->vertexDeclaration->
+                                                            getInputLayoutId(), casterPass );
             if( lastHlmsCacheHash != hlmsCache->hash )
             {
-                rs->_setProgramsFromHlms( hlmsCache );
+                rs->_setPipelineStateObject( &hlmsCache->pso );
                 lastHlmsCache = hlmsCache;
             }
 
             lastTextureHash = hlms->fillBuffersFor( hlmsCache, queuedRenderable, casterPass,
                                                     lastHlmsCacheHash, lastTextureHash );
 
+            const v1::CbRenderOp cmd( op );
+            rs->_setRenderOperation( &cmd );
+
             rs->_render( op );
 
             ++itor;
         }
 
-        mLastMacroblock     = lastMacroblock;
-        mLastBlendblock     = lastBlendblock;
         mLastVertexData     = lastVertexData;
         mLastIndexData      = lastIndexData;
         mLastTextureHash    = lastTextureHash;
@@ -528,8 +515,6 @@ namespace Ogre
                                            unsigned char *indirectDraw,
                                            unsigned char *startIndirectDraw )
     {
-        HlmsMacroblock const *lastMacroblock = mLastMacroblock;
-        HlmsBlendblock const *lastBlendblock = mLastBlendblock;
         VertexArrayObject *lastVao = 0;
         uint32 lastVaoName = mLastVaoName;
         HlmsCache const *lastHlmsCache = &c_dummyCache;
@@ -557,31 +542,18 @@ namespace Ogre
             VertexArrayObject *vao = vaos[meshLod];
             const HlmsDatablock *datablock = queuedRenderable.renderable->getDatablock();
 
-            if( lastMacroblock != datablock->mMacroblock[casterPass] )
-            {
-                CbMacroblock *blockCmd = mCommandBuffer->addCommand<CbMacroblock>();
-                *blockCmd = CbMacroblock( datablock->mMacroblock[casterPass] );
-                lastMacroblock = datablock->mMacroblock[casterPass];
-            }
-
-            if( lastBlendblock != datablock->mBlendblock[casterPass] )
-            {
-                CbBlendblock *blockCmd = mCommandBuffer->addCommand<CbBlendblock>();
-                *blockCmd = CbBlendblock( datablock->mBlendblock[casterPass] );
-                lastBlendblock = datablock->mBlendblock[casterPass];
-            }
-
             Hlms *hlms = mHlmsManager->getHlms( static_cast<HlmsTypes>( datablock->mType ) );
 
             lastHlmsCacheHash = lastHlmsCache->hash;
             const HlmsCache *hlmsCache = hlms->getMaterial( lastHlmsCache,
                                                             passCache[datablock->mType],
                                                             queuedRenderable,
+                                                            vao->getInputLayoutId(),
                                                             casterPass );
             if( lastHlmsCacheHash != hlmsCache->hash )
             {
-                CbHlmsCache *hlmsCacheCmd = mCommandBuffer->addCommand<CbHlmsCache>();
-                *hlmsCacheCmd = CbHlmsCache( hlmsCache );
+                CbPipelineStateObject *psoCmd = mCommandBuffer->addCommand<CbPipelineStateObject>();
+                *psoCmd = CbPipelineStateObject( &hlmsCache->pso );
                 lastHlmsCache = hlmsCache;
 
                 //Flush the Vao when changing shaders. Needed by D3D11/12 & possibly Vulkan
@@ -671,8 +643,6 @@ namespace Ogre
             ++itor;
         }
 
-        mLastMacroblock     = lastMacroblock;
-        mLastBlendblock     = lastBlendblock;
         mLastVaoName        = lastVaoName;
         mLastVertexData     = 0;
         mLastIndexData      = 0;
@@ -685,8 +655,6 @@ namespace Ogre
                                    HlmsCache passCache[],
                                    const RenderQueueGroup &renderQueueGroup )
     {
-        HlmsMacroblock const *lastMacroblock = mLastMacroblock;
-        HlmsBlendblock const *lastBlendblock = mLastBlendblock;
         v1::RenderOperation lastRenderOp;
         HlmsCache const *lastHlmsCache = &c_dummyCache;
         uint32 lastHlmsCacheHash = 0;
@@ -710,31 +678,18 @@ namespace Ogre
             queuedRenderable.renderable->getRenderOperation(
                         renderOp, casterPass & (datablock->getAlphaTest() == CMPF_ALWAYS_PASS) );
 
-            if( lastMacroblock != datablock->mMacroblock[casterPass] )
-            {
-                CbMacroblock *blockCmd = mCommandBuffer->addCommand<CbMacroblock>();
-                *blockCmd = CbMacroblock( datablock->mMacroblock[casterPass] );
-                lastMacroblock = datablock->mMacroblock[casterPass];
-            }
-
-            if( lastBlendblock != datablock->mBlendblock[casterPass] )
-            {
-                CbBlendblock *blockCmd = mCommandBuffer->addCommand<CbBlendblock>();
-                *blockCmd = CbBlendblock( datablock->mBlendblock[casterPass] );
-                lastBlendblock = datablock->mBlendblock[casterPass];
-            }
-
             Hlms *hlms = mHlmsManager->getHlms( static_cast<HlmsTypes>( datablock->mType ) );
 
             lastHlmsCacheHash = lastHlmsCache->hash;
             const HlmsCache *hlmsCache = hlms->getMaterial( lastHlmsCache,
                                                             passCache[datablock->mType],
                                                             queuedRenderable,
-                                                            casterPass );
+                                                            renderOp.vertexData->vertexDeclaration->
+                                                            getInputLayoutId(), casterPass );
             if( lastHlmsCache != hlmsCache )
             {
-                CbHlmsCache *hlmsCacheCmd = mCommandBuffer->addCommand<CbHlmsCache>();
-                *hlmsCacheCmd = CbHlmsCache( hlmsCache );
+                CbPipelineStateObject *psoCmd = mCommandBuffer->addCommand<CbPipelineStateObject>();
+                *psoCmd = CbPipelineStateObject( &hlmsCache->pso );
                 lastHlmsCache = hlmsCache;
 
                 //Flush the RenderOp when changing shaders. Needed by D3D11/12 & possibly Vulkan
@@ -809,8 +764,6 @@ namespace Ogre
             ++itor;
         }
 
-        mLastMacroblock     = lastMacroblock;
-        mLastBlendblock     = lastBlendblock;
         mLastVaoName        = 0;
         mLastVertexData     = 0;
         mLastIndexData      = 0;
@@ -845,18 +798,6 @@ namespace Ogre
         /*uint32 hlmsHash = casterPass ? queuedRenderable.renderable->getHlmsCasterHash() :
                                        queuedRenderable.renderable->getHlmsHash();*/
 
-        if( mLastMacroblock != datablock->mMacroblock[casterPass] )
-        {
-            rs->_setHlmsMacroblock( datablock->mMacroblock[casterPass] );
-            mLastMacroblock = datablock->mMacroblock[casterPass];
-        }
-
-        if( mLastBlendblock != datablock->mBlendblock[casterPass] )
-        {
-            rs->_setHlmsBlendblock( datablock->mBlendblock[casterPass] );
-            mLastBlendblock = datablock->mBlendblock[casterPass];
-        }
-
         if( mLastVertexData != op.vertexData )
         {
             mLastVertexData = op.vertexData;
@@ -867,11 +808,16 @@ namespace Ogre
         }
 
         const HlmsCache *hlmsCache = hlms->getMaterial( &c_dummyCache, passCache,
-                                                        queuedRenderable, casterPass );
-        rs->_setProgramsFromHlms( hlmsCache );
+                                                        queuedRenderable,
+                                                        mLastVertexData->vertexDeclaration->
+                                                        getInputLayoutId(), casterPass );
+        rs->_setPipelineStateObject( &hlmsCache->pso );
 
         mLastTextureHash = hlms->fillBuffersFor( hlmsCache, queuedRenderable, casterPass,
                                                  0, mLastTextureHash );
+
+        const v1::CbRenderOp cmd( op );
+        rs->_setRenderOperation( &cmd );
 
         rs->_render( op );
 

@@ -29,47 +29,26 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 
 #include "CommandBuffer/OgreCommandBuffer.h"
-#include "CommandBuffer/OgreCbBlocks.h"
+#include "CommandBuffer/OgreCbLowLevelMaterial.h"
 
-#include "OgreRenderSystem.h"
+#include "OgreHlmsLowLevel.h"
 
 namespace Ogre
 {
-    CbMacroblock::CbMacroblock( const HlmsMacroblock *_block ) :
-        CbBase( CB_SET_MACROBLOCK ),
-        block( _block ),
-        reserved( 0 )
+    CbLowLevelMaterial::CbLowLevelMaterial( bool _casterPass, HlmsLowLevel *_hlmsLowLevel,
+                                            const MovableObject *_movableObject,
+                                            Renderable *_renderable ) :
+        CbBase( CB_LOW_LEVEL_MATERIAL ),
+        //casterPass( _casterPass ),
+        //hlmsLowLevel( _hlmsLowLevel ),
+        movableObject( _movableObject ),
+        renderable( _renderable )
     {
     }
 
-    void CommandBuffer::execute_setMacroblock( CommandBuffer *_this, const CbBase * RESTRICT_ALIAS _cmd )
+    void CommandBuffer::execute_lowLevelMaterial( CommandBuffer *_this, const CbBase * RESTRICT_ALIAS _cmd )
     {
-        const CbMacroblock *cmd = static_cast<const CbMacroblock*>( _cmd );
-        _this->mRenderSystem->_setHlmsMacroblock( cmd->block );
-    }
-
-    CbBlendblock::CbBlendblock( const HlmsBlendblock *_block ) :
-        CbBase( CB_SET_BLENDBLOCK ),
-        block( _block ),
-        reserved( 0 )
-    {
-    }
-
-    void CommandBuffer::execute_setBlendblock( CommandBuffer *_this, const CbBase * RESTRICT_ALIAS _cmd )
-    {
-        const CbBlendblock *cmd = static_cast<const CbBlendblock*>( _cmd );
-        _this->mRenderSystem->_setHlmsBlendblock( cmd->block );
-    }
-
-    CbHlmsCache::CbHlmsCache( const HlmsCache *_hlmsCache ) :
-        CbBase( CB_SET_HLMS_BLOCK ),
-        hlmsCache( _hlmsCache )
-    {
-    }
-
-    void CommandBuffer::execute_setHlmsCache( CommandBuffer *_this, const CbBase * RESTRICT_ALIAS _cmd )
-    {
-        const CbHlmsCache *cmd = static_cast<const CbHlmsCache*>( _cmd );
-        _this->mRenderSystem->_setProgramsFromHlms( cmd->hlmsCache );
+//        const CbLowLevelMaterial *cmd = static_cast<const CbLowLevelMaterial*>( _cmd );
+//        cmd->hlmsLowLevel->executeCommand( cmd->movableObject, cmd->renderable, cmd->casterPass );
     }
 }
