@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "Vao/OgreGL3PlusBufferInterface.h"
 #include "Vao/OgreGL3PlusConstBufferPacked.h"
 #include "Vao/OgreGL3PlusTexBufferPacked.h"
+#include "Vao/OgreGL3PlusUavBufferPacked.h"
 #include "Vao/OgreGL3PlusMultiSourceVertexBufferPool.h"
 #include "Vao/OgreGL3PlusDynamicBuffer.h"
 #include "Vao/OgreGL3PlusAsyncTicket.h"
@@ -74,7 +75,8 @@ namespace Ogre
     };
 
     GL3PlusVaoManager::GL3PlusVaoManager( bool _supportsArbBufferStorage,
-                                          bool _supportsIndirectBuffers ) :
+                                          bool _supportsIndirectBuffers,
+                                          bool _supportsSsbo ) :
         mArbBufferStorage( _supportsArbBufferStorage ),
         mDrawId( 0 )
     {
@@ -92,12 +94,22 @@ namespace Ogre
         mConstBufferAlignment = alignment;
         glGetIntegerv( GL_TEXTURE_BUFFER_OFFSET_ALIGNMENT, &alignment );
         mTexBufferAlignment = alignment;
+        if( _supportsSsbo )
+        {
+            glGetIntegerv( GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &alignment );
+            mUavBufferAlignment = alignment;
+        }
 
         GLint maxBufferSize;
         glGetIntegerv( GL_MAX_UNIFORM_BLOCK_SIZE, &maxBufferSize );
         mConstBufferMaxSize = static_cast<size_t>( maxBufferSize );
         glGetIntegerv( GL_MAX_TEXTURE_BUFFER_SIZE, &maxBufferSize );
         mTexBufferMaxSize = static_cast<size_t>( maxBufferSize );
+        if( _supportsSsbo )
+        {
+            glGetIntegerv( GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &maxBufferSize );
+            mUavBufferMaxSize = static_cast<size_t>( maxBufferSize );
+        }
 
         mSupportsPersistentMapping  = mArbBufferStorage;
         mSupportsIndirectBuffers    = _supportsIndirectBuffers;
@@ -588,6 +600,46 @@ namespace Ogre
                        texBuffer->getBufferType() );
     }
     //-----------------------------------------------------------------------------------
+    UavBufferPacked* GL3PlusVaoManager::createUavBufferImpl( size_t numElements, uint32 bytesPerElement,
+                                                             uint32 bindFlags,
+                                                             void *initialData, bool keepAsShadow )
+    {
+        size_t vboIdx;
+        size_t bufferOffset;
+
+        GLint alignment = mUavBufferAlignment;
+
+        const BufferType bufferType = BT_DEFAULT;
+        VboFlag vboFlag = bufferTypeToVboFlag( bufferType );
+
+        allocateVbo( numElements * bytesPerElement, alignment, bufferType, vboIdx, bufferOffset );
+
+        Vbo &vbo = mVbos[vboFlag][vboIdx];
+        GL3PlusBufferInterface *bufferInterface = new GL3PlusBufferInterface( vboIdx, vbo.vboName,
+                                                                              vbo.dynamicBuffer );
+        UavBufferPacked *retVal = OGRE_NEW GL3PlusUavBufferPacked(
+                                                        bufferOffset, numElements, bytesPerElement,
+                                                        bindFlags, initialData, keepAsShadow,
+                                                        this, bufferInterface );
+
+        if( initialData )
+            bufferInterface->_firstUpload( initialData, 0, numElements );
+
+        return retVal;
+    }
+    //-----------------------------------------------------------------------------------
+    void GL3PlusVaoManager::destroyUavBufferImpl( UavBufferPacked *uavBuffer )
+    {
+        GL3PlusBufferInterface *bufferInterface = static_cast<GL3PlusBufferInterface*>(
+                                                        uavBuffer->getBufferInterface() );
+
+
+        deallocateVbo( bufferInterface->getVboPoolIndex(),
+                       uavBuffer->_getInternalBufferStart() * uavBuffer->getBytesPerElement(),
+                       uavBuffer->getNumElements() * uavBuffer->getBytesPerElement(),
+                       uavBuffer->getBufferType() );
+    }
+    //-----------------------------------------------------------------------------------
     IndirectBufferPacked* GL3PlusVaoManager::createIndirectBufferImpl( size_t sizeBytes,
                                                                        BufferType bufferType,
                                                                        void *initialData,
@@ -785,7 +837,7 @@ namespace Ogre
     VertexArrayObject* GL3PlusVaoManager::createVertexArrayObjectImpl(
                                                             const VertexBufferPackedVec &vertexBuffers,
                                                             IndexBufferPacked *indexBuffer,
-                                                            v1::RenderOperation::OperationType opType )
+                                                            OperationType opType )
     {
         Vao vao;
 
