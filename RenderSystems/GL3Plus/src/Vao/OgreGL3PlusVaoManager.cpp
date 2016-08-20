@@ -91,7 +91,7 @@ namespace Ogre
         glGetIntegerv( GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment );
         mConstBufferAlignment = alignment;
         glGetIntegerv( GL_TEXTURE_BUFFER_OFFSET_ALIGNMENT, &alignment );
-        mTexBufferAlignment = alignment;
+        mTexBufferAlignment = std::max<uint32>( alignment, 16u );
 
         GLint maxBufferSize;
         glGetIntegerv( GL_MAX_UNIFORM_BLOCK_SIZE, &maxBufferSize );
@@ -205,8 +205,9 @@ namespace Ogre
 
                 //Round to next multiple of alignment
                 size_t newOffset = ( (block.offset + alignment - 1) / alignment ) * alignment;
+                size_t padding = newOffset - block.offset;
 
-                if( sizeBytes <= block.size - (newOffset - block.offset) )
+                if( sizeBytes + padding <= block.size )
                 {
                     bestVboIdx      = itor - mVbos[vboFlag].begin();
                     bestBlockIdx    = blockIt - itor->freeBlocks.begin();

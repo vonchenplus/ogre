@@ -58,6 +58,7 @@ namespace Ogre
                                         const HlmsParamVec &params ) :
         HlmsDatablock( name, creator, macroblock, blendblock, params ),
         mFresnelTypeSizeBytes( 4 ),
+        mTwoSided( false ),
         mUseAlphaFromTextures( true ),
         mWorkflow( SpecularWorkflow ),
         mTransparencyMode( None ),
@@ -270,11 +271,10 @@ namespace Ogre
         for( size_t i=0; i<NUM_PBSM_TEXTURE_TYPES; ++i )
             textures[i].samplerBlock = mSamplerblocks[i];
 
-        bakeTextures( textures );
-
-        calculateHash();
-
         creator->requestSlot( /*mTextureHash*/0, this, false );
+
+        bakeTextures( textures );
+        calculateHash();
     }
     //-----------------------------------------------------------------------------------
     HlmsPbsDatablock::~HlmsPbsDatablock()
@@ -308,11 +308,24 @@ namespace Ogre
             ++itor;
         }
 
-        if( mTextureHash != hash.mHash )
+        if( static_cast<HlmsPbs*>(mCreator)->getOptimizationStrategy() == HlmsPbs::LowerGpuOverhead )
         {
-            mTextureHash = hash.mHash;
-            static_cast<HlmsPbs*>(mCreator)->requestSlot( /*mTextureHash*/0, this, false );
+            const size_t poolIdx = static_cast<HlmsPbs*>(mCreator)->getPoolIndex( this );
+            const uint32 finalHash = (hash.mHash & 0xFFFFFE00) | (poolIdx & 0x000001FF);
+            mTextureHash = finalHash;
         }
+        else
+        {
+            const size_t poolIdx = static_cast<HlmsPbs*>(mCreator)->getPoolIndex( this );
+            const uint32 finalHash = (hash.mHash & 0xFFFFFFF0) | (poolIdx & 0x0000000F);
+            mTextureHash = finalHash;
+        }
+
+//        if( mTextureHash != finalHash )
+//        {
+//            mTextureHash = finalHash;
+//            static_cast<HlmsPbs*>(mCreator)->requestSlot( /*mTextureHash*/0, this, false );
+//        }
     }
     //-----------------------------------------------------------------------------------
     void HlmsPbsDatablock::scheduleConstBufferUpdate(void)
@@ -354,6 +367,11 @@ namespace Ogre
         mFresnelR = oldFresnelR;
         mFresnelG = oldFresnelG;
         mFresnelB = oldFresnelB;
+    }
+    //-----------------------------------------------------------------------------------
+    void HlmsPbsDatablock::notifyOptimizationStrategyChanged(void)
+    {
+        calculateHash();
     }
     //-----------------------------------------------------------------------------------
     void HlmsPbsDatablock::decompileBakedTextures( PbsBakedTexture outTextures[NUM_PBSM_TEXTURE_TYPES] )
@@ -420,7 +438,7 @@ namespace Ogre
             HlmsTextureManager::TEXTURE_TYPE_NORMALS,
             HlmsTextureManager::TEXTURE_TYPE_DIFFUSE,
             HlmsTextureManager::TEXTURE_TYPE_MONOCHROME,
-            HlmsTextureManager::TEXTURE_TYPE_DETAIL,
+            HlmsTextureManager::TEXTURE_TYPE_NON_COLOR_DATA,
             HlmsTextureManager::TEXTURE_TYPE_DETAIL,
             HlmsTextureManager::TEXTURE_TYPE_DETAIL,
             HlmsTextureManager::TEXTURE_TYPE_DETAIL,
@@ -820,6 +838,46 @@ namespace Ogre
         return mTexToBakedTextureIdx[texType];
     }
     //-----------------------------------------------------------------------------------
+    void HlmsPbsDatablock::setTwoSidedLighting( bool twoSided, bool changeMacroblock,
+                                                CullingMode oneSidedShadowCast )
+    {
+        mTwoSided = twoSided;
+
+        if( twoSided && changeMacroblock )
+        {
+            HlmsMacroblock macroblock = *mMacroblock[0];
+            macroblock.mCullMode = CULL_NONE;
+            setMacroblock( macroblock );
+
+            if( oneSidedShadowCast != CULL_NONE )
+            {
+                macroblock.mCullMode = oneSidedShadowCast;
+                setMacroblock( macroblock, true );
+            }
+        }
+
+        flushRenderables();
+    }
+    //-----------------------------------------------------------------------------------
+    bool HlmsPbsDatablock::getTwoSidedLighting(void) const
+    {
+        return mTwoSided;
+    }
+    //-----------------------------------------------------------------------------------
+    bool HlmsPbsDatablock::hasCustomShadowMacroblock(void) const
+    {
+        if( mTwoSided &&
+            (mMacroblock[0]->mCullMode != CULL_NONE ||
+             mMacroblock[1]->mCullMode != CULL_NONE) )
+        {
+            //Since we may have ignored what HlmsManager::setShadowMappingUseBackFaces
+            //says, we need to treat them as custom.
+            return true;
+        }
+
+        return HlmsDatablock::hasCustomShadowMacroblock();
+    }
+    //-----------------------------------------------------------------------------------
     void HlmsPbsDatablock::setAlphaTestThreshold( float threshold )
     {
         HlmsDatablock::setAlphaTestThreshold( threshold );
@@ -955,12 +1013,16 @@ namespace Ogre
         default:
         case PBSM_DIFFUSE:
         case PBSM_SPECULAR:
+			retVal = HlmsTextureManager::TEXTURE_TYPE_DIFFUSE;
+			break;
         case PBSM_DETAIL_WEIGHT:
+            retVal = HlmsTextureManager::TEXTURE_TYPE_NON_COLOR_DATA;
+			break;
         case PBSM_DETAIL0:
         case PBSM_DETAIL1:
         case PBSM_DETAIL2:
         case PBSM_DETAIL3:
-            retVal = HlmsTextureManager::TEXTURE_TYPE_DIFFUSE;
+            retVal = HlmsTextureManager::TEXTURE_TYPE_DETAIL;
             break;
 
         case PBSM_NORMAL:
