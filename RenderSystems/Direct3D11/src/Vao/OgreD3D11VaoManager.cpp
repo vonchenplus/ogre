@@ -200,8 +200,9 @@ namespace Ogre
 
                 //Round to next multiple of alignment
                 size_t newOffset = ( (block.offset + alignment - 1) / alignment ) * alignment;
+                size_t padding = newOffset - block.offset;
 
-                if( sizeBytes <= block.size - (newOffset - block.offset) )
+                if( sizeBytes + padding <= block.size )
                 {
                     bestVboIdx      = itor - mVbos[internalType][bufferType].begin();
                     bestBlockIdx    = blockIt - itor->freeBlocks.begin();
@@ -524,29 +525,37 @@ namespace Ogre
     //-----------------------------------------------------------------------------------
     void D3D11VaoManager::createDelayedImmutableBuffers(void)
     {
-        size_t totalBytes = 0;
+        bool immutableBuffersCreated = false;
 
         for( size_t i=0; i<NumInternalBufferTypes; ++i )
         {
-            BufferPackedVec::const_iterator itor = mDelayedBuffers[i].begin();
+            BufferPackedVec::const_iterator start = mDelayedBuffers[i].begin();
 
-            while( itor != mDelayedBuffers[i].end() )
+            while( start != mDelayedBuffers[i].end() )
             {
                 //Each iteration means a new pool
                 Vbo newVbo;
 
                 //Calculate the size for this pool
-                BufferPackedVec::const_iterator end = mDelayedBuffers[i].end();
+                BufferPackedVec::const_iterator itor = start;
+                BufferPackedVec::const_iterator end  = mDelayedBuffers[i].end();
+
+                size_t totalBytes = (*itor)->getTotalSizeBytes();
+                ++itor;
 
                 while( itor != end )
                 {
-                    totalBytes = alignToNextMultiple( totalBytes, (*itor)->getBytesPerElement() );
-                    totalBytes += (*itor)->getTotalSizeBytes();
-
                     if( totalBytes + (*itor)->getTotalSizeBytes() > mDefaultPoolSize[i][BT_IMMUTABLE] )
-                        end = itor + 1;
+                    {
+                        end = itor;
+                    }
+                    else
+                    {
+                        totalBytes = alignToNextMultiple( totalBytes, (*itor)->getBytesPerElement() );
+                        totalBytes += (*itor)->getTotalSizeBytes();
 
-                    ++itor;
+                        ++itor;
+                    }
                 }
 
                 uint8 *mergedData = reinterpret_cast<uint8*>(OGRE_MALLOC_SIMD( totalBytes,
@@ -554,7 +563,7 @@ namespace Ogre
                 size_t dstOffset = 0;
 
                 //Merge the binary data as a contiguous array
-                itor = mDelayedBuffers[i].begin();
+                itor = start;
                 while( itor != end )
                 {
                     D3D11BufferInterface *bufferInterface = static_cast<D3D11BufferInterface*>(
@@ -581,9 +590,6 @@ namespace Ogre
 
                     dstOffset += (*itor)->getTotalSizeBytes();
 
-                    if( totalBytes + (*itor)->getTotalSizeBytes() > mDefaultPoolSize[i][BT_IMMUTABLE] )
-                        end = itor + 1;
-
                     ++itor;
                 }
 
@@ -597,7 +603,7 @@ namespace Ogre
 
                 //Each buffer needs to be told about its new D3D11 object
                 //(and pool index & where it starts).
-                itor = mDelayedBuffers[i].begin();
+                itor = start;
                 while( itor != end )
                 {
                     D3D11BufferInterface *bufferInterface = static_cast<D3D11BufferInterface*>(
@@ -612,12 +618,15 @@ namespace Ogre
 
                 OGRE_FREE_SIMD( mergedData, MEMCATEGORY_GEOMETRY );
                 mergedData = 0;
+
+                start = end;
+                immutableBuffersCreated = true;
             }
         }
 
         //We've populated the Vertex & Index buffers with their GPU/API pointers. Now we need
         //to update the Vaos' internal structures that cache these GPU/API pointers.
-        if( totalBytes )
+        if( immutableBuffersCreated )
             reorganizeImmutableVaos();
 
         for( size_t i=0; i<NumInternalBufferTypes; ++i )
