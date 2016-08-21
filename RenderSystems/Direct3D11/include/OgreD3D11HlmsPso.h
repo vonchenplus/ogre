@@ -25,10 +25,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#ifndef _OgreGL3PlusHlmsMacroblock_H_
-#define _OgreGL3PlusHlmsMacroblock_H_
+#ifndef _OgreD3D11HlmsPso_H_
+#define _OgreD3D11HlmsPso_H_
 
-#include "OgreGL3PlusPrerequisites.h"
+#include "OgreD3D11Prerequisites.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -40,14 +40,22 @@ namespace Ogre
     *  @{
     */
 
-    /// @See HlmsMacroblock. We cache some conversion values here
-    /// to avoid doing it every time we set the macroblock
-    struct _OgreGL3PlusExport GL3PlusHlmsMacroblock
+    /// @See HlmsPso. We cache some conversion values here
+    /// to avoid doing it every time we set the Pso
+    struct _OgreD3D11Export D3D11HlmsPso
     {
-        GLboolean   mDepthWrite;
-        GLenum      mDepthFunc;
-        GLenum      mCullMode[2];
-        GLenum      mPolygonMode;
+        D3D11_PRIMITIVE_TOPOLOGY    topology;
+        ID3D11InputLayout           *inputLayout;
+        ID3D11DepthStencilState     *depthStencilState;
+
+        //Shader
+        D3D11HLSLProgram *vertexShader;
+        D3D11HLSLProgram *geometryShader;
+        D3D11HLSLProgram *hullShader;
+        D3D11HLSLProgram *domainShader;
+        D3D11HLSLProgram *pixelShader;
+
+        //~D3D11HlmsPso();
     };
 
     /** @} */
