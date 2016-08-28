@@ -270,7 +270,7 @@ namespace Ogre
         const HlmsCache *retVal = Hlms::createShaderCacheEntry( renderableHash, passCache, finalHash,
                                                                 queuedRenderable );
 
-        if( mShaderProfile == "hlsl" )
+        if( mShaderProfile == "hlsl" || mShaderProfile == "metal" )
         {
             mListener->shaderCacheEntryCreated( mShaderProfile, retVal, passCache,
                                                 mSetProperties, queuedRenderable );
@@ -278,9 +278,9 @@ namespace Ogre
         }
 
         //Set samplers.
-        if( !retVal->pixelShader.isNull() )
+        if( !retVal->pso.pixelShader.isNull() )
         {
-            GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
+            GpuProgramParametersSharedPtr psParams = retVal->pso.pixelShader->getDefaultParameters();
 
             int texUnit = 1; //Vertex shader consumes 1 slot with its tbuffer.
 
@@ -320,18 +320,18 @@ namespace Ogre
             }
         }
 
-        GpuProgramParametersSharedPtr vsParams = retVal->vertexShader->getDefaultParameters();
+        GpuProgramParametersSharedPtr vsParams = retVal->pso.vertexShader->getDefaultParameters();
         vsParams->setNamedConstant( "worldMatBuf", 0 );
 
         mListener->shaderCacheEntryCreated( mShaderProfile, retVal, passCache,
                                             mSetProperties, queuedRenderable );
 
-        mRenderSystem->_setProgramsFromHlms( retVal );
+        mRenderSystem->_setPipelineStateObject( &retVal->pso );
 
         mRenderSystem->bindGpuProgramParameters( GPT_VERTEX_PROGRAM, vsParams, GPV_ALL );
-        if( !retVal->pixelShader.isNull() )
+        if( !retVal->pso.pixelShader.isNull() )
         {
-            GpuProgramParametersSharedPtr psParams = retVal->pixelShader->getDefaultParameters();
+            GpuProgramParametersSharedPtr psParams = retVal->pso.pixelShader->getDefaultParameters();
             mRenderSystem->bindGpuProgramParameters( GPT_FRAGMENT_PROGRAM, psParams, GPV_ALL );
         }
 
@@ -828,9 +828,8 @@ namespace Ogre
 
         //mat4 viewProj;
         Matrix4 viewProjMatrix = projectionMatrix * viewMatrix;
-        Matrix4 tmp = viewProjMatrix.transpose();
         for( size_t i=0; i<16; ++i )
-            *passBufferPtr++ = (float)tmp[0][i];
+            *passBufferPtr++ = (float)viewProjMatrix[0][i];
 
         mPreparedPass.viewMatrix        = viewMatrix;
 
@@ -839,15 +838,13 @@ namespace Ogre
         if( !casterPass )
         {
             //mat4 view;
-            tmp = viewMatrix.transpose();
             for( size_t i=0; i<16; ++i )
-                *passBufferPtr++ = (float)tmp[0][i];
+                *passBufferPtr++ = (float)viewMatrix[0][i];
 
             for( int32 i=0; i<numShadowMaps; ++i )
             {
                 //mat4 shadowRcv[numShadowMaps].texViewProj
                 Matrix4 viewProjTex = shadowNode->getViewProjectionMatrix( i );
-                viewProjTex = viewProjTex.transpose();
                 for( size_t j=0; j<16; ++j )
                     *passBufferPtr++ = (float)viewProjTex[0][j];
 
