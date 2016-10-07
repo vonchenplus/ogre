@@ -61,6 +61,7 @@ namespace Ogre {
 		, mRQSequence(0)
 		, mMaterialSchemeName(MaterialManager::DEFAULT_SCHEME_NAME)
 		, mIsAutoUpdated(true)
+	, mColourBuffer(CBT_BACK)
     {			
 #if OGRE_COMPILER != OGRE_COMPILER_GCCE && OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
 		LogManager::getSingleton().stream(LML_TRIVIAL)
@@ -496,5 +497,15 @@ namespace Ogre {
 		if (i != mListeners.end())
 			mListeners.erase(i);
 	}
-
+	//-----------------------------------------------------------------------
+	void Viewport::setDrawBuffer(ColourBufferType colourBuffer)
+	{
+		mColourBuffer = colourBuffer;
+	}
+	//-----------------------------------------------------------------------
+	ColourBufferType Viewport::getDrawBuffer() const
+	{
+		return mColourBuffer;
+	}
+	//-----------------------------------------------------------------------
 }

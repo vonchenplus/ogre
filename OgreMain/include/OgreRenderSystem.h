@@ -1470,6 +1470,16 @@ namespace Ogre
         */
         virtual void markProfileEvent( const String &event ) = 0;
 
+        /**
+         * Sets the colour buffer that the render system will to draw. If the render system
+         * implementation or configuration does not support a particular value, then false will be
+         * returned and the current colour buffer value will not be modified.
+         *
+         * @param
+         *     colourBuffer Specifies the colour buffer that will be drawn into.
+         */
+        virtual bool setDrawBuffer(ColourBufferType colourBuffer) { return false; };
+
 	protected:
 
 		/** DepthBuffers to be attached to render targets */
