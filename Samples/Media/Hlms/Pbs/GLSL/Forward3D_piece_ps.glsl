@@ -54,7 +54,7 @@
 		if( fDistance <= attenuation.x )
 		{
 			lightDir *= 1.0 / fDistance;
-			float atten = 1.0 / (1.0 + (attenuation.y + attenuation.z * fDistance) * fDistance );
+			float atten = 1.0 / (0.5 + (attenuation.y + attenuation.z * fDistance) * fDistance );
 			@property( hlms_forward_fade_attenuation_range )
 				atten *= max( (attenuation.x - fDistance) * attenuation.w, 0.0f );
 			@end
@@ -65,6 +65,16 @@
 				vec3 tmpColour = BRDF( lightDir, viewDir, NdotV, lightDiffuse, lightSpecular );
 				finalColour += tmpColour * atten;
 			}
+			@property( hlms_instant_radiosity || 1 )
+			else if( posAndType.w == 3.0 )
+			{
+				vec3 lightDir2	= posAndType.xyz - inPs.pos;
+				//lightDir2 *= 1.0 / max( 1, fDistance );
+				//lightDir2 *= 1.0 / fDistance;
+
+				finalColour += BRDF_IR( lightDir2, lightDiffuse ) * atten;
+			}
+			@end
 			else
 			{
 				//spotParams.x = 1.0 / cos( InnerAngle ) - cos( OuterAngle )
