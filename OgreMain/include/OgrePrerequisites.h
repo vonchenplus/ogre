@@ -197,12 +197,16 @@ namespace Ogre {
     class Hlms;
     struct HlmsBlendblock;
     struct HlmsCache;
+    class HlmsCompute;
+    class HlmsComputeJob;
+    struct HlmsComputePso;
     class HlmsDatablock;
     class HlmsListener;
     class HlmsLowLevel;
     class HlmsLowLevelDatablock;
     struct HlmsMacroblock;
     class HlmsManager;
+    struct HlmsPso;
     struct HlmsSamplerblock;
     class HlmsTextureManager;
     struct HlmsTexturePack;
@@ -318,6 +322,7 @@ namespace Ogre {
     class TextureManager;
     struct Transform;
     class Timer;
+    class UavBufferPacked;
     class UserObjectBindings;
     class VaoManager;
     class Vector2;
@@ -327,6 +332,7 @@ namespace Ogre {
     class VertexAnimationTrack;
     struct VertexArrayObject;
     class VertexBufferPacked;
+    class WireAabb;
     class WireBoundingBox;
     class WorkQueue;
     class CompositorManager2;
