@@ -249,7 +249,7 @@ namespace Ogre
             if( mStencilBufferName )
             {
                 OCGE( glFramebufferRenderbuffer( target, GL_STENCIL_ATTACHMENT,
-                                                 GL_RENDERBUFFER, mDepthBufferName ) );
+                                                 GL_RENDERBUFFER, mStencilBufferName ) );
             }
         }
     }
