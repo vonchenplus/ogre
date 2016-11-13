@@ -47,13 +47,13 @@ PS_INPUT main( VS_INPUT input )
 	@end
 
 @property( !hlms_dual_paraboloid_mapping )
-	outVs.gl_Position = mul( @insertpiece( worldViewProj ), input.vertex );
+	outVs.gl_Position = mul( input.vertex, @insertpiece( worldViewProj ) );
 @end
 
 @property( hlms_dual_paraboloid_mapping )
 	//Dual Paraboloid Mapping
 	outVs.gl_Position.w		= 1.0f;
-	outVs.gl_Position.xyz	= mul( @insertpiece( worldViewProj ), input.vertex ).xyz;
+	outVs.gl_Position.xyz	= mul( input.vertex, @insertpiece( worldViewProj ) ).xyz;
 	float L = length( outVs.gl_Position.xyz );
 	outVs.gl_Position.z		+= 1.0f;
 	outVs.gl_Position.xy	/= outVs.gl_Position.z;
