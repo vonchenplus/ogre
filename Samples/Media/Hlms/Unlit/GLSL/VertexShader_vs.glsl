@@ -53,13 +53,13 @@ void main()
 	@end
 
 @property( !hlms_dual_paraboloid_mapping )
-	gl_Position = @insertpiece( worldViewProj ) * vertex;
+	gl_Position = vertex * @insertpiece( worldViewProj );
 @end
 
 @property( hlms_dual_paraboloid_mapping )
 	//Dual Paraboloid Mapping
 	gl_Position.w	= 1.0f;
-	gl_Position.xyz	= (@insertpiece( worldViewProj ) * vertex).xyz;
+	gl_Position.xyz	= (vertex * @insertpiece( worldViewProj )).xyz;
 	float L = length( gl_Position.xyz );
 	gl_Position.z	+= 1.0f;
 	gl_Position.xy	/= gl_Position.z;
